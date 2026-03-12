@@ -25,10 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${dmSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" className={`dark ${dmSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
