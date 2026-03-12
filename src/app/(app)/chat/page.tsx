@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useAction } from "convex/react";
 import { useState } from "react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { ChatInput } from "@/components/ChatInput";
-import { Dumbbell, BarChart3, Calendar, TrendingUp, Loader2 } from "lucide-react";
+import { BarChart3, Calendar, Dumbbell, Loader2, TrendingUp } from "lucide-react";
 
 const SUGGESTIONS = [
   {
@@ -52,12 +52,10 @@ export default function ChatPage() {
     <div className="flex h-full flex-col">
       <div className="flex flex-1 flex-col items-center justify-center px-4">
         <div className="mx-auto max-w-lg text-center">
-          <h1 className="text-2xl font-semibold text-foreground">
-            tonal.coach
-          </h1>
+          <h1 className="text-2xl font-semibold text-foreground">tonal.coach</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your AI personal trainer for Tonal. Ask me anything about your
-            training, strength scores, or let me program a workout for you.
+            Your AI personal trainer for Tonal. Ask me anything about your training, strength
+            scores, or let me program a workout for you.
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -84,11 +82,7 @@ export default function ChatPage() {
       </div>
 
       <div className="mx-auto w-full max-w-3xl">
-        <ChatInput
-          threadId={null}
-          onThreadCreated={handleThreadCreated}
-          disabled={sending}
-        />
+        <ChatInput threadId={null} onThreadCreated={handleThreadCreated} disabled={sending} />
       </div>
     </div>
   );
