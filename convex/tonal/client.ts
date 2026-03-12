@@ -1,0 +1,41 @@
+const TONAL_API_BASE = "https://api.tonal.com";
+
+export class TonalApiError extends Error {
+  constructor(
+    public status: number,
+    public body: string,
+  ) {
+    super(`Tonal API ${status}: ${body}`);
+    this.name = "TonalApiError";
+  }
+}
+
+export async function tonalFetch<T = unknown>(
+  token: string,
+  path: string,
+  options?: { method?: string; body?: unknown },
+): Promise<T> {
+  const res = await fetch(`${TONAL_API_BASE}${path}`, {
+    method: options?.method ?? "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (res.status === 401) {
+    throw new TonalApiError(401, "Token expired or invalid");
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText);
+    throw new TonalApiError(res.status, body);
+  }
+
+  return res.json() as Promise<T>;
+}
