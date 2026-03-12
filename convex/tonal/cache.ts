@@ -13,6 +13,16 @@ export const CACHE_TTLS: Record<string, number> = {
   strengthDistribution: 6 * 60 * 60 * 1000, // 6 hours
 };
 
+export const getUserProfile = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    return ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+  },
+});
+
 export const getCacheEntry = internalQuery({
   args: {
     userId: v.optional(v.id("users")),
