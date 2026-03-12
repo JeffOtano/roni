@@ -5,7 +5,7 @@ import { useAction } from "convex/react";
 import { useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { ChatInput } from "@/components/ChatInput";
-import { Dumbbell, BarChart3, Calendar, TrendingUp } from "lucide-react";
+import { Dumbbell, BarChart3, Calendar, TrendingUp, Loader2 } from "lucide-react";
 
 const SUGGESTIONS = [
   {
@@ -73,6 +73,13 @@ export default function ChatPage() {
               </button>
             ))}
           </div>
+
+          {sending && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              <span>Starting conversation...</span>
+            </div>
+          )}
         </div>
       </div>
 
