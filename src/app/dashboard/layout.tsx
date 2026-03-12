@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusBanner } from "@/components/StatusBanner";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -52,8 +53,9 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
+      <StatusBanner />
+      {/* Desktop header */}
+      <header className="hidden shrink-0 items-center justify-between border-b border-border px-4 py-2 sm:flex">
         <span className="text-sm font-semibold text-foreground">
           tonal.coach
         </span>
@@ -70,14 +72,38 @@ export default function DashboardLayout({
               render={<Link href={href} />}
             >
               <Icon className="size-3.5" />
-              <span className="hidden sm:inline">{label}</span>
+              <span>{label}</span>
             </Button>
           ))}
         </nav>
       </header>
 
+      {/* Mobile header */}
+      <header className="flex shrink-0 items-center border-b border-border px-4 py-2 sm:hidden">
+        <span className="text-sm font-semibold text-foreground">
+          tonal.coach
+        </span>
+      </header>
+
       {/* Main content */}
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto pb-16 sm:pb-0">{children}</main>
+
+      {/* Mobile bottom nav */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border bg-background py-2 sm:hidden">
+        {navLinks.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground transition-colors",
+              pathname === href && "text-foreground",
+            )}
+          >
+            <Icon className="size-5" />
+            <span className="text-[10px] font-medium">{label}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

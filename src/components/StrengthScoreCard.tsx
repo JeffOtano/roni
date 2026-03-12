@@ -105,7 +105,7 @@ export function StrengthScoreCard({
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {/* Overall — slightly larger */}
         <div className="relative flex flex-col items-center">
           <ProgressRing

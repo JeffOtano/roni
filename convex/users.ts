@@ -13,6 +13,11 @@ export const getMe = query({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
+    const tonalTokenExpired =
+      !!profile &&
+      typeof profile.tonalTokenExpiresAt === "number" &&
+      profile.tonalTokenExpiresAt < Date.now();
+
     return {
       userId,
       email: user?.email as string | undefined,
@@ -20,6 +25,7 @@ export const getMe = query({
       tonalName: profile?.profileData
         ? `${profile.profileData.firstName} ${profile.profileData.lastName}`
         : undefined,
+      tonalTokenExpired,
     };
   },
 });

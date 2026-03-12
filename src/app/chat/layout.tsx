@@ -7,6 +7,7 @@ import { api } from "../../../convex/_generated/api";
 import { ThreadSidebar } from "@/components/ThreadSidebar";
 import { Button } from "@/components/ui/button";
 import { Menu, Loader2 } from "lucide-react";
+import { StatusBanner } from "@/components/StatusBanner";
 
 export default function ChatLayout({
   children,
@@ -46,7 +47,9 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <StatusBanner />
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -84,6 +87,7 @@ export default function ChatLayout({
         </div>
 
         <main className="flex-1 overflow-hidden">{children}</main>
+      </div>
       </div>
     </div>
   );
