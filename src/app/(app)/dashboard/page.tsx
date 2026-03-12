@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import type {
-  StrengthScore,
-  StrengthDistribution,
-  MuscleReadiness,
   Activity,
-} from "../../../convex/tonal/types";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+  MuscleReadiness,
+  StrengthDistribution,
+  StrengthScore,
+} from "../../../../convex/tonal/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { StrengthScoreCard } from "@/components/StrengthScoreCard";
@@ -40,13 +40,7 @@ function DashboardCardSkeleton({ tall }: { tall?: boolean }) {
 // Error state
 // ---------------------------------------------------------------------------
 
-function DashboardCardError({
-  title,
-  onRetry,
-}: {
-  title: string;
-  onRetry: () => void;
-}) {
+function DashboardCardError({ title, onRetry }: { title: string; onRetry: () => void }) {
   return (
     <Card>
       <CardHeader>
@@ -65,14 +59,12 @@ function DashboardCardError({
 // Async data hook for actions (avoids setState-in-effect lint rule)
 // ---------------------------------------------------------------------------
 
-type AsyncState<T> =
-  | { status: "loading" }
-  | { status: "success"; data: T }
-  | { status: "error" };
+type AsyncState<T> = { status: "loading" } | { status: "success"; data: T } | { status: "error" };
 
-function useActionData<T>(
-  actionFn: (...args: [Record<string, never>]) => Promise<T>,
-): { state: AsyncState<T>; refetch: () => void } {
+function useActionData<T>(actionFn: (...args: [Record<string, never>]) => Promise<T>): {
+  state: AsyncState<T>;
+  refetch: () => void;
+} {
   const [state, setState] = useState<AsyncState<T>>({ status: "loading" });
   const mountedRef = useRef(true);
 
@@ -81,8 +73,7 @@ function useActionData<T>(
     let cancelled = false;
     actionFn({}).then(
       (data) => {
-        if (!cancelled && mountedRef.current)
-          setState({ status: "success", data });
+        if (!cancelled && mountedRef.current) setState({ status: "success", data });
       },
       () => {
         if (!cancelled && mountedRef.current) setState({ status: "error" });
@@ -135,9 +126,7 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <h1 className="mb-6 text-xl font-semibold text-foreground">
-        Training Dashboard
-      </h1>
+      <h1 className="mb-6 text-xl font-semibold text-foreground">Training Dashboard</h1>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Strength Scores */}
@@ -164,10 +153,7 @@ export default function DashboardPage() {
         {/* Training Frequency */}
         {frequency.state.status === "loading" && <DashboardCardSkeleton />}
         {frequency.state.status === "error" && (
-          <DashboardCardError
-            title="Training Frequency"
-            onRetry={frequency.refetch}
-          />
+          <DashboardCardError title="Training Frequency" onRetry={frequency.refetch} />
         )}
         {frequency.state.status === "success" && (
           <TrainingFrequencyChart data={frequency.state.data} />
