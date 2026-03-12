@@ -1,12 +1,7 @@
 import { action } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
-import type {
-  StrengthScore,
-  StrengthDistribution,
-  MuscleReadiness,
-  Activity,
-} from "./tonal/types";
+import type { Activity, MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
 
 // ---------------------------------------------------------------------------
 // Return types — explicit to avoid TS7022 circular inference
@@ -20,6 +15,7 @@ interface StrengthData {
 interface TrainingFrequencyEntry {
   targetArea: string;
   count: number;
+  lastTrainedDate: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,13 +78,14 @@ export const getTrainingFrequency = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const activities: Activity[] = await ctx.runAction(
-      internal.tonal.proxy.fetchWorkoutHistory,
-      { userId, limit: 50 },
-    );
+    const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+      userId,
+      limit: 50,
+    });
 
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const counts: Record<string, number> = {};
+    const lastDates: Record<string, string> = {};
 
     for (const activity of activities) {
       const activityTime = new Date(activity.activityTime).getTime();
@@ -96,10 +93,19 @@ export const getTrainingFrequency = action({
 
       const area = activity.workoutPreview?.targetArea ?? "Unknown";
       counts[area] = (counts[area] ?? 0) + 1;
+
+      // Track most recent date per area
+      if (!lastDates[area] || activity.activityTime > lastDates[area]) {
+        lastDates[area] = activity.activityTime;
+      }
     }
 
     return Object.entries(counts)
-      .map(([targetArea, count]) => ({ targetArea, count }))
+      .map(([targetArea, count]) => ({
+        targetArea,
+        count,
+        lastTrainedDate: lastDates[targetArea],
+      }))
       .sort((a, b) => b.count - a.count);
   },
 });
