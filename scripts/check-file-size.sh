@@ -6,6 +6,10 @@ MAX_LINES=300
 EXIT_CODE=0
 
 for file in "$@"; do
+  # Skip generated files (e.g., convex/_generated/)
+  if [[ "$file" == *"_generated"* ]]; then
+    continue
+  fi
   if [ -f "$file" ]; then
     lines=$(wc -l < "$file" | tr -d ' ')
     if [ "$lines" -gt "$MAX_LINES" ]; then

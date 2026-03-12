@@ -17,6 +17,7 @@ import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as http from "../http.js";
 import type * as rateLimits from "../rateLimits.js";
+import type * as threads from "../threads.js";
 import type * as tonal_auth from "../tonal/auth.js";
 import type * as tonal_cache from "../tonal/cache.js";
 import type * as tonal_cacheRefresh from "../tonal/cacheRefresh.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   http: typeof http;
   rateLimits: typeof rateLimits;
+  threads: typeof threads;
   "tonal/auth": typeof tonal_auth;
   "tonal/cache": typeof tonal_cache;
   "tonal/cacheRefresh": typeof tonal_cacheRefresh;
