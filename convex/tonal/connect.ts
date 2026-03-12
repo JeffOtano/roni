@@ -19,18 +19,12 @@ export const connectTonal = internalAction({
       tonalPassword,
     );
 
-    // 2. Get Tonal user info
-    const userInfo = await tonalFetch<{ userId: string }>(
+    // 2. Get Tonal user info (returns full profile)
+    const profile = await tonalFetch<TonalUser>(
       idToken,
       "/v6/users/userinfo",
     );
-    const tonalUserId = userInfo.userId;
-
-    // 3. Get full profile
-    const profile = await tonalFetch<TonalUser>(
-      idToken,
-      `/v6/users/${tonalUserId}`,
-    );
+    const tonalUserId = profile.id;
 
     // 4. Encrypt tokens
     const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
@@ -58,8 +52,8 @@ export const connectTonal = internalAction({
         gender: profile.gender,
         level: profile.tonalStatus,
         workoutsPerWeek: profile.workoutsPerWeek,
-        workoutDurationMin: 0,
-        workoutDurationMax: 0,
+        workoutDurationMin: (profile as unknown as Record<string, number>).workoutDurationMin ?? 0,
+        workoutDurationMax: (profile as unknown as Record<string, number>).workoutDurationMax ?? 0,
       },
     });
 
