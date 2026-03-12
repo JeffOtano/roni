@@ -1,18 +1,13 @@
 import { v } from "convex/values";
-import {
-  action,
-  mutation,
-  query,
-  internalAction,
-} from "./_generated/server";
-import { internal, components } from "./_generated/api";
+import { action, internalAction, mutation, query } from "./_generated/server";
+import { components, internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import {
+  createThread as agentCreateThread,
   listUIMessages,
   syncStreams,
   vStreamArgs,
-  createThread as agentCreateThread,
 } from "@convex-dev/agent";
 import { coachAgent } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
@@ -45,15 +40,26 @@ export const sendMessage = action({
       throws: true,
     });
 
-    // Create thread if needed
+    const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+
     let targetThreadId: string;
     if (threadId) {
       targetThreadId = threadId;
     } else {
-      const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
+      // Auto-resolve to active thread if not stale
+      const active = await ctx.runQuery(internal.threads.getActiveThread, {
         userId,
       });
-      targetThreadId = newThreadId;
+
+      if (active && Date.now() - active.lastMessageTime < STALE_THRESHOLD_MS) {
+        targetThreadId = active.threadId;
+      } else {
+        // Create new thread (stale or none exists)
+        const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
+          userId,
+        });
+        targetThreadId = newThreadId;
+      }
     }
 
     // Stream response with delta saving
