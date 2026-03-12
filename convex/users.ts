@@ -1,0 +1,25 @@
+import { query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+export const getMe = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const user = await ctx.db.get(userId);
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+
+    return {
+      userId,
+      email: user?.email as string | undefined,
+      hasTonalProfile: !!profile,
+      tonalName: profile?.profileData
+        ? `${profile.profileData.firstName} ${profile.profileData.lastName}`
+        : undefined,
+    };
+  },
+});

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { ThreadSidebar } from "@/components/ThreadSidebar";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, Loader2 } from "lucide-react";
 
 export default function ChatLayout({
   children,
@@ -13,7 +15,35 @@ export default function ChatLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const params = useParams();
+  const router = useRouter();
   const activeThreadId = params?.threadId as string | undefined;
+
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const me = useQuery(
+    api.users.getMe,
+    isAuthenticated ? {} : "skip",
+  );
+
+  // Auth loading or fetching user profile
+  if (authLoading || (isAuthenticated && me === undefined)) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Not authenticated -> login
+  if (!isAuthenticated) {
+    router.replace("/login");
+    return null;
+  }
+
+  // Authenticated but no Tonal profile -> connect
+  if (me && !me.hasTonalProfile) {
+    router.replace("/connect-tonal");
+    return null;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
