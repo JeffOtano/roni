@@ -6,6 +6,10 @@ import { useConvexAuth, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { PageLoader } from "@/components/PageLoader";
+import { ErrorAlert } from "@/components/ErrorAlert";
 import { Loader2, Link2 } from "lucide-react";
 
 export default function ConnectTonalPage() {
@@ -20,11 +24,7 @@ export default function ConnectTonalPage() {
 
   // Auth loading state
   if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   // Redirect to login if not authenticated
@@ -60,85 +60,72 @@ export default function ConnectTonalPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full border border-border bg-card">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full border border-border bg-muted">
             <Link2 className="size-5 text-muted-foreground" />
           </div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Connect Your Tonal
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <CardTitle className="text-2xl">Connect Your Tonal</CardTitle>
+          <CardDescription>
             Link your Tonal account to get personalized coaching based on your
             real training data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="tonal-email">Tonal Email</Label>
+              <Input
+                id="tonal-email"
+                type="email"
+                value={tonalEmail}
+                onChange={(e) => setTonalEmail(e.target.value)}
+                placeholder="your-tonal-email@example.com"
+                required
+                autoComplete="email"
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tonal-password">Tonal Password</Label>
+              <Input
+                id="tonal-password"
+                type="password"
+                value={tonalPassword}
+                onChange={(e) => setTonalPassword(e.target.value)}
+                placeholder="Enter your Tonal password"
+                required
+                autoComplete="off"
+                disabled={submitting}
+              />
+            </div>
+
+            {error && <ErrorAlert message={error} />}
+
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span className="ml-2">Connecting...</span>
+                </>
+              ) : (
+                "Connect Tonal"
+              )}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Your Tonal password is used only to obtain an authentication token. We
+            do not store your password.
           </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              htmlFor="tonal-email"
-              className="text-sm font-medium text-foreground"
-            >
-              Tonal Email
-            </label>
-            <Input
-              id="tonal-email"
-              type="email"
-              value={tonalEmail}
-              onChange={(e) => setTonalEmail(e.target.value)}
-              placeholder="your-tonal-email@example.com"
-              required
-              autoComplete="email"
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label
-              htmlFor="tonal-password"
-              className="text-sm font-medium text-foreground"
-            >
-              Tonal Password
-            </label>
-            <Input
-              id="tonal-password"
-              type="password"
-              value={tonalPassword}
-              onChange={(e) => setTonalPassword(e.target.value)}
-              placeholder="Enter your Tonal password"
-              required
-              autoComplete="off"
-              disabled={submitting}
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                <span className="ml-2">Connecting...</span>
-              </>
-            ) : (
-              "Connect Tonal"
-            )}
-          </Button>
-        </form>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Your Tonal password is used only to obtain an authentication token. We
-          do not store your password.
-        </p>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
