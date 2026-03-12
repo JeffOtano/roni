@@ -1,22 +1,21 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { SendHorizontal } from "lucide-react";
 
+function autoGrow(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+}
+
 interface ChatInputProps {
-  threadId: string | null;
-  onThreadCreated?: (threadId: string) => void;
   disabled?: boolean;
 }
 
-export function ChatInput({
-  threadId,
-  onThreadCreated,
-  disabled,
-}: ChatInputProps) {
+export function ChatInput({ disabled }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -25,32 +24,18 @@ export function ChatInput({
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
-
     setSending(true);
     setInput("");
-
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     try {
-      const result = await sendMessage({
-        threadId: threadId ?? undefined,
-        prompt: trimmed,
-      });
-
-      if (!threadId && result.threadId && onThreadCreated) {
-        onThreadCreated(result.threadId);
-      }
+      await sendMessage({ prompt: trimmed });
     } catch (error) {
-      // Restore input on error so user can retry
       setInput(trimmed);
       console.error("Failed to send message:", error);
     } finally {
       setSending(false);
     }
-  }, [input, sending, threadId, sendMessage, onThreadCreated]);
+  }, [input, sending, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -59,24 +44,17 @@ export function ChatInput({
     }
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    // Auto-grow up to max 4 lines
-    const el = e.target;
-    el.style.height = "auto";
-    const lineHeight = 24;
-    const maxHeight = lineHeight * 4;
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-  };
-
   const isDisabled = disabled || sending;
 
   return (
-    <div className="flex items-end gap-2 border-t border-border bg-background px-4 py-3">
+    <div className="flex items-end gap-2 bg-background">
       <textarea
         ref={textareaRef}
         value={input}
-        onChange={handleInput}
+        onChange={(e) => {
+          setInput(e.target.value);
+          autoGrow(e.target);
+        }}
         onKeyDown={handleKeyDown}
         placeholder="Ask your coach..."
         disabled={isDisabled}

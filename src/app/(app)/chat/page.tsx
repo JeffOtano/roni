@@ -1,89 +1,91 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useAction } from "convex/react";
-import { useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { ChatThread } from "@/components/ChatThread";
 import { ChatInput } from "@/components/ChatInput";
-import { BarChart3, Calendar, Dumbbell, Loader2, TrendingUp } from "lucide-react";
+import { Activity, Dumbbell, Sparkles, TrendingUp, Zap } from "lucide-react";
 
-const SUGGESTIONS = [
-  {
-    text: "What should I train today?",
-    icon: Dumbbell,
-  },
-  {
-    text: "Analyze my training this month",
-    icon: BarChart3,
-  },
-  {
-    text: "Program me a leg day",
-    icon: Calendar,
-  },
-  {
-    text: "How are my strength scores trending?",
-    icon: TrendingUp,
-  },
-] as const;
+const suggestions = [
+  { icon: Dumbbell, text: "Program me a workout for today" },
+  { icon: TrendingUp, text: "How are my strength scores trending?" },
+  { icon: Zap, text: "Which muscles are freshest right now?" },
+  { icon: Activity, text: "Analyze my training this month" },
+];
 
+// Wrap in Suspense because useSearchParams requires it in Next.js 14+
 export default function ChatPage() {
-  const router = useRouter();
-  const sendMessage = useAction(api.chat.sendMessage);
-  const [sending, setSending] = useState(false);
-
-  const handleSuggestion = async (text: string) => {
-    if (sending) return;
-    setSending(true);
-
-    try {
-      const result = await sendMessage({ prompt: text });
-      router.push(`/chat/${result.threadId}`);
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      setSending(false);
-    }
-  };
-
-  const handleThreadCreated = (threadId: string) => {
-    router.push(`/chat/${threadId}`);
-  };
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-1 flex-col items-center justify-center px-4">
-        <div className="mx-auto max-w-lg text-center">
-          <h1 className="text-2xl font-semibold text-foreground">tonal.coach</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your AI personal trainer for Tonal. Ask me anything about your training, strength
-            scores, or let me program a workout for you.
-          </p>
+    <Suspense>
+      <ChatPageInner />
+    </Suspense>
+  );
+}
 
-          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {SUGGESTIONS.map(({ text, icon: Icon }) => (
+function ChatPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeThread = useQuery(api.threads.getCurrentThread);
+  const sendMessage = useAction(api.chat.sendMessage);
+  const me = useQuery(api.users.getMe);
+  const autoSentRef = useRef(false);
+
+  // Auto-send from ?prompt= query param (once only)
+  const promptParam = searchParams.get("prompt");
+  useEffect(() => {
+    if (promptParam && !autoSentRef.current) {
+      autoSentRef.current = true;
+      router.replace("/chat");
+      sendMessage({ prompt: promptParam });
+    }
+  }, [promptParam, router, sendMessage]);
+
+  const hasThread = activeThread !== undefined && activeThread !== null;
+  const userInitial = me?.tonalName?.charAt(0).toUpperCase() ?? "U";
+
+  // Show welcome state when no thread/messages exist
+  if (activeThread !== undefined && !hasThread && !promptParam) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center px-4">
+          <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+            <Sparkles className="size-5 text-muted-foreground" />
+          </div>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">
+            What are we working on today?
+          </h2>
+          <p className="mb-6 max-w-sm text-center text-sm text-muted-foreground">
+            I can check your readiness, program workouts, analyze trends, or just talk training.
+          </p>
+          <div className="grid w-full max-w-md grid-cols-2 gap-3">
+            {suggestions.map(({ icon: Icon, text }) => (
               <button
                 key={text}
-                onClick={() => handleSuggestion(text)}
-                disabled={sending}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-card-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => sendMessage({ prompt: text })}
+                className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 text-left text-sm text-foreground/80 transition-all hover:border-primary/30 hover:bg-card/80 active:scale-[0.98]"
               >
-                <Icon className="size-4 shrink-0 text-muted-foreground" />
+                <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
                 <span>{text}</span>
               </button>
             ))}
           </div>
+        </div>
 
-          {sending && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              <span>Starting conversation...</span>
-            </div>
-          )}
+        {/* Input always visible even on welcome screen */}
+        <div className="shrink-0 border-t border-border p-3 sm:p-4">
+          <ChatInput />
         </div>
       </div>
+    );
+  }
 
-      <div className="mx-auto w-full max-w-3xl">
-        <ChatInput threadId={null} onThreadCreated={handleThreadCreated} disabled={sending} />
-      </div>
-    </div>
-  );
+  // Has messages — show ChatThread
+  if (hasThread) {
+    return <ChatThread threadId={activeThread.threadId} userInitial={userInitial} />;
+  }
+
+  // Loading state (activeThread is undefined = query still loading)
+  return null;
 }
