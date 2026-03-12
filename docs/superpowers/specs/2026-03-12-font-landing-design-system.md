@@ -34,8 +34,8 @@ No backend changes. No new dependencies beyond what `next/font/google` and shadc
 - 400 (regular): body text, descriptions
 
 **Files changed:**
-- `src/app/layout.tsx` — swap `Geist` import for `DM_Sans`, update CSS variable
-- `src/app/globals.css` — `--font-sans` now references DM Sans variable
+- `src/app/layout.tsx` — swap `Geist` import for `DM_Sans`, set variable to `--font-dm-sans`, update body className
+- `src/app/globals.css` — update `--font-sans: var(--font-dm-sans)` in `@theme inline` block
 
 All pages inherit automatically. No per-page font changes needed.
 
@@ -58,8 +58,12 @@ All pages inherit automatically. No per-page font changes needed.
 - Chart colors (`chart-1` through `chart-5`) stay as-is for data visualization
 - Neutrals (background, card, border, muted) stay as-is
 
+**Also update `--primary-foreground`:** The current dark-mode `--primary-foreground` is near-black (`oklch(0.205 0 0)`), designed to contrast against the old near-white primary. With a teal primary, foreground must be white/near-white (`oklch(0.985 0 0)`) for accessible contrast on buttons and other primary-bg elements.
+
+**Light mode:** The app hardcodes `className="dark"` on `<html>`. Light mode is out of scope. No `:root` primary changes needed.
+
 **Files changed:**
-- `src/app/globals.css` — update `--primary` in `.dark` block
+- `src/app/globals.css` — update `--primary` and `--primary-foreground` in `.dark` block
 
 ---
 
@@ -100,7 +104,7 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 - "Not affiliated with or endorsed by Tonal." disclaimer
 - Minimal, no link soup
 
-**"Coming soon" badges:** Small pill using shadcn Badge with `variant="outline"`, muted styling. Applied to features not yet built.
+**"Coming soon" badges:** Small pill using shadcn Badge (already installed at `src/components/ui/badge.tsx`) with `variant="outline"`, muted styling. Applied to features not yet built.
 
 ---
 
@@ -196,6 +200,6 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 - DM Sans renders across all pages
 - Landing page sells the full product vision with current + future features
 - Every page has proper loading, error, and empty states
-- No raw `<label>`, `<p className="text-destructive">`, or hand-rolled card patterns remain
+- No raw `<label>`, `<p className="text-destructive">`, or hand-rolled card patterns remain in pages listed in section 4.3
 - Type-checks pass (`npx tsc --noEmit`)
 - No visual regressions on existing pages (chat, dashboard, settings)
