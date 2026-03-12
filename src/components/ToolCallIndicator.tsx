@@ -1,18 +1,48 @@
 "use client";
 
-import { WorkoutCard } from "@/components/WorkoutCard";
+import { WorkoutCard } from "./WorkoutCard";
 
-const TOOL_MESSAGES: Record<string, string> = {
-  search_exercises: "Searching exercises...",
-  get_strength_scores: "Checking strength scores...",
-  get_strength_history: "Loading strength history...",
-  get_muscle_readiness: "Checking muscle readiness...",
-  get_workout_history: "Looking at workout history...",
-  get_workout_detail: "Loading workout details...",
-  get_training_frequency: "Analyzing training frequency...",
-  create_workout: "Creating workout on Tonal...",
-  delete_workout: "Deleting workout...",
-  estimate_duration: "Estimating duration...",
+const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
+  search_exercises: {
+    running: "Searching exercises...",
+    done: "Searched exercises",
+  },
+  get_strength_scores: {
+    running: "Checking strength scores...",
+    done: "Checked strength scores",
+  },
+  get_strength_history: {
+    running: "Reviewing strength history...",
+    done: "Reviewed strength history",
+  },
+  get_muscle_readiness: {
+    running: "Checking muscle readiness...",
+    done: "Checked muscle readiness",
+  },
+  get_workout_history: {
+    running: "Reviewing workout history...",
+    done: "Reviewed workout history",
+  },
+  get_workout_detail: {
+    running: "Loading workout details...",
+    done: "Loaded workout details",
+  },
+  get_training_frequency: {
+    running: "Analyzing training frequency...",
+    done: "Analyzed training frequency",
+  },
+  create_workout: {
+    running: "Creating workout...",
+    done: "Created workout",
+  },
+  delete_workout: {
+    running: "Deleting workout...",
+    done: "Deleted workout",
+  },
+  estimate_duration: {
+    running: "Estimating duration...",
+    done: "Estimated duration",
+  },
 };
 
 interface ToolCallIndicatorProps {
@@ -21,18 +51,18 @@ interface ToolCallIndicatorProps {
   input?: unknown;
 }
 
-export function ToolCallIndicator({
-  toolName,
-  state,
-  input,
-}: ToolCallIndicatorProps) {
-  const message = TOOL_MESSAGES[toolName] ?? `Running ${toolName}...`;
-  const isLoading =
-    state === "input-streaming" || state === "input-available";
-  const hasOutput = state === "output-available";
+export function ToolCallIndicator({ toolName, state, input }: ToolCallIndicatorProps) {
+  const messages = TOOL_MESSAGES[toolName] ?? {
+    running: `Running ${toolName}...`,
+    done: `Ran ${toolName}`,
+  };
 
-  if (hasOutput && toolName === "create_workout") {
-    const args = input as {
+  const isRunning = state === "input-streaming" || state === "input-available";
+  const isDone = state === "output-available";
+
+  // Special case: create_workout shows WorkoutCard when done
+  if (toolName === "create_workout" && isDone && input) {
+    const data = input as {
       name?: string;
       exercises?: Array<{
         exerciseName?: string;
@@ -40,25 +70,30 @@ export function ToolCallIndicator({
         sets?: number;
         reps?: number;
       }>;
-    } | undefined;
+    };
+    return <WorkoutCard title={data.name} exercises={data.exercises} />;
+  }
+
+  if (isRunning) {
     return (
-      <WorkoutCard
-        title={args?.name}
-        exercises={args?.exercises}
-      />
+      <div className="my-1 flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-primary" />
+        </span>
+        {messages.running}
+      </div>
     );
   }
 
-  if (hasOutput) {
-    return null;
+  if (isDone) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground">
+        <span className="text-primary">&check;</span>
+        {messages.done}
+      </span>
+    );
   }
 
-  return (
-    <div className="my-1 flex items-center gap-2 text-xs text-muted-foreground">
-      {isLoading && (
-        <span className="inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-      )}
-      <span>{message}</span>
-    </div>
-  );
+  return null;
 }
