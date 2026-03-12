@@ -1,6 +1,7 @@
 "use client";
 
-import type { StrengthScore, StrengthDistribution } from "../../convex/tonal/types";
+import Link from "next/link";
+import type { StrengthDistribution, StrengthScore } from "../../convex/tonal/types";
 
 // ---------------------------------------------------------------------------
 // SVG radial progress ring
@@ -72,10 +73,7 @@ interface StrengthScoreCardProps {
   distribution: StrengthDistribution;
 }
 
-export function StrengthScoreCard({
-  scores,
-  distribution,
-}: StrengthScoreCardProps) {
+export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardProps) {
   // Map scores by body region for easy lookup
   const scoreMap: Record<string, number> = {};
   for (const s of scores) {
@@ -90,12 +88,10 @@ export function StrengthScoreCard({
 
   const percentile = distribution.percentile;
   const percentileLabel =
-    percentile <= 50
-      ? `Top ${100 - percentile}%`
-      : `Top ${100 - percentile}%`;
+    percentile <= 50 ? `Top ${100 - percentile}%` : `Top ${100 - percentile}%`;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
           Strength Scores
@@ -119,13 +115,17 @@ export function StrengthScoreCard({
         {/* Regional scores */}
         {regions.map(({ key, label }) => (
           <div key={key} className="relative flex flex-col items-center">
-            <ProgressRing
-              score={scoreMap[key] ?? 0}
-              label={label}
-            />
+            <ProgressRing score={scoreMap[key] ?? 0} label={label} />
           </div>
         ))}
       </div>
+
+      <Link
+        href={`/chat?prompt=${encodeURIComponent("Tell me about my strength score trends")}`}
+        className="mt-3 block text-xs text-primary hover:underline"
+      >
+        Ask coach about your strength trends &rarr;
+      </Link>
     </div>
   );
 }

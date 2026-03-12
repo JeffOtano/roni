@@ -58,7 +58,7 @@ interface RecentWorkoutsListProps {
 export function RecentWorkoutsList({ workouts }: RecentWorkoutsListProps) {
   if (workouts.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10">
         <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
           Recent Workouts
         </h2>
@@ -68,7 +68,7 @@ export function RecentWorkoutsList({ workouts }: RecentWorkoutsListProps) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10">
       <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
         Recent Workouts
       </h2>

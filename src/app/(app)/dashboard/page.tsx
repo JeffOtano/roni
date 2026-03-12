@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type {
   Activity,
@@ -101,72 +101,75 @@ function useActionData<T>(actionFn: (...args: [Record<string, never>]) => Promis
 }
 
 // ---------------------------------------------------------------------------
+// Async card — reduces per-card boilerplate
+// ---------------------------------------------------------------------------
+
+function AsyncCard<T>({
+  state,
+  refetch,
+  title,
+  tall,
+  children,
+}: {
+  state: AsyncState<T>;
+  refetch: () => void;
+  title: string;
+  tall?: boolean;
+  children: (data: T) => React.ReactNode;
+}) {
+  if (state.status === "loading") return <DashboardCardSkeleton tall={tall} />;
+  if (state.status === "error") return <DashboardCardError title={title} onRetry={refetch} />;
+  return <>{children(state.data)}</>;
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard page
 // ---------------------------------------------------------------------------
 
 interface FrequencyEntry {
   targetArea: string;
   count: number;
+  lastTrainedDate?: string;
 }
 
 export default function DashboardPage() {
-  const getStrengthData = useAction(api.dashboard.getStrengthData);
-  const getMuscleReadiness = useAction(api.dashboard.getMuscleReadiness);
-  const getWorkoutHistory = useAction(api.dashboard.getWorkoutHistory);
-  const getTrainingFrequency = useAction(api.dashboard.getTrainingFrequency);
-
   const strength = useActionData<{
     scores: StrengthScore[];
     distribution: StrengthDistribution;
-  }>(getStrengthData);
+  }>(useAction(api.dashboard.getStrengthData));
+  const readiness = useActionData<MuscleReadiness>(useAction(api.dashboard.getMuscleReadiness));
+  const workouts = useActionData<Activity[]>(useAction(api.dashboard.getWorkoutHistory));
+  const frequency = useActionData<FrequencyEntry[]>(useAction(api.dashboard.getTrainingFrequency));
 
-  const readiness = useActionData<MuscleReadiness>(getMuscleReadiness);
-  const workouts = useActionData<Activity[]>(getWorkoutHistory);
-  const frequency = useActionData<FrequencyEntry[]>(getTrainingFrequency);
+  const me = useQuery(api.users.getMe);
+  const firstName = me?.tonalName?.split(" ")[0] ?? "there";
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <h1 className="mb-6 text-xl font-semibold text-foreground">Training Dashboard</h1>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-foreground">Hey {firstName}</h1>
+        <p className="text-sm text-muted-foreground">
+          {new Date().toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })}
+        </p>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Strength Scores */}
-        {strength.state.status === "loading" && <DashboardCardSkeleton />}
-        {strength.state.status === "error" && (
-          <DashboardCardError title="Strength Scores" onRetry={strength.refetch} />
-        )}
-        {strength.state.status === "success" && (
-          <StrengthScoreCard
-            scores={strength.state.data.scores}
-            distribution={strength.state.data.distribution}
-          />
-        )}
-
-        {/* Muscle Readiness */}
-        {readiness.state.status === "loading" && <DashboardCardSkeleton />}
-        {readiness.state.status === "error" && (
-          <DashboardCardError title="Muscle Readiness" onRetry={readiness.refetch} />
-        )}
-        {readiness.state.status === "success" && (
-          <MuscleReadinessMap readiness={readiness.state.data} />
-        )}
-
-        {/* Training Frequency */}
-        {frequency.state.status === "loading" && <DashboardCardSkeleton />}
-        {frequency.state.status === "error" && (
-          <DashboardCardError title="Training Frequency" onRetry={frequency.refetch} />
-        )}
-        {frequency.state.status === "success" && (
-          <TrainingFrequencyChart data={frequency.state.data} />
-        )}
-
-        {/* Recent Workouts */}
-        {workouts.state.status === "loading" && <DashboardCardSkeleton tall />}
-        {workouts.state.status === "error" && (
-          <DashboardCardError title="Recent Workouts" onRetry={workouts.refetch} />
-        )}
-        {workouts.state.status === "success" && (
-          <RecentWorkoutsList workouts={workouts.state.data} />
-        )}
+        <AsyncCard state={strength.state} refetch={strength.refetch} title="Strength Scores">
+          {(d) => <StrengthScoreCard scores={d.scores} distribution={d.distribution} />}
+        </AsyncCard>
+        <AsyncCard state={readiness.state} refetch={readiness.refetch} title="Muscle Readiness">
+          {(d) => <MuscleReadinessMap readiness={d} />}
+        </AsyncCard>
+        <AsyncCard state={frequency.state} refetch={frequency.refetch} title="Training Frequency">
+          {(d) => <TrainingFrequencyChart data={d} />}
+        </AsyncCard>
+        <AsyncCard state={workouts.state} refetch={workouts.refetch} title="Recent Workouts" tall>
+          {(d) => <RecentWorkoutsList workouts={d} />}
+        </AsyncCard>
       </div>
     </div>
   );
