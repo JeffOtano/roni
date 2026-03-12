@@ -1,0 +1,186 @@
+"use client";
+
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import type {
+  StrengthScore,
+  StrengthDistribution,
+  MuscleReadiness,
+  Activity,
+} from "../../../convex/tonal/types";
+import { StrengthScoreCard } from "@/components/StrengthScoreCard";
+import { MuscleReadinessMap } from "@/components/MuscleReadinessMap";
+import { TrainingFrequencyChart } from "@/components/TrainingFrequencyChart";
+import { RecentWorkoutsList } from "@/components/RecentWorkoutsList";
+
+// ---------------------------------------------------------------------------
+// Loading skeleton shared across cards
+// ---------------------------------------------------------------------------
+
+function CardSkeleton({ tall }: { tall?: boolean }) {
+  return (
+    <div
+      className={`animate-pulse rounded-lg border border-border bg-card p-4 ${tall ? "min-h-[300px]" : "min-h-[200px]"}`}
+    >
+      <div className="mb-4 h-4 w-32 rounded bg-muted" />
+      <div className="space-y-3">
+        <div className="h-3 w-full rounded bg-muted" />
+        <div className="h-3 w-3/4 rounded bg-muted" />
+        <div className="h-3 w-1/2 rounded bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Error state
+// ---------------------------------------------------------------------------
+
+function CardError({
+  title,
+  onRetry,
+}: {
+  title: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h2 className="mb-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+        {title}
+      </h2>
+      <p className="mb-3 text-sm text-destructive">Failed to load data.</p>
+      <button
+        onClick={onRetry}
+        className="text-sm text-chart-1 underline-offset-2 hover:underline"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Async data hook for actions (avoids setState-in-effect lint rule)
+// ---------------------------------------------------------------------------
+
+type AsyncState<T> =
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error" };
+
+function useActionData<T>(
+  actionFn: (...args: [Record<string, never>]) => Promise<T>,
+): { state: AsyncState<T>; refetch: () => void } {
+  const [state, setState] = useState<AsyncState<T>>({ status: "loading" });
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    let cancelled = false;
+    actionFn({}).then(
+      (data) => {
+        if (!cancelled && mountedRef.current)
+          setState({ status: "success", data });
+      },
+      () => {
+        if (!cancelled && mountedRef.current) setState({ status: "error" });
+      },
+    );
+    return () => {
+      cancelled = true;
+      mountedRef.current = false;
+    };
+  }, [actionFn]);
+
+  const refetch = useCallback(() => {
+    setState({ status: "loading" });
+    actionFn({}).then(
+      (data) => {
+        if (mountedRef.current) setState({ status: "success", data });
+      },
+      () => {
+        if (mountedRef.current) setState({ status: "error" });
+      },
+    );
+  }, [actionFn]);
+
+  return { state, refetch };
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard page
+// ---------------------------------------------------------------------------
+
+interface FrequencyEntry {
+  targetArea: string;
+  count: number;
+}
+
+export default function DashboardPage() {
+  const getStrengthData = useAction(api.dashboard.getStrengthData);
+  const getMuscleReadiness = useAction(api.dashboard.getMuscleReadiness);
+  const getWorkoutHistory = useAction(api.dashboard.getWorkoutHistory);
+  const getTrainingFrequency = useAction(api.dashboard.getTrainingFrequency);
+
+  const strength = useActionData<{
+    scores: StrengthScore[];
+    distribution: StrengthDistribution;
+  }>(getStrengthData);
+
+  const readiness = useActionData<MuscleReadiness>(getMuscleReadiness);
+  const workouts = useActionData<Activity[]>(getWorkoutHistory);
+  const frequency = useActionData<FrequencyEntry[]>(getTrainingFrequency);
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-6">
+      <h1 className="mb-6 text-xl font-semibold text-foreground">
+        Training Dashboard
+      </h1>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Strength Scores */}
+        {strength.state.status === "loading" && <CardSkeleton />}
+        {strength.state.status === "error" && (
+          <CardError title="Strength Scores" onRetry={strength.refetch} />
+        )}
+        {strength.state.status === "success" && (
+          <StrengthScoreCard
+            scores={strength.state.data.scores}
+            distribution={strength.state.data.distribution}
+          />
+        )}
+
+        {/* Muscle Readiness */}
+        {readiness.state.status === "loading" && <CardSkeleton />}
+        {readiness.state.status === "error" && (
+          <CardError title="Muscle Readiness" onRetry={readiness.refetch} />
+        )}
+        {readiness.state.status === "success" && (
+          <MuscleReadinessMap readiness={readiness.state.data} />
+        )}
+
+        {/* Training Frequency */}
+        {frequency.state.status === "loading" && <CardSkeleton />}
+        {frequency.state.status === "error" && (
+          <CardError
+            title="Training Frequency"
+            onRetry={frequency.refetch}
+          />
+        )}
+        {frequency.state.status === "success" && (
+          <TrainingFrequencyChart data={frequency.state.data} />
+        )}
+
+        {/* Recent Workouts */}
+        {workouts.state.status === "loading" && <CardSkeleton tall />}
+        {workouts.state.status === "error" && (
+          <CardError title="Recent Workouts" onRetry={workouts.refetch} />
+        )}
+        {workouts.state.status === "success" && (
+          <RecentWorkoutsList workouts={workouts.state.data} />
+        )}
+      </div>
+    </div>
+  );
+}
