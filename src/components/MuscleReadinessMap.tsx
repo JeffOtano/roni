@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { MuscleReadiness } from "../../convex/tonal/types";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,7 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
     .sort((a, b) => a.value - b.value);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10">
       <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
         Muscle Readiness
       </h2>
@@ -50,14 +51,28 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
           >
             <div className="flex flex-col">
               <span className="text-xs font-medium">{muscle}</span>
-              <span className="text-[10px] opacity-70">
-                {readinessLabel(value)}
-              </span>
+              <span className="text-[10px] opacity-70">{readinessLabel(value)}</span>
             </div>
             <span className="text-sm font-bold tabular-nums">{value}</span>
           </div>
         ))}
       </div>
+
+      {(() => {
+        const fresh = entries.find((e) => e.value > 80);
+        if (!fresh) return null;
+        const prompt = encodeURIComponent(
+          `My ${fresh.muscle.toLowerCase()} is at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()} workout?`,
+        );
+        return (
+          <Link
+            href={`/chat?prompt=${prompt}`}
+            className="mt-3 block text-xs text-primary hover:underline"
+          >
+            {fresh.muscle} is fresh — ask coach for a workout &rarr;
+          </Link>
+        );
+      })()}
     </div>
   );
 }
