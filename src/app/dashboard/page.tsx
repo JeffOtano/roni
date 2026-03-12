@@ -9,6 +9,9 @@ import type {
   MuscleReadiness,
   Activity,
 } from "../../../convex/tonal/types";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorAlert } from "@/components/ErrorAlert";
 import { StrengthScoreCard } from "@/components/StrengthScoreCard";
 import { MuscleReadinessMap } from "@/components/MuscleReadinessMap";
 import { TrainingFrequencyChart } from "@/components/TrainingFrequencyChart";
@@ -18,18 +21,18 @@ import { RecentWorkoutsList } from "@/components/RecentWorkoutsList";
 // Loading skeleton shared across cards
 // ---------------------------------------------------------------------------
 
-function CardSkeleton({ tall }: { tall?: boolean }) {
+function DashboardCardSkeleton({ tall }: { tall?: boolean }) {
   return (
-    <div
-      className={`animate-pulse rounded-lg border border-border bg-card p-4 ${tall ? "min-h-[300px]" : "min-h-[200px]"}`}
-    >
-      <div className="mb-4 h-4 w-32 rounded bg-muted" />
-      <div className="space-y-3">
-        <div className="h-3 w-full rounded bg-muted" />
-        <div className="h-3 w-3/4 rounded bg-muted" />
-        <div className="h-3 w-1/2 rounded bg-muted" />
-      </div>
-    </div>
+    <Card className={tall ? "min-h-[300px]" : "min-h-[200px]"}>
+      <CardHeader>
+        <Skeleton className="h-4 w-32" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -37,7 +40,7 @@ function CardSkeleton({ tall }: { tall?: boolean }) {
 // Error state
 // ---------------------------------------------------------------------------
 
-function CardError({
+function DashboardCardError({
   title,
   onRetry,
 }: {
@@ -45,18 +48,16 @@ function CardError({
   onRetry: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <h2 className="mb-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-        {title}
-      </h2>
-      <p className="mb-3 text-sm text-destructive">Failed to load data.</p>
-      <button
-        onClick={onRetry}
-        className="text-sm text-chart-1 underline-offset-2 hover:underline"
-      >
-        Retry
-      </button>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ErrorAlert message="Failed to load data." onRetry={onRetry} />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -140,9 +141,9 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Strength Scores */}
-        {strength.state.status === "loading" && <CardSkeleton />}
+        {strength.state.status === "loading" && <DashboardCardSkeleton />}
         {strength.state.status === "error" && (
-          <CardError title="Strength Scores" onRetry={strength.refetch} />
+          <DashboardCardError title="Strength Scores" onRetry={strength.refetch} />
         )}
         {strength.state.status === "success" && (
           <StrengthScoreCard
@@ -152,18 +153,18 @@ export default function DashboardPage() {
         )}
 
         {/* Muscle Readiness */}
-        {readiness.state.status === "loading" && <CardSkeleton />}
+        {readiness.state.status === "loading" && <DashboardCardSkeleton />}
         {readiness.state.status === "error" && (
-          <CardError title="Muscle Readiness" onRetry={readiness.refetch} />
+          <DashboardCardError title="Muscle Readiness" onRetry={readiness.refetch} />
         )}
         {readiness.state.status === "success" && (
           <MuscleReadinessMap readiness={readiness.state.data} />
         )}
 
         {/* Training Frequency */}
-        {frequency.state.status === "loading" && <CardSkeleton />}
+        {frequency.state.status === "loading" && <DashboardCardSkeleton />}
         {frequency.state.status === "error" && (
-          <CardError
+          <DashboardCardError
             title="Training Frequency"
             onRetry={frequency.refetch}
           />
@@ -173,9 +174,9 @@ export default function DashboardPage() {
         )}
 
         {/* Recent Workouts */}
-        {workouts.state.status === "loading" && <CardSkeleton tall />}
+        {workouts.state.status === "loading" && <DashboardCardSkeleton tall />}
         {workouts.state.status === "error" && (
-          <CardError title="Recent Workouts" onRetry={workouts.refetch} />
+          <DashboardCardError title="Recent Workouts" onRetry={workouts.refetch} />
         )}
         {workouts.state.status === "success" && (
           <RecentWorkoutsList workouts={workouts.state.data} />
