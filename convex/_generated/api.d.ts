@@ -14,6 +14,7 @@ import type * as ai_tools from "../ai/tools.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as crons from "../crons.js";
+import type * as dashboard from "../dashboard.js";
 import type * as http from "../http.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as tonal_auth from "../tonal/auth.js";
@@ -21,6 +22,7 @@ import type * as tonal_cache from "../tonal/cache.js";
 import type * as tonal_cacheRefresh from "../tonal/cacheRefresh.js";
 import type * as tonal_client from "../tonal/client.js";
 import type * as tonal_connect from "../tonal/connect.js";
+import type * as tonal_connectPublic from "../tonal/connectPublic.js";
 import type * as tonal_encryption from "../tonal/encryption.js";
 import type * as tonal_proxy from "../tonal/proxy.js";
 import type * as tonal_tokenRefresh from "../tonal/tokenRefresh.js";
@@ -28,6 +30,7 @@ import type * as tonal_transforms from "../tonal/transforms.js";
 import type * as tonal_types from "../tonal/types.js";
 import type * as tonal_validation from "../tonal/validation.js";
 import type * as userProfiles from "../userProfiles.js";
+import type * as users from "../users.js";
 import type * as workoutPlans from "../workoutPlans.js";
 
 import type {
@@ -43,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   chat: typeof chat;
   crons: typeof crons;
+  dashboard: typeof dashboard;
   http: typeof http;
   rateLimits: typeof rateLimits;
   "tonal/auth": typeof tonal_auth;
@@ -50,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/cacheRefresh": typeof tonal_cacheRefresh;
   "tonal/client": typeof tonal_client;
   "tonal/connect": typeof tonal_connect;
+  "tonal/connectPublic": typeof tonal_connectPublic;
   "tonal/encryption": typeof tonal_encryption;
   "tonal/proxy": typeof tonal_proxy;
   "tonal/tokenRefresh": typeof tonal_tokenRefresh;
@@ -57,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/types": typeof tonal_types;
   "tonal/validation": typeof tonal_validation;
   userProfiles: typeof userProfiles;
+  users: typeof users;
   workoutPlans: typeof workoutPlans;
 }>;
 
