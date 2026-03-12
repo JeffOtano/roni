@@ -5,6 +5,8 @@ import { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
 import { tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
+import { expandBlocksToSets, type BlockInput } from "./transforms";
+import { validateWorkoutBlocks } from "./validation";
 import type {
   TonalUser,
   StrengthScore,
@@ -16,6 +18,7 @@ import type {
   FormattedWorkoutSummary,
   Movement,
   UserWorkout,
+  WorkoutEstimate,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -291,6 +294,128 @@ export const fetchCustomWorkouts = internalAction({
       dataType: "customWorkouts",
       ttl: CACHE_TTLS.customWorkouts,
       fetcher: () => tonalFetch<UserWorkout[]>(token, `/v6/user-workouts`),
+    });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 11. createWorkout
+// ---------------------------------------------------------------------------
+
+export const createWorkout = internalAction({
+  args: {
+    userId: v.id("users"),
+    title: v.string(),
+    blocks: v.any(),
+  },
+  handler: async (
+    ctx,
+    { userId, title, blocks },
+  ): Promise<{ workoutId: string; title: string; setCount: number }> => {
+    const { token } = await withTonalToken(ctx, userId);
+
+    // Validate movement IDs against cached catalog
+    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
+      userId: undefined,
+      dataType: "movements",
+    });
+    if (cached) {
+      const catalog = cached.data as Array<{ id: string }>;
+      const validation = validateWorkoutBlocks(blocks as BlockInput[], catalog);
+      if (!validation.valid) {
+        throw new Error(
+          `Invalid movement IDs: ${validation.errors.join(", ")}`,
+        );
+      }
+    }
+
+    // Transform blocks to flat set array
+    const sets = expandBlocksToSets(blocks as BlockInput[]);
+
+    // Create on Tonal
+    const workout = await tonalFetch<{ id: string }>(
+      token,
+      "/v6/user-workouts",
+      {
+        method: "POST",
+        body: { title, sets, createdSource: "WorkoutBuilder" },
+      },
+    );
+
+    // Record in workoutPlans
+    const now = Date.now();
+    await ctx.runMutation(internal.workoutPlans.create, {
+      userId,
+      tonalWorkoutId: workout.id,
+      title,
+      blocks,
+      status: "pushed",
+      createdAt: now,
+      pushedAt: now,
+    });
+
+    // Invalidate custom workouts cache
+    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
+      userId,
+      dataType: "customWorkouts",
+      data: null,
+      fetchedAt: 0,
+      expiresAt: 0,
+    });
+
+    return { workoutId: workout.id, title, setCount: sets.length };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 12. deleteWorkout
+// ---------------------------------------------------------------------------
+
+export const deleteWorkout = internalAction({
+  args: {
+    userId: v.id("users"),
+    workoutId: v.string(),
+  },
+  handler: async (ctx, { userId, workoutId }): Promise<{ deleted: true }> => {
+    const { token } = await withTonalToken(ctx, userId);
+
+    await tonalFetch(token, `/v6/user-workouts/${workoutId}`, {
+      method: "DELETE",
+    });
+
+    // Update workoutPlans status
+    await ctx.runMutation(internal.workoutPlans.markDeleted, {
+      tonalWorkoutId: workoutId,
+    });
+
+    // Invalidate custom workouts cache
+    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
+      userId,
+      dataType: "customWorkouts",
+      data: null,
+      fetchedAt: 0,
+      expiresAt: 0,
+    });
+
+    return { deleted: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 13. estimateWorkout
+// ---------------------------------------------------------------------------
+
+export const estimateWorkout = internalAction({
+  args: {
+    userId: v.id("users"),
+    blocks: v.any(),
+  },
+  handler: async (ctx, { userId, blocks }): Promise<WorkoutEstimate> => {
+    const { token } = await withTonalToken(ctx, userId);
+    const sets = expandBlocksToSets(blocks as BlockInput[]);
+    return tonalFetch<WorkoutEstimate>(token, "/v6/user-workouts/estimate", {
+      method: "POST",
+      body: { sets },
     });
   },
 });
