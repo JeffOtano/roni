@@ -79,14 +79,17 @@ export async function refreshTonalToken(
   };
 }
 
-export function encryptToken(token: string, encryptionKey: string): string {
+export async function encryptToken(
+  token: string,
+  encryptionKey: string,
+): Promise<string> {
   return encrypt(token, encryptionKey);
 }
 
-export function decryptToken(
+export async function decryptToken(
   encrypted: string,
   encryptionKey: string,
-): string {
+): Promise<string> {
   return decrypt(encrypted, encryptionKey);
 }
 
