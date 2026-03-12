@@ -6,7 +6,8 @@ import { api } from "../../convex/_generated/api";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 
 interface ChatThreadProps {
   threadId: string;
@@ -63,6 +64,14 @@ export function ChatThread({ threadId }: ChatThreadProps) {
           <div className="mb-4 flex justify-center">
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
           </div>
+        )}
+
+        {status === "Exhausted" && results.length === 0 && (
+          <EmptyState
+            icon={MessageSquare}
+            title="No messages yet"
+            description="Send a message to start the conversation."
+          />
         )}
 
         <div className="mx-auto flex max-w-3xl flex-col gap-3">
