@@ -32,7 +32,7 @@ export const getCurrentWeekPlan = query({
       .withIndex("by_userId_weekStartDate", (q) =>
         q.eq("userId", userId).eq("weekStartDate", weekStartDate),
       )
-      .unique();
+      .first();
   },
 });
 
@@ -47,7 +47,7 @@ export const getByUserIdAndWeekStart = query({
       .withIndex("by_userId_weekStartDate", (q) =>
         q.eq("userId", userId).eq("weekStartDate", weekStartDate),
       )
-      .unique();
+      .first();
   },
 });
 
@@ -60,7 +60,7 @@ export const getByUserIdAndWeekStartInternal = internalQuery({
       .withIndex("by_userId_weekStartDate", (q) =>
         q.eq("userId", userId).eq("weekStartDate", weekStartDate),
       )
-      .unique();
+      .first();
   },
 });
 
