@@ -50,11 +50,17 @@ async function getWorkoutMovements(
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   const activityId = args.activityId as string;
 
-  const [detail, movements] = await Promise.all([
+  const [detail, formatted, movements] = await Promise.all([
     toolCtx.ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
       userId: toolCtx.userId,
       activityId,
     }),
+    toolCtx.ctx
+      .runAction(internal.tonal.proxy.fetchFormattedSummary, {
+        userId: toolCtx.userId,
+        summaryId: activityId,
+      })
+      .catch(() => null),
     toolCtx.ctx.runAction(internal.tonal.proxy.fetchMovements, {
       userId: toolCtx.userId,
     }),
@@ -62,32 +68,62 @@ async function getWorkoutMovements(
 
   const movementMap = new Map(movements.map((m) => [m.id, m]));
 
+  // Volume per movement from formatted summary
+  const volumeMap = new Map<string, number>();
+  if (formatted?.movementSets) {
+    for (const ms of formatted.movementSets) {
+      volumeMap.set(ms.movementId, ms.totalVolume);
+    }
+  }
+
   // Group sets by movementId
-  const byMovement = new Map<string, { sets: number; totalReps: number }>();
+  const byMovement = new Map<
+    string,
+    { sets: number; totalReps: number; usedSpotter: boolean; usedEccentric: boolean }
+  >();
 
   for (const set of detail.workoutSetActivity) {
     const existing = byMovement.get(set.movementId) ?? {
       sets: 0,
       totalReps: 0,
+      usedSpotter: false,
+      usedEccentric: false,
     };
     existing.sets += 1;
     existing.totalReps += set.repetition;
+    if (set.spotter) existing.usedSpotter = true;
+    if (set.eccentric) existing.usedEccentric = true;
     byMovement.set(set.movementId, existing);
   }
 
   const result = Array.from(byMovement.entries()).map(([movementId, data]) => {
     const movement = movementMap.get(movementId);
+    const volumeLbs = volumeMap.get(movementId) ?? 0;
     return {
       movementId,
       name: movement?.name ?? "Unknown",
       muscleGroups: movement?.muscleGroups ?? [],
       sets: data.sets,
       totalReps: data.totalReps,
+      volumeLbs,
+      avgWeightPerRep:
+        data.totalReps > 0 && volumeLbs > 0 ? Math.round(volumeLbs / data.totalReps) : null,
+      usedSpotter: data.usedSpotter,
+      usedEccentric: data.usedEccentric,
     };
   });
 
   return {
-    content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          { activityId, totalMovements: result.length, movements: result },
+          null,
+          2,
+        ),
+      },
+    ],
   };
 }
 

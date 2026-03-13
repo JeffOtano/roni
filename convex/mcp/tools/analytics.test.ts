@@ -99,18 +99,22 @@ describe("aggregateTrainingFrequency", () => {
     vi.useRealTimers();
   });
 
-  it("groups by target area with session counts", () => {
+  it("groups by target area with session counts and frequency", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
 
     const result = aggregateTrainingFrequency(mockActivities, 30);
+    expect(result.periodDays).toBe(30);
     expect(result.totalSessions).toBe(3);
+    expect(result.sessionsPerWeek).toBe(0.7);
     expect(result.byTargetArea.length).toBe(2);
     const upper = result.byTargetArea.find(
       (a: { targetArea: string }) => a.targetArea === "Upper Body",
     );
     expect(upper?.sessions).toBe(2);
     expect(upper?.totalVolumeLbs).toBe(9000);
+    expect(upper?.lastWorkout).toBe("2026-03-13T10:00:00Z");
+    expect(upper?.daysSinceLastWorkout).toBe(0);
   });
 
   it("filters activities outside date range", () => {
