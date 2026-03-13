@@ -14,4 +14,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 10,
   },
+  mcpRequest: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 10,
+  },
 });
