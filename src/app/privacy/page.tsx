@@ -34,9 +34,9 @@ export default function PrivacyPage() {
       </Card>
 
       <div className="mt-6">
-        <Link href="/settings">
+        <Link href="/">
           <Button variant="outline" size="sm">
-            Back to Settings
+            Back to Home
           </Button>
         </Link>
       </div>
