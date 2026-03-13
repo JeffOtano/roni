@@ -47,38 +47,55 @@ export function aggregateTrainingFrequency(
   activities: Activity[],
   days: number,
 ): {
+  periodDays: number;
   totalSessions: number;
-  days: number;
+  sessionsPerWeek: number;
   byTargetArea: Array<{
     targetArea: string;
     sessions: number;
     totalVolumeLbs: number;
     avgVolumeLbs: number;
+    lastWorkout: string;
+    daysSinceLastWorkout: number;
   }>;
 } {
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const cutoff = now - days * 24 * 60 * 60 * 1000;
   const filtered = activities.filter((a) => new Date(a.activityTime).getTime() >= cutoff);
 
-  const areaMap = new Map<string, { sessions: number; totalVolume: number }>();
+  const areaMap = new Map<string, { sessions: number; totalVolume: number; lastDate: string }>();
 
   for (const a of filtered) {
     const area = a.workoutPreview.targetArea;
-    const existing = areaMap.get(area) ?? { sessions: 0, totalVolume: 0 };
-    existing.sessions += 1;
-    existing.totalVolume += a.workoutPreview.totalVolume;
-    areaMap.set(area, existing);
+    const existing = areaMap.get(area);
+    if (existing) {
+      existing.sessions += 1;
+      existing.totalVolume += a.workoutPreview.totalVolume;
+      if (a.activityTime > existing.lastDate) existing.lastDate = a.activityTime;
+    } else {
+      areaMap.set(area, {
+        sessions: 1,
+        totalVolume: a.workoutPreview.totalVolume,
+        lastDate: a.activityTime,
+      });
+    }
   }
 
-  const byTargetArea = Array.from(areaMap.entries()).map(([targetArea, data]) => ({
-    targetArea,
-    sessions: data.sessions,
-    totalVolumeLbs: data.totalVolume,
-    avgVolumeLbs: Math.round(data.totalVolume / data.sessions),
-  }));
+  const byTargetArea = Array.from(areaMap.entries())
+    .map(([targetArea, data]) => ({
+      targetArea,
+      sessions: data.sessions,
+      totalVolumeLbs: data.totalVolume,
+      avgVolumeLbs: Math.round(data.totalVolume / data.sessions),
+      lastWorkout: data.lastDate,
+      daysSinceLastWorkout: Math.round((now - new Date(data.lastDate).getTime()) / 86400000),
+    }))
+    .sort((a, b) => b.sessions - a.sessions);
 
   return {
+    periodDays: days,
     totalSessions: filtered.length,
-    days,
+    sessionsPerWeek: filtered.length > 0 ? Math.round((filtered.length / days) * 7 * 10) / 10 : 0,
     byTargetArea,
   };
 }
