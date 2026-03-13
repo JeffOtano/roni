@@ -137,4 +137,25 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
+
+  /** MCP API keys for Claude Desktop/Code integration. */
+  mcpApiKeys: defineTable({
+    userId: v.id("users"),
+    keyHash: v.string(),
+    label: v.optional(v.string()),
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_keyHash", ["keyHash"])
+    .index("by_userId", ["userId"]),
+
+  /** MCP usage tracking for analytics. */
+  mcpUsage: defineTable({
+    userId: v.id("users"),
+    keyId: v.id("mcpApiKeys"),
+    tool: v.string(),
+    calledAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_calledAt", ["userId", "calledAt"]),
 });
