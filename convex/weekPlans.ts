@@ -6,6 +6,7 @@ import {
   daySlotValidator,
   dayStatusValidator,
   DEFAULT_DAYS,
+  getWeekStartDateString,
   isValidWeekStartDateString,
   preferredSplitValidator,
 } from "./weekPlanHelpers";
@@ -25,7 +26,6 @@ export const getCurrentWeekPlan = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    const { getWeekStartDateString } = await import("./weekPlanHelpers");
     const weekStartDate = getWeekStartDateString(new Date());
     return await ctx.db
       .query("weekPlans")
