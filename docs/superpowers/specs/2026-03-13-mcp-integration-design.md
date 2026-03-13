@@ -50,6 +50,8 @@ convex/
   mcp/
     server.ts          # HTTP action: JSON-RPC dispatcher
     auth.ts            # API key validation + userId resolution
+    keys.ts            # generateMcpApiKey, revokeMcpApiKey, listMcpApiKeys
+    usage.ts           # logMcpUsage mutation
     tools/
       user.ts          # get_user_profile, get_strength_scores, get_muscle_readiness
       exercises.ts     # list_movements, search_movements, get_movements_by_id
@@ -57,8 +59,6 @@ convex/
       analytics.ts     # list_workout_history, get_workout_detail, get_workout_movements, get_progress_metrics, get_strength_score_history, get_training_frequency
     resources.ts       # exercises, user-profile, muscle-readiness
     prompts.ts         # build_workout, weekly_plan, analyze_progress
-  mcp/
-    keys.ts            # generateMcpApiKey mutation, revokeMcpApiKey mutation
   http.ts              # Add POST /mcp route
 ```
 
@@ -129,43 +129,74 @@ JSON-RPC errors follow the spec:
 
 ### 6.1 API Key Lifecycle
 
+Users can create multiple API keys (e.g., one per device: Claude Desktop at home, Claude Code at work).
+
+**Generate:**
+
 1. User visits `/settings` in tonal-coach
-2. Clicks "Generate MCP API Key"
-3. `generateMcpApiKey` mutation:
+2. Clicks "Create API Key"
+3. Optionally enters a label (e.g., "Claude Desktop - MacBook Pro")
+4. `generateMcpApiKey` mutation:
    - Generates 32 random bytes, base64url-encoded
    - Hashes with SHA-256
-   - Stores hash + timestamp in `userProfiles`
+   - Inserts row into `mcpApiKeys` table with hash, label, userId, timestamps
    - Returns plaintext key (shown once)
-4. User copies key into Claude Desktop/Code config
-5. "Revoke Key" calls `revokeMcpApiKey` mutation (no args): clears `mcpApiKeyHash` and `mcpApiKeyCreatedAt` from `userProfiles`. Returns `{ revoked: true }`
+5. User copies key into Claude Desktop/Code config
+
+**Revoke:**
+
+- User clicks "Revoke" next to a specific key in the list
+- `revokeMcpApiKey` mutation (args: `{ keyId }`): deletes the row from `mcpApiKeys`. Returns `{ revoked: true }`
+- Verifies ownership (key's userId matches authenticated user)
+
+**List:**
+
+- Settings page shows all active keys via `listMcpApiKeys` query
+- Displays: label, created date, last used date
+- No plaintext key shown (only stored as hash)
 
 ### 6.2 Schema Changes
 
-Add to `userProfiles` table:
+New `mcpApiKeys` table:
 
 ```typescript
-mcpApiKeyHash: v.optional(v.string()),
-mcpApiKeyCreatedAt: v.optional(v.number()),
+mcpApiKeys: defineTable({
+  userId: v.id("users"),
+  keyHash: v.string(), // SHA-256 hash of the plaintext key
+  label: v.optional(v.string()), // User-provided label (e.g., "Claude Desktop")
+  createdAt: v.number(),
+  lastUsedAt: v.optional(v.number()),
+})
+  .index("by_keyHash", ["keyHash"])
+  .index("by_userId", ["userId"]);
 ```
 
-Add index for key lookup (chained after existing indices):
+New `mcpUsage` table (see Section 11.2):
 
 ```typescript
-// userProfiles table indices become:
-.index("by_userId", ["userId"])
-.index("by_tonalUserId", ["tonalUserId"])
-.index("by_mcpApiKeyHash", ["mcpApiKeyHash"])
+mcpUsage: defineTable({
+  userId: v.id("users"),
+  keyId: v.id("mcpApiKeys"),
+  tool: v.string(), // tool name or "resource:uri" or "prompt:name"
+  calledAt: v.number(),
+})
+  .index("by_userId", ["userId"])
+  .index("by_userId_calledAt", ["userId", "calledAt"]);
 ```
+
+No changes to `userProfiles` table.
 
 ### 6.3 Request Validation (`convex/mcp/auth.ts`)
 
 ```
 1. Extract Authorization header -> Bearer <key>
 2. SHA-256 hash the key
-3. Query userProfiles.by_mcpApiKeyHash for matching hash
+3. Query mcpApiKeys.by_keyHash for matching hash
 4. If not found -> JSON-RPC error -32000 (Unauthorized)
-5. If found -> return { userId, userProfile }
-6. If no tonalToken on profile -> JSON-RPC error -32001 (Tonal not connected)
+5. If found -> update lastUsedAt on the key row
+6. Load userProfile by key's userId
+7. If no tonalToken on profile -> JSON-RPC error -32001 (Tonal not connected)
+8. Return { userId, userProfile, keyId }
 ```
 
 ### 6.4 Security
@@ -174,6 +205,8 @@ Add index for key lookup (chained after existing indices):
 - Key is scoped to MCP access only (cannot authenticate web sessions)
 - Rate limited: 30 requests/minute per userId (reuses `rateLimiter` pattern)
 - Requires connected Tonal account (tools fail gracefully otherwise)
+- Key revocation is immediate -- next request with revoked key returns -32000
+- Ownership verified on revoke (cannot delete another user's keys)
 
 ---
 
@@ -363,9 +396,9 @@ Add a "Claude Integration" card to the existing settings page:
 
 **States:**
 
-1. **No key generated:** Shows description + "Generate API Key" button
-2. **Key just generated:** Shows the plaintext key with copy button + warning ("This key won't be shown again") + copyable Claude Desktop config JSON + "Done" button
-3. **Key active:** Shows "MCP API Key active (created Mar 13, 2026)" + "Revoke Key" button with confirmation dialog
+1. **No keys:** Shows description of Claude integration + "Create API Key" button
+2. **Key just created:** Shows the plaintext key with copy button + warning ("This key won't be shown again") + copyable Claude Desktop config JSON + "Done" button
+3. **Keys exist:** Shows list of active keys with label, created date, last used date, and "Revoke" button per key. "Create API Key" button to add more.
 
 ### 10.2 Claude Desktop Config Snippet
 
@@ -403,6 +436,30 @@ mcpRequest: {
 
 30 requests/minute per userId (resolved from API key hash lookup) with burst capacity of 10. This prevents abuse while allowing normal Claude tool-call patterns (typically 3-8 calls per interaction).
 
+### 11.2 Usage Analytics
+
+Every MCP tool call, resource read, and prompt get is logged to the `mcpUsage` table:
+
+```typescript
+{
+  userId: Id<"users">,
+  keyId: Id<"mcpApiKeys">,
+  tool: string,        // "get_user_profile", "resource:exercises", "prompt:build_workout"
+  calledAt: number,
+}
+```
+
+This enables:
+
+- Per-user usage dashboards (which tools are most used)
+- Key-level activity tracking (which device is most active)
+- Product analytics (most popular tools across all users)
+- Abuse detection (unusual call patterns)
+
+Usage is recorded asynchronously via `ctx.runMutation` after the tool response is sent, so it doesn't add latency to MCP responses.
+
+The `lastUsedAt` field on `mcpApiKeys` is also updated on each request for quick "last active" display in settings.
+
 ---
 
 ## 12. Testing Strategy
@@ -413,7 +470,8 @@ mcpRequest: {
 - **Auth** (`convex/mcp/auth.test.ts`): Key hashing, lookup, missing key, invalid key, no Tonal connection.
 - **Tool wrappers** (one test file per tool module): Verify arg validation and response formatting. Mock the underlying Convex actions.
 - **New analytics actions**: Test aggregation logic with fixture data.
-- **Key management** (`convex/mcp/keys.test.ts`): Generate key, revoke key, hash validation, re-generation revokes previous key.
+- **Key management** (`convex/mcp/keys.test.ts`): Generate key, revoke key, hash validation, multiple keys per user, ownership verification on revoke.
+- **Usage tracking**: Verify `mcpUsage` rows are created on tool calls, `lastUsedAt` updated on key.
 
 ### 12.2 Integration Tests
 
@@ -430,7 +488,7 @@ mcpRequest: {
 
 ## 13. Migration & Rollout
 
-1. **Schema migration:** Add `mcpApiKeyHash` and `mcpApiKeyCreatedAt` fields to `userProfiles`. Both optional -- no data migration needed.
+1. **Schema migration:** Add `mcpApiKeys` and `mcpUsage` tables. No changes to existing tables -- no data migration needed.
 2. **Deploy:** New HTTP route and MCP handler deploy with normal `convex deploy`.
 3. **Feature flag:** None needed. The MCP endpoint exists but is inert until a user generates a key.
 4. **Monorepo move:** Copy tonal-mcp into `docs/reference/tonal-mcp-original/` as read-only reference (avoids creating a `packages/` directory for non-runnable code). Original repo can be archived.
@@ -472,8 +530,8 @@ mcpRequest: {
 
 ---
 
-## 15. Open Questions
+## 15. Resolved Decisions
 
-1. **Key rotation:** Should we support multiple active keys per user (e.g., one per device)? v1 supports one key; generating a new one revokes the old.
-2. **Usage analytics:** Should we track MCP usage per user (tool call counts, last used)? Useful for product analytics but not essential for v1.
-3. **Tool descriptions in app:** Should the settings page explain what tools are available, or just provide the config snippet?
+1. **Multi-key support:** Yes. Users can create multiple labeled API keys (one per device). Separate `mcpApiKeys` table instead of fields on `userProfiles`.
+2. **Usage analytics:** Yes. All MCP calls logged to `mcpUsage` table. Per-key `lastUsedAt` tracking. Enables product analytics and abuse detection.
+3. **Tool descriptions in settings:** No. Settings page shows only the key management UI and config snippet. Tool discovery happens through the MCP protocol itself (`tools/list`).
