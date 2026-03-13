@@ -63,7 +63,7 @@ export const getWorkoutHistory = action({
 
     return ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
-      limit: 20,
+      limit: 5,
     });
   },
 });
