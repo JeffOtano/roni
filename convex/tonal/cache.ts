@@ -32,17 +32,13 @@ export const getCacheEntry = internalQuery({
     if (userId) {
       return await ctx.db
         .query("tonalCache")
-        .withIndex("by_userId_dataType", (q) =>
-          q.eq("userId", userId).eq("dataType", dataType),
-        )
+        .withIndex("by_userId_dataType", (q) => q.eq("userId", userId).eq("dataType", dataType))
         .unique();
     }
     // Global cache (e.g., movement catalog)
     return await ctx.db
       .query("tonalCache")
-      .withIndex("by_userId_dataType", (q) =>
-        q.eq("userId", undefined).eq("dataType", dataType),
-      )
+      .withIndex("by_userId_dataType", (q) => q.eq("userId", undefined).eq("dataType", dataType))
       .unique();
   },
 });

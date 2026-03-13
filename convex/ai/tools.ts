@@ -1,27 +1,35 @@
 import { createTool, type ToolCtx } from "@convex-dev/agent";
 import { z } from "zod";
 import { internal } from "../_generated/api";
-import type { Movement, Activity, StrengthScore } from "../tonal/types";
+import type { Id } from "../_generated/dataModel";
+import type {
+  Activity,
+  Movement,
+  MuscleReadiness,
+  StrengthScore,
+  StrengthScoreHistoryEntry,
+  WorkoutActivityDetail,
+} from "../tonal/types";
+
+function requireUserId(ctx: ToolCtx): Id<"users"> {
+  if (!ctx.userId) throw new Error("Not authenticated");
+  return ctx.userId as Id<"users">;
+}
 
 async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
   const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
     userId: undefined,
     dataType: "movements",
   });
-  return (cached?.data as Movement[]) ?? [];
+  if (!cached?.data || !Array.isArray(cached.data)) return [];
+  return cached.data as Movement[];
 }
 
 export const searchExercisesTool = createTool({
-  description:
-    "Search Tonal's exercise catalog by name and/or muscle group. Returns matching exercises with movementId, name, and muscle groups.",
+  description: "Search Tonal exercise catalog by name and/or muscle group.",
   inputSchema: z.object({
-    name: z.string().optional().describe("Exercise name substring to search"),
-    muscleGroup: z
-      .string()
-      .optional()
-      .describe(
-        "e.g. Chest, Back, Quads, Shoulders, Biceps, Triceps, Abs, Glutes, Hamstrings, Calves",
-      ),
+    name: z.string().optional().describe("Exercise name substring"),
+    muscleGroup: z.string().optional().describe("e.g. Chest, Back, Quads, Shoulders"),
   }),
   execute: async (ctx, input) => {
     const catalog = await getGlobalMovementCatalog(ctx);
@@ -33,9 +41,7 @@ export const searchExercisesTool = createTool({
     }
     if (input.muscleGroup) {
       const g = input.muscleGroup.toLowerCase();
-      results = results.filter((m) =>
-        m.muscleGroups.some((mg) => mg.toLowerCase() === g),
-      );
+      results = results.filter((m) => m.muscleGroups.some((mg) => mg.toLowerCase() === g));
     }
 
     return results.slice(0, 30).map((m) => ({
@@ -49,24 +55,23 @@ export const searchExercisesTool = createTool({
 });
 
 export const getStrengthScoresTool = createTool({
-  description:
-    "Get the user's current Tonal strength scores broken down by body region (upper, lower, core, overall) and their percentile ranking.",
+  description: "Get Tonal strength scores by body region and percentile.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<{
+  execute: async (
+    ctx,
+  ): Promise<{
     scores: { region: string; score: number }[];
     overall: number;
     percentile: number;
   }> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    const scores = (await ctx.runAction(
-      internal.tonal.proxy.fetchStrengthScores,
-      { userId: ctx.userId as any },
-    )) as StrengthScore[];
+    const userId = requireUserId(ctx);
+    const scores = (await ctx.runAction(internal.tonal.proxy.fetchStrengthScores, {
+      userId,
+    })) as StrengthScore[];
 
-    const distribution = (await ctx.runAction(
-      internal.tonal.proxy.fetchStrengthDistribution,
-      { userId: ctx.userId as any },
-    )) as { overallScore: number; percentile: number };
+    const distribution = (await ctx.runAction(internal.tonal.proxy.fetchStrengthDistribution, {
+      userId,
+    })) as { overallScore: number; percentile: number };
 
     return {
       scores: scores.map((s) => ({
@@ -80,50 +85,38 @@ export const getStrengthScoresTool = createTool({
 });
 
 export const getStrengthHistoryTool = createTool({
-  description:
-    "Get the user's strength score history over time showing trends for upper, lower, core, and overall scores.",
+  description: "Get strength score history over time by region.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<unknown> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    const history: unknown = await ctx.runAction(
-      internal.tonal.proxy.fetchStrengthHistory,
-      { userId: ctx.userId as any },
-    );
-    return history;
+  execute: async (ctx): Promise<StrengthScoreHistoryEntry[]> => {
+    const userId = requireUserId(ctx);
+    return (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
+      userId,
+    })) as StrengthScoreHistoryEntry[];
   },
 });
 
 export const getMuscleReadinessTool = createTool({
-  description:
-    "Get muscle readiness scores (0-100) for each muscle group. Higher = more recovered and ready to train.",
+  description: "Get muscle readiness (0-100) per muscle group.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<unknown> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    return ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, {
-      userId: ctx.userId as any,
-    });
+  execute: async (ctx): Promise<MuscleReadiness> => {
+    const userId = requireUserId(ctx);
+    return (await ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, {
+      userId,
+    })) as MuscleReadiness;
   },
 });
 
 export const getWorkoutHistoryTool = createTool({
-  description:
-    "Get the user's recent workout history showing dates, workout titles, target areas, and total volume.",
+  description: "Get recent workout history (dates, titles, target areas, volume).",
   inputSchema: z.object({
-    limit: z
-      .number()
-      .optional()
-      .default(20)
-      .describe("Number of recent workouts to fetch"),
+    limit: z.number().optional().default(20).describe("Max workouts to return"),
   }),
   execute: async (ctx, input) => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    const activities = (await ctx.runAction(
-      internal.tonal.proxy.fetchWorkoutHistory,
-      {
-        userId: ctx.userId as any,
-        limit: input.limit,
-      },
-    )) as Activity[];
+    const userId = requireUserId(ctx);
+    const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+      userId,
+      limit: input.limit,
+    })) as Activity[];
 
     return activities.map((a) => ({
       activityId: a.activityId,
@@ -138,33 +131,28 @@ export const getWorkoutHistoryTool = createTool({
 });
 
 export const getWorkoutDetailTool = createTool({
-  description:
-    "Get detailed information about a specific workout including all exercises, sets, reps, and volume.",
+  description: "Get full workout detail (exercises, sets, reps, volume).",
   inputSchema: z.object({
-    activityId: z.string().describe("The activity ID from workout history"),
+    activityId: z.string().describe("Activity ID from workout history"),
   }),
-  execute: async (ctx, input): Promise<unknown> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    return ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
-      userId: ctx.userId as any,
+  execute: async (ctx, input): Promise<WorkoutActivityDetail> => {
+    const userId = requireUserId(ctx);
+    return (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+      userId,
       activityId: input.activityId,
-    });
+    })) as WorkoutActivityDetail;
   },
 });
 
 export const getTrainingFrequencyTool = createTool({
-  description:
-    "Analyze training frequency by looking at recent workout history to determine how often each muscle group is being trained.",
+  description: "Training frequency per muscle group from recent history.",
   inputSchema: z.object({}),
   execute: async (ctx) => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    const activities = (await ctx.runAction(
-      internal.tonal.proxy.fetchWorkoutHistory,
-      {
-        userId: ctx.userId as any,
-        limit: 30,
-      },
-    )) as Activity[];
+    const userId = requireUserId(ctx);
+    const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+      userId,
+      limit: 30,
+    })) as Activity[];
 
     const muscleGroupCounts: Record<string, number> = {};
     const lastTrained: Record<string, string> = {};
@@ -190,7 +178,7 @@ export const getTrainingFrequencyTool = createTool({
 
 export const createWorkoutTool = createTool({
   description:
-    "Create a custom workout on the user's Tonal. Always confirm with user first. Use movementIds from search_exercises.",
+    "Create a custom workout on Tonal. Confirm first. Use movementIds from search_exercises.",
   inputSchema: z.object({
     title: z.string().describe("Workout title"),
     blocks: z
@@ -215,33 +203,37 @@ export const createWorkoutTool = createTool({
       .min(1)
       .max(10),
   }),
-  execute: async (ctx, input): Promise<unknown> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    return ctx.runAction(internal.tonal.proxy.createWorkout, {
-      userId: ctx.userId as any,
+  execute: async (
+    ctx,
+    input,
+  ): Promise<
+    | { success: true; workoutId: string; title: string; setCount: number; planId: string }
+    | { success: false; error: string; planId: string }
+  > => {
+    const userId = requireUserId(ctx);
+    return ctx.runAction(internal.tonal.mutations.createWorkout, {
+      userId,
       title: input.title,
       blocks: input.blocks,
     });
   },
 });
-
 export const deleteWorkoutTool = createTool({
-  description: "Delete a custom workout from the user's Tonal.",
+  description: "Delete a custom workout from Tonal.",
   inputSchema: z.object({
-    workoutId: z.string().describe("The Tonal workout ID to delete"),
+    workoutId: z.string().describe("Tonal workout ID"),
   }),
-  execute: async (ctx, input): Promise<unknown> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    return ctx.runAction(internal.tonal.proxy.deleteWorkout, {
-      userId: ctx.userId as any,
+  execute: async (ctx, input): Promise<{ deleted: true }> => {
+    const userId = requireUserId(ctx);
+    return (await ctx.runAction(internal.tonal.mutations.deleteWorkout, {
+      userId,
       workoutId: input.workoutId,
-    });
+    })) as { deleted: true };
   },
 });
 
 export const estimateDurationTool = createTool({
-  description:
-    "Estimate how long a workout will take based on the exercise blocks.",
+  description: "Estimate workout duration from exercise blocks.",
   inputSchema: z.object({
     blocks: z
       .array(
@@ -261,14 +253,51 @@ export const estimateDurationTool = createTool({
       .min(1),
   }),
   execute: async (ctx, input): Promise<{ estimatedMinutes: number }> => {
-    if (!ctx.userId) throw new Error("Not authenticated");
-    const result = (await ctx.runAction(
-      internal.tonal.proxy.estimateWorkout,
-      {
-        userId: ctx.userId as any,
-        blocks: input.blocks,
-      },
-    )) as { duration: number };
+    const userId = requireUserId(ctx);
+    const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
+      userId,
+      blocks: input.blocks,
+    })) as { duration: number };
     return { estimatedMinutes: Math.round(result.duration / 60) };
+  },
+});
+
+export const listProgressPhotosTool = createTool({
+  description:
+    "List progress photos (id, date). Use for compare only if analysis enabled in Settings.",
+  inputSchema: z.object({}),
+  execute: async (ctx): Promise<{ photos: { id: string; createdAt: number }[] }> => {
+    const userId = requireUserId(ctx);
+    const rows = (await ctx.runQuery(internal.progressPhotos.listByUserId, {
+      userId,
+    })) as { _id: Id<"progressPhotos">; createdAt: number }[];
+    return {
+      photos: rows.map((r) => ({ id: r._id, createdAt: r.createdAt })),
+    };
+  },
+});
+
+export const compareProgressPhotosTool = createTool({
+  description:
+    "Compare two progress photos; brief factual observations. Requires analysis enabled and list_progress_photos ids.",
+  inputSchema: z.object({
+    photoId1: z.string().describe("First photo id (earlier)"),
+    photoId2: z.string().describe("Second photo id (later)"),
+  }),
+  execute: async (ctx, input): Promise<{ observations: string; error?: string }> => {
+    const userId = requireUserId(ctx);
+    try {
+      const observations = await ctx.runAction(internal.progressPhotos.compareProgressPhotos, {
+        userId,
+        photoId1: input.photoId1 as Id<"progressPhotos">,
+        photoId2: input.photoId2 as Id<"progressPhotos">,
+      });
+      return { observations };
+    } catch (err) {
+      return {
+        observations: "",
+        error: err instanceof Error ? err.message : "Comparison failed",
+      };
+    }
   },
 });

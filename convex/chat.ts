@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalAction, mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";

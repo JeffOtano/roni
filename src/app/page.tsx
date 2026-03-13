@@ -2,22 +2,10 @@
 
 import Link from "next/link";
 import { useConvexAuth } from "convex/react";
-import {
-  Brain,
-  Send,
-  BellRing,
-  TrendingUp,
-  Utensils,
-  ArrowRight,
-} from "lucide-react";
+import { ArrowRight, BellRing, Brain, Send, TrendingUp, Utensils } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Feature {
   icon: typeof Brain;
@@ -30,27 +18,23 @@ const FEATURES: Feature[] = [
   {
     icon: Brain,
     title: "AI Coaching",
-    description:
-      "Ask anything about your training. Get answers grounded in your real data.",
+    description: "Ask anything about your training. Get answers grounded in your real data.",
   },
   {
     icon: Send,
     title: "Push to Tonal",
-    description:
-      "Your coach programs workouts and sends them straight to your machine.",
+    description: "Your coach programs workouts and sends them straight to your machine.",
   },
   {
     icon: BellRing,
     title: "Proactive Check-ins",
-    description:
-      "Get nudged when you're overtraining, slacking, or ready to level up.",
+    description: "Get nudged when you're overtraining, slacking, or ready to level up.",
     badge: "Coming Soon",
   },
   {
     icon: TrendingUp,
     title: "Progress Tracking",
-    description:
-      "Strength scores, muscle readiness, and body composition over time.",
+    description: "Strength scores, muscle readiness, and body composition over time.",
     badge: "Body composition coming soon",
   },
   {
@@ -89,20 +73,13 @@ export default function HomePage() {
 
         <div className="relative z-10">
           <h1 className="mx-auto max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-            The personal trainer your{" "}
-            <span className="text-primary">Tonal</span> deserves
+            The personal trainer your <span className="text-primary">Tonal</span> deserves
           </h1>
           <p className="mx-auto mt-6 max-w-lg text-base text-muted-foreground sm:text-lg">
-            AI coaching powered by your real training data. Get personalized
-            advice, push custom workouts, and track your progress — all in one
-            place.
+            AI coaching powered by your real training data. Get personalized advice, push custom
+            workouts, and track your progress — all in one place.
           </p>
-          <Button
-            size="lg"
-            className="mt-8"
-            render={<Link href={ctaHref} />}
-            disabled={isLoading}
-          >
+          <Button size="lg" className="mt-8" render={<Link href={ctaHref} />} disabled={isLoading}>
             {isLoading ? "Loading..." : ctaLabel}
             <ArrowRight className="ml-1 size-4" data-icon="inline-end" />
           </Button>
@@ -121,10 +98,7 @@ export default function HomePage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ icon: Icon, title, description, badge }) => (
-              <Card
-                key={title}
-                className="border-border bg-card/50"
-              >
+              <Card key={title} className="border-border bg-card/50">
                 <CardHeader>
                   <div className="mb-2 flex items-center gap-2">
                     <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
@@ -136,9 +110,7 @@ export default function HomePage() {
                       </Badge>
                     )}
                   </div>
-                  <CardTitle className="text-sm font-semibold">
-                    {title}
-                  </CardTitle>
+                  <CardTitle className="text-sm font-semibold">{title}</CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
                     {description}
                   </CardDescription>
@@ -166,12 +138,7 @@ export default function HomePage() {
         <p className="mt-4 text-muted-foreground">
           Connect your Tonal and start coaching in minutes.
         </p>
-        <Button
-          size="lg"
-          className="mt-8"
-          render={<Link href={ctaHref} />}
-          disabled={isLoading}
-        >
+        <Button size="lg" className="mt-8" render={<Link href={ctaHref} />} disabled={isLoading}>
           {isLoading ? "Loading..." : ctaLabel}
           <ArrowRight className="ml-1 size-4" data-icon="inline-end" />
         </Button>
@@ -180,8 +147,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border px-4 py-6 text-center">
         <p className="text-xs text-muted-foreground">
-          tonal.coach is an independent project. Not affiliated with or endorsed
-          by Tonal.
+          tonal.coach is an independent project. Not affiliated with or endorsed by Tonal.
         </p>
       </footer>
     </div>

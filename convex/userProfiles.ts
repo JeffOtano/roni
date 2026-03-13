@@ -51,10 +51,27 @@ export const create = internalMutation({
       return existing._id;
     }
 
+    const now = Date.now();
     return await ctx.db.insert("userProfiles", {
       ...args,
-      lastActiveAt: Date.now(),
+      lastActiveAt: now,
+      tonalConnectedAt: now,
     });
+  },
+});
+
+export const setFirstAiWorkoutCompletedAt = internalMutation({
+  args: {
+    userId: v.id("users"),
+    completedAt: v.number(),
+  },
+  handler: async (ctx, { userId, completedAt }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile || profile.firstAiWorkoutCompletedAt !== undefined) return;
+    await ctx.db.patch(profile._id, { firstAiWorkoutCompletedAt: completedAt });
   },
 });
 

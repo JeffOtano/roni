@@ -7,7 +7,7 @@ import { useConvexAuth } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { Loader2 } from "lucide-react";
@@ -88,21 +88,14 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
-                autoComplete={
-                  flow === "signIn" ? "current-password" : "new-password"
-                }
+                autoComplete={flow === "signIn" ? "current-password" : "new-password"}
                 disabled={submitting}
               />
             </div>
 
             {error && <ErrorAlert message={error} />}
 
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={submitting}
-            >
+            <Button type="submit" className="w-full" size="lg" disabled={submitting}>
               {submitting ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : flow === "signIn" ? (

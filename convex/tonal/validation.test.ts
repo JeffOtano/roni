@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { validateMovementIds } from "./validation";
 
 const mockCatalog = [
@@ -27,10 +27,7 @@ describe("validateMovementIds", () => {
   });
 
   it("catches multiple invalid IDs", () => {
-    const result = validateMovementIds(
-      ["bad-1", "uuid-1", "bad-2"],
-      mockCatalog,
-    );
+    const result = validateMovementIds(["bad-1", "uuid-1", "bad-2"], mockCatalog);
     expect(result.valid).toBe(false);
     expect(result.errors).toHaveLength(2);
   });

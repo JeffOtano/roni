@@ -1,4 +1,4 @@
-import { encrypt, decrypt } from "./encryption";
+import { decrypt, encrypt } from "./encryption";
 
 const TONAL_AUTH0_DOMAIN = "tonal.auth0.com";
 const TONAL_AUTH0_CLIENT_ID = "ERCyexW-xoVG_Yy3RDe-eV4xsOnRHP6L";
@@ -13,10 +13,7 @@ interface TonalTokenResult {
  * Obtain a Tonal API token via Auth0 password-realm grant.
  * The password is NOT stored — only the resulting JWT is encrypted and persisted.
  */
-export async function obtainTonalToken(
-  email: string,
-  password: string,
-): Promise<TonalTokenResult> {
+export async function obtainTonalToken(email: string, password: string): Promise<TonalTokenResult> {
   const res = await fetch(`https://${TONAL_AUTH0_DOMAIN}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -31,9 +28,7 @@ export async function obtainTonalToken(
   });
 
   if (!res.ok) {
-    const error = await res
-      .json()
-      .catch(() => ({ error_description: "Unknown error" }));
+    const error = await res.json().catch(() => ({ error_description: "Unknown error" }));
     throw new Error(error.error_description || "Invalid Tonal credentials");
   }
 
@@ -50,9 +45,7 @@ export async function obtainTonalToken(
 /**
  * Refresh an existing Tonal token using the refresh_token grant.
  */
-export async function refreshTonalToken(
-  refreshToken: string,
-): Promise<TonalTokenResult> {
+export async function refreshTonalToken(refreshToken: string): Promise<TonalTokenResult> {
   const res = await fetch(`https://${TONAL_AUTH0_DOMAIN}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,9 +57,7 @@ export async function refreshTonalToken(
   });
 
   if (!res.ok) {
-    throw new Error(
-      "Tonal token refresh failed — user must re-authenticate",
-    );
+    throw new Error("Tonal token refresh failed — user must re-authenticate");
   }
 
   const data = await res.json();
@@ -79,17 +70,11 @@ export async function refreshTonalToken(
   };
 }
 
-export async function encryptToken(
-  token: string,
-  encryptionKey: string,
-): Promise<string> {
+export async function encryptToken(token: string, encryptionKey: string): Promise<string> {
   return encrypt(token, encryptionKey);
 }
 
-export async function decryptToken(
-  encrypted: string,
-  encryptionKey: string,
-): Promise<string> {
+export async function decryptToken(encrypted: string, encryptionKey: string): Promise<string> {
   return decrypt(encrypted, encryptionKey);
 }
 

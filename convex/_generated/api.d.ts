@@ -8,14 +8,22 @@
  * @module
  */
 
+import type * as activation from "../activation.js";
 import type * as ai_coach from "../ai/coach.js";
 import type * as ai_context from "../ai/context.js";
 import type * as ai_tools from "../ai/tools.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
+import type * as checkIns from "../checkIns.js";
+import type * as checkIns_content from "../checkIns/content.js";
+import type * as checkIns_triggers from "../checkIns/triggers.js";
+import type * as coach_exerciseSelection from "../coach/exerciseSelection.js";
+import type * as coach_weekProgramming from "../coach/weekProgramming.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as http from "../http.js";
+import type * as progressPhotos from "../progressPhotos.js";
+import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as threads from "../threads.js";
 import type * as tonal_auth from "../tonal/auth.js";
@@ -25,6 +33,8 @@ import type * as tonal_client from "../tonal/client.js";
 import type * as tonal_connect from "../tonal/connect.js";
 import type * as tonal_connectPublic from "../tonal/connectPublic.js";
 import type * as tonal_encryption from "../tonal/encryption.js";
+import type * as tonal_hardware from "../tonal/hardware.js";
+import type * as tonal_mutations from "../tonal/mutations.js";
 import type * as tonal_proxy from "../tonal/proxy.js";
 import type * as tonal_tokenRefresh from "../tonal/tokenRefresh.js";
 import type * as tonal_transforms from "../tonal/transforms.js";
@@ -32,6 +42,9 @@ import type * as tonal_types from "../tonal/types.js";
 import type * as tonal_validation from "../tonal/validation.js";
 import type * as userProfiles from "../userProfiles.js";
 import type * as users from "../users.js";
+import type * as weekPlanActions from "../weekPlanActions.js";
+import type * as weekPlanHelpers from "../weekPlanHelpers.js";
+import type * as weekPlans from "../weekPlans.js";
 import type * as workoutPlans from "../workoutPlans.js";
 
 import type {
@@ -41,14 +54,22 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  activation: typeof activation;
   "ai/coach": typeof ai_coach;
   "ai/context": typeof ai_context;
   "ai/tools": typeof ai_tools;
   auth: typeof auth;
   chat: typeof chat;
+  checkIns: typeof checkIns;
+  "checkIns/content": typeof checkIns_content;
+  "checkIns/triggers": typeof checkIns_triggers;
+  "coach/exerciseSelection": typeof coach_exerciseSelection;
+  "coach/weekProgramming": typeof coach_weekProgramming;
   crons: typeof crons;
   dashboard: typeof dashboard;
   http: typeof http;
+  progressPhotos: typeof progressPhotos;
+  progressiveOverload: typeof progressiveOverload;
   rateLimits: typeof rateLimits;
   threads: typeof threads;
   "tonal/auth": typeof tonal_auth;
@@ -58,6 +79,8 @@ declare const fullApi: ApiFromModules<{
   "tonal/connect": typeof tonal_connect;
   "tonal/connectPublic": typeof tonal_connectPublic;
   "tonal/encryption": typeof tonal_encryption;
+  "tonal/hardware": typeof tonal_hardware;
+  "tonal/mutations": typeof tonal_mutations;
   "tonal/proxy": typeof tonal_proxy;
   "tonal/tokenRefresh": typeof tonal_tokenRefresh;
   "tonal/transforms": typeof tonal_transforms;
@@ -65,6 +88,9 @@ declare const fullApi: ApiFromModules<{
   "tonal/validation": typeof tonal_validation;
   userProfiles: typeof userProfiles;
   users: typeof users;
+  weekPlanActions: typeof weekPlanActions;
+  weekPlanHelpers: typeof weekPlanHelpers;
+  weekPlans: typeof weekPlans;
   workoutPlans: typeof workoutPlans;
 }>;
 

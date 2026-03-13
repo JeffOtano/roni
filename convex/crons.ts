@@ -15,4 +15,14 @@ crons.interval(
   internal.tonal.cacheRefresh.refreshActiveUsers,
 );
 
+crons.interval(
+  "check-activation",
+  { hours: 1 },
+  internal.activation.runActivationCheckForEligibleUsers,
+);
+
+crons.interval("stuck-push-recovery", { minutes: 15 }, internal.workoutPlans.runStuckPushRecovery);
+
+crons.interval("check-in-triggers", { hours: 6 }, internal.checkIns.runCheckInTriggerEvaluation);
+
 export default crons;

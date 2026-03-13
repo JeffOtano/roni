@@ -1,31 +1,26 @@
 import { v } from "convex/values";
-import { internalAction, ActionCtx } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
+import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
 import { tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
-import { expandBlocksToSets, type BlockInput } from "./transforms";
-import { validateWorkoutBlocks } from "./validation";
 import type {
-  TonalUser,
-  StrengthScore,
-  StrengthDistribution,
-  StrengthScoreHistoryEntry,
-  MuscleReadiness,
   Activity,
-  WorkoutActivityDetail,
   FormattedWorkoutSummary,
   Movement,
+  MuscleReadiness,
+  StrengthDistribution,
+  StrengthScore,
+  StrengthScoreHistoryEntry,
+  TonalUser,
   UserWorkout,
-  WorkoutEstimate,
+  WorkoutActivityDetail,
 } from "./types";
 
-// ---------------------------------------------------------------------------
-// Helper: resolve encrypted token + tonalUserId for a given Convex user
-// ---------------------------------------------------------------------------
-
-async function withTonalToken(
+/** Resolve encrypted token + tonalUserId for a given Convex user. */
+export async function withTonalToken(
   ctx: ActionCtx,
   userId: Id<"users">,
 ): Promise<{ token: string; tonalUserId: string }> {
@@ -45,11 +40,8 @@ async function withTonalToken(
   return { token, tonalUserId: profile.tonalUserId };
 }
 
-// ---------------------------------------------------------------------------
-// Generic cache-check-then-fetch helper
-// ---------------------------------------------------------------------------
-
-async function cachedFetch<T>(
+/** Generic cache-check-then-fetch helper. */
+export async function cachedFetch<T>(
   ctx: ActionCtx,
   opts: {
     userId?: Id<"users">;
@@ -83,10 +75,6 @@ async function cachedFetch<T>(
   return data;
 }
 
-// ---------------------------------------------------------------------------
-// 1. fetchUserProfile
-// ---------------------------------------------------------------------------
-
 export const fetchUserProfile = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<TonalUser> => {
@@ -100,10 +88,6 @@ export const fetchUserProfile = internalAction({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 2. fetchStrengthScores
-// ---------------------------------------------------------------------------
-
 export const fetchStrengthScores = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<StrengthScore[]> => {
@@ -113,17 +97,10 @@ export const fetchStrengthScores = internalAction({
       dataType: "strengthScores",
       ttl: CACHE_TTLS.strengthScores,
       fetcher: () =>
-        tonalFetch<StrengthScore[]>(
-          token,
-          `/v6/users/${tonalUserId}/strength-scores/current`,
-        ),
+        tonalFetch<StrengthScore[]>(token, `/v6/users/${tonalUserId}/strength-scores/current`),
     });
   },
 });
-
-// ---------------------------------------------------------------------------
-// 3. fetchStrengthDistribution
-// ---------------------------------------------------------------------------
 
 export const fetchStrengthDistribution = internalAction({
   args: { userId: v.id("users") },
@@ -142,10 +119,6 @@ export const fetchStrengthDistribution = internalAction({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 4. fetchStrengthHistory
-// ---------------------------------------------------------------------------
-
 export const fetchStrengthHistory = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<StrengthScoreHistoryEntry[]> => {
@@ -163,10 +136,6 @@ export const fetchStrengthHistory = internalAction({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 5. fetchMuscleReadiness
-// ---------------------------------------------------------------------------
-
 export const fetchMuscleReadiness = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<MuscleReadiness> => {
@@ -176,17 +145,10 @@ export const fetchMuscleReadiness = internalAction({
       dataType: "muscleReadiness",
       ttl: CACHE_TTLS.muscleReadiness,
       fetcher: () =>
-        tonalFetch<MuscleReadiness>(
-          token,
-          `/v6/users/${tonalUserId}/muscle-readiness/current`,
-        ),
+        tonalFetch<MuscleReadiness>(token, `/v6/users/${tonalUserId}/muscle-readiness/current`),
     });
   },
 });
-
-// ---------------------------------------------------------------------------
-// 6. fetchWorkoutHistory
-// ---------------------------------------------------------------------------
 
 export const fetchWorkoutHistory = internalAction({
   args: {
@@ -200,27 +162,17 @@ export const fetchWorkoutHistory = internalAction({
       dataType: "workoutHistory",
       ttl: CACHE_TTLS.workoutHistory,
       fetcher: () =>
-        tonalFetch<Activity[]>(
-          token,
-          `/v6/users/${tonalUserId}/activities?limit=${limit}`,
-        ),
+        tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=${limit}`),
     });
   },
 });
-
-// ---------------------------------------------------------------------------
-// 7. fetchWorkoutDetail
-// ---------------------------------------------------------------------------
 
 export const fetchWorkoutDetail = internalAction({
   args: {
     userId: v.id("users"),
     activityId: v.string(),
   },
-  handler: async (
-    ctx,
-    { userId, activityId },
-  ): Promise<WorkoutActivityDetail> => {
+  handler: async (ctx, { userId, activityId }): Promise<WorkoutActivityDetail> => {
     const { token, tonalUserId } = await withTonalToken(ctx, userId);
     const dataType = `workoutDetail:${activityId}`;
     return cachedFetch<WorkoutActivityDetail>(ctx, {
@@ -236,19 +188,12 @@ export const fetchWorkoutDetail = internalAction({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 8. fetchFormattedSummary
-// ---------------------------------------------------------------------------
-
 export const fetchFormattedSummary = internalAction({
   args: {
     userId: v.id("users"),
     summaryId: v.string(),
   },
-  handler: async (
-    ctx,
-    { userId, summaryId },
-  ): Promise<FormattedWorkoutSummary> => {
+  handler: async (ctx, { userId, summaryId }): Promise<FormattedWorkoutSummary> => {
     const { token, tonalUserId } = await withTonalToken(ctx, userId);
     const dataType = `formattedSummary:${summaryId}`;
     return cachedFetch<FormattedWorkoutSummary>(ctx, {
@@ -264,10 +209,6 @@ export const fetchFormattedSummary = internalAction({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 9. fetchMovements (global catalog — no userId in cache key)
-// ---------------------------------------------------------------------------
-
 export const fetchMovements = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<Movement[]> => {
@@ -281,10 +222,6 @@ export const fetchMovements = internalAction({
   },
 });
 
-// ---------------------------------------------------------------------------
-// 10. fetchCustomWorkouts
-// ---------------------------------------------------------------------------
-
 export const fetchCustomWorkouts = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<UserWorkout[]> => {
@@ -294,128 +231,6 @@ export const fetchCustomWorkouts = internalAction({
       dataType: "customWorkouts",
       ttl: CACHE_TTLS.customWorkouts,
       fetcher: () => tonalFetch<UserWorkout[]>(token, `/v6/user-workouts`),
-    });
-  },
-});
-
-// ---------------------------------------------------------------------------
-// 11. createWorkout
-// ---------------------------------------------------------------------------
-
-export const createWorkout = internalAction({
-  args: {
-    userId: v.id("users"),
-    title: v.string(),
-    blocks: v.any(),
-  },
-  handler: async (
-    ctx,
-    { userId, title, blocks },
-  ): Promise<{ workoutId: string; title: string; setCount: number }> => {
-    const { token } = await withTonalToken(ctx, userId);
-
-    // Validate movement IDs against cached catalog
-    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-      userId: undefined,
-      dataType: "movements",
-    });
-    if (cached) {
-      const catalog = cached.data as Array<{ id: string }>;
-      const validation = validateWorkoutBlocks(blocks as BlockInput[], catalog);
-      if (!validation.valid) {
-        throw new Error(
-          `Invalid movement IDs: ${validation.errors.join(", ")}`,
-        );
-      }
-    }
-
-    // Transform blocks to flat set array
-    const sets = expandBlocksToSets(blocks as BlockInput[]);
-
-    // Create on Tonal
-    const workout = await tonalFetch<{ id: string }>(
-      token,
-      "/v6/user-workouts",
-      {
-        method: "POST",
-        body: { title, sets, createdSource: "WorkoutBuilder" },
-      },
-    );
-
-    // Record in workoutPlans
-    const now = Date.now();
-    await ctx.runMutation(internal.workoutPlans.create, {
-      userId,
-      tonalWorkoutId: workout.id,
-      title,
-      blocks,
-      status: "pushed",
-      createdAt: now,
-      pushedAt: now,
-    });
-
-    // Invalidate custom workouts cache
-    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-      userId,
-      dataType: "customWorkouts",
-      data: null,
-      fetchedAt: 0,
-      expiresAt: 0,
-    });
-
-    return { workoutId: workout.id, title, setCount: sets.length };
-  },
-});
-
-// ---------------------------------------------------------------------------
-// 12. deleteWorkout
-// ---------------------------------------------------------------------------
-
-export const deleteWorkout = internalAction({
-  args: {
-    userId: v.id("users"),
-    workoutId: v.string(),
-  },
-  handler: async (ctx, { userId, workoutId }): Promise<{ deleted: true }> => {
-    const { token } = await withTonalToken(ctx, userId);
-
-    await tonalFetch(token, `/v6/user-workouts/${workoutId}`, {
-      method: "DELETE",
-    });
-
-    // Update workoutPlans status
-    await ctx.runMutation(internal.workoutPlans.markDeleted, {
-      tonalWorkoutId: workoutId,
-    });
-
-    // Invalidate custom workouts cache
-    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-      userId,
-      dataType: "customWorkouts",
-      data: null,
-      fetchedAt: 0,
-      expiresAt: 0,
-    });
-
-    return { deleted: true };
-  },
-});
-
-// ---------------------------------------------------------------------------
-// 13. estimateWorkout
-// ---------------------------------------------------------------------------
-
-export const estimateWorkout = internalAction({
-  args: {
-    userId: v.id("users"),
-    blocks: v.any(),
-  },
-  handler: async (ctx, { userId, blocks }): Promise<WorkoutEstimate> => {
-    const { token } = await withTonalToken(ctx, userId);
-    const sets = expandBlocksToSets(blocks as BlockInput[]);
-    return tonalFetch<WorkoutEstimate>(token, "/v6/user-workouts/estimate", {
-      method: "POST",
-      body: { sets },
     });
   },
 });

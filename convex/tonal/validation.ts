@@ -32,8 +32,6 @@ export function validateWorkoutBlocks(
   blocks: BlockInput[],
   catalog: Array<{ id: string }>,
 ): ValidationResult {
-  const movementIds = blocks.flatMap((b) =>
-    b.exercises.map((e) => e.movementId),
-  );
+  const movementIds = blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
   return validateMovementIds(movementIds, catalog);
 }

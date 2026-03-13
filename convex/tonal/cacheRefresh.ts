@@ -5,10 +5,9 @@ export const refreshActiveUsers = internalAction({
   handler: async (ctx) => {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-    const activeUsers = await ctx.runQuery(
-      internal.userProfiles.getActiveUsers,
-      { sinceTimestamp: oneDayAgo },
-    );
+    const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
+      sinceTimestamp: oneDayAgo,
+    });
 
     for (const profile of activeUsers) {
       try {
@@ -27,10 +26,7 @@ export const refreshActiveUsers = internalAction({
           userId: profile.userId,
         });
       } catch (error) {
-        console.error(
-          `Failed to refresh cache for user ${profile.userId}:`,
-          error,
-        );
+        console.error(`Failed to refresh cache for user ${profile.userId}:`, error);
       }
     }
   },
