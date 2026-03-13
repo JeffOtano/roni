@@ -12,31 +12,29 @@ export default async function AppleIcon() {
   ).then((res) => res.arrayBuffer());
 
   return new ImageResponse(
-    (
-      <div
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#0a0a0a",
+        borderRadius: "36px",
+      }}
+    >
+      <span
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#0a0a0a",
-          borderRadius: "36px",
+          fontSize: "100px",
+          fontFamily: "DM Sans",
+          fontWeight: 700,
+          color: "#00cacb",
+          letterSpacing: "-3px",
         }}
       >
-        <span
-          style={{
-            fontSize: "100px",
-            fontFamily: "DM Sans",
-            fontWeight: 700,
-            color: "#00cacb",
-            letterSpacing: "-3px",
-          }}
-        >
-          tc
-        </span>
-      </div>
-    ),
+        tc
+      </span>
+    </div>,
     {
       ...size,
       fonts: [
