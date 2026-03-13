@@ -256,7 +256,7 @@ export const compareProgressPhotos = internalAction({
     const date2 = new Date(doc2.createdAt).toLocaleDateString();
 
     const { text } = await generateText({
-      model: google("gemini-2.0-flash"),
+      model: google("gemini-2.5-flash"),
       system: PROGRESS_PHOTO_COMPARE_SYSTEM,
       messages: [
         {
