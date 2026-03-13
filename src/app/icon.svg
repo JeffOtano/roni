@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="102" fill="#0a0a0a"/>
+  <!-- "tc" monogram paths derived from DM Sans Bold letterforms -->
+  <!-- "t" glyph -->
+  <path d="M120 148h40v52h48v36h-48v88c0 16 8 24 24 24h24v36h-32c-36 0-56-20-56-56v-92h-32v-36h32z" fill="#00cacb"/>
+  <!-- "c" glyph -->
+  <path d="M312 196c-44 0-76 34-76 78s32 78 76 78c28 0 52-14 64-36l34 18c-18 34-54 56-98 56-64 0-116-48-116-116s52-116 116-116c44 0 80 22 98 56l-34 18c-12-22-36-36-64-36z" fill="#00cacb"/>
+</svg>
