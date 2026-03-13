@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { McpKeyManager } from "@/components/settings/McpKeyManager";
 import { CheckCircle2, Link2, LogOut } from "lucide-react";
 
 export default function SettingsPage() {
@@ -97,6 +98,16 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      <Separator className="mb-6" />
+
+      {/* Claude Integration Section */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Claude Integration
+        </h2>
+        <McpKeyManager />
       </section>
 
       <Separator className="mb-6" />
