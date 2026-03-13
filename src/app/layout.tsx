@@ -15,8 +15,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "tonal.coach",
-  description: "Your AI personal trainer for Tonal",
+  metadataBase: new URL("https://tonal.coach"),
+  title: {
+    default: "tonal.coach — AI Personal Trainer for Tonal",
+    template: "%s | tonal.coach",
+  },
+  description:
+    "AI coaching powered by your real Tonal training data. Get personalized advice, push custom workouts, and track your progress.",
+  openGraph: {
+    siteName: "tonal.coach",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
