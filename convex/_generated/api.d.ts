@@ -37,6 +37,7 @@ import type * as tonal_hardware from "../tonal/hardware.js";
 import type * as tonal_mutations from "../tonal/mutations.js";
 import type * as tonal_proxy from "../tonal/proxy.js";
 import type * as tonal_tokenRefresh from "../tonal/tokenRefresh.js";
+import type * as tonal_tokenRetry from "../tonal/tokenRetry.js";
 import type * as tonal_transforms from "../tonal/transforms.js";
 import type * as tonal_types from "../tonal/types.js";
 import type * as tonal_validation from "../tonal/validation.js";
@@ -83,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/mutations": typeof tonal_mutations;
   "tonal/proxy": typeof tonal_proxy;
   "tonal/tokenRefresh": typeof tonal_tokenRefresh;
+  "tonal/tokenRetry": typeof tonal_tokenRetry;
   "tonal/transforms": typeof tonal_transforms;
   "tonal/types": typeof tonal_types;
   "tonal/validation": typeof tonal_validation;
