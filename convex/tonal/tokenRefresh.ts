@@ -1,15 +1,14 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { refreshTonalToken, decryptToken, encryptToken } from "./auth";
+import { decryptToken, encryptToken, refreshTonalToken } from "./auth";
 
 export const refreshExpiringTokens = internalAction({
   handler: async (ctx) => {
     const oneHourFromNow = Date.now() + 60 * 60 * 1000;
 
-    const expiring = await ctx.runQuery(
-      internal.userProfiles.getExpiringTokens,
-      { beforeTimestamp: oneHourFromNow },
-    );
+    const expiring = await ctx.runQuery(internal.userProfiles.getExpiringTokens, {
+      beforeTimestamp: oneHourFromNow,
+    });
 
     const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
     if (!keyHex) {
@@ -20,16 +19,11 @@ export const refreshExpiringTokens = internalAction({
     for (const profile of expiring) {
       try {
         if (!profile.tonalRefreshToken) {
-          console.warn(
-            `No refresh token for user ${profile.userId} — skipping`,
-          );
+          console.warn(`No refresh token for user ${profile.userId} — skipping`);
           continue;
         }
 
-        const refreshToken = await decryptToken(
-          profile.tonalRefreshToken,
-          keyHex,
-        );
+        const refreshToken = await decryptToken(profile.tonalRefreshToken, keyHex);
         const result = await refreshTonalToken(refreshToken);
 
         const encryptedToken = await encryptToken(result.idToken, keyHex);
@@ -44,10 +38,7 @@ export const refreshExpiringTokens = internalAction({
           tonalTokenExpiresAt: result.expiresAt,
         });
       } catch (error) {
-        console.error(
-          `Failed to refresh token for user ${profile.userId}:`,
-          error,
-        );
+        console.error(`Failed to refresh token for user ${profile.userId}:`, error);
         await ctx.runMutation(internal.userProfiles.markTokenExpired, {
           userId: profile.userId,
         });

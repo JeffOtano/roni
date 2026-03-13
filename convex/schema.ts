@@ -25,9 +25,45 @@ export default defineSchema({
       }),
     ),
     lastActiveAt: v.number(),
+    /** When the user first connected their Tonal account (signup for activation analytics). */
+    tonalConnectedAt: v.optional(v.number()),
+    /** When the user first completed an AI-programmed workout on Tonal (activation). */
+    firstAiWorkoutCompletedAt: v.optional(v.number()),
+    /** In-app check-in preferences. Omitted = enabled with default frequency. */
+    checkInPreferences: v.optional(
+      v.object({
+        enabled: v.boolean(),
+        frequency: v.union(v.literal("daily"), v.literal("every_other_day"), v.literal("weekly")),
+        muted: v.boolean(),
+      }),
+    ),
+    /** Timestamp before which all check-ins are considered read (single-write "mark all read"). */
+    checkInsReadAllBeforeAt: v.optional(v.number()),
+    /** Allow AI to analyze progress photos (guardrails apply). */
+    progressPhotoAnalysisEnabled: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"]),
+
+  /** In-app check-ins (proactive messages). No SMS. */
+  checkIns: defineTable({
+    userId: v.id("users"),
+    trigger: v.union(
+      v.literal("missed_session"),
+      v.literal("gap_3_days"),
+      v.literal("tough_session_completed"),
+      v.literal("weekly_recap"),
+      v.literal("strength_milestone"),
+      v.literal("plateau"),
+    ),
+    message: v.string(),
+    readAt: v.optional(v.number()),
+    createdAt: v.number(),
+    triggerContext: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_readAt", ["userId", "readAt"])
+    .index("by_userId_createdAt", ["userId", "createdAt"]),
 
   tonalCache: defineTable({
     userId: v.optional(v.id("users")),
@@ -43,16 +79,62 @@ export default defineSchema({
     userId: v.id("users"),
     threadId: v.optional(v.string()),
     tonalWorkoutId: v.optional(v.string()),
+    source: v.optional(v.string()),
     title: v.string(),
     blocks: v.any(),
     status: v.union(
       v.literal("draft"),
+      v.literal("pushing"),
       v.literal("pushed"),
       v.literal("completed"),
       v.literal("deleted"),
+      v.literal("failed"),
     ),
+    pushErrorReason: v.optional(v.string()),
     estimatedDuration: v.optional(v.number()),
     createdAt: v.number(),
     pushedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+
+  weekPlans: defineTable({
+    userId: v.id("users"),
+    weekStartDate: v.string(),
+    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+    targetDays: v.number(),
+    days: v.array(
+      v.object({
+        sessionType: v.union(
+          v.literal("push"),
+          v.literal("pull"),
+          v.literal("legs"),
+          v.literal("upper"),
+          v.literal("lower"),
+          v.literal("full_body"),
+          v.literal("recovery"),
+          v.literal("rest"),
+        ),
+        status: v.union(
+          v.literal("programmed"),
+          v.literal("completed"),
+          v.literal("missed"),
+          v.literal("rescheduled"),
+        ),
+        workoutPlanId: v.optional(v.id("workoutPlans")),
+        estimatedDuration: v.optional(v.number()),
+      }),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_weekStartDate", ["userId", "weekStartDate"]),
+
+  /** Progress photos: encrypted storage, user-only access. */
+  progressPhotos: defineTable({
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_createdAt", ["userId", "createdAt"]),
 });

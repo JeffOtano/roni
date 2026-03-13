@@ -24,19 +24,13 @@ function base64ToBuffer(b64: string): ArrayBuffer {
 }
 
 async function importKey(keyHex: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    hexToBuffer(keyHex),
-    { name: ALGORITHM },
-    false,
-    ["encrypt", "decrypt"],
-  );
+  return crypto.subtle.importKey("raw", hexToBuffer(keyHex), { name: ALGORITHM }, false, [
+    "encrypt",
+    "decrypt",
+  ]);
 }
 
-export async function encrypt(
-  plaintext: string,
-  keyHex: string,
-): Promise<string> {
+export async function encrypt(plaintext: string, keyHex: string): Promise<string> {
   const key = await importKey(keyHex);
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
   const encoded = new TextEncoder().encode(plaintext);
@@ -57,10 +51,7 @@ export async function encrypt(
   return `${bufferToBase64(iv.buffer)}:${bufferToBase64(tag.buffer)}:${bufferToBase64(data.buffer)}`;
 }
 
-export async function decrypt(
-  encoded: string,
-  keyHex: string,
-): Promise<string> {
+export async function decrypt(encoded: string, keyHex: string): Promise<string> {
   const key = await importKey(keyHex);
   const [ivB64, tagB64, dataB64] = encoded.split(":");
   const iv = base64ToBuffer(ivB64);

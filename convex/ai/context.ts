@@ -1,11 +1,7 @@
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import type {
-  StrengthScore,
-  MuscleReadiness,
-  Activity,
-} from "../tonal/types";
+import type { Activity, MuscleReadiness, StrengthScore } from "../tonal/types";
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,

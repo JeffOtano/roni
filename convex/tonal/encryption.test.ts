@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { encrypt, decrypt } from "./encryption";
+import { describe, expect, it } from "vitest";
+import { decrypt, encrypt } from "./encryption";
 
 describe("Token Encryption", () => {
   const TEST_KEY = "a".repeat(64);

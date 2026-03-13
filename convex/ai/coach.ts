@@ -3,16 +3,18 @@ import { google } from "@ai-sdk/google";
 import { components } from "../_generated/api";
 import { buildTrainingSnapshot } from "./context";
 import {
-  searchExercisesTool,
-  getStrengthScoresTool,
-  getStrengthHistoryTool,
-  getMuscleReadinessTool,
-  getWorkoutHistoryTool,
-  getWorkoutDetailTool,
-  getTrainingFrequencyTool,
+  compareProgressPhotosTool,
   createWorkoutTool,
   deleteWorkoutTool,
   estimateDurationTool,
+  getMuscleReadinessTool,
+  getStrengthHistoryTool,
+  getStrengthScoresTool,
+  getTrainingFrequencyTool,
+  getWorkoutDetailTool,
+  getWorkoutHistoryTool,
+  listProgressPhotosTool,
+  searchExercisesTool,
 } from "./tools";
 
 export const coachAgent = new Agent(components.agent, {
@@ -44,6 +46,8 @@ COACHING PRINCIPLES:
     create_workout: createWorkoutTool,
     delete_workout: deleteWorkoutTool,
     estimate_duration: estimateDurationTool,
+    list_progress_photos: listProgressPhotosTool,
+    compare_progress_photos: compareProgressPhotosTool,
   },
 
   maxSteps: 10,

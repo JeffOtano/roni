@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type {
@@ -9,118 +8,12 @@ import type {
   StrengthDistribution,
   StrengthScore,
 } from "../../../../convex/tonal/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorAlert } from "@/components/ErrorAlert";
 import { StrengthScoreCard } from "@/components/StrengthScoreCard";
 import { MuscleReadinessMap } from "@/components/MuscleReadinessMap";
 import { TrainingFrequencyChart } from "@/components/TrainingFrequencyChart";
 import { RecentWorkoutsList } from "@/components/RecentWorkoutsList";
-
-// ---------------------------------------------------------------------------
-// Loading skeleton shared across cards
-// ---------------------------------------------------------------------------
-
-function DashboardCardSkeleton({ tall }: { tall?: boolean }) {
-  return (
-    <Card className={tall ? "min-h-[300px]" : "min-h-[200px]"}>
-      <CardHeader>
-        <Skeleton className="h-4 w-32" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Error state
-// ---------------------------------------------------------------------------
-
-function DashboardCardError({ title, onRetry }: { title: string; onRetry: () => void }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ErrorAlert message="Failed to load data." onRetry={onRetry} />
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Async data hook for actions (avoids setState-in-effect lint rule)
-// ---------------------------------------------------------------------------
-
-type AsyncState<T> = { status: "loading" } | { status: "success"; data: T } | { status: "error" };
-
-function useActionData<T>(actionFn: (...args: [Record<string, never>]) => Promise<T>): {
-  state: AsyncState<T>;
-  refetch: () => void;
-} {
-  const [state, setState] = useState<AsyncState<T>>({ status: "loading" });
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    let cancelled = false;
-    actionFn({}).then(
-      (data) => {
-        if (!cancelled && mountedRef.current) setState({ status: "success", data });
-      },
-      () => {
-        if (!cancelled && mountedRef.current) setState({ status: "error" });
-      },
-    );
-    return () => {
-      cancelled = true;
-      mountedRef.current = false;
-    };
-  }, [actionFn]);
-
-  const refetch = useCallback(() => {
-    setState({ status: "loading" });
-    actionFn({}).then(
-      (data) => {
-        if (mountedRef.current) setState({ status: "success", data });
-      },
-      () => {
-        if (mountedRef.current) setState({ status: "error" });
-      },
-    );
-  }, [actionFn]);
-
-  return { state, refetch };
-}
-
-// ---------------------------------------------------------------------------
-// Async card — reduces per-card boilerplate
-// ---------------------------------------------------------------------------
-
-function AsyncCard<T>({
-  state,
-  refetch,
-  title,
-  tall,
-  children,
-}: {
-  state: AsyncState<T>;
-  refetch: () => void;
-  title: string;
-  tall?: boolean;
-  children: (data: T) => React.ReactNode;
-}) {
-  if (state.status === "loading") return <DashboardCardSkeleton tall={tall} />;
-  if (state.status === "error") return <DashboardCardError title={title} onRetry={refetch} />;
-  return <>{children(state.data)}</>;
-}
+import { AsyncCard } from "@/components/AsyncCard";
+import { useActionData } from "@/hooks/useActionData";
 
 // ---------------------------------------------------------------------------
 // Dashboard page

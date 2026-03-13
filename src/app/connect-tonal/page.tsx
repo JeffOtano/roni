@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConvexAuth, useAction } from "convex/react";
+import { useAction, useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorAlert } from "@/components/ErrorAlert";
-import { Loader2, Link2 } from "lucide-react";
+import { Link2, Loader2 } from "lucide-react";
 
 export default function ConnectTonalPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
@@ -42,8 +42,7 @@ export default function ConnectTonalPage() {
       await connectTonal({ tonalEmail, tonalPassword });
       router.replace("/chat");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to connect Tonal account";
+      const message = err instanceof Error ? err.message : "Failed to connect Tonal account";
       if (
         message.toLowerCase().includes("unauthorized") ||
         message.toLowerCase().includes("invalid") ||
@@ -67,8 +66,7 @@ export default function ConnectTonalPage() {
           </div>
           <CardTitle className="text-2xl">Connect Your Tonal</CardTitle>
           <CardDescription>
-            Link your Tonal account to get personalized coaching based on your
-            real training data.
+            Link your Tonal account to get personalized coaching based on your real training data.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -103,12 +101,7 @@ export default function ConnectTonalPage() {
 
             {error && <ErrorAlert message={error} />}
 
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={submitting}
-            >
+            <Button type="submit" className="w-full" size="lg" disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
@@ -121,8 +114,8 @@ export default function ConnectTonalPage() {
           </form>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Your Tonal password is used only to obtain an authentication token. We
-            do not store your password.
+            Your Tonal password is used only to obtain an authentication token. We do not store your
+            password.
           </p>
         </CardContent>
       </Card>

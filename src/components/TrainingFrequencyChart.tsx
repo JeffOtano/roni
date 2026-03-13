@@ -1,11 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-
-// ---------------------------------------------------------------------------
-// TrainingFrequencyChart — horizontal bar chart (pure CSS)
-// ---------------------------------------------------------------------------
+import { StaleCta } from "@/components/StaleCta";
 
 interface FrequencyEntry {
   targetArea: string;
@@ -18,29 +13,6 @@ interface TrainingFrequencyChartProps {
 }
 
 const BAR_COLORS = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
-
-function StaleCta({ data }: { data: FrequencyEntry[] }) {
-  const [now] = useState(() => Date.now());
-  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-  const stale = data.find(
-    (d) => d.lastTrainedDate && new Date(d.lastTrainedDate).getTime() < sevenDaysAgo,
-  );
-  if (!stale) return null;
-  const days = Math.round(
-    (now - new Date(stale.lastTrainedDate!).getTime()) / (1000 * 60 * 60 * 24),
-  );
-  const prompt = encodeURIComponent(
-    `I haven't trained ${stale.targetArea.toLowerCase()} in ${days} days. Can you suggest a workout?`,
-  );
-  return (
-    <Link
-      href={`/chat?prompt=${prompt}`}
-      className="mt-3 block text-xs text-primary hover:underline"
-    >
-      You haven&apos;t hit {stale.targetArea.toLowerCase()} in {days} days — ask coach &rarr;
-    </Link>
-  );
-}
 
 export function TrainingFrequencyChart({ data }: TrainingFrequencyChartProps) {
   const max = Math.max(...data.map((d) => d.count), 1);

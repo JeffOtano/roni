@@ -11,21 +11,21 @@ const eslintConfig = defineConfig([
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
     rules: {
       // File and function size limits (from clean-code-patterns-report)
-      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
-      "max-lines-per-function": ["warn", { max: 60, skipBlankLines: true, skipComments: true }],
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
 
       // Cyclomatic complexity cap
-      complexity: ["warn", 10],
+      complexity: ["error", 10],
 
       // Max nesting depth (red flag: >3 levels)
-      "max-depth": ["warn", 3],
+      "max-depth": ["error", 3],
 
       // Max function parameters (decision tree: >3 positional -> use options object)
-      "max-params": ["warn", 4],
+      "max-params": ["error", 4],
 
       // Enforce consistent import ordering
       "sort-imports": [
-        "warn",
+        "error",
         {
           ignoreCase: true,
           ignoreDeclarationSort: true,

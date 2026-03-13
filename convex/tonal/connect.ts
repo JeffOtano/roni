@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { obtainTonalToken, encryptToken } from "./auth";
+import { encryptToken, obtainTonalToken } from "./auth";
 import { tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
-import type { TonalUser, Movement } from "./types";
+import type { Movement, TonalUser } from "./types";
 
 export const connectTonal = internalAction({
   args: {
@@ -14,16 +14,10 @@ export const connectTonal = internalAction({
   },
   handler: async (ctx, { userId, tonalEmail, tonalPassword }) => {
     // 1. Obtain token from Auth0
-    const { idToken, refreshToken, expiresAt } = await obtainTonalToken(
-      tonalEmail,
-      tonalPassword,
-    );
+    const { idToken, refreshToken, expiresAt } = await obtainTonalToken(tonalEmail, tonalPassword);
 
     // 2. Get Tonal user info (returns full profile)
-    const profile = await tonalFetch<TonalUser>(
-      idToken,
-      "/v6/users/userinfo",
-    );
+    const profile = await tonalFetch<TonalUser>(idToken, "/v6/users/userinfo");
     const tonalUserId = profile.id;
 
     // 4. Encrypt tokens
@@ -33,9 +27,7 @@ export const connectTonal = internalAction({
     }
 
     const encryptedToken = await encryptToken(idToken, keyHex);
-    const encryptedRefresh = refreshToken
-      ? await encryptToken(refreshToken, keyHex)
-      : undefined;
+    const encryptedRefresh = refreshToken ? await encryptToken(refreshToken, keyHex) : undefined;
 
     // 5. Upsert user profile
     await ctx.runMutation(internal.userProfiles.create, {

@@ -2,71 +2,7 @@
 
 import Link from "next/link";
 import type { StrengthDistribution, StrengthScore } from "../../convex/tonal/types";
-
-// ---------------------------------------------------------------------------
-// SVG radial progress ring
-// ---------------------------------------------------------------------------
-
-function ProgressRing({
-  score,
-  maxScore = 500,
-  size = 80,
-  strokeWidth = 6,
-  label,
-}: {
-  score: number;
-  maxScore?: number;
-  size?: number;
-  strokeWidth?: number;
-  label: string;
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(score / maxScore, 1);
-  const offset = circumference * (1 - progress);
-
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <svg width={size} height={size} className="-rotate-90">
-        {/* Background ring */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          className="text-muted"
-        />
-        {/* Progress ring */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="text-chart-1 transition-all duration-700"
-        />
-      </svg>
-      {/* Score number overlay */}
-      <div
-        className="absolute flex items-center justify-center"
-        style={{ width: size, height: size }}
-      >
-        <span className="text-lg font-bold text-foreground">{score}</span>
-      </div>
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// StrengthScoreCard
-// ---------------------------------------------------------------------------
+import { ProgressRing } from "@/components/ProgressRing";
 
 interface StrengthScoreCardProps {
   scores: StrengthScore[];
@@ -74,7 +10,6 @@ interface StrengthScoreCardProps {
 }
 
 export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardProps) {
-  // Map scores by body region for easy lookup
   const scoreMap: Record<string, number> = {};
   for (const s of scores) {
     scoreMap[s.strengthBodyRegion?.toLowerCase() ?? s.bodyRegionDisplay?.toLowerCase()] = s.score;
@@ -102,7 +37,6 @@ export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardPro
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {/* Overall — slightly larger */}
         <div className="relative flex flex-col items-center">
           <ProgressRing
             score={distribution.overallScore}
@@ -112,7 +46,6 @@ export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardPro
           />
         </div>
 
-        {/* Regional scores */}
         {regions.map(({ key, label }) => (
           <div key={key} className="relative flex flex-col items-center">
             <ProgressRing score={scoreMap[key] ?? 0} label={label} />
