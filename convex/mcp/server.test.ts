@@ -13,9 +13,13 @@ describe("buildInitializeResult", () => {
 });
 
 describe("buildToolsListResult", () => {
-  // Initially 0 tools (stub registrations). Updated to 16 after Task 15.
-  it("returns tool definitions array", () => {
+  it("returns all 16 tool definitions", () => {
     const result = buildToolsListResult();
-    expect(result.tools).toBeInstanceOf(Array);
+    expect(result.tools.length).toBe(16);
+    const names = result.tools.map((t: { name: string }) => t.name);
+    expect(names).toContain("get_user_profile");
+    expect(names).toContain("search_movements");
+    expect(names).toContain("create_custom_workout");
+    expect(names).toContain("get_training_frequency");
   });
 });
