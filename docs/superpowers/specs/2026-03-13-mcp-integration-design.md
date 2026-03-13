@@ -12,7 +12,7 @@ The standalone tonal-mcp project provides Claude with direct access to Tonal fit
 
 ## 2. Goals
 
-1. **Full MCP parity** -- all 15 tools, 3 resources, and 3 prompts from tonal-mcp available via Convex HTTP endpoint.
+1. **Full MCP parity** -- all 16 tools, 3 resources, and 3 prompts from tonal-mcp available via Convex HTTP endpoint.
 2. **Multi-user** -- any tonal-coach user with a connected Tonal account can generate an API key and use the MCP server.
 3. **Single deployment** -- no separate server to manage. MCP is a Convex HTTP route.
 4. **Shared infrastructure** -- MCP tools use the same caching, token retry, and Tonal API proxy as the web app.
