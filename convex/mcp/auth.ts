@@ -2,10 +2,7 @@ import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { hashApiKey } from "./crypto";
-
-// Error codes — will be imported from protocol.ts after Task 6
-const UNAUTHORIZED = -32000;
-const TONAL_NOT_CONNECTED = -32001;
+import { TONAL_NOT_CONNECTED, UNAUTHORIZED } from "./protocol";
 
 export interface McpAuthResult {
   userId: Id<"users">;

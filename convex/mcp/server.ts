@@ -8,6 +8,7 @@ import {
   METHOD_NOT_FOUND,
   PARSE_ERROR,
   parseJsonRpcRequest,
+  RATE_LIMITED,
   UNAUTHORIZED,
 } from "./protocol";
 import { authenticateMcpRequest, McpAuthError } from "./auth";
@@ -82,7 +83,7 @@ export const mcpHandler = httpAction(async (ctx, request) => {
   });
   if (!ok) {
     return jsonResponse(
-      jsonRpcError(rpc.id, UNAUTHORIZED, "Rate limit exceeded. Try again shortly."),
+      jsonRpcError(rpc.id, RATE_LIMITED, "Rate limit exceeded. Try again shortly."),
     );
   }
 

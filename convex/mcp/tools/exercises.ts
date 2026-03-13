@@ -73,7 +73,12 @@ async function getMovementsById(
   toolCtx: ToolContext,
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  const movementIds = args.movementIds as string[];
+  const movementIds = args.movementIds;
+  if (!Array.isArray(movementIds) || movementIds.length === 0 || movementIds.length > 50) {
+    return {
+      content: [{ type: "text" as const, text: "movementIds must be an array of 1-50 UUIDs." }],
+    };
+  }
   const movements = await fetchCachedMovements(toolCtx);
   const byId = new Map(movements.map((m) => [m.id, m]));
 

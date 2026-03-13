@@ -6,6 +6,7 @@ export const INVALID_PARAMS = -32602;
 export const INTERNAL_ERROR = -32603;
 export const UNAUTHORIZED = -32000;
 export const TONAL_NOT_CONNECTED = -32001;
+export const RATE_LIMITED = -32002;
 
 export interface JsonRpcRequest {
   jsonrpc: "2.0";
