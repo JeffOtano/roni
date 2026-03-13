@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import { JsonLd } from "./JsonLd";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -44,6 +45,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${dmSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
+        <JsonLd />
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
