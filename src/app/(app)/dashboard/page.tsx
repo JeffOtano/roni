@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type {
@@ -14,6 +15,8 @@ import { TrainingFrequencyChart } from "@/components/TrainingFrequencyChart";
 import { RecentWorkoutsList } from "@/components/RecentWorkoutsList";
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
+import { Button } from "@/components/ui/button";
+import { CalendarDays } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Dashboard page
@@ -39,15 +42,23 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-foreground">Hey {firstName}</h1>
-        <p className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Hey {firstName}</h1>
+          <p className="text-sm text-muted-foreground">
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+        <Link href="/dashboard/week">
+          <Button variant="outline" size="sm" className="gap-2">
+            <CalendarDays className="size-4" />
+            Program your week
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
