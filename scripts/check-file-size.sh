@@ -6,8 +6,8 @@ MAX_LINES=300
 EXIT_CODE=0
 
 for file in "$@"; do
-  # Skip generated files (e.g., convex/_generated/)
-  if [[ "$file" == *"_generated"* ]]; then
+  # Skip generated files (e.g., convex/_generated/) and reference material
+  if [[ "$file" == *"_generated"* ]] || [[ "$file" == *"docs/reference"* ]]; then
     continue
   fi
   if [ -f "$file" ]; then
