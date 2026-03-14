@@ -1,7 +1,9 @@
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { Activity, MuscleReadiness, StrengthScore } from "../tonal/types";
+import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
+import { getWeekStartDateString } from "../weekPlanHelpers";
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
@@ -104,6 +106,56 @@ export async function buildTrainingSnapshot(
       );
     }
     lines.push(`Tip: Use get_workout_performance for detailed per-exercise PR/plateau analysis.`);
+  }
+
+  // Missed session detection
+  const weekStartDate = getWeekStartDateString(new Date());
+  const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+    userId: convexUserId,
+    weekStartDate,
+  })) as Doc<"weekPlans"> | null;
+
+  if (weekPlan) {
+    const workoutPlanIds = weekPlan.days
+      .map((d) => d.workoutPlanId)
+      .filter((id): id is Id<"workoutPlans"> => id !== undefined);
+
+    const uniquePlanIds = [...new Set(workoutPlanIds)];
+    const workoutPlanResults = await Promise.all(
+      uniquePlanIds.map((planId) =>
+        ctx.runQuery(internal.workoutPlans.getById, { planId, userId: convexUserId }),
+      ),
+    );
+
+    const tonalWorkoutIdByPlanId = new Map<string, string>();
+    for (let i = 0; i < uniquePlanIds.length; i++) {
+      const wp = workoutPlanResults[i] as Doc<"workoutPlans"> | null;
+      if (wp?.tonalWorkoutId) {
+        tonalWorkoutIdByPlanId.set(uniquePlanIds[i], wp.tonalWorkoutId);
+      }
+    }
+
+    const completedTonalIds = new Set(
+      (activities as Activity[]).map((a) => a.workoutPreview.workoutId),
+    );
+
+    const now = new Date();
+    const todayDayIndex = (now.getDay() + 6) % 7; // Mon=0..Sun=6
+    const todayDate = now.toISOString().slice(0, 10);
+
+    const missedSummary = detectMissedSessions({
+      days: weekPlan.days,
+      todayDayIndex,
+      completedTonalIds,
+      tonalWorkoutIdByPlanId,
+      activityDates: (activities as Activity[]).map((a) => a.activityTime.slice(0, 10)),
+      todayDate,
+    });
+
+    const missedContext = formatMissedSessionContext(missedSummary);
+    if (missedContext) {
+      lines.push(missedContext);
+    }
   }
 
   lines.push(`=== END SNAPSHOT ===`);
