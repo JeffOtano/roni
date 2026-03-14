@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as account from "../account.js";
+import type * as accountDeletion from "../accountDeletion.js";
 import type * as activation from "../activation.js";
 import type * as ai_coach from "../ai/coach.js";
 import type * as ai_context from "../ai/context.js";
@@ -41,6 +43,7 @@ import type * as mcp_usage from "../mcp/usage.js";
 import type * as progressPhotos from "../progressPhotos.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
+import type * as stats from "../stats.js";
 import type * as threads from "../threads.js";
 import type * as tonal_auth from "../tonal/auth.js";
 import type * as tonal_cache from "../tonal/cache.js";
@@ -62,6 +65,7 @@ import type * as users from "../users.js";
 import type * as weekPlanActions from "../weekPlanActions.js";
 import type * as weekPlanHelpers from "../weekPlanHelpers.js";
 import type * as weekPlans from "../weekPlans.js";
+import type * as workoutDetail from "../workoutDetail.js";
 import type * as workoutPlans from "../workoutPlans.js";
 
 import type {
@@ -71,6 +75,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
+  accountDeletion: typeof accountDeletion;
   activation: typeof activation;
   "ai/coach": typeof ai_coach;
   "ai/context": typeof ai_context;
@@ -104,6 +110,7 @@ declare const fullApi: ApiFromModules<{
   progressPhotos: typeof progressPhotos;
   progressiveOverload: typeof progressiveOverload;
   rateLimits: typeof rateLimits;
+  stats: typeof stats;
   threads: typeof threads;
   "tonal/auth": typeof tonal_auth;
   "tonal/cache": typeof tonal_cache;
@@ -125,6 +132,7 @@ declare const fullApi: ApiFromModules<{
   weekPlanActions: typeof weekPlanActions;
   weekPlanHelpers: typeof weekPlanHelpers;
   weekPlans: typeof weekPlans;
+  workoutDetail: typeof workoutDetail;
   workoutPlans: typeof workoutPlans;
 }>;
 
