@@ -41,6 +41,12 @@ export default defineSchema({
     checkInsReadAllBeforeAt: v.optional(v.number()),
     /** Allow AI to analyze progress photos (guardrails apply). */
     progressPhotoAnalysisEnabled: v.optional(v.boolean()),
+    /** Google Calendar OAuth integration fields. */
+    googleCalendarToken: v.optional(v.string()),
+    googleCalendarRefreshToken: v.optional(v.string()),
+    googleCalendarTokenExpiresAt: v.optional(v.number()),
+    googleCalendarEnabled: v.optional(v.boolean()),
+    googleCalendarId: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"]),

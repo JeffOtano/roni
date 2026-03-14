@@ -8,6 +8,8 @@ import { validateWorkoutBlocks } from "./validation";
 import type { Activity, WorkoutEstimate } from "./types";
 import { cachedFetch, withTonalToken } from "./proxy";
 
+const DEFAULT_WORKOUT_DURATION_MINUTES = 45;
+
 /** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
 export const doTonalCreateWorkout = internalAction({
   args: {
@@ -62,10 +64,12 @@ export const createWorkout = internalAction({
     userId: v.id("users"),
     title: v.string(),
     blocks: v.any(),
+    scheduledDate: v.optional(v.string()),
+    estimatedDurationMinutes: v.optional(v.number()),
   },
   handler: async (
     ctx,
-    { userId, title, blocks },
+    { userId, title, blocks, scheduledDate, estimatedDurationMinutes },
   ): Promise<
     | {
         success: true;
@@ -102,6 +106,19 @@ export const createWorkout = internalAction({
         fetchedAt: 0,
         expiresAt: 0,
       });
+
+      // Schedule calendar event creation (non-blocking)
+      const eventDate = scheduledDate ?? new Date().toISOString();
+      const durationMinutes = estimatedDurationMinutes ?? DEFAULT_WORKOUT_DURATION_MINUTES;
+      await ctx.scheduler.runAfter(0, internal.calendar.createCalendarEvent, {
+        userId,
+        title: tonalTitle,
+        date: eventDate,
+        durationMinutes: durationMinutes,
+        description: `Workout programmed by tonal.coach`,
+        workoutPlanId: planId,
+      });
+
       return {
         success: true,
         workoutId: id,

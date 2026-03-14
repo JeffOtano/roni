@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../../convex/_generated/api";
@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { CalendarIntegration } from "@/components/settings/CalendarIntegration";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { McpKeyManager } from "@/components/settings/McpKeyManager";
 import { ChangePassword } from "@/components/settings/ChangePassword";
@@ -31,10 +32,23 @@ const SECTION_HEADING =
   "mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground";
 
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageInner />
+    </Suspense>
+  );
+}
+
+function SettingsPageInner() {
   const { signOut } = useAuthActions();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const me = useQuery(api.users.getMe, {});
   const [signOutOpen, setSignOutOpen] = useState(false);
+
+  // OAuth callback query params from Google Calendar flow
+  const calendarConnected = searchParams.get("calendar_connected") === "true";
+  const calendarError = searchParams.get("calendar_error");
 
   if (me === null) {
     return (
@@ -152,6 +166,12 @@ export default function SettingsPage() {
       <section className="mb-10" id="check-ins">
         <h2 className={SECTION_HEADING}>Check-in Preferences</h2>
         <CheckInPreferences />
+      </section>
+
+      {/* Calendar */}
+      <section className="mb-10">
+        <h2 className={SECTION_HEADING}>Calendar</h2>
+        <CalendarIntegration justConnected={calendarConnected} oauthError={calendarError} />
       </section>
 
       {/* Photo Analysis */}
