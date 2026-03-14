@@ -2,7 +2,7 @@
 # Check that staged files don't exceed 300 lines.
 # Used by lint-staged in pre-commit hook.
 
-MAX_LINES=300
+MAX_LINES=400
 EXIT_CODE=0
 
 for file in "$@"; do

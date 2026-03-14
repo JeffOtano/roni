@@ -15,8 +15,7 @@ import { TrainingFrequencyChart } from "@/components/TrainingFrequencyChart";
 import { RecentWorkoutsList } from "@/components/RecentWorkoutsList";
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, CalendarDays } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Dashboard page
@@ -162,16 +161,6 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <Link href="/dashboard/week">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 transition-all duration-200 hover:shadow-[0_0_16px_var(--primary)] hover:border-primary/40"
-          >
-            <CalendarDays className="size-4" />
-            Program your week
-          </Button>
-        </Link>
       </div>
 
       {/* Smart coaching insight */}
