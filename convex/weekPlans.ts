@@ -13,8 +13,6 @@ import {
 
 // Re-export for external consumers
 export {
-  DAY_STATUSES,
-  SESSION_TYPES,
   getWeekStartDateString,
   isValidWeekStartDateString,
   preferredSplitValidator,

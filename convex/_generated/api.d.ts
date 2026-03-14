@@ -14,6 +14,7 @@ import type * as accountDeletion from "../accountDeletion.js";
 import type * as activation from "../activation.js";
 import type * as ai_coach from "../ai/coach.js";
 import type * as ai_context from "../ai/context.js";
+import type * as ai_helpers from "../ai/helpers.js";
 import type * as ai_tools from "../ai/tools.js";
 import type * as ai_weekModificationTools from "../ai/weekModificationTools.js";
 import type * as ai_weekTools from "../ai/weekTools.js";
@@ -95,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   activation: typeof activation;
   "ai/coach": typeof ai_coach;
   "ai/context": typeof ai_context;
+  "ai/helpers": typeof ai_helpers;
   "ai/tools": typeof ai_tools;
   "ai/weekModificationTools": typeof ai_weekModificationTools;
   "ai/weekTools": typeof ai_weekTools;

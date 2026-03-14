@@ -28,8 +28,6 @@ import {
 } from "./weekProgrammingHelpers";
 import type { DraftDaySummary, DraftWeekSummary, SessionType } from "./weekProgrammingHelpers";
 
-// Re-export pure functions for tests and external consumers
-export { getTrainingDayIndices, getSessionTypesForSplit } from "./weekProgrammingHelpers";
 export type { DraftWeekSummary } from "./weekProgrammingHelpers";
 
 // ---------------------------------------------------------------------------
