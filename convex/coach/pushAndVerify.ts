@@ -6,6 +6,7 @@
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "./weekProgrammingHelpers";
@@ -69,7 +70,7 @@ type WeekPlan = {
 
 /** Push a single draft workout to Tonal, retrying once on failure. */
 async function pushOneWorkout(
-  ctx: { runAction: typeof Object.prototype.constructor },
+  ctx: Pick<ActionCtx, "runAction">,
   userId: Id<"users">,
   wp: WorkoutPlan,
 ): Promise<CreateWorkoutResult> {

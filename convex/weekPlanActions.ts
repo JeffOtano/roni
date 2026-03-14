@@ -14,17 +14,13 @@ export const programWeek = internalAction({
     sessionDurationMinutes: v.optional(v.union(v.literal(30), v.literal(45), v.literal(60))),
   },
   handler: async (ctx, args): Promise<{ weekPlanId: Id<"weekPlans"> } | { error: string }> => {
-    const result = (await ctx.runAction(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- internal API uses slash-path key
-      (internal as any)["coach/weekProgramming"].programWeek,
-      {
-        userId: args.userId,
-        weekStartDate: args.weekStartDate,
-        preferredSplit: args.preferredSplit,
-        targetDays: args.targetDays,
-        sessionDurationMinutes: args.sessionDurationMinutes,
-      },
-    )) as { success: true; weekPlanId: Id<"weekPlans"> } | { success: false; error: string };
+    const result = (await ctx.runAction(internal.coach.weekProgramming.programWeek, {
+      userId: args.userId,
+      weekStartDate: args.weekStartDate,
+      preferredSplit: args.preferredSplit,
+      targetDays: args.targetDays,
+      sessionDurationMinutes: args.sessionDurationMinutes,
+    })) as { success: true; weekPlanId: Id<"weekPlans"> } | { success: false; error: string };
     if (result.success) return { weekPlanId: result.weekPlanId };
     return { error: result.error };
   },
