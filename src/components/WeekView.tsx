@@ -15,7 +15,7 @@ export function WeekView({ plan }: { plan: Doc<"weekPlans"> | null }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
           This week
         </CardTitle>
         <p className="text-xs text-muted-foreground">Week of {formatWeekStart(weekStart)}</p>

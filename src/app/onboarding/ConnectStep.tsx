@@ -55,21 +55,21 @@ export function ConnectStep({ onComplete }: { readonly onComplete: () => void })
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="mb-6 text-center">
-          <h1 className="text-xl font-semibold text-foreground">Connect Your Tonal</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Connect Your Tonal</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Link your Tonal account so we can personalize your coaching.
           </p>
         </div>
 
         {submitting ? (
-          <div className="flex flex-col items-center gap-3 py-8">
+          <div className="flex flex-col items-center gap-4 py-10">
             {phase === "done" ? (
-              <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-                <Check className="size-5 text-primary" />
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 shadow-md shadow-primary/10">
+                <Check className="size-6 text-primary" />
               </div>
             ) : (
-              <Loader2 className="size-6 animate-spin text-primary" />
+              <Loader2 className="size-7 animate-spin text-primary" />
             )}
             <p className="text-sm font-medium text-foreground">{PHASE_LABELS[phase]}</p>
           </div>

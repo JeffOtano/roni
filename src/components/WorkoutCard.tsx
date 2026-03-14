@@ -23,9 +23,11 @@ export function WorkoutCard({
   estimatedDuration,
 }: WorkoutCardProps) {
   return (
-    <div className="my-2 rounded-lg border border-primary/30 bg-card p-4">
+    <div className="my-2 rounded-xl border border-primary/20 bg-card p-4 ring-1 ring-primary/10 shadow-lg shadow-primary/5">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{title ?? "Custom Workout"}</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-foreground">
+          {title ?? "Custom Workout"}
+        </h3>
         <StatusBadge status={status} />
       </div>
 

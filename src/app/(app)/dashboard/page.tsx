@@ -28,6 +28,13 @@ interface FrequencyEntry {
   lastTrainedDate?: string;
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardPage() {
   const strength = useActionData<{
     scores: StrengthScore[];
@@ -41,27 +48,36 @@ export default function DashboardPage() {
   const firstName = me?.tonalName?.split(" ")[0] ?? "there";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-5xl px-4 py-8 lg:px-6 lg:py-10">
+      {/* Greeting section */}
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Hey {firstName}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {getGreeting()}, {firstName}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             {new Date().toLocaleDateString(undefined, {
               weekday: "long",
               month: "long",
               day: "numeric",
+              year: "numeric",
             })}
           </p>
         </div>
         <Link href="/dashboard/week">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 transition-all duration-200 hover:shadow-[0_0_16px_var(--primary)] hover:border-primary/40"
+          >
             <CalendarDays className="size-4" />
             Program your week
           </Button>
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Dashboard grid */}
+      <div className="grid gap-5 md:grid-cols-2">
         <AsyncCard
           state={strength.state}
           refetch={strength.refetch}

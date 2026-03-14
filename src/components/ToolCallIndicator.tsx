@@ -77,18 +77,18 @@ export function ToolCallIndicator({ toolName, state, input }: ToolCallIndicatorP
   if (isRunning) {
     return (
       <div className="my-1 flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-          <span className="relative inline-flex size-2 rounded-full bg-primary" />
+        <span className="relative flex size-2.5">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)] opacity-75" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)]" />
         </span>
-        {messages.running}
+        <span className="animate-pulse">{messages.running}</span>
       </div>
     );
   }
 
   if (isDone) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 rounded-md border-l-2 border-primary/40 bg-primary/5 px-2.5 py-1 text-xs text-muted-foreground transition-all duration-200">
         <span className="text-primary">&check;</span>
         {messages.done}
       </span>

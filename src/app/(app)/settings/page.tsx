@@ -17,11 +17,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { McpKeyManager } from "@/components/settings/McpKeyManager";
-import { CheckCircle2, Link2, LogOut } from "lucide-react";
+import { Link2, LogOut } from "lucide-react";
 
 export default function SettingsPage() {
   const { signOut } = useAuthActions();
@@ -44,15 +43,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="mb-10">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
       </div>
 
       {/* Account Section */}
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+      <section className="mb-10">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground">
           Account
         </h2>
         <Card>
@@ -68,16 +66,16 @@ export default function SettingsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive hover:text-destructive"
+                      className="gap-1.5 text-muted-foreground transition-colors duration-200 hover:text-destructive"
                     />
                   }
                 >
-                  <LogOut className="mr-1.5 size-3.5" />
+                  <LogOut className="size-3.5" />
                   Sign Out
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Sign out?</DialogTitle>
+                    <DialogTitle>Sign out of tonal.coach?</DialogTitle>
                     <DialogDescription>
                       You&apos;ll need to sign in again to access your coaching data.
                     </DialogDescription>
@@ -95,18 +93,19 @@ export default function SettingsPage() {
         </Card>
       </section>
 
-      <Separator className="mb-6" />
-
       {/* Tonal Connection Section */}
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+      <section className="mb-10">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground">
           Tonal Connection
         </h2>
         <Card>
           <CardContent className="p-4">
             {me?.hasTonalProfile ? (
               <div className="flex items-center gap-3">
-                <CheckCircle2 className="size-5 text-green-500" />
+                <span className="relative flex size-2.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-400 opacity-60" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(74,222,128,0.4)]" />
+                </span>
                 <div>
                   <p className="text-sm font-medium text-foreground">Connected</p>
                   {me.tonalName && <p className="text-sm text-muted-foreground">{me.tonalName}</p>}
@@ -123,7 +122,12 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => router.push("/connect-tonal")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-all duration-200 hover:border-primary/40"
+                  onClick={() => router.push("/connect-tonal")}
+                >
                   Connect
                 </Button>
               </div>
@@ -132,31 +136,25 @@ export default function SettingsPage() {
         </Card>
       </section>
 
-      <Separator className="mb-6" />
-
       {/* Check-in Preferences Section */}
-      <section className="mb-6" id="check-ins">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+      <section className="mb-10" id="check-ins">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground">
           Check-in Preferences
         </h2>
         <CheckInPreferences />
       </section>
 
-      <Separator className="mb-6" />
-
       {/* Claude Integration Section */}
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+      <section className="mb-10">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground">
           Claude Integration
         </h2>
         <McpKeyManager />
       </section>
 
-      <Separator className="mb-6" />
-
       {/* About Section */}
       <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground">
           About
         </h2>
         <Card>

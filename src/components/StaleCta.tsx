@@ -26,7 +26,7 @@ export function StaleCta({ data }: { data: FrequencyEntry[] }) {
   return (
     <Link
       href={`/chat?prompt=${prompt}`}
-      className="mt-3 block text-xs text-primary hover:underline"
+      className="mt-4 flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs font-medium text-primary ring-1 ring-primary/10 transition-all hover:bg-primary/10 hover:ring-primary/20"
     >
       You haven&apos;t hit {stale.targetArea.toLowerCase()} in {days} days — ask coach &rarr;
     </Link>

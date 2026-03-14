@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { AsyncState } from "@/hooks/useActionData";
 import { DashboardCardSkeleton } from "@/components/DashboardCardSkeleton";
 import { DashboardCardError } from "@/components/DashboardCardError";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
 function formatRelativeTime(ts: number): string {
@@ -44,16 +45,23 @@ export function AsyncCard<T>({
   if (state.status === "error") return <DashboardCardError title={title} onRetry={refetch} />;
 
   return (
-    <div className="relative">
-      {state.status === "refreshing" && (
-        <div className="absolute right-3 top-3 z-10">
-          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-        </div>
-      )}
-      {children(state.data)}
+    <Card className="animate-in fade-in duration-300">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            {title}
+          </span>
+          {state.status === "refreshing" && (
+            <Loader2 className="size-3.5 animate-spin text-primary" />
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={tall ? "min-h-[220px]" : ""}>{children(state.data)}</CardContent>
       {relativeTime && (
-        <p className="mt-1.5 px-1 text-[10px] text-muted-foreground/60">Updated {relativeTime}</p>
+        <CardFooter>
+          <p className="text-[10px] text-muted-foreground/60">Updated {relativeTime}</p>
+        </CardFooter>
       )}
-    </div>
+    </Card>
   );
 }

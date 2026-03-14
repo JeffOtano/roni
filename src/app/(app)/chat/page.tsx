@@ -9,10 +9,10 @@ import { ChatInput } from "@/components/ChatInput";
 import { Activity, Dumbbell, Loader2, Sparkles, TrendingUp, Zap } from "lucide-react";
 
 const suggestions = [
-  { icon: Dumbbell, text: "Program me a workout for today" },
-  { icon: TrendingUp, text: "How are my strength scores trending?" },
-  { icon: Zap, text: "Which muscles are freshest right now?" },
-  { icon: Activity, text: "Analyze my training this month" },
+  { icon: Dumbbell, text: "Program me a workout for today", colorVar: "var(--chart-1)" },
+  { icon: TrendingUp, text: "How are my strength scores trending?", colorVar: "var(--chart-2)" },
+  { icon: Zap, text: "Which muscles are freshest right now?", colorVar: "var(--chart-3)" },
+  { icon: Activity, text: "Analyze my training this month", colorVar: "var(--chart-4)" },
 ];
 
 // Wrap in Suspense because useSearchParams requires it in Next.js 14+
@@ -50,38 +50,42 @@ function ChatPageInner() {
     return (
       <div className="flex h-full flex-col">
         <div className="flex flex-1 flex-col items-center justify-center px-4">
-          <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
-            <Sparkles className="size-5 text-muted-foreground" />
+          {/* Gradient icon container */}
+          <div className="mb-6 flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)] shadow-lg shadow-primary/20">
+            <Sparkles className="size-7 text-white" />
           </div>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">
+
+          <h2 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
             What are we working on today?
           </h2>
-          <p className="mb-6 max-w-sm text-center text-sm text-muted-foreground">
+          <p className="mb-8 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">
             I can check your readiness, program workouts, analyze trends, or just talk training.
           </p>
-          <div className="grid w-full max-w-md grid-cols-2 gap-3">
-            {suggestions.map(({ icon: Icon, text }) => (
+
+          <div className="grid w-full max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
+            {suggestions.map(({ icon: Icon, text, colorVar }) => (
               <button
                 key={text}
                 onClick={() => sendMessage({ prompt: text })}
-                className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 text-left text-sm text-foreground/80 transition-all hover:border-primary/30 hover:bg-card/80 active:scale-[0.98]"
+                className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left text-sm text-foreground/80 ring-1 ring-white/[0.04] transition-all duration-200 hover:scale-[1.02] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]"
+                style={{ borderLeftWidth: "3px", borderLeftColor: colorVar }}
               >
                 <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                <span>{text}</span>
+                <span className="leading-relaxed">{text}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Input always visible even on welcome screen */}
-        <div className="shrink-0 border-t border-border p-3 sm:p-4">
+        <div className="shrink-0 p-3 sm:p-4">
           <ChatInput />
         </div>
       </div>
     );
   }
 
-  // Has messages — show ChatThread
+  // Has messages -- show ChatThread
   if (hasThread) {
     return <ChatThread threadId={activeThread.threadId} userInitial={userInitial} />;
   }

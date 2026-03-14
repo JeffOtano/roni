@@ -14,7 +14,7 @@ export function StatusBadge({ status }: { status: string }) {
       );
     case "pushed":
       return (
-        <Badge className="border-primary/30 bg-primary/15 text-xs text-primary">
+        <Badge className="border-primary/30 bg-primary/10 text-xs text-primary shadow-sm shadow-primary/10">
           <CheckCircle2 className="mr-1 size-3" />
           Pushed to Tonal
         </Badge>

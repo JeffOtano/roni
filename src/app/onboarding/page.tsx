@@ -67,26 +67,33 @@ function OnboardingFlow({
 
 function StepIndicator({ currentStep }: { readonly currentStep: Step }) {
   return (
-    <div className="mb-8 flex items-center gap-2">
+    <div className="mb-10 flex items-center gap-2">
       {STEP_LABELS.map(({ num, label }, i) => (
         <Fragment key={num}>
           {i > 0 && (
-            <div className={cn("h-px flex-1", num <= currentStep ? "bg-primary" : "bg-border")} />
-          )}
-          <div className="flex items-center gap-2">
             <div
               className={cn(
-                "flex size-7 items-center justify-center rounded-full text-xs font-medium",
-                num < currentStep && "bg-primary text-primary-foreground",
-                num === currentStep && "border-2 border-primary text-primary",
+                "h-px flex-1 transition-colors duration-500",
+                num <= currentStep ? "bg-primary" : "bg-border",
+              )}
+            />
+          )}
+          <div className="flex items-center gap-2.5">
+            <div
+              className={cn(
+                "flex size-8 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300",
+                num < currentStep &&
+                  "bg-primary text-primary-foreground shadow-md shadow-primary/25",
+                num === currentStep &&
+                  "border-2 border-primary text-primary shadow-md shadow-primary/20",
                 num > currentStep && "border border-border text-muted-foreground",
               )}
             >
-              {num < currentStep ? <Check className="size-3.5" /> : num}
+              {num < currentStep ? <Check className="size-4" /> : num}
             </div>
             <span
               className={cn(
-                "hidden text-xs font-medium sm:inline",
+                "hidden text-sm font-medium sm:inline transition-colors duration-300",
                 num <= currentStep ? "text-foreground" : "text-muted-foreground",
               )}
             >

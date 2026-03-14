@@ -21,10 +21,12 @@ export function DateDivider({ timestamp }: DateDividerProps) {
   const label = formatDateLabel(new Date(timestamp));
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 sm:px-6">
-      <div className="h-px flex-1 bg-border" />
-      <span className="text-[11px] font-medium text-muted-foreground/60">{label}</span>
-      <div className="h-px flex-1 bg-border" />
+    <div className="flex items-center gap-4 px-4 py-3 sm:px-6">
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+      <span className="text-[11px] font-medium tracking-wider text-muted-foreground/50 uppercase">
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
     </div>
   );
 }

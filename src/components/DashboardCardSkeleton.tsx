@@ -1,18 +1,27 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+
+function ShimmerBar({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-primary/[0.06] ${className ?? ""}`} />;
+}
 
 export function DashboardCardSkeleton({ tall }: { tall?: boolean }) {
   return (
     <Card className={tall ? "min-h-[300px]" : "min-h-[200px]"}>
       <CardHeader>
-        <Skeleton className="h-4 w-32" />
+        <ShimmerBar className="h-4 w-32" />
       </CardHeader>
       <CardContent className="space-y-3">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
+        <ShimmerBar className="h-3 w-full" />
+        <ShimmerBar className="h-3 w-3/4" />
+        <ShimmerBar className="h-3 w-1/2" />
+        {tall && (
+          <>
+            <ShimmerBar className="h-3 w-5/6" />
+            <ShimmerBar className="h-3 w-2/3" />
+          </>
+        )}
       </CardContent>
     </Card>
   );

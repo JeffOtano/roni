@@ -67,16 +67,24 @@ export default function ConnectTonalPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <div className="h-[400px] w-[600px] rounded-full bg-primary/8 blur-[120px]" />
+      </div>
+      <Card className="relative z-10 w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full border border-border bg-muted">
-            <Link2 className="size-5 text-muted-foreground" />
+          <div
+            className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl shadow-lg shadow-primary/10"
+            style={{
+              background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
+            }}
+          >
+            <Link2 className="size-6 text-white" />
           </div>
-          <CardTitle className="text-2xl">
+          <CardTitle className="text-2xl tracking-tight">
             {isReconnecting ? "Reconnect Your Tonal" : "Connect Your Tonal"}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="leading-relaxed">
             {isReconnecting
               ? "Your session expired. Sign in again to restore access to your training data."
               : "Link your Tonal account to get personalized coaching based on your real training data."}
