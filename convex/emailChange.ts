@@ -173,7 +173,7 @@ export const applyChange = internalMutation({
 
 // --- Utility functions ---
 
-function generateNumericCode(length: number): string {
+export function generateNumericCode(length: number): string {
   const bytes = new Uint8Array(Math.ceil(length / 2) + 1);
   crypto.getRandomValues(bytes);
   let num = 0;
@@ -184,7 +184,7 @@ function generateNumericCode(length: number): string {
   return String(num % mod).padStart(length, "0");
 }
 
-async function hashCode(code: string): Promise<string> {
+export async function hashCode(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(code);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -192,7 +192,7 @@ async function hashCode(code: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function emailChangeHtml(code: string): string {
+export function emailChangeHtml(code: string): string {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
       <h1 style="font-size: 24px; font-weight: 700; color: #111; margin-bottom: 8px;">
