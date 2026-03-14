@@ -131,7 +131,7 @@ export const fetchStrengthHistory = internalAction({
         fetcher: () =>
           tonalFetch<StrengthScoreHistoryEntry[]>(
             token,
-            `/v6/users/${tonalUserId}/strength-scores/history`,
+            `/v6/users/${tonalUserId}/strength-scores/history?limit=200`,
           ),
       }),
     ),

@@ -25,6 +25,7 @@ import type * as checkIns from "../checkIns.js";
 import type * as checkIns_content from "../checkIns/content.js";
 import type * as checkIns_triggers from "../checkIns/triggers.js";
 import type * as coach_exerciseSelection from "../coach/exerciseSelection.js";
+import type * as coach_missedSessionDetection from "../coach/missedSessionDetection.js";
 import type * as coach_prDetection from "../coach/prDetection.js";
 import type * as coach_pushAndVerify from "../coach/pushAndVerify.js";
 import type * as coach_weekModifications from "../coach/weekModifications.js";
@@ -105,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   "checkIns/content": typeof checkIns_content;
   "checkIns/triggers": typeof checkIns_triggers;
   "coach/exerciseSelection": typeof coach_exerciseSelection;
+  "coach/missedSessionDetection": typeof coach_missedSessionDetection;
   "coach/prDetection": typeof coach_prDetection;
   "coach/pushAndVerify": typeof coach_pushAndVerify;
   "coach/weekModifications": typeof coach_weekModifications;
