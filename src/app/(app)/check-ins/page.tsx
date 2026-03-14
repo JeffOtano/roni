@@ -6,6 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Settings } from "lucide-react";
+import { buildChatPrompt, TRIGGER_LABELS } from "./check-in-prompts";
 
 function isUnread(
   c: { readAt?: number; createdAt: number },
@@ -69,7 +70,7 @@ export default function CheckInsPage() {
       ) : list.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No check-ins yet. When we have something for you, it’ll show up here.
+            No check-ins yet. When we have something for you, it&apos;ll show up here.
           </CardContent>
         </Card>
       ) : (
@@ -87,8 +88,11 @@ export default function CheckInsPage() {
                         year: "numeric",
                       })}
                     </span>
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {TRIGGER_LABELS[checkIn.trigger] ?? checkIn.trigger}
+                    </span>
                     <Link
-                      href={`/chat?prompt=${encodeURIComponent(`My coach said: "${checkIn.message}" — can you tell me more?`)}`}
+                      href={`/chat?prompt=${encodeURIComponent(buildChatPrompt(checkIn))}`}
                       className="text-xs font-medium text-primary hover:underline"
                     >
                       Ask about this
