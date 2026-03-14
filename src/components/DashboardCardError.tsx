@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorAlert } from "@/components/ErrorAlert";
 
@@ -11,8 +12,18 @@ export function DashboardCardError({ title, onRetry }: { title: string; onRetry:
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-2">
         <ErrorAlert message="Failed to load data." onRetry={onRetry} />
+        <p className="text-xs text-muted-foreground">
+          If this keeps happening, try{" "}
+          <Link
+            href="/connect-tonal"
+            className="font-medium text-primary underline underline-offset-2"
+          >
+            reconnecting your Tonal
+          </Link>
+          .
+        </p>
       </CardContent>
     </Card>
   );

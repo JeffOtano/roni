@@ -17,16 +17,20 @@ export function StatusBanner() {
   }
 
   return (
-    <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-300">
+    <div
+      role="alert"
+      className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-300"
+    >
       <AlertTriangle className="size-4 shrink-0" />
       <span className="flex-1">
-        Your Tonal session expired.{" "}
+        Your Tonal session has expired — data can&apos;t refresh until you{" "}
         <Link
           href="/connect-tonal"
           className="font-medium underline underline-offset-2 hover:text-amber-200"
         >
-          Reconnect
+          reconnect
         </Link>
+        .
       </span>
       <button
         onClick={() => setDismissed(true)}

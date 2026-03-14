@@ -29,13 +29,12 @@ const FEATURES: Feature[] = [
     icon: BellRing,
     title: "Proactive Check-ins",
     description: "Get nudged when you're overtraining, slacking, or ready to level up.",
-    badge: "Coming Soon",
   },
   {
     icon: TrendingUp,
     title: "Progress Tracking",
-    description: "Strength scores, muscle readiness, and body composition over time.",
-    badge: "Body composition coming soon",
+    description: "Strength scores, muscle readiness, and progress photos over time.",
+    badge: "Body comp analysis coming soon",
   },
   {
     icon: Utensils,

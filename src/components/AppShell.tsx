@@ -22,14 +22,20 @@ const navLinks: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
+  hideOnMobile?: boolean;
 }> = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/week", label: "Week", icon: CalendarDays },
+  { href: "/dashboard/week", label: "Week", icon: CalendarDays, hideOnMobile: true },
   { href: "/progress", label: "Progress", icon: ImageIcon },
   { href: "/check-ins", label: "Check-ins", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+function mobileIsActive(pathname: string, href: string, exact?: boolean) {
+  if (href === "/dashboard") return pathname.startsWith("/dashboard");
+  return exact ? pathname === href : pathname.startsWith(href);
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -107,22 +113,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border bg-background py-2 lg:hidden"
           style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
         >
-          {navLinks.map(({ href, label, icon: Icon, exact }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
-            return (
+          {navLinks
+            .filter((l) => !l.hideOnMobile)
+            .map(({ href, label, icon: Icon, exact }) => (
               <Link
                 key={href}
                 href={href}
                 className={cn(
                   "flex min-w-0 flex-col items-center gap-0.5 px-2 py-1 text-muted-foreground transition-colors",
-                  isActive && "text-primary",
+                  mobileIsActive(pathname, href, exact) && "text-primary",
                 )}
               >
                 <Icon className="size-5 shrink-0" />
                 <span className="truncate text-[10px] font-medium">{label}</span>
               </Link>
-            );
-          })}
+            ))}
         </nav>
       </div>
     </div>

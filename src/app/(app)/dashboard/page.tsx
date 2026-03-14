@@ -62,16 +62,37 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <AsyncCard state={strength.state} refetch={strength.refetch} title="Strength Scores">
+        <AsyncCard
+          state={strength.state}
+          refetch={strength.refetch}
+          lastUpdatedAt={strength.lastUpdatedAt}
+          title="Strength Scores"
+        >
           {(d) => <StrengthScoreCard scores={d.scores} distribution={d.distribution} />}
         </AsyncCard>
-        <AsyncCard state={readiness.state} refetch={readiness.refetch} title="Muscle Readiness">
+        <AsyncCard
+          state={readiness.state}
+          refetch={readiness.refetch}
+          lastUpdatedAt={readiness.lastUpdatedAt}
+          title="Muscle Readiness"
+        >
           {(d) => <MuscleReadinessMap readiness={d} />}
         </AsyncCard>
-        <AsyncCard state={frequency.state} refetch={frequency.refetch} title="Training Frequency">
+        <AsyncCard
+          state={frequency.state}
+          refetch={frequency.refetch}
+          lastUpdatedAt={frequency.lastUpdatedAt}
+          title="Training Frequency"
+        >
           {(d) => <TrainingFrequencyChart data={d} />}
         </AsyncCard>
-        <AsyncCard state={workouts.state} refetch={workouts.refetch} title="Recent Workouts" tall>
+        <AsyncCard
+          state={workouts.state}
+          refetch={workouts.refetch}
+          lastUpdatedAt={workouts.lastUpdatedAt}
+          title="Recent Workouts"
+          tall
+        >
           {(d) => <RecentWorkoutsList workouts={d} />}
         </AsyncCard>
       </div>
