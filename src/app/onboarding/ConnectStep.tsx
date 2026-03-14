@@ -13,8 +13,8 @@ import { ErrorAlert } from "@/components/ErrorAlert";
 type ConnectionPhase = "idle" | "authenticating" | "fetching" | "done";
 
 const PHASE_LABELS: Record<Exclude<ConnectionPhase, "idle">, string> = {
-  authenticating: "Authenticating...",
-  fetching: "Fetching your profile...",
+  authenticating: "Authenticating with Tonal...",
+  fetching: "Pulling your training history...",
   done: "Done!",
 };
 
