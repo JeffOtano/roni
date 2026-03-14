@@ -22,6 +22,7 @@ export const getMe = query({
       userId,
       email: user?.email as string | undefined,
       hasTonalProfile: !!profile,
+      onboardingCompleted: !!profile?.onboardingData?.completedAt,
       tonalName: profile?.profileData
         ? `${profile.profileData.firstName} ${profile.profileData.lastName}`
         : undefined,
