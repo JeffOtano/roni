@@ -38,6 +38,7 @@
     "@convex-dev/agent": "^0.6.0-alpha.1",
     "@convex-dev/auth": "^0.0.91",
     "@convex-dev/rate-limiter": "^0.3.2",
+    "@sentry/nextjs": "^10.43.0",
     "@vercel/analytics": "^2.0.1",
     "ai": "^6.0.116",
     "class-variance-authority": "^0.7.1",
