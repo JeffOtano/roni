@@ -16,6 +16,11 @@ import {
   listProgressPhotosTool,
   searchExercisesTool,
 } from "./tools";
+import {
+  adjustSessionDurationTool,
+  moveSessionTool,
+  swapExerciseTool,
+} from "./weekModificationTools";
 import { deleteWeekPlanTool, getWeekPlanDetailsTool, programWeekTool } from "./weekTools";
 
 export const coachAgent = new Agent(components.agent, {
@@ -65,6 +70,9 @@ WEEKLY PROGRAMMING:
     program_week: programWeekTool,
     get_week_plan_details: getWeekPlanDetailsTool,
     delete_week_plan: deleteWeekPlanTool,
+    swap_exercise: swapExerciseTool,
+    move_session: moveSessionTool,
+    adjust_session_duration: adjustSessionDurationTool,
   },
 
   maxSteps: 15,

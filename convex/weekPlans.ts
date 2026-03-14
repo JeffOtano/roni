@@ -338,4 +338,25 @@ export const deleteWeekPlanInternal = internalMutation({
   },
 });
 
+/** Internal: get week plan by ID with ownership check. */
+export const getWeekPlanById = internalQuery({
+  args: { weekPlanId: v.id("weekPlans"), userId: v.id("users") },
+  handler: async (ctx, { weekPlanId, userId }) => {
+    const plan = await ctx.db.get(weekPlanId);
+    if (!plan || plan.userId !== userId) return null;
+    return plan;
+  },
+});
+
+/** Internal: delete a single draft workout plan. */
+export const deleteDraftWorkout = internalMutation({
+  args: { workoutPlanId: v.id("workoutPlans") },
+  handler: async (ctx, { workoutPlanId }) => {
+    const wp = await ctx.db.get(workoutPlanId);
+    if (wp && wp.status === "draft") {
+      await ctx.db.delete(workoutPlanId);
+    }
+  },
+});
+
 export { programMyWeek, programWeek } from "./weekPlanActions";
