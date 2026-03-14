@@ -1,32 +1,60 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { GoalField } from "@/components/GoalField";
 import { DaysPerWeekField } from "@/components/DaysPerWeekField";
 import { InjuriesField } from "@/components/InjuriesField";
-import {
-  getStoredColdStartPreferences,
-  setStoredColdStartPreferences,
-} from "@/lib/coldStartPreferences";
+import { type SessionDuration, SessionDurationField } from "@/components/SessionDurationField";
+import { SplitPreferenceField, type SplitValue } from "@/components/SplitPreferenceField";
+import { Loader2 } from "lucide-react";
+
+/** Map days-per-week count to evenly-spaced day indices (0=Mon..6=Sun). */
+function daysPerWeekToIndices(daysPerWeek: number): number[] {
+  switch (daysPerWeek) {
+    case 2:
+      return [0, 3];
+    case 3:
+      return [0, 2, 4];
+    case 4:
+      return [0, 1, 3, 4];
+    case 5:
+      return [0, 1, 2, 3, 4];
+    default:
+      return [0, 2, 4];
+  }
+}
 
 export function PreferencesStep({ onComplete }: { readonly onComplete: () => void }) {
-  const stored = getStoredColdStartPreferences();
-  const [goal, setGoal] = useState(stored?.goal ?? "");
-  const [daysPerWeek, setDaysPerWeek] = useState(stored?.daysPerWeek ?? 3);
-  const [injuries, setInjuries] = useState(stored?.injuriesOrConstraints ?? "");
+  const [goal, setGoal] = useState("");
+  const [daysPerWeek, setDaysPerWeek] = useState(3);
+  const [injuries, setInjuries] = useState("");
+  const [sessionDuration, setSessionDuration] = useState<SessionDuration>(45);
+  const [split, setSplit] = useState<SplitValue>("ppl");
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const completeOnboarding = useMutation(api.userProfiles.completeOnboarding);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!goal.trim()) return;
-    setStoredColdStartPreferences({
-      goal: goal.trim(),
-      daysPerWeek,
-      injuriesOrConstraints: injuries.trim(),
-      completedAt: Date.now(),
-    });
-    onComplete();
+    if (!goal.trim() || saving) return;
+
+    setSaving(true);
+    try {
+      await completeOnboarding({
+        goal: goal.trim(),
+        injuries: injuries.trim() || undefined,
+        preferredSplit: split,
+        trainingDays: daysPerWeekToIndices(daysPerWeek),
+        sessionDurationMinutes: sessionDuration,
+      });
+      onComplete();
+    } catch {
+      setSaving(false);
+    }
   };
 
   return (
@@ -41,9 +69,18 @@ export function PreferencesStep({ onComplete }: { readonly onComplete: () => voi
         <form onSubmit={handleSubmit} className="space-y-6">
           <GoalField value={goal} onChange={setGoal} />
           <DaysPerWeekField value={daysPerWeek} onChange={setDaysPerWeek} />
+          <SessionDurationField value={sessionDuration} onChange={setSessionDuration} />
+          <SplitPreferenceField value={split} onChange={setSplit} />
           <InjuriesField value={injuries} onChange={setInjuries} />
-          <Button type="submit" className="w-full" size="lg" disabled={!goal.trim()}>
-            Save and continue
+          <Button type="submit" className="w-full" size="lg" disabled={!goal.trim() || saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save and continue"
+            )}
           </Button>
         </form>
       </CardContent>
