@@ -76,12 +76,15 @@ export function ToolCallIndicator({ toolName, state, input }: ToolCallIndicatorP
 
   if (isRunning) {
     return (
-      <div className="my-1 flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="relative flex size-2.5">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)] opacity-75" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)]" />
-        </span>
-        <span className="animate-pulse">{messages.running}</span>
+      <div
+        className="my-1 flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-1.5 ring-1 ring-primary/10"
+        role="status"
+      >
+        <span
+          className="inline-block size-2 rounded-full bg-primary motion-safe:animate-[tool-pulse_2s_ease-in-out_infinite]"
+          aria-hidden="true"
+        />
+        <span className="text-xs font-medium text-primary/80">{messages.running}</span>
       </div>
     );
   }
