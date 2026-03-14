@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const getByUserId = internalQuery({
   args: { userId: v.id("users") },
@@ -132,5 +133,77 @@ export const getActiveUsers = internalQuery({
   handler: async (ctx, { sinceTimestamp }) => {
     const profiles = await ctx.db.query("userProfiles").collect();
     return profiles.filter((p) => p.lastActiveAt > sinceTimestamp);
+  },
+});
+
+const trainingPreferencesArgs = {
+  preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+  trainingDays: v.array(v.number()),
+  sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
+} as const;
+
+/** Get training preferences for the authenticated user. */
+export const getTrainingPreferences = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return profile?.trainingPreferences ?? null;
+  },
+});
+
+/** Save training preferences for the authenticated user. */
+export const saveTrainingPreferences = mutation({
+  args: trainingPreferencesArgs,
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) throw new Error("User profile not found");
+    await ctx.db.patch(profile._id, {
+      trainingPreferences: {
+        preferredSplit: args.preferredSplit,
+        trainingDays: args.trainingDays,
+        sessionDurationMinutes: args.sessionDurationMinutes,
+      },
+    });
+  },
+});
+
+/** Get training preferences by userId (server-only). */
+export const getTrainingPreferencesInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return profile?.trainingPreferences ?? null;
+  },
+});
+
+/** Save training preferences by userId (server-only). */
+export const saveTrainingPreferencesInternal = internalMutation({
+  args: { userId: v.id("users"), ...trainingPreferencesArgs },
+  handler: async (ctx, { userId, ...prefs }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) throw new Error("User profile not found");
+    await ctx.db.patch(profile._id, {
+      trainingPreferences: {
+        preferredSplit: prefs.preferredSplit,
+        trainingDays: prefs.trainingDays,
+        sessionDurationMinutes: prefs.sessionDurationMinutes,
+      },
+    });
   },
 });

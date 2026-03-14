@@ -295,4 +295,101 @@ export const batchUpdateDayStatusesInternal = internalMutation({
   },
 });
 
+/** Internal: create a draft workout plan (no Tonal push). */
+export const createDraftWorkoutInternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    title: v.string(),
+    blocks: v.any(),
+    estimatedDuration: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("workoutPlans", {
+      userId: args.userId,
+      title: args.title,
+      blocks: args.blocks,
+      status: "draft",
+      source: "tonal_coach",
+      estimatedDuration: args.estimatedDuration,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/** Internal: delete a week plan and its linked draft workouts. */
+export const deleteWeekPlanInternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    weekPlanId: v.id("weekPlans"),
+  },
+  handler: async (ctx, args) => {
+    const plan = await ctx.db.get(args.weekPlanId);
+    if (!plan || plan.userId !== args.userId) {
+      throw new Error("Week plan not found or access denied");
+    }
+    for (const day of plan.days) {
+      if (!day.workoutPlanId) continue;
+      const workout = await ctx.db.get(day.workoutPlanId);
+      if (workout && workout.status === "draft") {
+        await ctx.db.delete(day.workoutPlanId);
+      }
+    }
+    await ctx.db.delete(args.weekPlanId);
+  },
+});
+
+/** Internal: get week plan by ID with ownership check. */
+export const getWeekPlanById = internalQuery({
+  args: { weekPlanId: v.id("weekPlans"), userId: v.id("users") },
+  handler: async (ctx, { weekPlanId, userId }) => {
+    const plan = await ctx.db.get(weekPlanId);
+    if (!plan || plan.userId !== userId) return null;
+    return plan;
+  },
+});
+
+/** Internal: delete a single draft workout plan. */
+export const deleteDraftWorkout = internalMutation({
+  args: { workoutPlanId: v.id("workoutPlans") },
+  handler: async (ctx, { workoutPlanId }) => {
+    const wp = await ctx.db.get(workoutPlanId);
+    if (wp && wp.status === "draft") {
+      await ctx.db.delete(workoutPlanId);
+    }
+  },
+});
+
+/** Internal: replace a draft workout link with the pushed version. */
+export const replaceDraftWithPushed = internalMutation({
+  args: {
+    weekPlanId: v.id("weekPlans"),
+    dayIndex: v.number(),
+    oldWorkoutPlanId: v.id("workoutPlans"),
+    newWorkoutPlanId: v.id("workoutPlans"),
+    estimatedDuration: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    { weekPlanId, dayIndex, oldWorkoutPlanId, newWorkoutPlanId, estimatedDuration },
+  ) => {
+    const plan = await ctx.db.get(weekPlanId);
+    if (!plan) return;
+
+    // Delete the draft record (the pushed version is the new canonical record)
+    const draft = await ctx.db.get(oldWorkoutPlanId);
+    if (draft && draft.status === "draft") {
+      await ctx.db.delete(oldWorkoutPlanId);
+    }
+
+    // Update the day slot to point to the pushed workout
+    const days = [...plan.days];
+    days[dayIndex] = {
+      ...days[dayIndex],
+      workoutPlanId: newWorkoutPlanId,
+      ...(estimatedDuration != null && { estimatedDuration }),
+    };
+    await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+  },
+});
+
 export { programMyWeek, programWeek } from "./weekPlanActions";
