@@ -43,6 +43,18 @@ const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
     running: "Estimating duration...",
     done: "Estimated duration",
   },
+  check_calendar: {
+    running: "Checking your calendar...",
+    done: "Checked your calendar",
+  },
+  create_calendar_event: {
+    running: "Adding to your calendar...",
+    done: "Added to calendar",
+  },
+  get_available_slots: {
+    running: "Finding free time slots...",
+    done: "Found available times",
+  },
 };
 
 interface ToolCallIndicatorProps {
