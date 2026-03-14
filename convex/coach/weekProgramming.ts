@@ -14,112 +14,27 @@ import {
   preferredSplitValidator,
 } from "../weekPlans";
 import { selectExercises } from "./exerciseSelection";
-import type { BlockInput } from "../tonal/transforms";
 import type { Movement } from "../tonal/types";
+import {
+  blocksFromMovementIds,
+  DAY_NAMES,
+  DEFAULT_MAX_EXERCISES,
+  formatSessionTitle,
+  getSessionTypesForSplit,
+  getTrainingDayIndices,
+  parseUserLevel,
+  SESSION_DURATION_TO_MAX_EXERCISES,
+  SESSION_TYPE_MUSCLES,
+} from "./weekProgrammingHelpers";
+import type { DraftDaySummary, DraftWeekSummary, SessionType } from "./weekProgrammingHelpers";
 
-const SESSION_DURATION_TO_MAX_EXERCISES: Record<number, number> = {
-  30: 5,
-  45: 7,
-  60: 9,
-};
+// Re-export pure functions for tests and external consumers
+export { getTrainingDayIndices, getSessionTypesForSplit } from "./weekProgrammingHelpers";
+export type { DraftWeekSummary } from "./weekProgrammingHelpers";
 
-const DEFAULT_MAX_EXERCISES = 7;
-
-/** Session type to target muscle groups (Tonal names). */
-const SESSION_TYPE_MUSCLES: Record<string, string[]> = {
-  push: ["Chest", "Triceps", "Shoulders"],
-  pull: ["Back", "Biceps"],
-  legs: ["Quads", "Glutes", "Hamstrings", "Calves"],
-  upper: ["Chest", "Back", "Shoulders", "Triceps", "Biceps"],
-  lower: ["Quads", "Glutes", "Hamstrings", "Calves"],
-  full_body: [
-    "Chest",
-    "Back",
-    "Shoulders",
-    "Triceps",
-    "Biceps",
-    "Quads",
-    "Glutes",
-    "Hamstrings",
-    "Calves",
-  ],
-};
-
-type SessionType = "push" | "pull" | "legs" | "upper" | "lower" | "full_body";
-
-/** Training day indices for targetDays (e.g. 3 → Mon/Wed/Fri = 0, 2, 4). Exported for tests. */
-export function getTrainingDayIndices(targetDays: number): number[] {
-  if (targetDays <= 0 || targetDays > 7) return [];
-  const step = targetDays === 7 ? 1 : Math.floor(7 / targetDays);
-  const indices: number[] = [];
-  for (let i = 0; i < targetDays && indices.length < targetDays; i++) {
-    indices.push(Math.min(i * step, 6));
-  }
-  return [...new Set(indices)].sort((a, b) => a - b);
-}
-
-/** Session types for the week for a given split (one per training day in order). Exported for tests. */
-export function getSessionTypesForSplit(
-  split: "ppl" | "upper_lower" | "full_body",
-  trainingDayIndices: number[],
-): { dayIndex: number; sessionType: SessionType }[] {
-  if (split === "ppl") {
-    const types: SessionType[] = ["push", "pull", "legs"];
-    return trainingDayIndices.map((dayIndex, i) => ({
-      dayIndex,
-      sessionType: types[i % 3],
-    }));
-  }
-  if (split === "upper_lower") {
-    const types: SessionType[] = ["upper", "lower"];
-    return trainingDayIndices.map((dayIndex, i) => ({
-      dayIndex,
-      sessionType: types[i % 2],
-    }));
-  }
-  return trainingDayIndices.map((dayIndex) => ({
-    dayIndex,
-    sessionType: "full_body" as SessionType,
-  }));
-}
-
-function parseUserLevel(level: string | undefined): number {
-  if (!level) return 1;
-  const l = level.toLowerCase();
-  if (l.includes("beginner") || l === "1") return 1;
-  if (l.includes("intermediate") || l === "2") return 2;
-  if (l.includes("advanced") || l === "3") return 3;
-  return 1;
-}
-
-const DEFAULT_REPS = 10;
-
-/**
- * Build blocks for Tonal. Optional suggestions from getLastTimeAndSuggested (progressive overload)
- * set reps per movement (e.g. 8 when adding weight, last+1 when adding rep).
- * Tonal blocks accept only movementId, sets, reps (and optional duration/spotter/etc.); suggested
- * weight range (e.g. "72–75 lbs") is not sent to Tonal and is for display only in the app.
- */
-function blocksFromMovementIds(
-  movementIds: string[],
-  suggestions?: { movementId: string; suggestedReps?: number }[],
-): BlockInput[] {
-  const repsByMovement = new Map<string, number>();
-  for (const s of suggestions ?? []) {
-    if (s.suggestedReps != null) {
-      repsByMovement.set(s.movementId, s.suggestedReps);
-    }
-  }
-  return [
-    {
-      exercises: movementIds.map((movementId) => ({
-        movementId,
-        sets: 3,
-        reps: repsByMovement.get(movementId) ?? DEFAULT_REPS,
-      })),
-    },
-  ];
-}
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
 type CreatePlanResult =
   | { error: string }
@@ -168,6 +83,10 @@ async function fetchAndComputePlanData(
     initialDays,
   };
 }
+
+// ---------------------------------------------------------------------------
+// programWeek — existing pipeline (creates + pushes to Tonal)
+// ---------------------------------------------------------------------------
 
 async function createPlanPhase(
   ctx: ActionCtx,
@@ -296,5 +215,170 @@ export const programWeek = internalAction({
     if ("error" in plan) return { success: false, error: plan.error };
     await fillWorkoutsPhase(ctx, plan);
     return { success: true, weekPlanId: plan.weekPlanId };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// generateDraftWeekPlan — draft pipeline (no Tonal push, returns rich summary)
+// ---------------------------------------------------------------------------
+
+export const generateDraftWeekPlan = internalAction({
+  args: {
+    userId: v.id("users"),
+    weekStartDate: v.optional(v.string()),
+    preferredSplit: v.optional(preferredSplitValidator),
+    targetDays: v.optional(v.number()),
+    sessionDurationMinutes: v.optional(v.union(v.literal(30), v.literal(45), v.literal(60))),
+    trainingDayIndicesOverride: v.optional(v.array(v.number())),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
+    | { success: false; error: string }
+  > => {
+    const weekStartDate = args.weekStartDate ?? getWeekStartDateString(new Date());
+    if (!isValidWeekStartDateString(weekStartDate)) {
+      return { success: false, error: "weekStartDate must be YYYY-MM-DD (Monday)." };
+    }
+
+    const preferredSplit = args.preferredSplit ?? "ppl";
+    const targetDays = Math.min(7, Math.max(1, args.targetDays ?? 3));
+    const sessionDurationMinutes = args.sessionDurationMinutes ?? 45;
+    const maxExercises =
+      SESSION_DURATION_TO_MAX_EXERCISES[sessionDurationMinutes] ?? DEFAULT_MAX_EXERCISES;
+
+    // Delete existing plan for this week if present (user is re-generating)
+    const existing = await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+      userId: args.userId,
+      weekStartDate,
+    });
+    if (existing) {
+      await ctx.runMutation(internal.weekPlans.deleteWeekPlanInternal, {
+        userId: args.userId,
+        weekPlanId: existing._id,
+      });
+    }
+
+    const data = await fetchAndComputePlanData(ctx, args.userId, preferredSplit, targetDays);
+
+    // If user specified exact day indices, override the computed ones
+    const daySessions = args.trainingDayIndicesOverride
+      ? getSessionTypesForSplit(preferredSplit, args.trainingDayIndicesOverride)
+      : data.daySessions;
+
+    // Rebuild initialDays with the potentially overridden day sessions
+    const sessionTypeByDay = new Map(daySessions.map((d) => [d.dayIndex, d.sessionType]));
+    const initialDays = Array.from({ length: 7 }, (_, i) => ({
+      sessionType: (sessionTypeByDay.get(i) ?? "rest") as SessionType | "rest",
+      status: "programmed" as const,
+    }));
+
+    const weekPlanId = (await ctx.runMutation(internal.weekPlans.createForUserInternal, {
+      userId: args.userId,
+      weekStartDate,
+      preferredSplit,
+      targetDays,
+      days: initialDays,
+    })) as Id<"weekPlans">;
+
+    // Build drafts for each training day (sequential to avoid movement reuse)
+    const daySummaries: DraftDaySummary[] = [];
+    const catalog = data.catalog;
+
+    for (const { dayIndex, sessionType } of daySessions) {
+      const targetMuscleGroups =
+        SESSION_TYPE_MUSCLES[sessionType] ?? SESSION_TYPE_MUSCLES.full_body;
+      const movementIds = selectExercises({
+        catalog,
+        targetMuscleGroups,
+        userLevel: data.userLevel,
+        maxExercises,
+        lastUsedMovementIds: data.lastUsedMovementIds,
+      });
+      if (movementIds.length === 0) continue;
+
+      // Progressive overload suggestions
+      let suggestions: {
+        movementId: string;
+        suggestedReps?: number;
+        lastTimeText?: string;
+        suggestedText?: string;
+      }[] = [];
+      try {
+        suggestions = (await ctx.runAction(
+          internal.progressiveOverload.getLastTimeAndSuggestedInternal,
+          { userId: args.userId, movementIds },
+        )) as typeof suggestions;
+      } catch {
+        // No history; use defaults.
+      }
+
+      const blocks = blocksFromMovementIds(movementIds, suggestions);
+      const title = formatSessionTitle(sessionType, weekStartDate, dayIndex);
+
+      // Create draft (no Tonal push)
+      const planId = (await ctx.runMutation(internal.weekPlans.createDraftWorkoutInternal, {
+        userId: args.userId,
+        title,
+        blocks,
+        estimatedDuration: sessionDurationMinutes,
+      })) as Id<"workoutPlans">;
+
+      // Link to week plan
+      await ctx.runMutation(internal.weekPlans.linkWorkoutPlanToDayInternal, {
+        userId: args.userId,
+        weekPlanId,
+        dayIndex,
+        workoutPlanId: planId,
+        estimatedDuration: sessionDurationMinutes,
+      });
+
+      // Build summary for agent display
+      const exerciseSummaries = movementIds.map((mid) => {
+        const movement = catalog.find((m) => m.id === mid);
+        const suggestion = suggestions.find((s) => s.movementId === mid);
+        const block = blocks[0]?.exercises.find((e) => e.movementId === mid);
+        return {
+          movementId: mid,
+          name: movement?.name ?? mid,
+          muscleGroups: movement?.muscleGroups ?? [],
+          sets: block?.sets ?? 3,
+          reps: block?.reps ?? 10,
+          lastTime: suggestion?.lastTimeText,
+          suggestedTarget: suggestion?.suggestedText,
+        };
+      });
+
+      daySummaries.push({
+        dayIndex,
+        dayName: DAY_NAMES[dayIndex],
+        sessionType,
+        workoutPlanId: planId,
+        estimatedDuration: sessionDurationMinutes,
+        exercises: exerciseSummaries,
+      });
+    }
+
+    // Save preferences for next time
+    await ctx.runMutation(internal.userProfiles.saveTrainingPreferencesInternal, {
+      userId: args.userId,
+      preferredSplit,
+      trainingDays: daySessions.map((d) => d.dayIndex),
+      sessionDurationMinutes,
+    });
+
+    return {
+      success: true,
+      weekPlanId,
+      summary: {
+        weekStartDate,
+        preferredSplit,
+        targetDays,
+        sessionDurationMinutes,
+        days: daySummaries,
+      },
+    };
   },
 });

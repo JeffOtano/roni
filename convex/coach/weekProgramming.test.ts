@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSessionTypesForSplit, getTrainingDayIndices } from "./weekProgramming";
+import { getSessionTypesForSplit, getTrainingDayIndices } from "./weekProgrammingHelpers";
 
 describe("getTrainingDayIndices", () => {
   it("returns Mon/Wed/Fri (0, 2, 4) for 3 target days", () => {
