@@ -24,6 +24,7 @@ import type * as checkIns_content from "../checkIns/content.js";
 import type * as checkIns_triggers from "../checkIns/triggers.js";
 import type * as coach_exerciseSelection from "../coach/exerciseSelection.js";
 import type * as coach_weekProgramming from "../coach/weekProgramming.js";
+import type * as coach_weekProgrammingHelpers from "../coach/weekProgrammingHelpers.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as email from "../email.js";
@@ -98,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   "checkIns/triggers": typeof checkIns_triggers;
   "coach/exerciseSelection": typeof coach_exerciseSelection;
   "coach/weekProgramming": typeof coach_weekProgramming;
+  "coach/weekProgrammingHelpers": typeof coach_weekProgrammingHelpers;
   crons: typeof crons;
   dashboard: typeof dashboard;
   email: typeof email;
