@@ -11,6 +11,7 @@ import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { DraftWeekSummary } from "../coach/weekProgrammingHelpers";
+import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
@@ -263,6 +264,27 @@ export const deleteWeekPlanTool = createTool({
     });
 
     return { deleted: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// approveWeekPlanTool
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// getWorkoutPerformanceTool
+// ---------------------------------------------------------------------------
+
+export const getWorkoutPerformanceTool = createTool({
+  description:
+    "Get performance summary for the user's recent training. Shows PRs (personal records), plateaus, regressions, and progression trends per exercise. Use this when the user asks about their progress, after they complete a workout, or when you want to acknowledge their recent performance.",
+  inputSchema: z.object({}),
+  execute: async (ctx): Promise<WorkoutPerformanceSummary> => {
+    const userId = requireUserId(ctx);
+    const result = (await ctx.runAction(internal.progressiveOverload.getWorkoutPerformanceSummary, {
+      userId,
+    })) as WorkoutPerformanceSummary;
+    return result;
   },
 });
 

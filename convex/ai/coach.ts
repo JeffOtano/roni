@@ -25,6 +25,7 @@ import {
   approveWeekPlanTool,
   deleteWeekPlanTool,
   getWeekPlanDetailsTool,
+  getWorkoutPerformanceTool,
   programWeekTool,
 } from "./weekTools";
 
@@ -57,7 +58,15 @@ WEEKLY PROGRAMMING:
   DAY — Session Type (Target Muscles) — Duration
   1. Exercise Name: sets×reps @ target weight (last: previous performance)
 - For returning users who say "program next week" or "program my week", call program_week without parameters — it will use their saved preferences.
-- If the user wants to start over, use delete_week_plan then program_week again.`,
+- If the user wants to start over, use delete_week_plan then program_week again.
+
+PROGRESSIVE OVERLOAD:
+- When presenting weekly plans, always include last-time performance and suggested target for each exercise.
+- After a user completes a workout, use get_workout_performance to check for PRs and plateaus.
+- Celebrate PRs with specific numbers: "New PR on Bench Press — 73 avg per rep, up from 69. That's 5.8%."
+- For plateaus (3+ flat sessions), present options: add a set, increase weight, or rotate the exercise. Ask before acting.
+- For regressions, be curious not judgmental: "Bench was down from 69 to 61. Off day or something going on?"
+- Never shame a regression. Acknowledge it, ask, and adapt.`,
 
   tools: {
     search_exercises: searchExercisesTool,
@@ -76,6 +85,7 @@ WEEKLY PROGRAMMING:
     get_week_plan_details: getWeekPlanDetailsTool,
     delete_week_plan: deleteWeekPlanTool,
     approve_week_plan: approveWeekPlanTool,
+    get_workout_performance: getWorkoutPerformanceTool,
     swap_exercise: swapExerciseTool,
     move_session: moveSessionTool,
     adjust_session_duration: adjustSessionDurationTool,

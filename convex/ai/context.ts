@@ -71,6 +71,18 @@ export async function buildTrainingSnapshot(
     }
   }
 
+  // Performance note (from activities we already fetched)
+  if ((activities as Activity[]).length >= 2) {
+    const latest = (activities as Activity[])[0];
+    const previous = (activities as Activity[])[1];
+    if (latest.workoutPreview.totalVolume > previous.workoutPreview.totalVolume * 1.1) {
+      lines.push(
+        `Performance: Last session volume was ${Math.round((latest.workoutPreview.totalVolume / previous.workoutPreview.totalVolume - 1) * 100)}% higher than previous.`,
+      );
+    }
+    lines.push(`Tip: Use get_workout_performance for detailed per-exercise PR/plateau analysis.`);
+  }
+
   lines.push(`=== END SNAPSHOT ===`);
   return lines.join("\n");
 }

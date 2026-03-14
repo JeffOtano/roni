@@ -9,6 +9,7 @@ import { action, internalAction } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { FormattedWorkoutSummary, SetActivity, WorkoutActivityDetail } from "./tonal/types";
+import { generatePerformanceSummary } from "./coach/prDetection";
 
 const WEIGHT_STEP_LBS = 2.5;
 const PLATEAU_THRESHOLD_LBS = 2;
@@ -165,6 +166,33 @@ export const getPerMovementHistory = internalAction({
       movementId,
       sessions,
     }));
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Internal: full performance summary (PRs, plateaus, regressions)
+// ---------------------------------------------------------------------------
+
+export const getWorkoutPerformanceSummary = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    // 1. Get per-movement history
+    const historyEntries = await ctx.runAction(internal.progressiveOverload.getPerMovementHistory, {
+      userId,
+      maxActivities: 20,
+    });
+
+    // 2. Get movement names from catalog cache
+    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
+      userId: undefined,
+      dataType: "movements",
+    });
+    const movements = (cached?.data ?? []) as Array<{ id: string; name: string }>;
+    const nameMap = new Map(movements.map((m) => [m.id, m.name]));
+
+    // 3. Generate summary
+    const summary = generatePerformanceSummary(historyEntries, nameMap);
+    return summary;
   },
 });
 

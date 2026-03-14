@@ -83,6 +83,10 @@ const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
     running: "Pushing workouts to your Tonal...",
     done: "Workouts pushed to Tonal",
   },
+  get_workout_performance: {
+    running: "Analyzing your performance...",
+    done: "Performance analyzed",
+  },
 };
 
 interface ToolCallIndicatorProps {
