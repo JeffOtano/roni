@@ -52,12 +52,20 @@ export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardPro
         ))}
       </div>
 
-      <Link
-        href={`/chat?prompt=${encodeURIComponent("Tell me about my strength score trends")}`}
-        className="mt-4 block text-xs text-primary/80 transition-colors duration-200 hover:text-primary"
-      >
-        Ask coach about your strength trends &rarr;
-      </Link>
+      <div className="mt-4 flex items-center gap-4">
+        <Link
+          href={`/chat?prompt=${encodeURIComponent("Tell me about my strength score trends")}`}
+          className="text-xs text-primary/80 transition-colors duration-200 hover:text-primary"
+        >
+          Ask coach about trends &rarr;
+        </Link>
+        <Link
+          href="/strength"
+          className="text-xs text-primary/80 transition-colors duration-200 hover:text-primary"
+        >
+          View strength history &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

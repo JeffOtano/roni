@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import type { Activity } from "../../convex/tonal/types";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -75,9 +77,10 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
   const accentColor = ACCENT_COLORS[index % ACCENT_COLORS.length];
 
   return (
-    <div
+    <Link
+      href={`/workouts/${activity.activityId}`}
       className={cn(
-        "flex flex-col gap-1.5 rounded-lg border border-white/[0.06] border-l-2 bg-white/[0.02] px-3 py-2.5 transition-all duration-200 hover:bg-white/[0.04]",
+        "group flex flex-col gap-1.5 rounded-lg border border-white/[0.06] border-l-2 bg-white/[0.02] px-3 py-2.5 transition-all duration-200 hover:bg-white/[0.04]",
         accentColor,
       )}
     >
@@ -85,9 +88,12 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
         <span className="text-sm font-semibold leading-tight text-foreground">
           {preview.workoutTitle}
         </span>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/60">
-          {relativeTime(activity.activityTime)}
-        </span>
+        <div className="flex shrink-0 items-center gap-1">
+          <span className="text-[10px] tabular-nums text-muted-foreground/60">
+            {relativeTime(activity.activityTime)}
+          </span>
+          <ChevronRight className="size-3 text-muted-foreground/40 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+        </div>
       </div>
       {(preview.targetArea || metaLine) && (
         <div className="flex flex-wrap items-center gap-2">
@@ -117,7 +123,7 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
           </span>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 

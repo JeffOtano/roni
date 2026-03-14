@@ -1,21 +1,29 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
+  BarChart3,
   Bell,
   CalendarDays,
+  Dumbbell,
   ImageIcon,
   LayoutDashboard,
   Loader2,
   MessageSquare,
+  Moon,
   Settings,
+  Sun,
+  TrendingUp,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBanner } from "@/components/StatusBanner";
 import { CheckInBell } from "@/components/CheckInBell";
+import { Button } from "@/components/ui/button";
 
 const navLinks: Array<{
   href: string;
@@ -27,6 +35,9 @@ const navLinks: Array<{
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/week", label: "Week", icon: CalendarDays, hideOnMobile: true },
+  { href: "/exercises", label: "Exercises", icon: Dumbbell },
+  { href: "/strength", label: "Strength", icon: TrendingUp, hideOnMobile: true },
+  { href: "/stats", label: "Stats", icon: BarChart3 },
   { href: "/progress", label: "Progress", icon: ImageIcon },
   { href: "/check-ins", label: "Check-ins", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -35,6 +46,30 @@ const navLinks: Array<{
 function mobileIsActive(pathname: string, href: string, exact?: boolean) {
   if (href === "/dashboard") return pathname.startsWith("/dashboard");
   return exact ? pathname === href : pathname.startsWith(href);
+}
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(() =>
+    typeof document !== "undefined" ? document.documentElement.classList.contains("dark") : true,
+  );
+
+  const toggle = useCallback(() => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle("dark", next);
+  }, [isDark]);
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
+    >
+      {isDark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+    </Button>
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -98,10 +133,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mt-auto">
           <div className="mx-4 border-t border-white/[0.06]" />
           <div className="flex items-center justify-between px-5 py-4">
-            {me?.tonalName && (
-              <p className="truncate text-xs font-medium text-muted-foreground">{me.tonalName}</p>
-            )}
-            <CheckInBell />
+            <Link
+              href="/profile"
+              className="flex min-w-0 items-center gap-2 transition-colors duration-200 hover:text-foreground"
+            >
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary ring-1 ring-primary/30">
+                {me?.tonalName?.charAt(0)?.toUpperCase() ?? <User className="size-3" />}
+              </span>
+              {me?.tonalName && (
+                <p className="truncate text-xs font-medium text-muted-foreground">{me.tonalName}</p>
+              )}
+            </Link>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <CheckInBell />
+            </div>
           </div>
         </div>
       </aside>

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { JsonLd } from "./JsonLd";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -43,10 +45,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${dmSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`dark ${dmSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <body className="antialiased">
         <JsonLd />
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ThemeProvider>
+          <ConvexClientProvider>
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </ConvexClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
