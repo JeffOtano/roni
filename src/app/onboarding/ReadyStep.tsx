@@ -15,28 +15,33 @@ export function ReadyStep({ firstName }: { readonly firstName: string | undefine
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10">
-            <Dumbbell className="size-6 text-primary" />
+        <div className="mb-8 text-center">
+          <div
+            className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl shadow-lg shadow-primary/15"
+            style={{
+              background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
+            }}
+          >
+            <Dumbbell className="size-7 text-white" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             You&apos;re all set, {displayName}!
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Your coach is ready. Here&apos;s what you can do:
           </p>
         </div>
 
-        <ul className="mb-6 space-y-3 text-sm text-muted-foreground">
-          <li className="flex items-start gap-2">
+        <ul className="mb-8 space-y-3.5 text-sm text-muted-foreground">
+          <li className="flex items-start gap-3 rounded-lg bg-primary/5 px-3 py-2.5 ring-1 ring-primary/10">
             <Check className="mt-0.5 size-4 shrink-0 text-primary" />
             Get AI-programmed workouts tailored to your goals
           </li>
-          <li className="flex items-start gap-2">
+          <li className="flex items-start gap-3 rounded-lg bg-primary/5 px-3 py-2.5 ring-1 ring-primary/10">
             <Check className="mt-0.5 size-4 shrink-0 text-primary" />
             Track strength trends and muscle readiness
           </li>
-          <li className="flex items-start gap-2">
+          <li className="flex items-start gap-3 rounded-lg bg-primary/5 px-3 py-2.5 ring-1 ring-primary/10">
             <Check className="mt-0.5 size-4 shrink-0 text-primary" />
             Ask anything about your training data
           </li>

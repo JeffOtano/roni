@@ -1,13 +1,10 @@
 "use client";
 
 import type { Id } from "../../convex/_generated/dataModel";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ImageIcon, Loader2, Trash2 } from "lucide-react";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, {
-    year: "numeric",
     month: "short",
     day: "numeric",
   });
@@ -29,36 +26,32 @@ export function ProgressPhotoItem({
   onDelete,
 }: ProgressPhotoItemProps) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-3">
-        <div className="size-16 shrink-0 overflow-hidden rounded-md bg-muted">
-          {thumbnail ? (
-            // eslint-disable-next-line @next/next/no-img-element -- base64 data URL
-            <img
-              src={`data:image/jpeg;base64,${thumbnail}`}
-              alt=""
-              className="size-full object-cover"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center">
-              <ImageIcon className="size-6 text-muted-foreground" />
-            </div>
-          )}
+    <div className="group/tile relative aspect-square overflow-hidden rounded-xl ring-1 ring-white/[0.08] transition-all duration-200 hover:ring-white/[0.18]">
+      {thumbnail ? (
+        // eslint-disable-next-line @next/next/no-img-element -- base64 data URL
+        <img
+          src={`data:image/jpeg;base64,${thumbnail}`}
+          alt=""
+          className="size-full object-cover"
+        />
+      ) : (
+        <div className="flex size-full items-center justify-center bg-muted">
+          <ImageIcon className="size-8 text-muted-foreground" />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground">{formatDate(createdAt)}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Delete photo"
-          className="shrink-0 text-destructive hover:text-destructive"
-          onClick={() => onDelete(photoId)}
-          disabled={deleting}
-        >
-          {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-        </Button>
-      </CardContent>
-    </Card>
+      )}
+      {/* Gradient scrim with date */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-2.5 pb-2 pt-6">
+        <p className="text-xs font-medium text-white/90">{formatDate(createdAt)}</p>
+      </div>
+      {/* Delete button overlay */}
+      <button
+        aria-label="Delete photo"
+        className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-lg bg-black/50 text-white/70 opacity-0 backdrop-blur-sm transition-all duration-200 hover:bg-destructive hover:text-white focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/tile:opacity-100"
+        onClick={() => onDelete(photoId)}
+        disabled={deleting}
+      >
+        {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+      </button>
+    </div>
   );
 }

@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 function readinessColor(value: number): string {
-  if (value <= 30) return "bg-destructive/20 text-destructive border-destructive/30";
-  if (value <= 60) return "bg-amber-500/15 text-amber-400 border-amber-500/30";
-  return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+  if (value <= 30)
+    return "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/15 hover:shadow-[0_0_12px_oklch(0.65_0.23_15/0.15)]";
+  if (value <= 60)
+    return "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/15 hover:shadow-[0_0_12px_oklch(0.8_0.16_85/0.15)]";
+  return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15 hover:shadow-[0_0_12px_oklch(0.7_0.17_155/0.15)]";
 }
 
 function readinessLabel(value: number): string {
@@ -29,29 +31,25 @@ interface MuscleReadinessMapProps {
 }
 
 export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
-  // Convert the readiness object into a sorted array (most fatigued first)
+  // Sort ready muscles first -- positive framing
   const entries = Object.entries(readiness)
     .map(([muscle, value]) => ({ muscle, value: value as number }))
-    .sort((a, b) => a.value - b.value);
+    .sort((a, b) => b.value - a.value);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10">
-      <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-        Muscle Readiness
-      </h2>
-
+    <div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {entries.map(({ muscle, value }) => (
           <div
             key={muscle}
             className={cn(
-              "flex items-center justify-between rounded-md border px-3 py-2",
+              "flex items-center justify-between rounded-lg border px-3 py-2.5 transition-all duration-200",
               readinessColor(value),
             )}
           >
-            <div className="flex flex-col">
-              <span className="text-xs font-medium">{muscle}</span>
-              <span className="text-[10px] opacity-70">{readinessLabel(value)}</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold">{muscle}</span>
+              <span className="text-[10px] opacity-60">{readinessLabel(value)}</span>
             </div>
             <span className="text-sm font-bold tabular-nums">{value}</span>
           </div>
@@ -67,7 +65,7 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
         return (
           <Link
             href={`/chat?prompt=${prompt}`}
-            className="mt-3 block text-xs text-primary hover:underline"
+            className="mt-4 block text-xs text-primary/80 transition-colors duration-200 hover:text-primary"
           >
             {fresh.muscle} is fresh — ask coach for a workout &rarr;
           </Link>

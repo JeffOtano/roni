@@ -12,13 +12,13 @@ export function DashboardCardError({ title, onRetry }: { title: string; onRetry:
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-3">
         <ErrorAlert message="Failed to load data." onRetry={onRetry} />
         <p className="text-xs text-muted-foreground">
           If this keeps happening, try{" "}
           <Link
             href="/connect-tonal"
-            className="font-medium text-primary underline underline-offset-2"
+            className="font-medium text-primary underline underline-offset-2 transition-colors duration-200 hover:text-primary/80"
           >
             reconnecting your Tonal
           </Link>

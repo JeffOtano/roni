@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 function formatDate(ts: number): string {
@@ -32,14 +31,16 @@ export function ProgressComparison({
   const daysBetween = Math.round((latest.createdAt - earliest.createdAt) / (1000 * 60 * 60 * 24));
 
   return (
-    <Card className="mb-6">
-      <CardContent className="p-4">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <Card className="relative mb-6 overflow-hidden">
+      {/* Subtle gradient backdrop */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-primary/[0.02]" />
+      <CardContent className="relative p-4">
+        <p className="mb-4 text-xs font-semibold tracking-widest text-primary uppercase">
           Your journey
         </p>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-5">
           <div className="flex-1 text-center">
-            <div className="mx-auto size-28 overflow-hidden rounded-lg bg-muted sm:size-36">
+            <div className="mx-auto size-32 overflow-hidden rounded-xl ring-1 ring-white/[0.1] sm:size-40">
               {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URL */}
               <img
                 src={`data:image/jpeg;base64,${earliestThumb}`}
@@ -49,12 +50,16 @@ export function ProgressComparison({
             </div>
             <p className="mt-2 text-xs text-muted-foreground">{formatDate(earliest.createdAt)}</p>
           </div>
-          <div className="flex flex-col items-center gap-1">
-            <ArrowRight className="size-5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">{daysBetween}d</span>
+          {/* Days-between indicator */}
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="h-8 w-px bg-gradient-to-b from-transparent via-primary/50 to-transparent" />
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary ring-1 ring-primary/20">
+              {daysBetween}d
+            </span>
+            <div className="h-8 w-px bg-gradient-to-b from-transparent via-primary/50 to-transparent" />
           </div>
           <div className="flex-1 text-center">
-            <div className="mx-auto size-28 overflow-hidden rounded-lg bg-muted sm:size-36">
+            <div className="mx-auto size-32 overflow-hidden rounded-xl ring-1 ring-white/[0.1] sm:size-40">
               {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URL */}
               <img
                 src={`data:image/jpeg;base64,${latestThumb}`}

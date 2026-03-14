@@ -8,6 +8,7 @@ import type { UIMessage } from "@convex-dev/agent/react";
 import { api } from "../../convex/_generated/api";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
+import { ChevronUp } from "lucide-react";
 
 interface ChatThreadProps {
   userInitial?: string;
@@ -48,31 +49,35 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto">
-        {status === "CanLoadMore" && (
-          <div className="flex justify-center py-3">
-            <button
-              onClick={() => loadMore(20)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Load earlier messages
-            </button>
-          </div>
-        )}
-        {status !== "CanLoadMore" && canLoadMoreHistory && (
-          <div className="flex justify-center py-3">
-            <button
-              onClick={handleLoadEarlier}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Load earlier conversations
-            </button>
-          </div>
-        )}
-        <MessageList messages={allMessages} userInitial={userInitial} />
-        <div ref={bottomRef} />
+      <div className="scrollbar-thin flex-1 overflow-y-auto">
+        <div className="pt-4">
+          {status === "CanLoadMore" && (
+            <div className="flex justify-center pb-2 pt-1">
+              <button
+                onClick={() => loadMore(20)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground ring-1 ring-white/[0.04] transition-all duration-200 hover:bg-card hover:text-foreground"
+              >
+                <ChevronUp className="size-3" />
+                Load earlier messages
+              </button>
+            </div>
+          )}
+          {status !== "CanLoadMore" && canLoadMoreHistory && (
+            <div className="flex justify-center pb-2 pt-1">
+              <button
+                onClick={handleLoadEarlier}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground ring-1 ring-white/[0.04] transition-all duration-200 hover:bg-card hover:text-foreground"
+              >
+                <ChevronUp className="size-3" />
+                Load earlier conversations
+              </button>
+            </div>
+          )}
+          <MessageList messages={allMessages} userInitial={userInitial} />
+          <div ref={bottomRef} className="h-4" />
+        </div>
       </div>
-      <div className="shrink-0 border-t border-border p-3 sm:p-4">
+      <div className="shrink-0 p-3 sm:p-4">
         <ChatInput disabled={isStreaming} />
       </div>
     </div>

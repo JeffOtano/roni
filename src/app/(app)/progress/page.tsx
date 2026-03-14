@@ -47,6 +47,7 @@ export default function ProgressPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     if (!confirmDeleteAll) return;
@@ -110,6 +111,7 @@ export default function ProgressPage() {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      setDragOver(false);
       const file = e.dataTransfer.files?.[0];
       if (file) uploadFile(file);
     },
@@ -119,6 +121,7 @@ export default function ProgressPage() {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
   }, []);
 
   const handleDelete = useCallback(
@@ -154,20 +157,28 @@ export default function ProgressPage() {
     }
   }, [confirmDeleteAll, list?.length, deleteAll]);
 
+  const hasPhotos = list && list.length > 0;
+  const hasComparison =
+    list && list.length >= 2 && thumbnails[list[list.length - 1].id] && thumbnails[list[0].id];
+
   return (
-    <div className="mx-auto max-w-lg px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Progress photos</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Progress photos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Upload photos to track visible changes over time. Only you can see them.
           </p>
         </div>
-        {list && list.length > 0 && (
+        {hasPhotos && (
           <Link
             href={`/chat?prompt=${encodeURIComponent(`I've been tracking progress photos since ${formatDate(list[list.length - 1].createdAt)}. Based on my training data over that period, how is my progress looking? What should I adjust?`)}`}
           >
-            <Button variant="outline" size="sm" className="shrink-0 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-2 transition-all duration-200 hover:border-primary/50 hover:shadow-[0_0_12px_rgba(0,200,200,0.15)]"
+            >
               <MessageSquare className="size-4" />
               Discuss progress
             </Button>
@@ -180,8 +191,8 @@ export default function ProgressPage() {
         </div>
       )}
       {successMessage && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-600 dark:text-green-400">
-          <CheckCircle2 className="size-4 shrink-0" />
+        <div className="mb-4 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-green-400 ring-1 ring-green-500/20 backdrop-blur-sm">
+          <CheckCircle2 className="size-4 shrink-0 text-green-400" />
           {successMessage}
         </div>
       )}
@@ -202,44 +213,42 @@ export default function ProgressPage() {
             onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 py-8 transition-colors hover:border-primary/50 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onDragLeave={() => setDragOver(false)}
+            className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-10 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dragOver ? "border-primary bg-primary/[0.06] shadow-[0_0_20px_rgba(0,200,200,0.1)]" : "border-white/[0.1] bg-white/[0.02] hover:border-primary/40 hover:bg-white/[0.04]"}`}
           >
             {uploading ? (
-              <Loader2 className="size-10 animate-spin text-muted-foreground" />
+              <Loader2 className="size-10 animate-spin text-primary/60" />
             ) : (
-              <Upload className="size-10 text-muted-foreground" />
+              <Upload className="size-10 text-muted-foreground motion-safe:animate-[pulse_3s_ease-in-out_infinite]" />
             )}
-            <p className="mt-2 text-sm font-medium text-foreground">
-              {uploading ? "Uploading\u2026" : "Drop an image or click to upload"}
+            <p className="mt-3 text-sm font-medium text-foreground">
+              {uploading ? "Uploading..." : "Drop an image or click to upload"}
             </p>
-            <p className="text-xs text-muted-foreground">JPEG, PNG, or WebP</p>
+            <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG, or WebP</p>
           </div>
         </CardContent>
       </Card>
-      {list &&
-        list.length >= 2 &&
-        thumbnails[list[list.length - 1].id] &&
-        thumbnails[list[0].id] && (
-          <ProgressComparison
-            earliest={list[list.length - 1]}
-            latest={list[0]}
-            earliestThumb={thumbnails[list[list.length - 1].id]}
-            latestThumb={thumbnails[list[0].id]}
-          />
-        )}
-      {thumbnailError && list && list.length > 0 && (
+      {hasComparison && (
+        <ProgressComparison
+          earliest={list[list.length - 1]}
+          latest={list[0]}
+          earliestThumb={thumbnails[list[list.length - 1].id]}
+          latestThumb={thumbnails[list[0].id]}
+        />
+      )}
+      {thumbnailError && hasPhotos && (
         <p className="mb-2 text-xs text-muted-foreground">
           Photo previews couldn&apos;t be loaded. Your photos are still saved.
         </p>
       )}
       {list === undefined ? (
-        <p className="text-sm text-muted-foreground">Loading photos&hellip;</p>
+        <p className="text-sm text-muted-foreground">Loading photos...</p>
       ) : list.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ImageIcon className="size-12 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">No photos yet</p>
-            <p className="text-xs text-muted-foreground">Upload one above to get started</p>
+          <CardContent className="flex flex-col items-center justify-center py-14">
+            <ImageIcon className="size-12 text-muted-foreground/50" />
+            <p className="mt-3 text-sm font-medium text-muted-foreground">No photos yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">Upload one above to get started</p>
           </CardContent>
         </Card>
       ) : (
@@ -262,19 +271,18 @@ export default function ProgressPage() {
               )}
             </Button>
           </div>
-          <ul className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {list.map((photo) => (
-              <li key={photo.id}>
-                <ProgressPhotoItem
-                  photoId={photo.id as Id<"progressPhotos">}
-                  createdAt={photo.createdAt}
-                  thumbnail={thumbnails[photo.id]}
-                  deleting={deletingId === (photo.id as Id<"progressPhotos">)}
-                  onDelete={handleDelete}
-                />
-              </li>
+              <ProgressPhotoItem
+                key={photo.id}
+                photoId={photo.id as Id<"progressPhotos">}
+                createdAt={photo.createdAt}
+                thumbnail={thumbnails[photo.id]}
+                deleting={deletingId === (photo.id as Id<"progressPhotos">)}
+                onDelete={handleDelete}
+              />
             ))}
-          </ul>
+          </div>
         </>
       )}
     </div>

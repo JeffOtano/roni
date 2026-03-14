@@ -64,10 +64,8 @@ export function CheckInPreferences() {
 
         {/* Frequency selector - only shown when enabled */}
         {prefs.enabled && (
-          <div className="space-y-2 border-t border-border pt-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Frequency
-            </p>
+          <div className="space-y-3 border-t border-white/[0.06] pt-4">
+            <p className="text-xs font-semibold text-muted-foreground">Frequency</p>
             <div className="flex gap-2">
               {FREQUENCY_OPTIONS.map(({ value, label }) => (
                 <Button

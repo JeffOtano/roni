@@ -22,28 +22,30 @@ export function ChatMessage({ message, userInitial = "U" }: ChatMessageProps) {
   const isStreaming = message.status === "streaming";
 
   return (
-    <div className="border-b border-border px-4 py-3 last:border-b-0 sm:px-6">
+    <div className={`px-4 py-5 sm:px-6 sm:py-6 ${!isUser ? "border-l-2 border-primary/20" : ""}`}>
       {/* Header: avatar + role + timestamp */}
-      <div className="mb-1.5 flex items-center gap-2">
+      <div className="mb-2 flex items-center gap-2.5">
         {isUser ? (
-          <div className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+          <div className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
             {userInitial}
           </div>
         ) : (
-          <div className="flex size-6 items-center justify-center rounded-full bg-muted">
-            <Sparkles className="size-3 text-muted-foreground" />
+          <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)] shadow-sm shadow-primary/20">
+            <Sparkles className="size-3.5 text-white" />
           </div>
         )}
-        <span className="text-xs font-medium text-muted-foreground">
+        <span
+          className={`text-xs font-medium ${isUser ? "text-muted-foreground" : "text-primary"}`}
+        >
           {isUser ? "You" : "Coach"}
         </span>
-        <span className="text-[11px] text-muted-foreground/50">
+        <span className="ml-auto text-[11px] text-muted-foreground/40">
           {formatTime(message._creationTime)}
         </span>
       </div>
 
-      {/* Content — indented to align with role name */}
-      <div className="pl-8">
+      {/* Content -- indented to align with role name */}
+      <div className="max-w-prose pl-[38px]">
         {message.parts.map((part, i) => {
           if (part.type === "text") {
             const text = part.text;
@@ -68,7 +70,7 @@ export function ChatMessage({ message, userInitial = "U" }: ChatMessageProps) {
           return null;
         })}
 
-        {/* Tool calls: completed ones wrap horizontally as chips per spec */}
+        {/* Tool calls: completed ones wrap horizontally as chips */}
         {(() => {
           const toolParts = message.parts.filter((part) => part.type === "dynamic-tool");
           if (toolParts.length === 0) return null;
@@ -78,7 +80,7 @@ export function ChatMessage({ message, userInitial = "U" }: ChatMessageProps) {
           );
 
           return (
-            <div className={hasRunning ? "space-y-1" : "mt-1 flex flex-wrap gap-1.5"}>
+            <div className={hasRunning ? "space-y-1" : "mt-1.5 flex flex-wrap gap-1.5"}>
               {toolParts.map((part) => (
                 <ToolCallIndicator
                   key={part.toolCallId}

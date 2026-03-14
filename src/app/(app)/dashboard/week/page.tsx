@@ -49,9 +49,9 @@ export default function WeekPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-foreground">Week view</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Week view</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Your training week at a glance. Session type and status per day.
         </p>
       </div>
@@ -59,10 +59,15 @@ export default function WeekPage() {
       {showCta && (
         <Card className="mb-6">
           <CardHeader>
-            <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted/50">
-              <CalendarCheck className="size-5 text-muted-foreground" />
+            <div
+              className="flex size-10 items-center justify-center rounded-xl shadow-lg shadow-primary/10"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
+              }}
+            >
+              <CalendarCheck className="size-5 text-white" />
             </div>
-            <CardTitle>Program your week</CardTitle>
+            <CardTitle className="tracking-tight">Program your week</CardTitle>
             <CardDescription>
               Get a full week of workouts built for you and pushed to your Tonal.
             </CardDescription>
