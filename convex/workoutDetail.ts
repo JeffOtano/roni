@@ -151,9 +151,13 @@ export const getWorkoutHistoryFull = action({
 
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
 
-    return (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+    const all = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
-      limit,
+      limit: limit + 10,
     })) as Activity[];
+
+    return all
+      .filter((a) => a.workoutPreview?.totalVolume > 0 || a.workoutPreview?.workoutId !== "")
+      .slice(0, limit);
   },
 });

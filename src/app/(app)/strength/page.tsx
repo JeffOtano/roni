@@ -186,10 +186,13 @@ export default function StrengthPage() {
         title="Current Scores"
       >
         {(d) => {
-          const scoreMap: Record<string, number> = {};
-          for (const s of d.scores) {
-            scoreMap[s.strengthBodyRegion?.toLowerCase() ?? s.bodyRegionDisplay?.toLowerCase()] =
-              s.score;
+          function findScore(region: string): number {
+            const r = region.toLowerCase();
+            const match = d.scores.find((s) => {
+              const key = (s.strengthBodyRegion ?? s.bodyRegionDisplay ?? "").toLowerCase();
+              return key === r || key.startsWith(r) || key.includes(r);
+            });
+            return match?.score ?? 0;
           }
 
           return (
@@ -206,7 +209,7 @@ export default function StrengthPage() {
               {(["upper", "lower", "core"] as const).map((region) => (
                 <div key={region} className="flex flex-col items-center">
                   <ProgressRing
-                    score={scoreMap[region] ?? 0}
+                    score={findScore(region)}
                     label={region.charAt(0).toUpperCase() + region.slice(1)}
                   />
                 </div>
