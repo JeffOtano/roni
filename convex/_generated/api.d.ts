@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ResendOTP from "../ResendOTP.js";
 import type * as account from "../account.js";
 import type * as accountDeletion from "../accountDeletion.js";
 import type * as activation from "../activation.js";
@@ -25,6 +26,8 @@ import type * as coach_exerciseSelection from "../coach/exerciseSelection.js";
 import type * as coach_weekProgramming from "../coach/weekProgramming.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as email from "../email.js";
+import type * as emailChange from "../emailChange.js";
 import type * as google_client from "../google/client.js";
 import type * as http from "../http.js";
 import type * as mcp_auth from "../mcp/auth.js";
@@ -79,6 +82,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ResendOTP: typeof ResendOTP;
   account: typeof account;
   accountDeletion: typeof accountDeletion;
   activation: typeof activation;
@@ -96,6 +100,8 @@ declare const fullApi: ApiFromModules<{
   "coach/weekProgramming": typeof coach_weekProgramming;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  email: typeof email;
+  emailChange: typeof emailChange;
   "google/client": typeof google_client;
   http: typeof http;
   "mcp/auth": typeof mcp_auth;

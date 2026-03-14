@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
@@ -163,6 +164,17 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+
+            {flow === "signIn" && (
+              <div className="mt-4 text-center">
+                <Link
+                  href="/reset-password"
+                  className="text-sm text-primary underline underline-offset-4 transition-colors duration-300 hover:text-primary/80"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+            )}
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               {flow === "signIn" ? (
