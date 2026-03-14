@@ -271,4 +271,28 @@ export const createForUserInternal = internalMutation({
   },
 });
 
+/** Internal: batch-update day statuses on a week plan (used by enriched action to sync cache). */
+export const batchUpdateDayStatusesInternal = internalMutation({
+  args: {
+    weekPlanId: v.id("weekPlans"),
+    updates: v.array(
+      v.object({
+        dayIndex: v.number(),
+        status: dayStatusValidator,
+      }),
+    ),
+  },
+  handler: async (ctx, { weekPlanId, updates }) => {
+    if (updates.length === 0) return;
+    const plan = await ctx.db.get(weekPlanId);
+    if (!plan || plan.days.length !== 7) return;
+    const days = [...plan.days];
+    for (const { dayIndex, status } of updates) {
+      if (dayIndex < 0 || dayIndex > 6) continue;
+      days[dayIndex] = { ...days[dayIndex], status };
+    }
+    await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+  },
+});
+
 export { programMyWeek, programWeek } from "./weekPlanActions";

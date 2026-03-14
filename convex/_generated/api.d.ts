@@ -63,6 +63,7 @@ import type * as tonal_validation from "../tonal/validation.js";
 import type * as userProfiles from "../userProfiles.js";
 import type * as users from "../users.js";
 import type * as weekPlanActions from "../weekPlanActions.js";
+import type * as weekPlanEnriched from "../weekPlanEnriched.js";
 import type * as weekPlanHelpers from "../weekPlanHelpers.js";
 import type * as weekPlans from "../weekPlans.js";
 import type * as workoutDetail from "../workoutDetail.js";
@@ -130,6 +131,7 @@ declare const fullApi: ApiFromModules<{
   userProfiles: typeof userProfiles;
   users: typeof users;
   weekPlanActions: typeof weekPlanActions;
+  weekPlanEnriched: typeof weekPlanEnriched;
   weekPlanHelpers: typeof weekPlanHelpers;
   weekPlans: typeof weekPlans;
   workoutDetail: typeof workoutDetail;
