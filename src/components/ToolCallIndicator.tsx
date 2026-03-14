@@ -118,25 +118,28 @@ export function ToolCallIndicator({ toolName, state, input }: ToolCallIndicatorP
     return <WorkoutCard title={data.name} exercises={data.exercises} />;
   }
 
+  // Unified chip layout for both running and done (prevents layout shift during transitions)
   if (isRunning) {
     return (
-      <div
-        className="my-1 flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-1.5 ring-1 ring-primary/10"
+      <span
+        className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground"
         role="status"
       >
         <span
-          className="inline-block size-2 rounded-full bg-primary motion-safe:animate-[tool-pulse_2s_ease-in-out_infinite]"
+          className="inline-block size-1.5 rounded-full bg-primary motion-safe:animate-[tool-pulse_2s_ease-in-out_infinite]"
           aria-hidden="true"
         />
-        <span className="text-xs font-medium text-primary/80">{messages.running}</span>
-      </div>
+        {messages.running}
+      </span>
     );
   }
 
   if (isDone) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-md border-l-2 border-primary/40 bg-primary/5 px-2.5 py-1 text-xs text-muted-foreground transition-all duration-200">
-        <span className="text-primary">&check;</span>
+      <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground">
+        <span className="text-primary" aria-hidden="true">
+          &#10003;
+        </span>
         {messages.done}
       </span>
     );

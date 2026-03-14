@@ -6,9 +6,11 @@ import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loader2, SendHorizontal } from "lucide-react";
 
+const MAX_TEXTAREA_HEIGHT = 160;
+
 function autoGrow(el: HTMLTextAreaElement) {
   el.style.height = "auto";
-  el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
 }
 
 interface ChatInputProps {
@@ -58,10 +60,19 @@ export function ChatInput({ disabled }: ChatInputProps) {
   };
 
   const isDisabled = disabled || sending;
+  const hasInput = input.trim().length > 0;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 ring-1 ring-white/8 transition-all duration-200 focus-within:border-primary/30 focus-within:ring-primary/20">
+      {error && (
+        <div
+          role="alert"
+          className="mb-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
+        >
+          {error}
+        </div>
+      )}
+      <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm transition-colors duration-200 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5">
         <textarea
           ref={textareaRef}
           value={input}
@@ -73,15 +84,16 @@ export function ChatInput({ disabled }: ChatInputProps) {
           placeholder="Ask your coach..."
           disabled={isDisabled}
           rows={1}
-          className="flex-1 resize-none rounded-xl bg-transparent px-4 py-3 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ height: "auto", maxHeight: "96px" }}
+          aria-label="Message input"
+          className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ height: "auto", maxHeight: `${MAX_TEXTAREA_HEIGHT}px` }}
         />
         <Button
-          size="icon-lg"
+          size="icon"
           onClick={handleSend}
-          disabled={isDisabled || !input.trim()}
+          disabled={isDisabled || !hasInput}
           aria-label={sending ? "Sending message" : "Send message"}
-          className="mb-0.5 rounded-xl shadow-md shadow-primary/20"
+          className="mb-0.5 min-h-[44px] min-w-[44px] rounded-xl"
         >
           {sending ? (
             <Loader2 className="size-4 animate-spin" />
@@ -90,11 +102,6 @@ export function ChatInput({ disabled }: ChatInputProps) {
           )}
         </Button>
       </div>
-      {error && (
-        <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

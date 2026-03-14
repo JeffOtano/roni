@@ -22,23 +22,25 @@ export function WorkoutCard({
   status = "pushed",
   estimatedDuration,
 }: WorkoutCardProps) {
+  const exerciseCount = exercises?.length ?? 0;
+
   return (
-    <div className="my-2 rounded-xl border border-primary/20 bg-card p-4 ring-1 ring-primary/10 shadow-lg shadow-primary/5">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
+    <div className="my-2 max-w-sm rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">
           {title ?? "Custom Workout"}
         </h3>
         <StatusBadge status={status} />
       </div>
 
-      {exercises && exercises.length > 0 && (
+      {exercises && exerciseCount > 0 && (
         <ol className="mb-2 space-y-1 pl-5 text-sm">
           {exercises.map((ex, i) => (
             <li key={i} className="text-foreground/80">
               <span className="font-medium">{ex.exerciseName ?? ex.name ?? "Exercise"}</span>
               {ex.sets && ex.reps && (
                 <span className="ml-1.5 text-muted-foreground">
-                  — {ex.sets}&times;{ex.reps}
+                  {ex.sets}&times;{ex.reps}
                 </span>
               )}
             </li>
@@ -46,9 +48,12 @@ export function WorkoutCard({
         </ol>
       )}
 
-      {estimatedDuration && (
-        <p className="text-xs text-muted-foreground">~{Math.round(estimatedDuration / 60)} min</p>
-      )}
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        {exerciseCount > 0 && <span>{exerciseCount} exercises</span>}
+        {estimatedDuration != null && estimatedDuration > 0 && (
+          <span>~{Math.round(estimatedDuration / 60)} min</span>
+        )}
+      </div>
     </div>
   );
 }
