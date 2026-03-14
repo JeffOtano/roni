@@ -10,9 +10,13 @@ interface StrengthScoreCardProps {
 }
 
 export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardProps) {
-  const scoreMap: Record<string, number> = {};
-  for (const s of scores) {
-    scoreMap[s.strengthBodyRegion?.toLowerCase() ?? s.bodyRegionDisplay?.toLowerCase()] = s.score;
+  function findScore(region: string): number {
+    const r = region.toLowerCase();
+    const match = scores.find((s) => {
+      const key = (s.strengthBodyRegion ?? s.bodyRegionDisplay ?? "").toLowerCase();
+      return key === r || key.startsWith(r) || key.includes(r);
+    });
+    return match?.score ?? 0;
   }
 
   const regions = [
@@ -47,7 +51,7 @@ export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardPro
 
         {regions.map(({ key, label }) => (
           <div key={key} className="flex flex-col items-center">
-            <ProgressRing score={scoreMap[key] ?? 0} label={label} />
+            <ProgressRing score={findScore(key)} label={label} />
           </div>
         ))}
       </div>

@@ -55,16 +55,21 @@ export const getMuscleReadiness = action({
 // 3. getWorkoutHistory — recent workouts for the list
 // ---------------------------------------------------------------------------
 
+function isTonalWorkout(a: Activity): boolean {
+  return a.workoutPreview?.totalVolume > 0 || a.workoutPreview?.workoutId !== "";
+}
+
 export const getWorkoutHistory = action({
   args: {},
   handler: async (ctx): Promise<Activity[]> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    return ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+    const all: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
-      limit: 5,
+      limit: 20,
     });
+    return all.filter(isTonalWorkout).slice(0, 5);
   },
 });
 
@@ -88,10 +93,11 @@ export const getTrainingFrequency = action({
     const lastDates: Record<string, string> = {};
 
     for (const activity of activities) {
+      if (!isTonalWorkout(activity)) continue;
       const activityTime = new Date(activity.activityTime).getTime();
       if (activityTime < thirtyDaysAgo) continue;
 
-      const area = activity.workoutPreview?.targetArea ?? "Unknown";
+      const area = activity.workoutPreview?.targetArea || "General";
       counts[area] = (counts[area] ?? 0) + 1;
 
       // Track most recent date per area

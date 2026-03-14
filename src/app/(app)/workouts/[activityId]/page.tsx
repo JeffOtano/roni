@@ -3,7 +3,32 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
-import type { SetActivity, WorkoutActivityDetail } from "../../../../../convex/tonal/types";
+interface EnrichedSet {
+  id: string;
+  movementId: string;
+  movementName: string | null;
+  prescribedReps: number;
+  repetition: number;
+  repetitionTotal: number;
+  blockNumber: number;
+  spotter: boolean;
+  eccentric: boolean;
+  chains: boolean;
+  warmUp: boolean;
+  weightPercentage?: number;
+}
+
+interface EnrichedWorkoutDetail {
+  id: string;
+  beginTime: string;
+  endTime: string;
+  totalDuration: number;
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  percentCompleted: number;
+  workoutSetActivity: EnrichedSet[];
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +64,8 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function groupSetsByBlock(sets: SetActivity[]): Map<number, SetActivity[]> {
-  const blocks = new Map<number, SetActivity[]>();
+function groupSetsByBlock(sets: EnrichedSet[]): Map<number, EnrichedSet[]> {
+  const blocks = new Map<number, EnrichedSet[]>();
   for (const set of sets) {
     const block = set.blockNumber;
     const existing = blocks.get(block);
@@ -80,7 +105,7 @@ function WorkoutDetailSkeleton() {
 // Set row
 // ---------------------------------------------------------------------------
 
-function SetRow({ set }: { set: SetActivity }) {
+function SetRow({ set }: { set: EnrichedSet }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] px-3 py-2 text-sm">
       <div className="flex items-center gap-2">
@@ -90,7 +115,7 @@ function SetRow({ set }: { set: SetActivity }) {
         <span className="text-foreground">{set.prescribedReps} reps</span>
         {set.weightPercentage != null && (
           <span className="tabular-nums text-muted-foreground">
-            @ {Math.round(set.weightPercentage * 100)}%
+            @ {Math.round(set.weightPercentage)}%
           </span>
         )}
       </div>
@@ -129,13 +154,13 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
   const getDetail = useAction(api.workoutDetail.getWorkoutDetail);
 
   const [state, setState] = useState<
-    { status: "loading" } | { status: "success"; data: WorkoutActivityDetail } | { status: "error" }
+    { status: "loading" } | { status: "success"; data: EnrichedWorkoutDetail } | { status: "error" }
   >({ status: "loading" });
 
   const fetch = useCallback(() => {
     setState({ status: "loading" });
     getDetail({ activityId }).then(
-      (data: WorkoutActivityDetail) => setState({ status: "success", data }),
+      (data: EnrichedWorkoutDetail) => setState({ status: "success", data }),
       () => setState({ status: "error" }),
     );
   }, [getDetail, activityId]);
@@ -224,20 +249,23 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
 
       {/* Exercise blocks */}
       <div className="mt-8 space-y-4">
-        {Array.from(blocks.entries()).map(([blockNum, sets]) => (
-          <Card key={blockNum}>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                Block {blockNum}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {sets.map((set) => (
-                <SetRow key={set.id} set={set} />
-              ))}
-            </CardContent>
-          </Card>
-        ))}
+        {Array.from(blocks.entries()).map(([blockNum, sets]) => {
+          const exerciseName = sets[0]?.movementName ?? `Block ${blockNum}`;
+          return (
+            <Card key={blockNum}>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
+                  {exerciseName}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {sets.map((set) => (
+                  <SetRow key={set.id} set={set} />
+                ))}
+              </CardContent>
+            </Card>
+          );
+        })}
 
         {blocks.size === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
