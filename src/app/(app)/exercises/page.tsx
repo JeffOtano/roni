@@ -2,6 +2,7 @@
 
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,14 +50,40 @@ const SKILL_LABELS: Record<number, string> = {
 };
 
 // ---------------------------------------------------------------------------
+// Exercise thumbnail
+// ---------------------------------------------------------------------------
+
+function ExerciseThumbnail({ src, name }: { src: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-white/[0.04]">
+        <Dumbbell className="size-5 text-muted-foreground/50" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={`${name} demonstration`}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="size-14 shrink-0 rounded-lg bg-white/[0.04] object-cover"
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
 
 function ExerciseGridSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-40 rounded-xl" />
+        <Skeleton key={i} className="h-24 rounded-xl" />
       ))}
     </div>
   );
@@ -71,50 +98,54 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
 
   return (
     <Card className="transition-all duration-200 hover:scale-[1.01]">
-      <CardContent className="flex flex-col gap-3 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold leading-tight text-foreground">{movement.name}</h3>
-          {movement.onMachine && (
-            <Badge variant="secondary" className="shrink-0 text-[10px]">
-              On-machine
-            </Badge>
-          )}
-        </div>
+      <CardContent className="flex gap-3.5 p-3">
+        <ExerciseThumbnail src={movement.thumbnailMediaUrl} name={movement.name} />
 
-        {/* Muscle groups */}
-        <div className="flex flex-wrap gap-1.5">
-          {movement.muscleGroups.map((mg) => (
-            <span
-              key={mg}
-              className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-            >
-              {mg}
-            </span>
-          ))}
-        </div>
-
-        {/* Skill level + action */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex gap-0.5">
-              {[1, 2, 3].map((level) => (
-                <div
-                  key={level}
-                  className={cn(
-                    "h-1.5 w-4 rounded-full",
-                    level <= movement.skillLevel ? "bg-primary" : "bg-white/[0.06]",
-                  )}
-                />
-              ))}
-            </div>
-            <span className="text-[10px] text-muted-foreground">{skillLabel}</span>
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-sm font-semibold leading-tight text-foreground">{movement.name}</h3>
+            {movement.onMachine && (
+              <Badge variant="secondary" className="shrink-0 text-[10px]">
+                On-machine
+              </Badge>
+            )}
           </div>
-          <Link
-            href={`/chat?prompt=${encodeURIComponent(`Build me a workout that includes ${movement.name}`)}`}
-            className="text-[10px] text-muted-foreground transition-colors hover:text-primary"
-          >
-            Program with this &rarr;
-          </Link>
+
+          {/* Muscle groups */}
+          <div className="flex flex-wrap gap-1">
+            {movement.muscleGroups.map((mg) => (
+              <span
+                key={mg}
+                className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              >
+                {mg}
+              </span>
+            ))}
+          </div>
+
+          {/* Skill level + action */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5">
+                {[1, 2, 3].map((level) => (
+                  <div
+                    key={level}
+                    className={cn(
+                      "h-1.5 w-4 rounded-full",
+                      level <= movement.skillLevel ? "bg-primary" : "bg-white/[0.06]",
+                    )}
+                  />
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">{skillLabel}</span>
+            </div>
+            <Link
+              href={`/chat?prompt=${encodeURIComponent(`Build me a workout that includes ${movement.name}`)}`}
+              className="text-[10px] text-muted-foreground transition-colors hover:text-primary"
+            >
+              Program with this &rarr;
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -132,9 +163,12 @@ type FetchState =
 
 export default function ExercisesPage() {
   const getCatalog = useAction(api.workoutDetail.getExerciseCatalog);
+  const searchParams = useSearchParams();
+
+  const initialMuscleGroup = searchParams.get("muscleGroup");
 
   const [search, setSearch] = useState("");
-  const [muscleGroup, setMuscleGroup] = useState<string | null>(null);
+  const [muscleGroup, setMuscleGroup] = useState<string | null>(initialMuscleGroup);
   const [state, setState] = useState<FetchState>({ status: "loading" });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -153,12 +187,12 @@ export default function ExercisesPage() {
     [getCatalog],
   );
 
-  // Initial fetch — ref guard to avoid re-triggering
+  // Initial fetch with URL params
   const initialFetched = useRef(false);
   useEffect(() => {
     if (initialFetched.current) return;
     initialFetched.current = true;
-    fetchExercises("", null);
+    fetchExercises("", initialMuscleGroup);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -253,7 +287,7 @@ export default function ExercisesPage() {
       )}
 
       {state.status === "success" && state.data.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {state.data.map((movement) => (
             <ExerciseCard key={movement.id} movement={movement} />
           ))}
