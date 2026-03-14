@@ -295,4 +295,47 @@ export const batchUpdateDayStatusesInternal = internalMutation({
   },
 });
 
+/** Internal: create a draft workout plan (no Tonal push). */
+export const createDraftWorkoutInternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    title: v.string(),
+    blocks: v.any(),
+    estimatedDuration: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("workoutPlans", {
+      userId: args.userId,
+      title: args.title,
+      blocks: args.blocks,
+      status: "draft",
+      source: "tonal_coach",
+      estimatedDuration: args.estimatedDuration,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/** Internal: delete a week plan and its linked draft workouts. */
+export const deleteWeekPlanInternal = internalMutation({
+  args: {
+    userId: v.id("users"),
+    weekPlanId: v.id("weekPlans"),
+  },
+  handler: async (ctx, args) => {
+    const plan = await ctx.db.get(args.weekPlanId);
+    if (!plan || plan.userId !== args.userId) {
+      throw new Error("Week plan not found or access denied");
+    }
+    for (const day of plan.days) {
+      if (!day.workoutPlanId) continue;
+      const workout = await ctx.db.get(day.workoutPlanId);
+      if (workout && workout.status === "draft") {
+        await ctx.db.delete(day.workoutPlanId);
+      }
+    }
+    await ctx.db.delete(args.weekPlanId);
+  },
+});
+
 export { programMyWeek, programWeek } from "./weekPlanActions";
