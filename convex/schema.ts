@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { blockInputValidator } from "./validators";
 
 export default defineSchema({
   ...authTables,
@@ -103,7 +104,7 @@ export default defineSchema({
     tonalWorkoutId: v.optional(v.string()),
     source: v.optional(v.string()),
     title: v.string(),
-    blocks: v.any(),
+    blocks: blockInputValidator,
     status: v.union(
       v.literal("draft"),
       v.literal("pushing"),

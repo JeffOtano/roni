@@ -9,6 +9,7 @@ import {
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import { blockInputValidator } from "./validators";
 
 type RetryPushResult = { success: true; workoutId: string } | { success: false; error: string };
 
@@ -27,7 +28,7 @@ export const create = internalMutation({
     tonalWorkoutId: v.optional(v.string()),
     source: v.optional(v.string()),
     title: v.string(),
-    blocks: v.any(),
+    blocks: blockInputValidator,
     status: statusValidator,
     pushErrorReason: v.optional(v.string()),
     estimatedDuration: v.optional(v.number()),
@@ -83,11 +84,7 @@ export const getRecentMovementIds = internalQuery({
       .collect();
     const allMovementIds = plans
       .filter((p) => p.status === "pushed" || p.status === "completed")
-      .flatMap((p) => {
-        const blocks = p.blocks as { exercises?: { movementId?: string }[] }[];
-        return (blocks ?? []).flatMap((b) => (b.exercises ?? []).map((ex) => ex.movementId));
-      })
-      .filter((id): id is string => typeof id === "string");
+      .flatMap((p) => p.blocks.flatMap((b) => b.exercises.map((ex) => ex.movementId)));
 
     return [...new Set(allMovementIds)].slice(-50);
   },

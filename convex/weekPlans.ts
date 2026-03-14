@@ -10,6 +10,7 @@ import {
   isValidWeekStartDateString,
   preferredSplitValidator,
 } from "./weekPlanHelpers";
+import { blockInputValidator } from "./validators";
 
 // Re-export for external consumers
 export {
@@ -298,7 +299,7 @@ export const createDraftWorkoutInternal = internalMutation({
   args: {
     userId: v.id("users"),
     title: v.string(),
-    blocks: v.any(),
+    blocks: blockInputValidator,
     estimatedDuration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
