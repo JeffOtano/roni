@@ -35,7 +35,20 @@ export const doTonalCreateWorkout = internalAction({
       method: "POST",
       body: { title, sets, createdSource: "WorkoutBuilder" },
     });
-    return { id: workout.id };
+    const tonalWorkoutId = workout.id;
+
+    // Soft verification: read back custom workouts list to confirm push
+    try {
+      const customWorkouts = await tonalFetch<Array<{ id: string }>>(token, `/v6/user-workouts`);
+      const verified = customWorkouts?.some((w) => w.id === tonalWorkoutId);
+      if (!verified) {
+        console.warn(`Push verification: workout ${tonalWorkoutId} not found in read-back`);
+      }
+    } catch {
+      console.warn(`Push verification: could not read back custom workouts list`);
+    }
+
+    return { id: tonalWorkoutId };
   },
 });
 
