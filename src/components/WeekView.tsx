@@ -2,18 +2,29 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DaySlot } from "@/components/DaySlot";
-import type { Doc } from "../../convex/_generated/dataModel";
+import type { DerivedStatus } from "@/components/DaySlot";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-type WeekPlanDay = Doc<"weekPlans">["days"][number];
+export interface EnrichedDay {
+  sessionType: string;
+  derivedStatus: DerivedStatus;
+  workoutPlanId?: string;
+  estimatedDuration?: number;
+  tonalWorkoutId?: string;
+}
 
-export function WeekView({ plan }: { plan: Doc<"weekPlans"> | null }) {
+export interface EnrichedWeekPlan {
+  weekStartDate: string;
+  days: EnrichedDay[];
+}
+
+export function WeekView({ plan }: { plan: EnrichedWeekPlan | null }) {
   const days = plan?.days ?? defaultEmptyDays();
   const weekStart = plan?.weekStartDate ?? getDefaultWeekStart();
 
   return (
-    <Card>
+    <Card className="animate-in fade-in duration-300">
       <CardHeader>
         <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
           This week
@@ -27,8 +38,9 @@ export function WeekView({ plan }: { plan: Doc<"weekPlans"> | null }) {
               key={i}
               dayLabel={DAY_LABELS[i]}
               sessionType={day.sessionType}
-              status={day.status}
+              derivedStatus={day.derivedStatus}
               estimatedDuration={day.estimatedDuration}
+              tonalWorkoutId={day.tonalWorkoutId}
             />
           ))}
         </ul>
@@ -37,10 +49,10 @@ export function WeekView({ plan }: { plan: Doc<"weekPlans"> | null }) {
   );
 }
 
-function defaultEmptyDays(): WeekPlanDay[] {
+function defaultEmptyDays(): EnrichedDay[] {
   return Array.from({ length: 7 }, () => ({
     sessionType: "rest",
-    status: "programmed",
+    derivedStatus: "rest" as const,
   }));
 }
 

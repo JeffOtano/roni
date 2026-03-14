@@ -25,8 +25,9 @@ const CHART_COLORS = {
   core: "oklch(0.8 0.16 85)",
 } as const;
 
-const CHART_PADDING = { top: 20, right: 16, bottom: 40, left: 44 };
-const CHART_HEIGHT = 280;
+const VB_W = 800;
+const VB_H = 300;
+const PAD = { top: 24, right: 24, bottom: 44, left: 52 };
 
 function formatChartDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -35,11 +36,14 @@ function formatChartDate(dateStr: string): string {
   });
 }
 
-interface LineChartProps {
-  history: StrengthScoreHistoryEntry[];
-}
+const LINES: Array<{ key: "overall" | "upper" | "lower" | "core"; label: string }> = [
+  { key: "overall", label: "Overall" },
+  { key: "upper", label: "Upper" },
+  { key: "lower", label: "Lower" },
+  { key: "core", label: "Core" },
+];
 
-function StrengthLineChart({ history }: LineChartProps) {
+function StrengthLineChart({ history }: { history: StrengthScoreHistoryEntry[] }) {
   if (history.length < 2) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
@@ -52,125 +56,86 @@ function StrengthLineChart({ history }: LineChartProps) {
     (a, b) => new Date(a.activityTime).getTime() - new Date(b.activityTime).getTime(),
   );
 
-  // Compute bounds
   const allScores = sorted.flatMap((e) => [e.overall, e.upper, e.lower, e.core]);
   const minScore = Math.max(0, Math.min(...allScores) - 10);
   const maxScore = Math.max(...allScores) + 10;
-  const scoreRange = maxScore - minScore || 1;
+  const range = maxScore - minScore || 1;
+  const drawW = VB_W - PAD.left - PAD.right;
+  const drawH = VB_H - PAD.top - PAD.bottom;
 
-  const drawW = 100 - CHART_PADDING.left - CHART_PADDING.right;
-  const drawH = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+  const toX = (i: number) => PAD.left + (i / (sorted.length - 1)) * drawW;
+  const toY = (s: number) => PAD.top + drawH - ((s - minScore) / range) * drawH;
 
-  function toX(index: number): number {
-    return CHART_PADDING.left + (index / (sorted.length - 1)) * drawW;
-  }
+  const buildPath = (key: "overall" | "upper" | "lower" | "core") =>
+    sorted.map((e, i) => `${i === 0 ? "M" : "L"} ${toX(i)} ${toY(e[key])}`).join(" ");
 
-  function toY(score: number): number {
-    return CHART_PADDING.top + drawH - ((score - minScore) / scoreRange) * drawH;
-  }
-
-  function buildPath(key: "overall" | "upper" | "lower" | "core"): string {
-    return sorted
-      .map((entry, i) => {
-        const x = toX(i);
-        const y = toY(entry[key]);
-        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
-      })
-      .join(" ");
-  }
-
-  // Y-axis labels
   const ySteps = 5;
   const yLabels = Array.from({ length: ySteps + 1 }, (_, i) =>
-    Math.round(minScore + (scoreRange / ySteps) * i),
+    Math.round(minScore + (range / ySteps) * i),
   );
-
-  // X-axis labels (show max ~6)
   const xStep = Math.max(1, Math.floor(sorted.length / 6));
-  const xLabels = sorted.filter((_, i) => i % xStep === 0 || i === sorted.length - 1);
-
-  const lines: Array<{ key: "overall" | "upper" | "lower" | "core"; label: string }> = [
-    { key: "overall", label: "Overall" },
-    { key: "upper", label: "Upper" },
-    { key: "lower", label: "Lower" },
-    { key: "core", label: "Core" },
-  ];
+  const xIndices = sorted
+    .map((_, i) => i)
+    .filter((i) => i % xStep === 0 || i === sorted.length - 1);
 
   return (
     <div>
-      <svg
-        viewBox={`0 0 100 ${CHART_HEIGHT}`}
-        className="w-full"
-        preserveAspectRatio="none"
-        style={{ height: CHART_HEIGHT }}
-      >
-        {/* Grid lines */}
+      <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="w-full" style={{ maxHeight: 340 }}>
         {yLabels.map((val) => (
           <line
             key={val}
-            x1={CHART_PADDING.left}
-            x2={100 - CHART_PADDING.right}
+            x1={PAD.left}
+            x2={VB_W - PAD.right}
             y1={toY(val)}
             y2={toY(val)}
             stroke="currentColor"
-            strokeWidth={0.15}
+            strokeWidth={0.5}
             className="text-white/8"
           />
         ))}
-
-        {/* Y-axis labels */}
         {yLabels.map((val) => (
           <text
             key={`y-${val}`}
-            x={CHART_PADDING.left - 3}
+            x={PAD.left - 8}
             y={toY(val)}
             textAnchor="end"
             dominantBaseline="middle"
             className="fill-muted-foreground"
-            fontSize={3}
+            fontSize={11}
           >
             {val}
           </text>
         ))}
-
-        {/* X-axis labels */}
-        {xLabels.map((entry, i) => {
-          const idx = sorted.indexOf(entry);
-          return (
-            <text
-              key={`x-${i}`}
-              x={toX(idx)}
-              y={CHART_HEIGHT - 8}
-              textAnchor="middle"
-              className="fill-muted-foreground"
-              fontSize={2.8}
-            >
-              {formatChartDate(entry.activityTime)}
-            </text>
-          );
-        })}
-
-        {/* Lines */}
-        {lines.map(({ key }) => (
+        {xIndices.map((idx) => (
+          <text
+            key={`x-${idx}`}
+            x={toX(idx)}
+            y={VB_H - 10}
+            textAnchor="middle"
+            className="fill-muted-foreground"
+            fontSize={11}
+          >
+            {formatChartDate(sorted[idx].activityTime)}
+          </text>
+        ))}
+        {LINES.map(({ key }) => (
           <path
             key={key}
             d={buildPath(key)}
             fill="none"
             stroke={CHART_COLORS[key]}
-            strokeWidth={0.6}
+            strokeWidth={2.5}
             strokeLinecap="round"
             strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
           />
         ))}
       </svg>
 
-      {/* Legend */}
-      <div className="mt-4 flex flex-wrap justify-center gap-4">
-        {lines.map(({ key, label }) => (
-          <div key={key} className="flex items-center gap-1.5">
+      <div className="mt-4 flex flex-wrap justify-center gap-5">
+        {LINES.map(({ key, label }) => (
+          <div key={key} className="flex items-center gap-2">
             <div
-              className="h-0.5 w-4 rounded-full"
+              className="h-0.5 w-5 rounded-full"
               style={{ backgroundColor: CHART_COLORS[key] }}
             />
             <span className="text-xs text-muted-foreground">{label}</span>
