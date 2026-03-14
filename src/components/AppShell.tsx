@@ -6,11 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
-  BarChart3,
-  Bell,
-  CalendarDays,
-  Dumbbell,
-  ImageIcon,
   LayoutDashboard,
   Loader2,
   MessageSquare,
@@ -30,16 +25,10 @@ const navLinks: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
-  hideOnMobile?: boolean;
 }> = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/week", label: "Week", icon: CalendarDays, hideOnMobile: true },
-  { href: "/exercises", label: "Exercises", icon: Dumbbell },
-  { href: "/strength", label: "Strength", icon: TrendingUp, hideOnMobile: true },
-  { href: "/stats", label: "Stats", icon: BarChart3 },
-  { href: "/progress", label: "Progress", icon: ImageIcon },
-  { href: "/check-ins", label: "Check-ins", icon: Bell },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -133,17 +122,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mt-auto">
           <div className="mx-4 border-t border-white/[0.06]" />
           <div className="flex items-center justify-between px-5 py-4">
-            <Link
-              href="/profile"
-              className="flex min-w-0 items-center gap-2 transition-colors duration-200 hover:text-foreground"
-            >
+            <div className="flex min-w-0 items-center gap-2">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary ring-1 ring-primary/30">
                 {me?.tonalName?.charAt(0)?.toUpperCase() ?? <User className="size-3" />}
               </span>
               {me?.tonalName && (
                 <p className="truncate text-xs font-medium text-muted-foreground">{me.tonalName}</p>
               )}
-            </Link>
+            </div>
             <div className="flex items-center gap-1">
               <ThemeToggle />
               <CheckInBell />
@@ -170,28 +156,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-white/[0.06] bg-background/80 py-2 backdrop-blur-xl lg:hidden"
           style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
         >
-          {navLinks
-            .filter((l) => !l.hideOnMobile)
-            .map(({ href, label, icon: Icon, exact }) => {
-              const isActive = mobileIsActive(pathname, href, exact);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex min-w-0 flex-col items-center gap-1 px-2 py-1 text-muted-foreground transition-all duration-200",
-                    isActive && "text-primary",
-                  )}
-                >
-                  <Icon className="size-[18px] shrink-0" />
-                  <span className="truncate text-[10px] font-medium">{label}</span>
-                  {/* Active dot indicator */}
-                  {isActive && (
-                    <span className="h-1 w-1 rounded-full bg-primary shadow-[0_0_6px_var(--primary)]" />
-                  )}
-                </Link>
-              );
-            })}
+          {navLinks.map(({ href, label, icon: Icon, exact }) => {
+            const isActive = mobileIsActive(pathname, href, exact);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex min-w-0 flex-col items-center gap-1 px-2 py-1 text-muted-foreground transition-all duration-200",
+                  isActive && "text-primary",
+                )}
+              >
+                <Icon className="size-[18px] shrink-0" />
+                <span className="truncate text-[10px] font-medium">{label}</span>
+                {/* Active dot indicator */}
+                {isActive && (
+                  <span className="h-1 w-1 rounded-full bg-primary shadow-[0_0_6px_var(--primary)]" />
+                )}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </div>

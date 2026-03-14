@@ -231,6 +231,43 @@ export default function StrengthPage() {
           {(d) => <StrengthLineChart history={d} />}
         </AsyncCard>
       </div>
+
+      {/* Action links */}
+      <div className="mt-8 flex flex-wrap gap-2">
+        {(currentStrength.state.status === "success" ||
+          currentStrength.state.status === "refreshing") &&
+          (() => {
+            const d = currentStrength.state.data;
+            const regions = (["upper", "lower", "core"] as const).map((r) => {
+              const match = d.scores.find((s) => {
+                const key = (s.strengthBodyRegion ?? s.bodyRegionDisplay ?? "").toLowerCase();
+                return key === r || key.startsWith(r) || key.includes(r);
+              });
+              return { name: r, score: match?.score ?? 0 };
+            });
+            const weakest = regions.reduce((a, b) => (a.score <= b.score ? a : b));
+            return (
+              <Link
+                href={`/chat?prompt=${encodeURIComponent(`My ${weakest.name} body is my weakest area. Program a workout to improve it.`)}`}
+                className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+              >
+                Program for weak areas &rarr;
+              </Link>
+            );
+          })()}
+        <Link
+          href="/stats"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          View full stats &rarr;
+        </Link>
+        <Link
+          href="/exercises"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Browse exercises &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

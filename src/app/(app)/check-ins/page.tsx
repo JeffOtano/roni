@@ -6,7 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MessageSquare, Settings } from "lucide-react";
-import { buildChatPrompt, TRIGGER_LABELS } from "./check-in-prompts";
+import { buildChatPrompt, TRIGGER_LABELS, TRIGGER_SUBTITLES } from "./check-in-prompts";
 
 function isUnread(
   c: { readAt?: number; createdAt: number },
@@ -92,6 +92,11 @@ export default function CheckInsPage() {
                   }
                 >
                   <CardContent className="p-4">
+                    {TRIGGER_SUBTITLES[checkIn.trigger] && (
+                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                        {TRIGGER_SUBTITLES[checkIn.trigger]}
+                      </p>
+                    )}
                     <p className="text-sm leading-relaxed text-foreground">{checkIn.message}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
                       <span>
@@ -132,6 +137,28 @@ export default function CheckInsPage() {
           })}
         </ul>
       )}
+
+      {/* Related pages */}
+      <div className="mt-8 flex flex-wrap gap-2">
+        <Link
+          href="/dashboard"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Dashboard &rarr;
+        </Link>
+        <Link
+          href="/stats"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          View stats &rarr;
+        </Link>
+        <Link
+          href="/strength"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Strength trends &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

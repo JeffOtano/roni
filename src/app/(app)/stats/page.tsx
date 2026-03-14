@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardCardSkeleton } from "@/components/DashboardCardSkeleton";
 import { DashboardCardError } from "@/components/DashboardCardError";
 import { BarChart3, Clock, Dumbbell, TrendingUp, Weight } from "lucide-react";
+import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Types (matches ProgressMetrics from convex/stats.ts)
@@ -185,6 +186,34 @@ export default function StatsPage() {
       {(metrics.state.status === "success" || metrics.state.status === "refreshing") && (
         <StatsContent metrics={metrics.state.data} />
       )}
+
+      {/* Explore related pages */}
+      <div className="mt-8 grid grid-cols-2 gap-3">
+        <Link
+          href="/strength"
+          className="rounded-xl bg-white/[0.04] px-4 py-3 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Strength trends &rarr;
+        </Link>
+        <Link
+          href="/exercises"
+          className="rounded-xl bg-white/[0.04] px-4 py-3 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Browse exercises &rarr;
+        </Link>
+        <Link
+          href="/progress"
+          className="rounded-xl bg-white/[0.04] px-4 py-3 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Progress photos &rarr;
+        </Link>
+        <Link
+          href={`/chat?prompt=${encodeURIComponent("Analyze my training over the last month")}`}
+          className="rounded-xl bg-white/[0.04] px-4 py-3 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Ask coach for analysis &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

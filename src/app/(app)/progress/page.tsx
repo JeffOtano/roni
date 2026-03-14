@@ -13,6 +13,8 @@ import { ProgressPhotoItem } from "@/components/ProgressPhotoItem";
 import { CheckCircle2, ImageIcon, Loader2, MessageSquare, Upload } from "lucide-react";
 
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
+const NAV_PILL =
+  "rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, {
@@ -236,6 +238,16 @@ export default function ProgressPage() {
           latestThumb={thumbnails[list[0].id]}
         />
       )}
+      {/* Related pages */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Link href="/stats" className={NAV_PILL}>
+          See how your training has evolved &rarr;
+        </Link>
+        <Link href="/strength" className={NAV_PILL}>
+          Check strength trends &rarr;
+        </Link>
+      </div>
+
       {thumbnailError && hasPhotos && (
         <p className="mb-2 text-xs text-muted-foreground">
           Photo previews couldn&apos;t be loaded. Your photos are still saved.
