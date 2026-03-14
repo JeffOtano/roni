@@ -55,6 +55,34 @@ const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
     running: "Finding free time slots...",
     done: "Found available times",
   },
+  program_week: {
+    running: "Programming your week...",
+    done: "Week programmed",
+  },
+  get_week_plan_details: {
+    running: "Loading week plan...",
+    done: "Loaded week plan",
+  },
+  delete_week_plan: {
+    running: "Deleting week plan...",
+    done: "Deleted week plan",
+  },
+  swap_exercise: {
+    running: "Swapping exercise...",
+    done: "Swapped exercise",
+  },
+  move_session: {
+    running: "Moving session...",
+    done: "Moved session",
+  },
+  adjust_session_duration: {
+    running: "Adjusting session...",
+    done: "Adjusted session",
+  },
+  approve_week_plan: {
+    running: "Pushing workouts to your Tonal...",
+    done: "Workouts pushed to Tonal",
+  },
 };
 
 interface ToolCallIndicatorProps {
