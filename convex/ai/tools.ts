@@ -178,9 +178,13 @@ export const getTrainingFrequencyTool = createTool({
 
 export const createWorkoutTool = createTool({
   description:
-    "Create a custom workout on Tonal. Confirm first. Use movementIds from search_exercises.",
+    "Create a custom workout on Tonal. Confirm with the user first. Use movementIds from search_exercises. A date prefix is added automatically to the title on Tonal.",
   inputSchema: z.object({
-    title: z.string().describe("Workout title"),
+    title: z
+      .string()
+      .describe(
+        'Short descriptive name: target area + style. Do NOT include dates. Examples: "Upper Body Strength", "Leg Day – Quad Focus", "Push – Chest & Triceps".',
+      ),
     blocks: z
       .array(
         z.object({

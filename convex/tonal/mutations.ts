@@ -51,6 +51,11 @@ export const fetchWorkoutHistoryForEligibility = internalAction({
   },
 });
 
+function formatTonalTitle(title: string): string {
+  const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${date} · ${title}`;
+}
+
 /** Create a custom workout on Tonal and record the plan in Convex. */
 export const createWorkout = internalAction({
   args: {
@@ -73,9 +78,10 @@ export const createWorkout = internalAction({
   > => {
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
+      const tonalTitle = formatTonalTitle(title);
       const { id } = await ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
         userId,
-        title,
+        title: tonalTitle,
         blocks,
       });
       const now = Date.now();
