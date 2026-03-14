@@ -8,6 +8,7 @@ import type { UIMessage } from "@convex-dev/agent/react";
 import { api } from "../../convex/_generated/api";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ChevronUp } from "lucide-react";
 
 interface ChatThreadProps {
@@ -37,12 +38,14 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
 
   const allMessages = [...historicalMessages, ...(currentMessages ?? [])];
   const isStreaming = (currentMessages ?? []).some((m) => m.status === "streaming");
+  const lastMessage = allMessages[allMessages.length - 1];
+  const isThinking = lastMessage?.role === "user" && !isStreaming;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: isStreaming ? "auto" : "smooth",
     });
-  }, [allMessages.length, isStreaming]);
+  }, [allMessages.length, isStreaming, isThinking]);
 
   const canLoadMoreHistory =
     history !== undefined && history.hasMore && historicalMessages.length === 0;
@@ -74,6 +77,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
             </div>
           )}
           <MessageList messages={allMessages} userInitial={userInitial} />
+          {isThinking && <ThinkingIndicator />}
           <div ref={bottomRef} className="h-4" />
         </div>
       </div>

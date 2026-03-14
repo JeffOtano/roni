@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal } from "lucide-react";
+import { Loader2, SendHorizontal } from "lucide-react";
 
 function autoGrow(el: HTMLTextAreaElement) {
   el.style.height = "auto";
@@ -61,7 +61,7 @@ export function ChatInput({ disabled }: ChatInputProps) {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 ring-1 ring-white/[0.08] transition-all duration-200 focus-within:border-primary/30 focus-within:ring-primary/20">
+      <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 ring-1 ring-white/8 transition-all duration-200 focus-within:border-primary/30 focus-within:ring-primary/20">
         <textarea
           ref={textareaRef}
           value={input}
@@ -80,10 +80,14 @@ export function ChatInput({ disabled }: ChatInputProps) {
           size="icon-lg"
           onClick={handleSend}
           disabled={isDisabled || !input.trim()}
-          aria-label="Send message"
+          aria-label={sending ? "Sending message" : "Send message"}
           className="mb-0.5 rounded-xl shadow-md shadow-primary/20"
         >
-          <SendHorizontal className="size-4" />
+          {sending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="size-4" />
+          )}
         </Button>
       </div>
       {error && (
