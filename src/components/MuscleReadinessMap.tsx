@@ -45,13 +45,13 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
             key={muscle}
             href={`/exercises?muscleGroup=${encodeURIComponent(muscle)}`}
             className={cn(
-              "group flex items-center justify-between rounded-lg border px-3 py-2.5 transition-all duration-200",
+              "group flex items-center justify-between rounded-lg border px-3 py-3 transition-all duration-200",
               readinessColor(value),
             )}
           >
             <div className="flex flex-col gap-0.5">
               <span className="text-xs font-semibold">{muscle}</span>
-              <span className="text-[10px] opacity-60">{readinessLabel(value)}</span>
+              <span className="text-xs opacity-60">{readinessLabel(value)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-bold tabular-nums">{value}</span>

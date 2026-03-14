@@ -59,7 +59,7 @@ export function AsyncCard<T>({
       <CardContent className={tall ? "min-h-[220px]" : ""}>{children(state.data)}</CardContent>
       {relativeTime && (
         <CardFooter>
-          <p className="text-[10px] text-muted-foreground/60">Updated {relativeTime}</p>
+          <p className="text-xs text-muted-foreground/60">Updated {relativeTime}</p>
         </CardFooter>
       )}
     </Card>

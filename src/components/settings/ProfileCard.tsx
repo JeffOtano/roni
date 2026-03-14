@@ -33,7 +33,7 @@ function MetricCell({
     <div className="flex items-center gap-2.5 rounded-lg bg-muted/40 px-3 py-2.5">
       <Icon className="size-4 shrink-0 text-muted-foreground/60" />
       <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
         <p className="truncate text-sm font-medium text-foreground">{value ?? "---"}</p>

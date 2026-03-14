@@ -106,14 +106,14 @@ export default function CheckInsPage() {
                           year: "numeric",
                         })}
                       </span>
-                      <span className="rounded-md bg-primary/[0.08] px-2 py-0.5 text-[11px] font-medium text-primary/80 ring-1 ring-primary/10">
+                      <span className="rounded-md bg-primary/[0.08] px-2 py-0.5 text-xs font-medium text-primary/80 ring-1 ring-primary/10">
                         {TRIGGER_LABELS[checkIn.trigger] ?? checkIn.trigger}
                       </span>
                       <Link href={`/chat?prompt=${encodeURIComponent(buildChatPrompt(checkIn))}`}>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 gap-1 px-2 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
+                          className="h-8 gap-1 px-2.5 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
                         >
                           <MessageSquare className="size-3" />
                           Ask about this
@@ -123,7 +123,7 @@ export default function CheckInsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="ml-auto h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          className="ml-auto h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                           onClick={() => markRead({ checkInId: checkIn._id })}
                         >
                           Mark read
@@ -142,19 +142,19 @@ export default function CheckInsPage() {
       <div className="mt-8 flex flex-wrap gap-2">
         <Link
           href="/dashboard"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Dashboard &rarr;
         </Link>
         <Link
           href="/stats"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View stats &rarr;
         </Link>
         <Link
           href="/strength"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Strength trends &rarr;
         </Link>

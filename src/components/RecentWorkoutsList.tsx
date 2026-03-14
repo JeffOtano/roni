@@ -89,7 +89,7 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
           {preview.workoutTitle}
         </span>
         <div className="flex shrink-0 items-center gap-1">
-          <span className="text-[10px] tabular-nums text-muted-foreground/60">
+          <span className="text-[11px] tabular-nums text-muted-foreground/60">
             {relativeTime(activity.activityTime)}
           </span>
           <ChevronRight className="size-3 text-muted-foreground/40 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
@@ -98,7 +98,7 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
       {(preview.targetArea || metaLine) && (
         <div className="flex flex-wrap items-center gap-2">
           {preview.targetArea && (
-            <span className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-md bg-muted/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {preview.targetArea}
             </span>
           )}
@@ -106,19 +106,19 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
         </div>
       )}
       <div className="flex items-center gap-2">
-        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
           {formatVolume(preview.totalVolume)}
         </span>
-        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
           {formatDuration(preview.totalDuration)}
         </span>
         {showWork && (
-          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
             {formatVolume(preview.totalWork!)} work
           </span>
         )}
         {showAchievements && (
-          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] tabular-nums text-primary">
+          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] tabular-nums text-primary">
             {preview.totalAchievements} PRs
           </span>
         )}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,7 +13,9 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
         <div className="h-[500px] w-[700px] rounded-full bg-primary/6 blur-[140px]" />
       </div>
       <nav className="relative z-10 flex items-center px-6 py-5">
-        <span className="text-base font-bold tracking-tight text-foreground">tonal.coach</span>
+        <Link href="/" className="text-base font-bold tracking-tight text-foreground">
+          tonal.coach
+        </Link>
       </nav>
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-8">
         {children}

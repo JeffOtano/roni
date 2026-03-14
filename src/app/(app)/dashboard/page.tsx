@@ -183,7 +183,7 @@ export default function DashboardPage() {
           <Link
             key={href}
             href={href}
-            className="rounded-full bg-muted/50 px-3 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground"
+            className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground"
           >
             {label}
           </Link>
@@ -191,7 +191,7 @@ export default function DashboardPage() {
       </nav>
 
       {/* Dashboard grid */}
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         <AsyncCard
           state={strength.state}
           refetch={strength.refetch}

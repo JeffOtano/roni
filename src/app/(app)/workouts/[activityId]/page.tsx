@@ -101,7 +101,7 @@ function WorkoutDetailSkeleton() {
 
 function SetRow({ set }: { set: EnrichedSet }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-sm">
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2.5 text-sm">
       <div className="flex items-center gap-2">
         <span className="tabular-nums text-muted-foreground">
           {set.repetition}/{set.repetitionTotal}
@@ -115,22 +115,22 @@ function SetRow({ set }: { set: EnrichedSet }) {
       </div>
       <div className="flex gap-1.5">
         {set.spotter && (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             Spotter
           </Badge>
         )}
         {set.eccentric && (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             Eccentric
           </Badge>
         )}
         {set.chains && (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             Chains
           </Badge>
         )}
         {set.warmUp && (
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant="outline" className="text-xs">
             Warm-up
           </Badge>
         )}
@@ -205,7 +205,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {formatDuration(detail.totalDuration)}
             </span>
-            <span className="text-[10px] text-muted-foreground">Duration</span>
+            <span className="text-xs text-muted-foreground">Duration</span>
           </CardContent>
         </Card>
         <Card size="sm">
@@ -214,7 +214,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {formatVolume(detail.totalVolume)}
             </span>
-            <span className="text-[10px] text-muted-foreground">Volume</span>
+            <span className="text-xs text-muted-foreground">Volume</span>
           </CardContent>
         </Card>
         <Card size="sm">
@@ -223,7 +223,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {detail.totalSets}
             </span>
-            <span className="text-[10px] text-muted-foreground">Sets</span>
+            <span className="text-xs text-muted-foreground">Sets</span>
           </CardContent>
         </Card>
         <Card size="sm">
@@ -234,7 +234,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {Math.round(detail.percentCompleted)}%
             </span>
-            <span className="text-[10px] text-muted-foreground">Completed</span>
+            <span className="text-xs text-muted-foreground">Completed</span>
           </CardContent>
         </Card>
       </div>
@@ -280,19 +280,19 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
       <div className="mt-8 flex flex-wrap gap-2">
         <Link
           href={`/chat?prompt=${encodeURIComponent(`Program a similar workout to my session on ${formatDate(detail.beginTime)}`)}`}
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Train this again &rarr;
         </Link>
         <Link
           href="/exercises"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View exercises &rarr;
         </Link>
         <Link
           href="/stats"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View stats &rarr;
         </Link>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { JsonLd } from "./JsonLd";
+import { Analytics } from "@vercel/analytics/next";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
@@ -52,6 +53,7 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <JsonLd />
+        <Analytics />
         <ThemeProvider>
           <ConvexClientProvider>
             <ErrorBoundary>{children}</ErrorBoundary>

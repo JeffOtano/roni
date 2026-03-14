@@ -90,7 +90,7 @@ function StrengthLineChart({ history }: { history: StrengthScoreHistoryEntry[] }
             y2={toY(val)}
             stroke="currentColor"
             strokeWidth={0.5}
-            className="text-white/8"
+            className="text-border"
           />
         ))}
         {yLabels.map((val) => (
@@ -101,7 +101,7 @@ function StrengthLineChart({ history }: { history: StrengthScoreHistoryEntry[] }
             textAnchor="end"
             dominantBaseline="middle"
             className="fill-muted-foreground"
-            fontSize={11}
+            fontSize={12}
           >
             {val}
           </text>
@@ -113,7 +113,7 @@ function StrengthLineChart({ history }: { history: StrengthScoreHistoryEntry[] }
             y={VB_H - 10}
             textAnchor="middle"
             className="fill-muted-foreground"
-            fontSize={11}
+            fontSize={12}
           >
             {formatChartDate(sorted[idx].activityTime)}
           </text>
@@ -249,7 +249,7 @@ export default function StrengthPage() {
             return (
               <Link
                 href={`/chat?prompt=${encodeURIComponent(`My ${weakest.name} body is my weakest area. Program a workout to improve it.`)}`}
-                className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+                className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
               >
                 Program for weak areas &rarr;
               </Link>
@@ -257,13 +257,13 @@ export default function StrengthPage() {
           })()}
         <Link
           href="/stats"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View full stats &rarr;
         </Link>
         <Link
           href="/exercises"
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Browse exercises &rarr;
         </Link>

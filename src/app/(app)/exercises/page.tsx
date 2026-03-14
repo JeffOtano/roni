@@ -105,7 +105,7 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-sm font-semibold leading-tight text-foreground">{movement.name}</h3>
             {movement.onMachine && (
-              <Badge variant="secondary" className="shrink-0 text-[10px]">
+              <Badge variant="secondary" className="shrink-0 text-xs">
                 On-machine
               </Badge>
             )}
@@ -116,7 +116,7 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
             {movement.muscleGroups.map((mg) => (
               <span
                 key={mg}
-                className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                className="rounded-md bg-muted/60 px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
               >
                 {mg}
               </span>
@@ -137,11 +137,11 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
                   />
                 ))}
               </div>
-              <span className="text-[10px] text-muted-foreground">{skillLabel}</span>
+              <span className="text-xs text-muted-foreground">{skillLabel}</span>
             </div>
             <Link
               href={`/chat?prompt=${encodeURIComponent(`Build me a workout that includes ${movement.name}`)}`}
-              className="text-[10px] text-muted-foreground transition-colors hover:text-primary"
+              className="text-xs text-muted-foreground transition-colors hover:text-primary"
             >
               Program with this &rarr;
             </Link>
@@ -222,7 +222,7 @@ export default function ExercisesPage() {
         </div>
         <Link
           href={`/chat?prompt=${encodeURIComponent("Program me a workout")}`}
-          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
+          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Ask coach to build a workout &rarr;
         </Link>
@@ -244,7 +244,7 @@ export default function ExercisesPage() {
         <button
           onClick={() => handleMuscleGroupChange(null)}
           className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium transition-all duration-200",
+            "rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200",
             muscleGroup === null
               ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
               : "bg-muted/60 text-muted-foreground hover:bg-muted",
@@ -257,7 +257,7 @@ export default function ExercisesPage() {
             key={group}
             onClick={() => handleMuscleGroupChange(muscleGroup === group ? null : group)}
             className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-all duration-200",
+              "rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200",
               muscleGroup === group
                 ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted",

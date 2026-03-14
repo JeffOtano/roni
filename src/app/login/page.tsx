@@ -81,9 +81,10 @@ export default function LoginPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-sm">
-        {/* Wordmark */}
-        <h1
-          className="mb-10 text-center text-2xl font-bold tracking-tight"
+        {/* Wordmark — links back to landing */}
+        <Link
+          href="/"
+          className="mb-10 block text-center text-2xl font-bold tracking-tight"
           style={{
             background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
             WebkitBackgroundClip: "text",
@@ -92,7 +93,7 @@ export default function LoginPage() {
           }}
         >
           tonal.coach
-        </h1>
+        </Link>
 
         {/* Glassmorphic card */}
         <div
