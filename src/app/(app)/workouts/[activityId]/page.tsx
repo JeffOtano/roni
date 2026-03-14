@@ -37,9 +37,7 @@ import { ErrorAlert } from "@/components/ErrorAlert";
 import { ArrowLeft, Clock, Dumbbell, MessageSquare, Weight } from "lucide-react";
 import { api } from "../../../../../convex/_generated/api";
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 function formatDuration(seconds: number): string {
   const mins = Math.round(seconds / 60);
@@ -78,9 +76,7 @@ function groupSetsByBlock(sets: EnrichedSet[]): Map<number, EnrichedSet[]> {
   return blocks;
 }
 
-// ---------------------------------------------------------------------------
 // Loading skeleton
-// ---------------------------------------------------------------------------
 
 function WorkoutDetailSkeleton() {
   return (
@@ -101,9 +97,7 @@ function WorkoutDetailSkeleton() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Set row
-// ---------------------------------------------------------------------------
 
 function SetRow({ set }: { set: EnrichedSet }) {
   return (
@@ -145,9 +139,7 @@ function SetRow({ set }: { set: EnrichedSet }) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Page
-// ---------------------------------------------------------------------------
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = use(params);
@@ -281,6 +273,28 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <MessageSquare className="size-4" />
             Ask coach about this workout
           </Button>
+        </Link>
+      </div>
+
+      {/* What's next */}
+      <div className="mt-8 flex flex-wrap gap-2">
+        <Link
+          href={`/chat?prompt=${encodeURIComponent(`Program a similar workout to my session on ${formatDate(detail.beginTime)}`)}`}
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Train this again &rarr;
+        </Link>
+        <Link
+          href="/exercises"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          View exercises &rarr;
+        </Link>
+        <Link
+          href="/stats"
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          View stats &rarr;
         </Link>
       </div>
     </div>

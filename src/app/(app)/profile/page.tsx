@@ -10,11 +10,14 @@ import { ErrorAlert } from "@/components/ErrorAlert";
 import {
   ArrowLeft,
   BarChart3,
+  Camera,
   Dumbbell,
   Link2,
   Mail,
+  MessageCircle,
   Ruler,
   Settings,
+  TrendingUp,
   User,
   Weight,
 } from "lucide-react";
@@ -188,6 +191,24 @@ export default function ProfilePage() {
           <Button variant="outline" size="sm" className="gap-2">
             <BarChart3 className="size-4" />
             View stats
+          </Button>
+        </Link>
+        <Link href="/strength">
+          <Button variant="outline" size="sm" className="gap-2">
+            <TrendingUp className="size-4" />
+            Strength trends
+          </Button>
+        </Link>
+        <Link href="/progress">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Camera className="size-4" />
+            Progress photos
+          </Button>
+        </Link>
+        <Link href="/check-ins">
+          <Button variant="outline" size="sm" className="gap-2">
+            <MessageCircle className="size-4" />
+            Check-ins
           </Button>
         </Link>
         <Link href="/settings">

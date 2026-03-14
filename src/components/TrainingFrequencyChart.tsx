@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StaleCta } from "@/components/StaleCta";
 
 interface FrequencyEntry {
@@ -28,10 +29,17 @@ export function TrainingFrequencyChart({ data }: TrainingFrequencyChartProps) {
         {data.map(({ targetArea, count }, i) => {
           const widthPct = Math.round((count / max) * 100);
           const color = BAR_COLORS[i % BAR_COLORS.length];
+          const prompt = encodeURIComponent(`Program a ${targetArea.toLowerCase()} workout for me`);
           return (
-            <div key={targetArea} className="flex flex-col gap-1.5">
+            <Link
+              key={targetArea}
+              href={`/chat?prompt=${prompt}`}
+              className="group -mx-1 flex cursor-pointer flex-col gap-1.5 rounded-lg px-1 py-1 transition-colors duration-150 hover:bg-white/[0.03]"
+            >
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-foreground">{targetArea}</span>
+                <span className="font-medium text-foreground group-hover:text-primary transition-colors duration-150">
+                  {targetArea}
+                </span>
                 <span className="tabular-nums text-muted-foreground">
                   {count} {count === 1 ? "workout" : "workouts"}
                 </span>
@@ -42,12 +50,19 @@ export function TrainingFrequencyChart({ data }: TrainingFrequencyChartProps) {
                   style={{ width: `${widthPct}%` }}
                 />
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
 
       <StaleCta data={data} />
+
+      <Link
+        href="/stats"
+        className="mt-4 block text-xs text-muted-foreground/80 transition-colors duration-200 hover:text-foreground"
+      >
+        View all workouts &rarr;
+      </Link>
     </div>
   );
 }

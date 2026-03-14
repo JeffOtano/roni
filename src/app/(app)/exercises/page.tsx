@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { Dumbbell, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Types (matches CatalogEntry from convex/workoutDetail.ts)
@@ -92,20 +93,28 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
           ))}
         </div>
 
-        {/* Skill level */}
-        <div className="flex items-center gap-2">
-          <div className="flex gap-0.5">
-            {[1, 2, 3].map((level) => (
-              <div
-                key={level}
-                className={cn(
-                  "h-1.5 w-4 rounded-full",
-                  level <= movement.skillLevel ? "bg-primary" : "bg-white/[0.06]",
-                )}
-              />
-            ))}
+        {/* Skill level + action */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-0.5">
+              {[1, 2, 3].map((level) => (
+                <div
+                  key={level}
+                  className={cn(
+                    "h-1.5 w-4 rounded-full",
+                    level <= movement.skillLevel ? "bg-primary" : "bg-white/[0.06]",
+                  )}
+                />
+              ))}
+            </div>
+            <span className="text-[10px] text-muted-foreground">{skillLabel}</span>
           </div>
-          <span className="text-[10px] text-muted-foreground">{skillLabel}</span>
+          <Link
+            href={`/chat?prompt=${encodeURIComponent(`Build me a workout that includes ${movement.name}`)}`}
+            className="text-[10px] text-muted-foreground transition-colors hover:text-primary"
+          >
+            Program with this &rarr;
+          </Link>
         </div>
       </CardContent>
     </Card>
@@ -170,11 +179,19 @@ export default function ExercisesPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 lg:px-6 lg:py-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Exercise Library</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Browse all available movements and exercises.
-        </p>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Exercise Library</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Browse all available movements and exercises.
+          </p>
+        </div>
+        <Link
+          href={`/chat?prompt=${encodeURIComponent("Program me a workout")}`}
+          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+        >
+          Ask coach to build a workout &rarr;
+        </Link>
       </div>
 
       {/* Search */}
