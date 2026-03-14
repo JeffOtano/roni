@@ -209,9 +209,12 @@ export const getStuckPushingPlanIds = internalQuery({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { cutoffTs, limit = STUCK_PUSH_BATCH_SIZE }) => {
-    const plans = await ctx.db.query("workoutPlans").collect();
+    const plans = await ctx.db
+      .query("workoutPlans")
+      .withIndex("by_status", (q) => q.eq("status", "pushing"))
+      .collect();
     return plans
-      .filter((p) => p.status === "pushing" && p.createdAt < cutoffTs)
+      .filter((p) => p.createdAt < cutoffTs)
       .map((p) => p._id)
       .slice(0, limit);
   },

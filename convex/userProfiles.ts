@@ -117,14 +117,12 @@ export const markTokenExpired = internalMutation({
 export const getExpiringTokens = internalQuery({
   args: { beforeTimestamp: v.number() },
   handler: async (ctx, { beforeTimestamp }) => {
-    // Get all profiles and filter by expiry
-    const profiles = await ctx.db.query("userProfiles").collect();
-    return profiles.filter(
-      (p) =>
-        p.tonalTokenExpiresAt !== undefined &&
-        p.tonalTokenExpiresAt > 0 &&
-        p.tonalTokenExpiresAt < beforeTimestamp,
-    );
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_tonalTokenExpiresAt", (q) =>
+        q.gt("tonalTokenExpiresAt", 0).lt("tonalTokenExpiresAt", beforeTimestamp),
+      )
+      .collect();
   },
 });
 

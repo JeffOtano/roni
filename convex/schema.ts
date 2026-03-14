@@ -66,7 +66,8 @@ export default defineSchema({
     googleCalendarId: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
-    .index("by_tonalUserId", ["tonalUserId"]),
+    .index("by_tonalUserId", ["tonalUserId"])
+    .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"]),
 
   /** In-app check-ins (proactive messages). No SMS. */
   checkIns: defineTable({
@@ -117,7 +118,9 @@ export default defineSchema({
     estimatedDuration: v.optional(v.number()),
     createdAt: v.number(),
     pushedAt: v.optional(v.number()),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"]),
 
   weekPlans: defineTable({
     userId: v.id("users"),
