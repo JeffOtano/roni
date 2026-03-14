@@ -6,7 +6,6 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Check } from "lucide-react";
 import { PageLoader } from "@/components/PageLoader";
-import { getStoredColdStartPreferences } from "@/lib/coldStartPreferences";
 import { cn } from "@/lib/utils";
 import { ConnectStep } from "./ConnectStep";
 import { PreferencesStep } from "./PreferencesStep";
@@ -37,6 +36,7 @@ export default function OnboardingPage() {
   return (
     <OnboardingFlow
       hasTonalProfile={!!me?.hasTonalProfile}
+      onboardingCompleted={!!me?.onboardingCompleted}
       firstName={me?.tonalName?.split(" ")[0]}
     />
   );
@@ -44,15 +44,14 @@ export default function OnboardingPage() {
 
 function OnboardingFlow({
   hasTonalProfile,
+  onboardingCompleted,
   firstName,
 }: {
   readonly hasTonalProfile: boolean;
+  readonly onboardingCompleted: boolean;
   readonly firstName: string | undefined;
 }) {
-  const hasPrefs = !!getStoredColdStartPreferences();
-
-  // Determine initial step based on existing state
-  const initialStep: Step = !hasTonalProfile ? 1 : !hasPrefs ? 2 : 3;
+  const initialStep: Step = !hasTonalProfile ? 1 : !onboardingCompleted ? 2 : 3;
   const [step, setStep] = useState<Step>(initialStep);
 
   return (

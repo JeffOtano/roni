@@ -177,6 +177,38 @@ export const saveTrainingPreferences = mutation({
   },
 });
 
+/** Save onboarding data (goal, injuries) and mark onboarding complete. */
+export const completeOnboarding = mutation({
+  args: {
+    goal: v.string(),
+    injuries: v.optional(v.string()),
+    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+    trainingDays: v.array(v.number()),
+    sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (!profile) throw new Error("No profile found — connect Tonal first");
+    await ctx.db.patch(profile._id, {
+      onboardingData: {
+        goal: args.goal,
+        injuries: args.injuries,
+        completedAt: Date.now(),
+      },
+      trainingPreferences: {
+        preferredSplit: args.preferredSplit,
+        trainingDays: args.trainingDays,
+        sessionDurationMinutes: args.sessionDurationMinutes,
+      },
+    });
+  },
+});
+
 /** Get training preferences by userId (server-only). */
 export const getTrainingPreferencesInternal = internalQuery({
   args: { userId: v.id("users") },
