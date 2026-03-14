@@ -78,10 +78,7 @@ export function ChangePassword() {
         </button>
 
         {expanded && (
-          <form
-            onSubmit={handleSubmit}
-            className="mt-4 space-y-4 border-t border-white/[0.06] pt-4"
-          >
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4 border-t border-border pt-4">
             <div className="space-y-1.5">
               <Label htmlFor="old-password" className="text-xs text-muted-foreground">
                 Current password

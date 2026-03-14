@@ -64,9 +64,9 @@ export default function CheckInsPage() {
             <Card key={i}>
               <CardContent className="p-4">
                 <div className="space-y-2.5">
-                  <div className="h-4 w-3/4 animate-pulse rounded-md bg-white/[0.04]" />
-                  <div className="h-4 w-1/2 animate-pulse rounded-md bg-white/[0.04]" />
-                  <div className="h-3 w-1/4 animate-pulse rounded-md bg-white/[0.03]" />
+                  <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted/50" />
+                  <div className="h-4 w-1/2 animate-pulse rounded-md bg-muted/50" />
+                  <div className="h-3 w-1/4 animate-pulse rounded-md bg-muted/40" />
                 </div>
               </CardContent>
             </Card>
@@ -142,19 +142,19 @@ export default function CheckInsPage() {
       <div className="mt-8 flex flex-wrap gap-2">
         <Link
           href="/dashboard"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Dashboard &rarr;
         </Link>
         <Link
           href="/stats"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View stats &rarr;
         </Link>
         <Link
           href="/strength"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Strength trends &rarr;
         </Link>

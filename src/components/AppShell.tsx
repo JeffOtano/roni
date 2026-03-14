@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop sidebar -- darker than main content */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/[0.06] bg-[oklch(0.095_0.012_265)] lg:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
         <div className="px-5 py-5">
           <span className="text-base font-bold tracking-tight text-foreground drop-shadow-[0_0_12px_var(--primary)]">
             tonal.coach
@@ -103,8 +103,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 className={cn(
-                  "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all duration-200 hover:bg-white/[0.04] hover:text-foreground",
-                  isActive && "bg-gradient-to-r from-primary/[0.08] to-transparent text-foreground",
+                  "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all duration-200 hover:bg-muted/50 hover:text-foreground",
+                  isActive && "bg-gradient-to-r from-primary/10 to-transparent text-foreground",
                 )}
               >
                 {/* Active left border glow */}
@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Sidebar footer */}
         <div className="mt-auto">
-          <div className="mx-4 border-t border-white/[0.06]" />
+          <div className="mx-4 border-t border-border" />
           <div className="flex items-center justify-between px-5 py-4">
             <div className="flex min-w-0 items-center gap-2">
               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold text-primary ring-1 ring-primary/30">
@@ -141,7 +141,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile header -- frosted glass */}
-        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="flex shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
           <span className="text-base font-bold tracking-tight text-foreground">tonal.coach</span>
           <CheckInBell />
         </header>
@@ -153,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Mobile bottom tabs -- frosted glass */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-white/[0.06] bg-background/80 py-2 backdrop-blur-xl lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border bg-background/80 py-2 backdrop-blur-xl lg:hidden"
           style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
         >
           {navLinks.map(({ href, label, icon: Icon, exact }) => {

@@ -184,7 +184,7 @@ export function ProgressPhotosSection() {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={() => setDragOver(false)}
-            className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-10 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dragOver ? "border-primary bg-primary/[0.06] shadow-[0_0_20px_rgba(0,200,200,0.1)]" : "border-white/[0.1] bg-white/[0.02] hover:border-primary/40 hover:bg-white/[0.04]"}`}
+            className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-10 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dragOver ? "border-primary bg-primary/[0.06] shadow-[0_0_20px_rgba(0,200,200,0.1)]" : "border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50"}`}
           >
             {uploading ? (
               <Loader2 className="size-10 animate-spin text-primary/60" />

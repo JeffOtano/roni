@@ -25,4 +25,10 @@ crons.interval("stuck-push-recovery", { minutes: 15 }, internal.workoutPlans.run
 
 crons.interval("check-in-triggers", { hours: 6 }, internal.checkIns.runCheckInTriggerEvaluation);
 
+crons.interval(
+  "cleanup-oauth-states",
+  { hours: 1 },
+  internal.calendarOAuth.cleanupExpiredOAuthStates,
+);
+
 export default crons;

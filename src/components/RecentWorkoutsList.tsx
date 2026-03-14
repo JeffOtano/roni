@@ -80,7 +80,7 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
     <Link
       href={`/workouts/${activity.activityId}`}
       className={cn(
-        "group flex flex-col gap-1.5 rounded-lg border border-white/[0.06] border-l-2 bg-white/[0.02] px-3 py-2.5 transition-all duration-200 hover:bg-white/[0.04]",
+        "group flex flex-col gap-1.5 rounded-lg border border-border border-l-2 bg-muted/30 px-3 py-2.5 transition-all duration-200 hover:bg-muted/50",
         accentColor,
       )}
     >
@@ -98,7 +98,7 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
       {(preview.targetArea || metaLine) && (
         <div className="flex flex-wrap items-center gap-2">
           {preview.targetArea && (
-            <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               {preview.targetArea}
             </span>
           )}
@@ -106,14 +106,14 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
         </div>
       )}
       <div className="flex items-center gap-2">
-        <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
           {formatVolume(preview.totalVolume)}
         </span>
-        <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
           {formatDuration(preview.totalDuration)}
         </span>
         {showWork && (
-          <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
             {formatVolume(preview.totalWork!)} work
           </span>
         )}

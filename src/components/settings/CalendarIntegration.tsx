@@ -59,7 +59,7 @@ export function CalendarIntegration({ justConnected, oauthError }: CalendarInteg
     setError(null);
     setConnecting(true);
     try {
-      const url = await getAuthUrl();
+      const url = await getAuthUrl({ origin: window.location.origin });
       window.location.href = url;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to start Google sign-in";
@@ -134,7 +134,7 @@ export function CalendarIntegration({ justConnected, oauthError }: CalendarInteg
           </div>
 
           {/* Info about calendar integration */}
-          <div className="border-t border-white/[0.06] pt-3">
+          <div className="border-t border-border pt-3">
             <p className="text-xs text-muted-foreground">
               Your coach can check your calendar for conflicts and add workouts when scheduling.
             </p>

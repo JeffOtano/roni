@@ -19,7 +19,7 @@ export function CheckInBell() {
   return (
     <Link
       href="/check-ins"
-      className="group/bell relative flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all duration-200 hover:bg-white/[0.04] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group/bell relative flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all duration-200 hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={`${count} unread check-in${count === 1 ? "" : "s"}`}
     >
       <Bell className="size-5 transition-transform duration-200 group-hover/bell:scale-110" />

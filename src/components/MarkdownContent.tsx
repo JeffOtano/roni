@@ -32,7 +32,7 @@ const mdComponents: Components = {
   ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
   table: ({ children }) => (
-    <div className="my-3 overflow-x-auto rounded-lg border border-border ring-1 ring-white/[0.04]">
+    <div className="my-3 overflow-x-auto rounded-lg border border-border ring-1 ring-border/60">
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   ),

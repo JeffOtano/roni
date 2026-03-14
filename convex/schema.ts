@@ -144,6 +144,15 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
 
+  /** Time-limited, single-use OAuth state tokens for CSRF protection. */
+  oauthStates: defineTable({
+    token: v.string(),
+    userId: v.id("users"),
+    origin: v.string(),
+    createdAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index("by_token", ["token"]),
+
   /** MCP API keys for Claude Desktop/Code integration. */
   mcpApiKeys: defineTable({
     userId: v.id("users"),

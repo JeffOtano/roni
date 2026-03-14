@@ -64,6 +64,20 @@ This user is the smallest segment but the most vocal — they'll be the ones pos
 
 Users who love Tonal's coach-led video workouts and have no interest in custom programming. They want to press play and follow along, not think about their training. That's fine — Tonal's existing experience serves them well.
 
+### 3.5 Activation & First Experience
+
+**Activation metric:** First AI-programmed workout completed on Tonal.
+
+Not "first message sent" (too early, no value delivered). Not "first week completed" (too late, most users will have churned). The moment they walk up to their Tonal and do a workout the AI built for them — that's the moment the product proves itself.
+
+Target: 40%+ of signups reach this within 72 hours. Industry baseline for first-workout completion is 20-30%; top-tier apps hit 40-60%.
+
+**How to measure:** A "signup" = user who connects their Tonal account (not just creates a login). "Completed" = the AI-programmed workout appears in the user's Tonal workout history with at least one exercise logged. Track via Convex: timestamp of Tonal account connection → timestamp of first AI-programmed workout completion. Minimum sample: 50 signups before treating the rate as meaningful.
+
+**Cold start:** For new Tonal owners with < 2 weeks of history, the AI won't have enough data for a meaningful insight. In this case, lead with preference questions instead: "What's your training goal? How many days a week do you want to train? Any injuries or areas to avoid?" Then program their first session based on preferences + whatever data exists. The insight-first flow kicks in once 2+ weeks of history are available.
+
+**Latency:** Initial data sync may take 10-30 seconds depending on history depth. Show a progress indicator with a hook: "Pulling your training history from Tonal... I'm about to show you something interesting." Don't let the first experience be a silent loading spinner.
+
 ---
 
 ## 4. Risks
@@ -628,6 +642,10 @@ AI quality is the same everywhere. Tiers are differentiated by access and featur
 | **Pro**   | $14.99/mo or $119.99/yr | Unlimited coaching, push-to-Tonal, weekly + multi-week programming, training modes, strength analytics     |
 | **Elite** | $29.99/mo               | Everything in Pro + progress photos, proactive SMS/push outreach, wearable integration, nutrition coaching |
 
+**Open question: should Elite exist?** The case against: telling users the cheaper tier gets fewer coaching features undermines the "personal trainer" positioning. A trainer doesn't give worse advice because you're on the cheaper plan. The case for: progress photos and SMS have real per-user costs (storage, Twilio) that justify a higher tier. Decision: ship with two tiers (Free/Pro) first. If per-user costs for photos and SMS are material, introduce Elite later with cost-justified differentiation — not intelligence-gated.
+
+Annual plans dominate health & fitness apps (60.6% of revenue per RevenueCat 2025). $119.99/yr ($10/mo effective) is a strong incentive to commit.
+
 ### 14.2 Revenue Projections
 
 Modeled at 5%, 10%, 15% conversion (industry standard for fitness apps: 2-5%; strong premium apps: 8-12%).
@@ -649,6 +667,25 @@ Honest: at 5% Tonal-only, this is a side project. The business requires multi-de
 | Month 12  | 5,000   | $3,750/mo  | $7,500/mo   | $11,250/mo  |
 | Month 24  | 25,000  | $18,750/mo | $37,500/mo  | $56,250/mo  |
 | Month 36  | 100,000 | $75,000/mo | $150,000/mo | $225,000/mo |
+
+### 14.3 Unit Economics
+
+**Blended ARPU:** If 60% of paying users choose annual ($10/mo effective) and 40% choose monthly ($14.99/mo), blended ARPU is ~$12/mo.
+
+- **Churn targets:** Industry median monthly churn is 7.2%. Target: below 5%. Peloton-tier (1.2%) requires hardware lock-in or deep community.
+- **LTV:** At ~$12/mo blended ARPU and 5% monthly churn: LTV = $240. At 7.2% churn: LTV = $167.
+- **CAC:** Must be near zero at launch. Organic community distribution (Reddit, Facebook groups) is the only viable channel at this scale. No paid acquisition until unit economics are proven.
+- **LLM cost per user:** A weekly-programming user likely triggers 5-10 AI interactions per week (programming, adjustments, coaching chat). At current Claude/Gemini pricing (~$0.01-0.05 per interaction with caching), rough estimate is $1-3/user/month in LLM costs. At $12 blended ARPU, that's 75-92% gross margin — healthy if the estimate holds, but must be tracked from day one.
+- **Cost levers:** Prompt optimization, model tiering (cheaper models for routine workout generation, expensive models for nuanced coaching), and caching (identical exercise catalog lookups, repeated system prompts).
+
+### 14.4 Retention Targets
+
+| Metric                      | Target       | Industry Benchmark                        | Notes                                                                    |
+| --------------------------- | ------------ | ----------------------------------------- | ------------------------------------------------------------------------ |
+| Monthly churn               | < 5%         | 7.2% median (RevenueCat)                  | Peloton achieves 1.2% with hardware lock-in                              |
+| Day-28 retention            | > 40%        | 71% of fitness app users churn by month 3 | First-28-day consistency is strongest predictor of long-term adherence   |
+| Weekly programming adoption | > 60% of Pro | N/A                                       | Core retention mechanism — users who program weekly should retain better |
+| Activation (72hr)           | > 40%        | 20-30% baseline, 40-60% top-tier          | First AI-programmed workout completed on Tonal                           |
 
 ---
 
@@ -762,7 +799,8 @@ Priority-ordered, not time-bound.
 
 ### Phase 6: Lifestyle
 
-- [ ] Calendar sync
+- [x] Calendar sync — Google Calendar OAuth integration (shipped: connect/disconnect, auto-create events for programmed workouts)
+- [ ] Calendar sync — schedule-aware programming (AI checks calendar for conflicts before scheduling)
 - [ ] Wearable integration
 - [ ] Training partners
 - [ ] Shared workouts
@@ -774,10 +812,66 @@ Priority-ordered, not time-bound.
 
 ---
 
-## 20. The Bigger Vision
+## 20. Open Questions
+
+Things that need to be figured out through building and measuring, not theorizing:
+
+1. **What's the real conversion rate?** The 5-15% range is a guess informed by industry data, not evidence from this product. Need to ship the free tier and measure.
+
+2. **Does weekly programming actually retain better than single workouts?** The hypothesis is yes — the habit of walking up to a pre-programmed Tonal is stickier than one-off workout generation. But this is unproven. Need to measure retention cohorts: weekly-programming users vs. single-workout-only users.
+
+3. **Can the coaching conversation drive daily engagement?** Or do users only open the app when they need a workout? If engagement is workout-day-only (3-4x/week), the app is a utility. If the AI can create reasons to engage on rest days (recovery advice, progress updates, programming previews), it's a companion. Different products with different retention profiles.
+
+4. **What's the right abstraction layer for hardware-agnostic expansion?** The Tonal integration is deeply coupled to Tonal's exercise catalog, movement IDs, workout block structure, and push API. Making this generic (so the same coaching engine works with Speediance, manual logging, or Apple Watch) requires defining an exercise abstraction, a workout format abstraction, and a data ingestion abstraction. What does that interface look like without making the Tonal experience worse?
+
+5. **How do users react when the AI says "no"?** The AI should reject workout requests when the muscle isn't ready, recommend deloads when it detects overreaching, and scale back intensity when recovery signals are poor. Does this feel like good coaching or does it feel like the app isn't giving them what they want?
+
+6. **Is there a path to profitability at Tonal-only scale?** At 2,000 users / 10% conversion / ~$12/mo blended = $2,400 MRR. After LLM costs ($1-3/user/mo), hosting, and Tonal API overhead — is there anything left? Or does the business fundamentally require hardware-agnostic expansion?
+
+7. **What's the right response to "my shoulder/knee/back hurts"?** The current approach is: acknowledge → recommend healthcare provider → offer to avoid the affected area. Is that enough? Is it too conservative (users get frustrated that the AI won't help)? Is it not conservative enough (legal exposure if the user interprets avoidance as therapeutic programming)? May need professional legal review.
+
+8. **When should tonal.coach stop being tonal.coach?** If the product outgrows Tonal, the brand and domain become a limitation. When does that rebrand happen? Before or after hardware-agnostic expansion? This affects the name, the positioning, and the community identity.
+
+---
+
+## 21. The Bigger Vision
 
 tonal.coach starts as an AI coach for Tonal. The coaching intelligence is hardware-agnostic. Tonal is the beachhead — automatic data capture and push-to-machine make it the best first integration. But the coaching AI is the real product.
 
 If this works for Tonal, it works for every connected fitness device. And eventually, it works for anyone with a phone and a gym membership.
 
 Whether that becomes a company, a Tonal feature, or an open-source community project — the coaching AI is worth building regardless.
+
+---
+
+## Appendix: Research Sources
+
+This document is grounded in research conducted March 2026.
+
+**Market data:**
+
+- Tonal: ~$100M+ ARR, ~140-200K installed base, <1% claimed churn (Athletech News, TechCrunch, Front Office Sports)
+- Fitness app economics: RevenueCat State of Subscription Apps 2025, Adapty State of In-App Subscriptions 2026, Business of Apps H&F Benchmarks 2026
+- AI personal trainer market: $7.23B in 2025, 14.57% CAGR (360iResearch)
+
+**Competitive intelligence:**
+
+- Competitor pricing and features: Garage Gym Reviews, company websites and pricing pages (Juggernaut AI, RP Strength, Fitbod, Trainwell, Future)
+- Fitbod user base: ~840K users, 150M+ logged workouts (Fitbod blog, GymGod review)
+- Juggernaut AI user base: ~17K users (Garage Gym Reviews)
+- Tonal 2 AI features: TechCrunch, Connect the Watts, Wareable, Engadget
+
+**Behavior change:**
+
+- Self-Determination Theory in exercise: ScienceDirect 2025 systematic review, PMC systematic review
+- Exercise identity meta-analysis: Review of Sport and Exercise Psychology 2025
+- First-28-day adherence prediction: SportRxiv longitudinal cohort study
+- Fitness app abandonment: 71% churn by month 3 (Autentika research), 45% leave when novelty fades
+- AI coaching effectiveness: PMC 2025 (GPT-4 as fitness coach), Frontiers in Psychology 2024 (AI vs human coaches)
+
+**Legal:**
+
+- Fitness app terms of service: Peloton, Fitbod, FitnessAI
+- Scope of practice: NFPT, CPH Insurance, Precision Nutrition
+- AI exercise safety: Scientific Reports 2024 (physiotherapist assessment of AI recommendations)
+- Personal trainer negligence precedents: $2.25M settlement, $1.4M jury verdict (Buckfire Law)

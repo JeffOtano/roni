@@ -259,7 +259,7 @@ function FeatureCard({
   large?: boolean;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-card p-6 ring-1 ring-white/[0.08] transition-all duration-300 hover:ring-white/[0.16]">
+    <div className="group relative overflow-hidden rounded-xl bg-card p-6 ring-1 ring-border transition-all duration-300 hover:ring-foreground/20">
       <div className="relative z-10">
         <div className="mb-4 flex items-center gap-3">
           <div
