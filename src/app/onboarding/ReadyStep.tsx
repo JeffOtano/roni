@@ -6,8 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-const CHAT_PROMPT_FIRST_SESSION =
-  "Program my first session based on my preferences (goals, days per week, and any injuries I mentioned).";
+const CHAT_PROMPT_ACTIVATION = "I just finished setting up. What do you see in my training data?";
 
 export function ReadyStep({ firstName }: { readonly firstName: string | undefined }) {
   const displayName = firstName ?? "there";
@@ -49,7 +48,7 @@ export function ReadyStep({ firstName }: { readonly firstName: string | undefine
 
         <div className="flex flex-col gap-3">
           <Link
-            href={`/chat?prompt=${encodeURIComponent(CHAT_PROMPT_FIRST_SESSION)}`}
+            href={`/chat?prompt=${encodeURIComponent(CHAT_PROMPT_ACTIVATION)}`}
             className={cn(buttonVariants({ size: "lg" }), "w-full justify-center")}
           >
             <MessageSquare className="size-4" />

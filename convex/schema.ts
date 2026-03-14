@@ -49,6 +49,14 @@ export default defineSchema({
         sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
       }),
     ),
+    /** Onboarding questionnaire data. */
+    onboardingData: v.optional(
+      v.object({
+        goal: v.string(),
+        injuries: v.optional(v.string()),
+        completedAt: v.number(),
+      }),
+    ),
     /** Google Calendar OAuth integration fields. */
     googleCalendarToken: v.optional(v.string()),
     googleCalendarRefreshToken: v.optional(v.string()),

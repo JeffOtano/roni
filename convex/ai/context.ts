@@ -43,6 +43,29 @@ export async function buildTrainingSnapshot(
     `User: ${pd.firstName} ${pd.lastName} | ${pd.heightInches}"/${pd.weightPounds}lbs | Level: ${pd.level} | ${pd.workoutsPerWeek}x/week`,
   ];
 
+  // Onboarding data (goal, injuries, preferences)
+  const onboardingData = profile?.onboardingData;
+  const trainingPrefs = profile?.trainingPreferences;
+
+  if (onboardingData?.goal) {
+    lines.push(`Goal: ${onboardingData.goal}`);
+  }
+  if (onboardingData?.injuries) {
+    lines.push(`Injuries/Constraints: ${onboardingData.injuries}`);
+  }
+  if (trainingPrefs) {
+    const splitNames: Record<string, string> = {
+      ppl: "Push/Pull/Legs",
+      upper_lower: "Upper/Lower",
+      full_body: "Full Body",
+    };
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const days = trainingPrefs.trainingDays.map((d: number) => dayNames[d]).join(", ");
+    lines.push(
+      `Preferences: ${splitNames[trainingPrefs.preferredSplit] ?? trainingPrefs.preferredSplit} | ${trainingPrefs.sessionDurationMinutes}min | ${days}`,
+    );
+  }
+
   // Strength scores
   if ((scores as StrengthScore[]).length > 0) {
     const scoreLines = (scores as StrengthScore[])
