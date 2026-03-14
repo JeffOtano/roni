@@ -98,28 +98,36 @@ export const getExerciseCatalog = action({
       })) as Movement[];
     }
 
-    let results = catalog;
-
-    if (args.search) {
-      const q = args.search.toLowerCase();
-      results = results.filter((m) => m.name.toLowerCase().includes(q));
-    }
-
-    if (args.muscleGroup) {
-      const g = args.muscleGroup.toLowerCase();
-      results = results.filter((m) => m.muscleGroups.some((mg) => mg.toLowerCase() === g));
-    }
-
-    return results.slice(0, 50).map((m) => ({
-      id: m.id,
-      name: m.name,
-      muscleGroups: m.muscleGroups,
-      skillLevel: m.skillLevel,
-      thumbnailMediaUrl: m.thumbnailMediaUrl,
-      onMachine: m.onMachine,
-    }));
+    return filterCatalog(catalog, args);
   },
 });
+
+/** Filter and map the movement catalog. Exported for testing. */
+export function filterCatalog(
+  catalog: readonly Movement[],
+  filters: { search?: string; muscleGroup?: string },
+): CatalogEntry[] {
+  let results = [...catalog];
+
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    results = results.filter((m) => m.name.toLowerCase().includes(q));
+  }
+
+  if (filters.muscleGroup) {
+    const g = filters.muscleGroup.toLowerCase();
+    results = results.filter((m) => m.muscleGroups.some((mg) => mg.toLowerCase() === g));
+  }
+
+  return results.slice(0, 50).map((m) => ({
+    id: m.id,
+    name: m.name,
+    muscleGroups: m.muscleGroups,
+    skillLevel: m.skillLevel,
+    thumbnailMediaUrl: m.thumbnailMediaUrl,
+    onMachine: m.onMachine,
+  }));
+}
 
 // ---------------------------------------------------------------------------
 // getCustomWorkouts — fetch user's custom Tonal workouts

@@ -55,7 +55,7 @@ export const getMuscleReadiness = action({
 // 3. getWorkoutHistory — recent workouts for the list
 // ---------------------------------------------------------------------------
 
-function isTonalWorkout(a: Activity): boolean {
+export function isTonalWorkout(a: Activity): boolean {
   return a.workoutPreview?.totalVolume > 0 || a.workoutPreview?.workoutId !== "";
 }
 
