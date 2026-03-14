@@ -37,7 +37,7 @@ interface StatCellProps {
 
 function StatCell({ icon: Icon, label, value, unit }: StatCellProps) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+    <div className="flex items-center gap-3 rounded-xl bg-muted/40 p-3 ring-1 ring-border">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
         <Icon className="size-4 text-primary" />
       </div>
@@ -95,7 +95,7 @@ export function TrainingStatsCompact({ metrics }: TrainingStatsCompactProps) {
             return (
               <div key={area} className="flex items-center gap-3">
                 <span className="w-20 shrink-0 truncate text-xs text-foreground">{area}</span>
-                <div className="h-1.5 flex-1 rounded-full bg-white/[0.04]">
+                <div className="h-1.5 flex-1 rounded-full bg-muted/50">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ease-out ${BAR_COLORS[i % BAR_COLORS.length]}`}
                     style={{ width: `${widthPct}%` }}

@@ -58,7 +58,7 @@ function ExerciseThumbnail({ src, name }: { src: string; name: string }) {
 
   if (!src || failed) {
     return (
-      <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-white/[0.04]">
+      <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-muted/50">
         <Dumbbell className="size-5 text-muted-foreground/50" />
       </div>
     );
@@ -70,7 +70,7 @@ function ExerciseThumbnail({ src, name }: { src: string; name: string }) {
       alt={`${name} demonstration`}
       loading="lazy"
       onError={() => setFailed(true)}
-      className="size-14 shrink-0 rounded-lg bg-white/[0.04] object-cover"
+      className="size-14 shrink-0 rounded-lg bg-muted/50 object-cover"
     />
   );
 }
@@ -116,7 +116,7 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
             {movement.muscleGroups.map((mg) => (
               <span
                 key={mg}
-                className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                className="rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
               >
                 {mg}
               </span>
@@ -132,7 +132,7 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
                     key={level}
                     className={cn(
                       "h-1.5 w-4 rounded-full",
-                      level <= movement.skillLevel ? "bg-primary" : "bg-white/[0.06]",
+                      level <= movement.skillLevel ? "bg-primary" : "bg-muted/60",
                     )}
                   />
                 ))}
@@ -222,7 +222,7 @@ export default function ExercisesPage() {
         </div>
         <Link
           href={`/chat?prompt=${encodeURIComponent("Program me a workout")}`}
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Ask coach to build a workout &rarr;
         </Link>
@@ -247,7 +247,7 @@ export default function ExercisesPage() {
             "rounded-full px-3 py-1 text-xs font-medium transition-all duration-200",
             muscleGroup === null
               ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-              : "bg-white/[0.06] text-muted-foreground hover:bg-white/[0.1]",
+              : "bg-muted/60 text-muted-foreground hover:bg-muted",
           )}
         >
           All
@@ -260,7 +260,7 @@ export default function ExercisesPage() {
               "rounded-full px-3 py-1 text-xs font-medium transition-all duration-200",
               muscleGroup === group
                 ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                : "bg-white/[0.06] text-muted-foreground hover:bg-white/[0.1]",
+                : "bg-muted/60 text-muted-foreground hover:bg-muted",
             )}
           >
             {group}

@@ -40,7 +40,7 @@ export function ProgressComparison({
         </p>
         <div className="flex items-center gap-3 sm:gap-5">
           <div className="flex-1 text-center">
-            <div className="mx-auto size-32 overflow-hidden rounded-xl ring-1 ring-white/[0.1] sm:size-40">
+            <div className="mx-auto size-32 overflow-hidden rounded-xl ring-1 ring-border sm:size-40">
               {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URL */}
               <img
                 src={`data:image/jpeg;base64,${earliestThumb}`}
@@ -59,7 +59,7 @@ export function ProgressComparison({
             <div className="h-8 w-px bg-gradient-to-b from-transparent via-primary/50 to-transparent" />
           </div>
           <div className="flex-1 text-center">
-            <div className="mx-auto size-32 overflow-hidden rounded-xl ring-1 ring-white/[0.1] sm:size-40">
+            <div className="mx-auto size-32 overflow-hidden rounded-xl ring-1 ring-border sm:size-40">
               {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URL */}
               <img
                 src={`data:image/jpeg;base64,${latestThumb}`}

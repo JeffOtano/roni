@@ -67,7 +67,7 @@ function ChatPageInner() {
               <button
                 key={text}
                 onClick={() => sendMessage({ prompt: text })}
-                className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left text-sm text-foreground/80 ring-1 ring-white/[0.04] transition-all duration-200 hover:scale-[1.02] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]"
+                className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left text-sm text-foreground/80 ring-1 ring-border/60 transition-all duration-200 hover:scale-[1.02] hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98]"
                 style={{ borderLeftWidth: "3px", borderLeftColor: colorVar }}
               >
                 <Icon className="mt-0.5 size-4 shrink-0 text-primary" />

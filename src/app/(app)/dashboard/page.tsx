@@ -183,7 +183,7 @@ export default function DashboardPage() {
           <Link
             key={href}
             href={href}
-            className="rounded-full bg-white/[0.04] px-3 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:bg-white/[0.08] hover:text-foreground"
+            className="rounded-full bg-muted/50 px-3 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground"
           >
             {label}
           </Link>

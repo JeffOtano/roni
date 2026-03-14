@@ -34,7 +34,7 @@ export function TrainingFrequencyChart({ data }: TrainingFrequencyChartProps) {
             <Link
               key={targetArea}
               href={`/chat?prompt=${prompt}`}
-              className="group -mx-1 flex cursor-pointer flex-col gap-1.5 rounded-lg px-1 py-1 transition-colors duration-150 hover:bg-white/[0.03]"
+              className="group -mx-1 flex cursor-pointer flex-col gap-1.5 rounded-lg px-1 py-1 transition-colors duration-150 hover:bg-muted/40"
             >
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-foreground group-hover:text-primary transition-colors duration-150">
@@ -44,7 +44,7 @@ export function TrainingFrequencyChart({ data }: TrainingFrequencyChartProps) {
                   {count} {count === 1 ? "workout" : "workouts"}
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-white/[0.04]">
+              <div className="h-2 w-full rounded-full bg-muted/50">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
                   style={{ width: `${widthPct}%` }}

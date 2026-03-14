@@ -249,7 +249,7 @@ export default function StrengthPage() {
             return (
               <Link
                 href={`/chat?prompt=${encodeURIComponent(`My ${weakest.name} body is my weakest area. Program a workout to improve it.`)}`}
-                className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+                className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
               >
                 Program for weak areas &rarr;
               </Link>
@@ -257,13 +257,13 @@ export default function StrengthPage() {
           })()}
         <Link
           href="/stats"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View full stats &rarr;
         </Link>
         <Link
           href="/exercises"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Browse exercises &rarr;
         </Link>

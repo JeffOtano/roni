@@ -139,7 +139,7 @@ export function McpKeyManager() {
             {keys.map((k) => (
               <li
                 key={k._id}
-                className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
+                className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <Key className="size-3.5 shrink-0 text-muted-foreground" />

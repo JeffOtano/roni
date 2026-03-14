@@ -16,6 +16,7 @@ import type * as ai_context from "../ai/context.js";
 import type * as ai_tools from "../ai/tools.js";
 import type * as auth from "../auth.js";
 import type * as calendar from "../calendar.js";
+import type * as calendarOAuth from "../calendarOAuth.js";
 import type * as chat from "../chat.js";
 import type * as checkIns from "../checkIns.js";
 import type * as checkIns_content from "../checkIns/content.js";
@@ -86,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   "ai/tools": typeof ai_tools;
   auth: typeof auth;
   calendar: typeof calendar;
+  calendarOAuth: typeof calendarOAuth;
   chat: typeof chat;
   checkIns: typeof checkIns;
   "checkIns/content": typeof checkIns_content;

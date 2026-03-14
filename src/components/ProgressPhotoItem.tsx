@@ -26,7 +26,7 @@ export function ProgressPhotoItem({
   onDelete,
 }: ProgressPhotoItemProps) {
   return (
-    <div className="group/tile relative aspect-square overflow-hidden rounded-xl ring-1 ring-white/[0.08] transition-all duration-200 hover:ring-white/[0.18]">
+    <div className="group/tile relative aspect-square overflow-hidden rounded-xl ring-1 ring-border transition-all duration-200 hover:ring-foreground/20">
       {thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element -- base64 data URL
         <img

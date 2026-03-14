@@ -101,7 +101,7 @@ function WorkoutDetailSkeleton() {
 
 function SetRow({ set }: { set: EnrichedSet }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.02] px-3 py-2 text-sm">
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-sm">
       <div className="flex items-center gap-2">
         <span className="tabular-nums text-muted-foreground">
           {set.repetition}/{set.repetitionTotal}
@@ -280,19 +280,19 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
       <div className="mt-8 flex flex-wrap gap-2">
         <Link
           href={`/chat?prompt=${encodeURIComponent(`Program a similar workout to my session on ${formatDate(detail.beginTime)}`)}`}
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           Train this again &rarr;
         </Link>
         <Link
           href="/exercises"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View exercises &rarr;
         </Link>
         <Link
           href="/stats"
-          className="rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground"
+          className="rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
           View stats &rarr;
         </Link>

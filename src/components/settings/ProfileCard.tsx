@@ -30,7 +30,7 @@ function MetricCell({
   value: string | number | null;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2.5">
+    <div className="flex items-center gap-2.5 rounded-lg bg-muted/40 px-3 py-2.5">
       <Icon className="size-4 shrink-0 text-muted-foreground/60" />
       <div className="min-w-0">
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -126,7 +126,7 @@ export function ProfileCard() {
 
           {/* Connected date */}
           {profile.tonalConnectedAt && (
-            <p className="mt-4 border-t border-white/[0.06] pt-3 text-xs text-muted-foreground">
+            <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
               Tonal connected{" "}
               {new Date(profile.tonalConnectedAt).toLocaleDateString(undefined, {
                 month: "long",

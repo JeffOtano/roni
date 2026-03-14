@@ -159,12 +159,21 @@ export const getGoogleTokens = internalQuery({
 // ---------------------------------------------------------------------------
 
 export const getAuthUrl = action({
-  args: {},
-  handler: async (ctx): Promise<string> => {
+  args: { origin: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<string> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const { clientId, redirectUri } = getGoogleCredentials();
+
+    // Generate an opaque, single-use state token for CSRF protection
+    const token = crypto.randomUUID();
+    await ctx.runMutation(internal.calendarOAuth.createOAuthState, {
+      token,
+      userId,
+      origin: args.origin ?? "",
+      createdAt: Date.now(),
+    });
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -173,7 +182,7 @@ export const getAuthUrl = action({
       scope: GOOGLE_CALENDAR_SCOPES,
       access_type: "offline",
       prompt: "consent",
-      state: userId,
+      state: token,
     });
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
@@ -352,7 +361,7 @@ export const getAvailableSlots = action({
   },
 });
 
-function findGaps(
+export function findGaps(
   windowStart: Date,
   windowEnd: Date,
   busy: Array<{ start: string; end: string }>,
