@@ -8,19 +8,11 @@
  * @module convex/coach/missedSessionDetection
  */
 
+import { DAY_NAMES } from "./weekProgrammingHelpers";
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
 
 const EXTENDED_ABSENCE_THRESHOLD_DAYS = 7;
 

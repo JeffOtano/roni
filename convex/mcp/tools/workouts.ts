@@ -1,14 +1,13 @@
 import type { ToolContext, ToolDefinition, ToolHandler } from "../registry";
 import { internal } from "../../_generated/api";
+import type { BlockInput } from "../../tonal/transforms";
 
 async function createCustomWorkout(
   toolCtx: ToolContext,
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   const title = args.title as string;
-  const blocks = args.blocks as Array<{
-    exercises: Array<Record<string, unknown>>;
-  }>;
+  const blocks = args.blocks as BlockInput[];
 
   const result = await toolCtx.ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
     userId: toolCtx.userId,
@@ -34,9 +33,7 @@ async function estimateWorkout(
   toolCtx: ToolContext,
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  const blocks = args.blocks as Array<{
-    exercises: Array<Record<string, unknown>>;
-  }>;
+  const blocks = args.blocks as BlockInput[];
 
   const result = await toolCtx.ctx.runAction(internal.tonal.mutations.estimateWorkout, {
     userId: toolCtx.userId,
