@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -12,7 +13,16 @@ import { useActionData } from "@/hooks/useActionData";
 import { AsyncCard } from "@/components/AsyncCard";
 import { ProgressRing } from "@/components/ProgressRing";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MessageSquare } from "lucide-react";
+
+const RANGES = [
+  { label: "30d", days: 30 },
+  { label: "90d", days: 90 },
+  { label: "6mo", days: 180 },
+  { label: "1yr", days: 365 },
+  { label: "All", days: 0 },
+] as const;
 
 // ---------------------------------------------------------------------------
 // SVG Line Chart
@@ -150,7 +160,17 @@ function StrengthLineChart({ history }: { history: StrengthScoreHistoryEntry[] }
 // Page
 // ---------------------------------------------------------------------------
 
+function filterByRange(
+  data: StrengthScoreHistoryEntry[],
+  days: number,
+): StrengthScoreHistoryEntry[] {
+  if (days === 0) return data;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return data.filter((e) => new Date(e.activityTime).getTime() >= cutoff);
+}
+
 export default function StrengthPage() {
+  const [rangeDays, setRangeDays] = useState(0); // 0 = all time
   const strengthHistory = useActionData<StrengthScoreHistoryEntry[]>(
     useAction(api.stats.getStrengthHistory),
   );
@@ -219,8 +239,26 @@ export default function StrengthPage() {
         }}
       </AsyncCard>
 
+      {/* Range filter */}
+      <div className="mt-5 mb-3 flex gap-2">
+        {RANGES.map(({ label, days }) => (
+          <button
+            key={label}
+            onClick={() => setRangeDays(days)}
+            className={cn(
+              "rounded-full px-4 py-2 text-xs font-medium transition-all",
+              rangeDays === days
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* History chart */}
-      <div className="mt-5">
+      <div>
         <AsyncCard
           state={strengthHistory.state}
           refetch={strengthHistory.refetch}
@@ -228,7 +266,7 @@ export default function StrengthPage() {
           title="Score Trends"
           tall
         >
-          {(d) => <StrengthLineChart history={d} />}
+          {(d) => <StrengthLineChart history={filterByRange(d, rangeDays)} />}
         </AsyncCard>
       </div>
 

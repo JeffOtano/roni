@@ -16,7 +16,7 @@ const mdComponents: Components = {
     }
     return (
       <code
-        className="rounded-md bg-muted/80 px-1.5 py-0.5 font-mono text-[13px] text-foreground/90"
+        className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[13px] text-foreground"
         {...props}
       >
         {children}
@@ -24,33 +24,33 @@ const mdComponents: Components = {
     );
   },
   pre: ({ children }) => (
-    <pre className="my-3 overflow-x-auto rounded-lg border-l-2 border-primary/30 bg-muted/60 p-4 font-mono text-sm">
+    <pre className="my-3 max-w-full overflow-x-auto rounded-lg bg-muted p-4 font-mono text-[13px] leading-relaxed">
       {children}
     </pre>
   ),
-  ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
-  ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+  ul: ({ children }) => <ul className="my-2 list-disc space-y-0.5 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2 list-decimal space-y-0.5 pl-5">{children}</ol>,
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
   table: ({ children }) => (
-    <div className="my-3 overflow-x-auto rounded-lg border border-border ring-1 ring-border/60">
+    <div className="my-3 max-w-full overflow-x-auto rounded-lg border border-border">
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="bg-muted/40">{children}</thead>,
+  thead: ({ children }) => <thead className="bg-muted/60">{children}</thead>,
   th: ({ children }) => (
-    <th className="border-b border-border px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <th className="border-b border-border px-3 py-2 text-left text-xs font-semibold text-foreground">
       {children}
     </th>
   ),
   td: ({ children }) => <td className="border-b border-border/50 px-3 py-2">{children}</td>,
   h1: ({ children }) => (
-    <h1 className="mb-3 mt-4 text-xl font-bold tracking-tight text-foreground">{children}</h1>
+    <h1 className="mb-3 mt-5 text-lg font-bold tracking-tight text-foreground">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mb-2 mt-3 text-lg font-semibold tracking-tight text-foreground">{children}</h2>
+    <h2 className="mb-2 mt-4 text-base font-semibold tracking-tight text-foreground">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mb-2 mt-3 text-base font-semibold tracking-tight text-foreground">{children}</h3>
+    <h3 className="mb-1.5 mt-3 text-sm font-semibold text-foreground">{children}</h3>
   ),
   h4: ({ children }) => (
     <h4 className="mb-1 mt-2 text-sm font-semibold text-foreground">{children}</h4>
@@ -58,7 +58,7 @@ const mdComponents: Components = {
   a: ({ href, children }) => (
     <a
       href={href}
-      className="text-primary underline decoration-primary/30 underline-offset-2 transition-colors duration-200 hover:decoration-primary/60"
+      className="text-primary underline decoration-primary/30 underline-offset-2 transition-colors duration-150 hover:decoration-primary"
       target="_blank"
       rel="noopener noreferrer"
     >
@@ -66,7 +66,7 @@ const mdComponents: Components = {
     </a>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="my-2 border-l-2 border-primary/40 pl-4 italic text-muted-foreground">
+    <blockquote className="my-2 border-l-2 border-border pl-4 italic text-muted-foreground">
       {children}
     </blockquote>
   ),
@@ -79,7 +79,7 @@ interface MarkdownContentProps {
 
 export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
-    <div className="text-sm leading-relaxed text-foreground/85">
+    <div className="max-w-prose text-sm leading-relaxed text-foreground/90">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
         {content}
       </ReactMarkdown>
