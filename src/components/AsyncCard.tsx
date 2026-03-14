@@ -1,17 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { AsyncState } from "@/hooks/useActionData";
 import { DashboardCardSkeleton } from "@/components/DashboardCardSkeleton";
 import { DashboardCardError } from "@/components/DashboardCardError";
 import { Loader2 } from "lucide-react";
 
-function formatRelativeTime(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
+function formatRelativeTime(ts: number): string {
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  return `${Math.floor(min / 60)}h ago`;
+}
+
+function useRelativeTime(ts: number | null | undefined): string | null {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!ts) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [ts]);
+  return ts ? formatRelativeTime(ts) : null;
 }
 
 export function AsyncCard<T>({
@@ -29,24 +39,20 @@ export function AsyncCard<T>({
   tall?: boolean;
   children: (data: T) => React.ReactNode;
 }) {
+  const relativeTime = useRelativeTime(lastUpdatedAt);
   if (state.status === "loading") return <DashboardCardSkeleton tall={tall} />;
   if (state.status === "error") return <DashboardCardError title={title} onRetry={refetch} />;
 
-  const isRefreshing = state.status === "refreshing";
-  const data = state.data;
-
   return (
     <div className="relative">
-      {isRefreshing && (
+      {state.status === "refreshing" && (
         <div className="absolute right-3 top-3 z-10">
           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
         </div>
       )}
-      {children(data)}
-      {lastUpdatedAt && (
-        <p className="mt-1.5 px-1 text-[10px] text-muted-foreground/60">
-          Updated {formatRelativeTime(lastUpdatedAt)}
-        </p>
+      {children(state.data)}
+      {relativeTime && (
+        <p className="mt-1.5 px-1 text-[10px] text-muted-foreground/60">Updated {relativeTime}</p>
       )}
     </div>
   );

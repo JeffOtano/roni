@@ -4,10 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErrorAlert } from "@/components/ErrorAlert";
-import { CheckCircle2, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
+import { ProgressComparison } from "@/components/ProgressComparison";
+import { ProgressPhotoItem } from "@/components/ProgressPhotoItem";
+import { CheckCircle2, ImageIcon, Loader2, MessageSquare, Upload } from "lucide-react";
 
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
 
@@ -153,11 +156,23 @@ export default function ProgressPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-foreground">Progress photos</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload photos to track visible changes over time. Only you can see them.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Progress photos</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload photos to track visible changes over time. Only you can see them.
+          </p>
+        </div>
+        {list && list.length > 0 && (
+          <Link
+            href={`/chat?prompt=${encodeURIComponent(`I've been tracking progress photos since ${formatDate(list[list.length - 1].createdAt)}. Based on my training data over that period, how is my progress looking? What should I adjust?`)}`}
+          >
+            <Button variant="outline" size="sm" className="shrink-0 gap-2">
+              <MessageSquare className="size-4" />
+              Discuss progress
+            </Button>
+          </Link>
+        )}
       </div>
       {errorMessage && (
         <div className="mb-4">
@@ -201,6 +216,17 @@ export default function ProgressPage() {
           </div>
         </CardContent>
       </Card>
+      {list &&
+        list.length >= 2 &&
+        thumbnails[list[list.length - 1].id] &&
+        thumbnails[list[0].id] && (
+          <ProgressComparison
+            earliest={list[list.length - 1]}
+            latest={list[0]}
+            earliestThumb={thumbnails[list[list.length - 1].id]}
+            latestThumb={thumbnails[list[0].id]}
+          />
+        )}
       {thumbnailError && list && list.length > 0 && (
         <p className="mb-2 text-xs text-muted-foreground">
           Photo previews couldn&apos;t be loaded. Your photos are still saved.
@@ -237,50 +263,17 @@ export default function ProgressPage() {
             </Button>
           </div>
           <ul className="space-y-3">
-            {list.map((photo) => {
-              const photoId = photo.id as Id<"progressPhotos">;
-              return (
-                <li key={photo.id}>
-                  <Card>
-                    <CardContent className="flex items-center gap-4 p-3">
-                      <div className="size-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                        {thumbnails[photo.id] ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- base64 data URL
-                          <img
-                            src={`data:image/jpeg;base64,${thumbnails[photo.id]}`}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex size-full items-center justify-center">
-                            <ImageIcon className="size-6 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {formatDate(photo.createdAt)}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Delete photo"
-                        className="shrink-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(photoId)}
-                        disabled={deletingId === photoId}
-                      >
-                        {deletingId === photoId ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4" />
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </li>
-              );
-            })}
+            {list.map((photo) => (
+              <li key={photo.id}>
+                <ProgressPhotoItem
+                  photoId={photo.id as Id<"progressPhotos">}
+                  createdAt={photo.createdAt}
+                  thumbnail={thumbnails[photo.id]}
+                  deleting={deletingId === (photo.id as Id<"progressPhotos">)}
+                  onDelete={handleDelete}
+                />
+              </li>
+            ))}
           </ul>
         </>
       )}

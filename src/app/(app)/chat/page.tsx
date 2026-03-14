@@ -1,14 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { ChatThread } from "@/components/ChatThread";
 import { ChatInput } from "@/components/ChatInput";
 import { Activity, Dumbbell, Loader2, Sparkles, TrendingUp, Zap } from "lucide-react";
-import { getStoredColdStartPreferences } from "@/lib/coldStartPreferences";
-import { PreferenceFlow } from "@/components/PreferenceFlow";
 
 const suggestions = [
   { icon: Dumbbell, text: "Program me a workout for today" },
@@ -33,10 +31,6 @@ function ChatPageInner() {
   const sendMessage = useAction(api.chat.sendMessage);
   const me = useQuery(api.users.getMe);
   const autoSentRef = useRef(false);
-  const [prefsComplete, setPrefsComplete] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return !!getStoredColdStartPreferences();
-  });
 
   // Auto-send from ?prompt= query param (once only)
   const promptParam = searchParams.get("prompt");
@@ -50,15 +44,6 @@ function ChatPageInner() {
 
   const hasThread = activeThread !== undefined && activeThread !== null;
   const userInitial = me?.tonalName?.charAt(0).toUpperCase() ?? "U";
-
-  // Show preference flow for new users who haven't set preferences
-  if (!prefsComplete && activeThread !== undefined && !hasThread && !promptParam) {
-    return (
-      <div className="flex h-full flex-col overflow-auto">
-        <PreferenceFlow onComplete={() => setPrefsComplete(true)} />
-      </div>
-    );
-  }
 
   // Show welcome state when no thread/messages exist
   if (activeThread !== undefined && !hasThread && !promptParam) {

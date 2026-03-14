@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (me && !me.hasTonalProfile) {
-    router.replace("/connect-tonal");
+    router.replace("/onboarding");
     return null;
   }
 
