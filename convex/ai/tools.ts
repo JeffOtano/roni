@@ -10,11 +10,7 @@ import type {
   StrengthScoreHistoryEntry,
   WorkoutActivityDetail,
 } from "../tonal/types";
-
-function requireUserId(ctx: ToolCtx): Id<"users"> {
-  if (!ctx.userId) throw new Error("Not authenticated");
-  return ctx.userId as Id<"users">;
-}
+import { requireUserId } from "./helpers";
 
 async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
   const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {

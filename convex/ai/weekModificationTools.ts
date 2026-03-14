@@ -6,17 +6,13 @@
  * - adjustSessionDurationTool: re-generate exercises for a day with a new duration
  */
 
-import { createTool, type ToolCtx } from "@convex-dev/agent";
+import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-
-function requireUserId(ctx: ToolCtx): Id<"users"> {
-  if (!ctx.userId) throw new Error("Not authenticated");
-  return ctx.userId as Id<"users">;
-}
+import { requireUserId } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // swapExerciseTool
