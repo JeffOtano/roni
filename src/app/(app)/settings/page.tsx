@@ -22,6 +22,7 @@ import { CalendarIntegration } from "@/components/settings/CalendarIntegration";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { McpKeyManager } from "@/components/settings/McpKeyManager";
 import { ChangePassword } from "@/components/settings/ChangePassword";
+import { EmailChange } from "@/components/settings/EmailChange";
 import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
@@ -113,6 +114,9 @@ function SettingsPageInner() {
             </div>
           </CardContent>
         </Card>
+        <div className="mt-3">
+          <EmailChange currentEmail={me?.email ?? "Unknown"} />
+        </div>
       </section>
 
       {/* Password */}

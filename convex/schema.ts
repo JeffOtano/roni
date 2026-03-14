@@ -173,4 +173,13 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_calledAt", ["userId", "calledAt"]),
+
+  /** Pending email change requests with verification codes. */
+  emailChangeRequests: defineTable({
+    userId: v.id("users"),
+    newEmail: v.string(),
+    codeHash: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index("by_userId", ["userId"]),
 });
