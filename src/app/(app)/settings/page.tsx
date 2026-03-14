@@ -1,13 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { McpKeyManager } from "@/components/settings/McpKeyManager";
 import { CheckCircle2, Link2, LogOut } from "lucide-react";
 
@@ -15,6 +27,7 @@ export default function SettingsPage() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const me = useQuery(api.users.getMe, {});
+  const [signOutOpen, setSignOutOpen] = useState(false);
 
   // Authenticated but query returned null (profile missing)
   if (me === null) {
@@ -49,15 +62,34 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium text-foreground">Email</p>
                 <p className="text-sm text-muted-foreground">{me?.email ?? "Unknown"}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="text-destructive hover:text-destructive"
-              >
-                <LogOut className="mr-1.5 size-3.5" />
-                Sign Out
-              </Button>
+              <Dialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+                <DialogTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                    />
+                  }
+                >
+                  <LogOut className="mr-1.5 size-3.5" />
+                  Sign Out
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Sign out?</DialogTitle>
+                    <DialogDescription>
+                      You&apos;ll need to sign in again to access your coaching data.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+                    <Button variant="destructive" onClick={handleSignOut}>
+                      Sign Out
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
@@ -98,6 +130,16 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      <Separator className="mb-6" />
+
+      {/* Check-in Preferences Section */}
+      <section className="mb-6" id="check-ins">
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Check-in Preferences
+        </h2>
+        <CheckInPreferences />
       </section>
 
       <Separator className="mb-6" />

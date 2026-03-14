@@ -53,7 +53,19 @@ export default function CheckInsPage() {
       )}
 
       {list === undefined ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="space-y-2">
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : list.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -67,7 +79,7 @@ export default function CheckInsPage() {
               <Card className={isUnread(checkIn, readAllBeforeAt) ? "border-primary/30" : ""}>
                 <CardContent className="p-4">
                   <p className="text-sm text-foreground">{checkIn.message}</p>
-                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                     <span>
                       {new Date(checkIn.createdAt).toLocaleDateString(undefined, {
                         month: "short",
@@ -75,11 +87,17 @@ export default function CheckInsPage() {
                         year: "numeric",
                       })}
                     </span>
+                    <Link
+                      href={`/chat?prompt=${encodeURIComponent(`My coach said: "${checkIn.message}" — can you tell me more?`)}`}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Ask about this
+                    </Link>
                     {isUnread(checkIn, readAllBeforeAt) && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs"
+                        className="ml-auto h-7 text-xs"
                         onClick={() => markRead({ checkInId: checkIn._id })}
                       >
                         Mark read
