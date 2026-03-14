@@ -11,22 +11,7 @@ import { InjuriesField } from "@/components/InjuriesField";
 import { type SessionDuration, SessionDurationField } from "@/components/SessionDurationField";
 import { SplitPreferenceField, type SplitValue } from "@/components/SplitPreferenceField";
 import { Loader2 } from "lucide-react";
-
-/** Map days-per-week count to evenly-spaced day indices (0=Mon..6=Sun). */
-function daysPerWeekToIndices(daysPerWeek: number): number[] {
-  switch (daysPerWeek) {
-    case 2:
-      return [0, 3];
-    case 3:
-      return [0, 2, 4];
-    case 4:
-      return [0, 1, 3, 4];
-    case 5:
-      return [0, 1, 2, 3, 4];
-    default:
-      return [0, 2, 4];
-  }
-}
+import { getTrainingDayIndices } from "../../../convex/coach/weekProgrammingHelpers";
 
 export function PreferencesStep({ onComplete }: { readonly onComplete: () => void }) {
   const [goal, setGoal] = useState("");
@@ -48,7 +33,7 @@ export function PreferencesStep({ onComplete }: { readonly onComplete: () => voi
         goal: goal.trim(),
         injuries: injuries.trim() || undefined,
         preferredSplit: split,
-        trainingDays: daysPerWeekToIndices(daysPerWeek),
+        trainingDays: getTrainingDayIndices(daysPerWeek),
         sessionDurationMinutes: sessionDuration,
       });
       onComplete();

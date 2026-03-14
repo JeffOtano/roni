@@ -7,6 +7,7 @@ import { type BlockInput, expandBlocksToSets } from "./transforms";
 import { validateWorkoutBlocks } from "./validation";
 import type { Activity, WorkoutEstimate } from "./types";
 import { cachedFetch, withTonalToken } from "./proxy";
+import { blockInputValidator } from "../validators";
 
 const DEFAULT_WORKOUT_DURATION_MINUTES = 45;
 
@@ -15,7 +16,7 @@ export const doTonalCreateWorkout = internalAction({
   args: {
     userId: v.id("users"),
     title: v.string(),
-    blocks: v.any(),
+    blocks: blockInputValidator,
   },
   handler: async (ctx, { userId, title, blocks }): Promise<{ id: string }> => {
     const { token } = await withTonalToken(ctx, userId);
@@ -66,8 +67,8 @@ export const fetchWorkoutHistoryForEligibility = internalAction({
   },
 });
 
-function formatTonalTitle(title: string): string {
-  const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+export function formatTonalTitle(title: string, now?: Date): string {
+  const date = (now ?? new Date()).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return `${date} · ${title}`;
 }
 
@@ -76,7 +77,7 @@ export const createWorkout = internalAction({
   args: {
     userId: v.id("users"),
     title: v.string(),
-    blocks: v.any(),
+    blocks: blockInputValidator,
     scheduledDate: v.optional(v.string()),
     estimatedDurationMinutes: v.optional(v.number()),
   },
@@ -187,7 +188,7 @@ export const deleteWorkout = internalAction({
 export const estimateWorkout = internalAction({
   args: {
     userId: v.id("users"),
-    blocks: v.any(),
+    blocks: blockInputValidator,
   },
   handler: async (ctx, { userId, blocks }): Promise<WorkoutEstimate> => {
     const { token } = await withTonalToken(ctx, userId);

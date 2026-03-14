@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalAction, internalQuery, query } from "./_generated/server";
+import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { Activity } from "./tonal/types";
@@ -17,7 +17,7 @@ const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
  * Activated = those with firstAiWorkoutCompletedAt set and (firstAiWorkoutCompletedAt - tonalConnectedAt) <= 72h.
  * See docs/activation-metric.md.
  */
-export const getActivationRate72h = query({
+export const getActivationRate72h = internalQuery({
   args: {
     /** Look at signups in the last N days. */
     days: v.number(),

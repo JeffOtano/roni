@@ -43,10 +43,10 @@ export const swapExerciseInDraft = internalMutation({
       throw new Error("Can only swap exercises in draft workout plans");
     }
 
-    const blocks = wp.blocks as { exercises?: { movementId?: string; [k: string]: unknown }[] }[];
+    const blocks = wp.blocks;
     const updatedBlocks = blocks.map((block) => ({
       ...block,
-      exercises: (block.exercises ?? []).map((ex) =>
+      exercises: block.exercises.map((ex) =>
         ex.movementId === oldMovementId ? { ...ex, movementId: newMovementId } : ex,
       ),
     }));

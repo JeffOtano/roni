@@ -6,30 +6,17 @@
  * - deleteWeekPlanTool: deletes the current week plan and its draft workouts
  */
 
-import { createTool, type ToolCtx } from "@convex-dev/agent";
+import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { DraftWeekSummary } from "../coach/weekProgrammingHelpers";
+import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
-
-function requireUserId(ctx: ToolCtx): Id<"users"> {
-  if (!ctx.userId) throw new Error("Not authenticated");
-  return ctx.userId as Id<"users">;
-}
+import { requireUserId } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // programWeekTool

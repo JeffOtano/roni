@@ -6,9 +6,11 @@
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "./weekProgrammingHelpers";
+import type { BlockInput } from "../tonal/transforms";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,7 +52,7 @@ type CreateWorkoutResult =
 type WorkoutPlan = {
   _id: Id<"workoutPlans">;
   title: string;
-  blocks: { exercises?: { movementId?: string }[] }[];
+  blocks: BlockInput[];
   status: string;
   estimatedDuration?: number;
 };
@@ -69,7 +71,7 @@ type WeekPlan = {
 
 /** Push a single draft workout to Tonal, retrying once on failure. */
 async function pushOneWorkout(
-  ctx: { runAction: typeof Object.prototype.constructor },
+  ctx: Pick<ActionCtx, "runAction">,
   userId: Id<"users">,
   wp: WorkoutPlan,
 ): Promise<CreateWorkoutResult> {
@@ -88,10 +90,10 @@ async function pushOneWorkout(
   return push();
 }
 
-function countExercises(blocks: WorkoutPlan["blocks"]): number {
+function countExercises(blocks: BlockInput[]): number {
   let count = 0;
   for (const block of blocks) {
-    count += block.exercises?.length ?? 0;
+    count += block.exercises.length;
   }
   return count;
 }

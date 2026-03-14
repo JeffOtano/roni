@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { blockInputValidator } from "./validators";
 
 export default defineSchema({
   ...authTables,
@@ -65,7 +66,8 @@ export default defineSchema({
     googleCalendarId: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
-    .index("by_tonalUserId", ["tonalUserId"]),
+    .index("by_tonalUserId", ["tonalUserId"])
+    .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"]),
 
   /** In-app check-ins (proactive messages). No SMS. */
   checkIns: defineTable({
@@ -103,7 +105,7 @@ export default defineSchema({
     tonalWorkoutId: v.optional(v.string()),
     source: v.optional(v.string()),
     title: v.string(),
-    blocks: v.any(),
+    blocks: blockInputValidator,
     status: v.union(
       v.literal("draft"),
       v.literal("pushing"),
@@ -116,7 +118,9 @@ export default defineSchema({
     estimatedDuration: v.optional(v.number()),
     createdAt: v.number(),
     pushedAt: v.optional(v.number()),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"]),
 
   weekPlans: defineTable({
     userId: v.id("users"),
