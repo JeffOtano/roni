@@ -17,7 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ErrorAlert } from "@/components/ErrorAlert";
 import { CalendarIntegration } from "@/components/settings/CalendarIntegration";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { McpKeyManager } from "@/components/settings/McpKeyManager";
@@ -50,14 +49,6 @@ function SettingsPageInner() {
   // OAuth callback query params from Google Calendar flow
   const calendarConnected = searchParams.get("calendar_connected") === "true";
   const calendarError = searchParams.get("calendar_error");
-
-  if (me === null) {
-    return (
-      <div className="flex items-center justify-center px-4 py-16">
-        <ErrorAlert message="Failed to load account data. Please try again." />
-      </div>
-    );
-  }
 
   const handleSignOut = async () => {
     await signOut();
