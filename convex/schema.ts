@@ -41,6 +41,14 @@ export default defineSchema({
     checkInsReadAllBeforeAt: v.optional(v.number()),
     /** Allow AI to analyze progress photos (guardrails apply). */
     progressPhotoAnalysisEnabled: v.optional(v.boolean()),
+    /** User's training preferences for weekly programming. */
+    trainingPreferences: v.optional(
+      v.object({
+        preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+        trainingDays: v.array(v.number()), // 0=Mon..6=Sun
+        sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
+      }),
+    ),
     /** Google Calendar OAuth integration fields. */
     googleCalendarToken: v.optional(v.string()),
     googleCalendarRefreshToken: v.optional(v.string()),
