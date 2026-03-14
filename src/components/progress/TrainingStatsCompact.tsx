@@ -42,7 +42,7 @@ function StatCell({ icon: Icon, label, value, unit }: StatCellProps) {
         <Icon className="size-4 text-primary" />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
         <p className="text-lg font-bold tabular-nums text-foreground">
@@ -87,21 +87,23 @@ export function TrainingStatsCompact({ metrics }: TrainingStatsCompactProps) {
       {/* Compact distribution bars (top 4) */}
       {entries.length > 0 && (
         <div className="mt-5 flex flex-col gap-2.5">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Top training areas
           </p>
           {entries.map(([area, count], i) => {
             const widthPct = Math.round((count / max) * 100);
             return (
               <div key={area} className="flex items-center gap-3">
-                <span className="w-20 shrink-0 truncate text-xs text-foreground">{area}</span>
+                <span className="w-16 shrink-0 truncate text-xs text-foreground sm:w-20">
+                  {area}
+                </span>
                 <div className="h-1.5 flex-1 rounded-full bg-muted/50">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ease-out ${BAR_COLORS[i % BAR_COLORS.length]}`}
                     style={{ width: `${widthPct}%` }}
                   />
                 </div>
-                <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+                <span className="w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
                   {count}
                 </span>
               </div>

@@ -63,7 +63,7 @@ function StatCard({
           <Icon className="size-5 text-primary" />
         </div>
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
           <p className="text-xl font-bold tabular-nums text-foreground">

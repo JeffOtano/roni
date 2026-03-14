@@ -58,7 +58,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
             <div className="flex justify-center pb-2 pt-1">
               <button
                 onClick={() => loadMore(20)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground ring-1 ring-border/60 transition-all duration-200 hover:bg-card hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-4 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border/60 transition-all duration-200 hover:bg-card hover:text-foreground"
               >
                 <ChevronUp className="size-3" />
                 Load earlier messages
@@ -69,7 +69,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
             <div className="flex justify-center pb-2 pt-1">
               <button
                 onClick={handleLoadEarlier}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground ring-1 ring-border/60 transition-all duration-200 hover:bg-card hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-4 py-2 text-xs font-medium text-muted-foreground ring-1 ring-border/60 transition-all duration-200 hover:bg-card hover:text-foreground"
               >
                 <ChevronUp className="size-3" />
                 Load earlier conversations

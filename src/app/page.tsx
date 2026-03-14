@@ -82,7 +82,7 @@ export default function HomePage() {
       <style dangerouslySetInnerHTML={{ __html: ANIM_STYLES }} />
 
       {/* Nav */}
-      <nav className="flex items-center justify-between px-8 py-6 sm:px-12">
+      <nav className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12">
         <span className="text-xl font-bold tracking-tight text-foreground">tonal.coach</span>
         <Link
           href={ctaHref}
@@ -147,7 +147,7 @@ export default function HomePage() {
           </p>
 
           {/* First row: 2 larger cards */}
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
             {FEATURES.slice(0, 2).map(({ icon: Icon, title, description, badge }) => (
               <FeatureCard
                 key={title}
@@ -161,7 +161,7 @@ export default function HomePage() {
           </div>
 
           {/* Second row: 3 smaller cards */}
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {FEATURES.slice(2).map(({ icon: Icon, title, description, badge }) => (
               <FeatureCard
                 key={title}
@@ -277,7 +277,7 @@ function FeatureCard({
             />
           </div>
           {badge && (
-            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+            <Badge variant="outline" className="text-xs text-muted-foreground">
               {badge}
             </Badge>
           )}

@@ -11,7 +11,7 @@ import { TrainingStatsCompact } from "@/components/progress/TrainingStatsCompact
 import { ProgressPhotosSection } from "@/components/progress/ProgressPhotosSection";
 
 const NAV_PILL =
-  "rounded-full bg-muted/50 px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground";
+  "rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground";
 
 const SECTION_HEADING =
   "border-l-2 border-primary/30 pl-3 text-sm font-semibold text-muted-foreground";
