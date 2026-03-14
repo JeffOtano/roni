@@ -11,6 +11,7 @@ import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { DraftWeekSummary } from "../coach/weekProgrammingHelpers";
+import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 
@@ -262,5 +263,35 @@ export const deleteWeekPlanTool = createTool({
     });
 
     return { deleted: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// approveWeekPlanTool
+// ---------------------------------------------------------------------------
+
+export const approveWeekPlanTool = createTool({
+  description:
+    "Push all draft workouts in the current week plan to Tonal. Use after the user approves the plan. Reports per-workout push status.",
+  inputSchema: z.object({}),
+  execute: async (ctx): Promise<WeekPushResult | { error: string }> => {
+    const userId = requireUserId(ctx);
+    const weekStartDate = getWeekStartDateString(new Date());
+
+    const plan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+      userId,
+      weekStartDate,
+    })) as { _id: Id<"weekPlans"> } | null;
+
+    if (!plan) {
+      return { error: "No week plan found. Use program_week first." };
+    }
+
+    const result = (await ctx.runAction(internal.coach.pushAndVerify.pushWeekPlanToTonal, {
+      userId,
+      weekPlanId: plan._id,
+    })) as WeekPushResult;
+
+    return result;
   },
 });

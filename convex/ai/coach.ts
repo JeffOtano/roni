@@ -21,7 +21,12 @@ import {
   moveSessionTool,
   swapExerciseTool,
 } from "./weekModificationTools";
-import { deleteWeekPlanTool, getWeekPlanDetailsTool, programWeekTool } from "./weekTools";
+import {
+  approveWeekPlanTool,
+  deleteWeekPlanTool,
+  getWeekPlanDetailsTool,
+  programWeekTool,
+} from "./weekTools";
 
 export const coachAgent = new Agent(components.agent, {
   name: "Tonal Coach",
@@ -70,6 +75,7 @@ WEEKLY PROGRAMMING:
     program_week: programWeekTool,
     get_week_plan_details: getWeekPlanDetailsTool,
     delete_week_plan: deleteWeekPlanTool,
+    approve_week_plan: approveWeekPlanTool,
     swap_exercise: swapExerciseTool,
     move_session: moveSessionTool,
     adjust_session_duration: adjustSessionDurationTool,

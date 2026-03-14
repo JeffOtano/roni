@@ -359,4 +359,37 @@ export const deleteDraftWorkout = internalMutation({
   },
 });
 
+/** Internal: replace a draft workout link with the pushed version. */
+export const replaceDraftWithPushed = internalMutation({
+  args: {
+    weekPlanId: v.id("weekPlans"),
+    dayIndex: v.number(),
+    oldWorkoutPlanId: v.id("workoutPlans"),
+    newWorkoutPlanId: v.id("workoutPlans"),
+    estimatedDuration: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    { weekPlanId, dayIndex, oldWorkoutPlanId, newWorkoutPlanId, estimatedDuration },
+  ) => {
+    const plan = await ctx.db.get(weekPlanId);
+    if (!plan) return;
+
+    // Delete the draft record (the pushed version is the new canonical record)
+    const draft = await ctx.db.get(oldWorkoutPlanId);
+    if (draft && draft.status === "draft") {
+      await ctx.db.delete(oldWorkoutPlanId);
+    }
+
+    // Update the day slot to point to the pushed workout
+    const days = [...plan.days];
+    days[dayIndex] = {
+      ...days[dayIndex],
+      workoutPlanId: newWorkoutPlanId,
+      ...(estimatedDuration != null && { estimatedDuration }),
+    };
+    await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+  },
+});
+
 export { programMyWeek, programWeek } from "./weekPlanActions";
