@@ -1,302 +1,103 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import type { Id } from "../../../../convex/_generated/dataModel";
+import type { StrengthDistribution, StrengthScore } from "../../../../convex/tonal/types";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ErrorAlert } from "@/components/ErrorAlert";
-import { ProgressComparison } from "@/components/ProgressComparison";
-import { ProgressPhotoItem } from "@/components/ProgressPhotoItem";
-import { CheckCircle2, ImageIcon, Loader2, MessageSquare, Upload } from "lucide-react";
+import { useActionData } from "@/hooks/useActionData";
+import { AsyncCard } from "@/components/AsyncCard";
+import { StrengthOverview } from "@/components/progress/StrengthOverview";
+import { TrainingStatsCompact } from "@/components/progress/TrainingStatsCompact";
+import { ProgressPhotosSection } from "@/components/progress/ProgressPhotosSection";
 
-const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
 const NAV_PILL =
   "rounded-full bg-white/[0.04] px-3.5 py-1.5 text-xs text-muted-foreground ring-1 ring-white/[0.06] transition-all hover:bg-white/[0.08] hover:text-foreground";
 
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+const SECTION_HEADING =
+  "border-l-2 border-primary/30 pl-3 text-sm font-semibold text-muted-foreground";
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+interface ProgressMetrics {
+  totalWorkouts: number;
+  totalVolume: number;
+  avgVolume: number;
+  totalDuration: number;
+  avgDuration: number;
+  workoutsByTargetArea: Record<string, number>;
+  workoutsPerWeek: number;
 }
 
 export default function ProgressPage() {
-  const list = useQuery(api.progressPhotos.list, {});
-  const getListWithThumbnails = useAction(api.progressPhotos.getListWithThumbnails);
-  const uploadPhoto = useAction(api.progressPhotos.upload);
-  const remove = useMutation(api.progressPhotos.remove);
-  const deleteAll = useMutation(api.progressPhotos.deleteAll);
+  const strengthData = useActionData<{
+    scores: StrengthScore[];
+    distribution: StrengthDistribution;
+  }>(useAction(api.dashboard.getStrengthData));
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
-  const [uploading, setUploading] = useState(false);
-  const [deletingId, setDeletingId] = useState<Id<"progressPhotos"> | null>(null);
-  const [deletingAll, setDeletingAll] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
-  const [thumbnailError, setThumbnailError] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-
-  useEffect(() => {
-    if (!confirmDeleteAll) return;
-    const timer = setTimeout(() => setConfirmDeleteAll(false), 4000);
-    return () => clearTimeout(timer);
-  }, [confirmDeleteAll]);
-
-  useEffect(() => {
-    if (!list?.length) {
-      setThumbnails({});
-      setThumbnailError(false);
-      return;
-    }
-    setThumbnailError(false);
-    getListWithThumbnails()
-      .then((result) => {
-        const map: Record<string, string> = {};
-        result.forEach((p) => {
-          if (p.base64) map[p.id] = p.base64;
-        });
-        setThumbnails(map);
-      })
-      .catch(() => {
-        setThumbnails({});
-        setThumbnailError(true);
-      });
-  }, [list?.length, getListWithThumbnails]);
-
-  const uploadFile = useCallback(
-    async (file: File) => {
-      if (!file.type.startsWith("image/")) {
-        setErrorMessage("Please select an image file (JPEG, PNG, or WebP).");
-        return;
-      }
-      setErrorMessage(null);
-      setSuccessMessage(null);
-      setUploading(true);
-      try {
-        const base64 = await fileToBase64(file);
-        await uploadPhoto({ imageBase64: base64 });
-        setSuccessMessage("Photo uploaded successfully");
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : "Upload failed");
-      } finally {
-        setUploading(false);
-      }
-    },
-    [uploadPhoto],
-  );
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) uploadFile(file);
-      e.target.value = "";
-    },
-    [uploadFile],
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) uploadFile(file);
-    },
-    [uploadFile],
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    setDragOver(true);
-  }, []);
-
-  const handleDelete = useCallback(
-    async (photoId: Id<"progressPhotos">) => {
-      setErrorMessage(null);
-      setDeletingId(photoId);
-      try {
-        await remove({ photoId });
-      } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : "Delete failed");
-      } finally {
-        setDeletingId(null);
-      }
-    },
-    [remove],
-  );
-
-  const handleDeleteAll = useCallback(async () => {
-    if (!list?.length) return;
-    if (!confirmDeleteAll) {
-      setConfirmDeleteAll(true);
-      return;
-    }
-    setConfirmDeleteAll(false);
-    setErrorMessage(null);
-    setDeletingAll(true);
-    try {
-      await deleteAll({});
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Delete failed");
-    } finally {
-      setDeletingAll(false);
-    }
-  }, [confirmDeleteAll, list?.length, deleteAll]);
-
-  const hasPhotos = list && list.length > 0;
-  const hasComparison =
-    list && list.length >= 2 && thumbnails[list[list.length - 1].id] && thumbnails[list[0].id];
+  const metricsData = useActionData<ProgressMetrics>(useAction(api.stats.getProgressMetrics));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Progress photos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Upload photos to track visible changes over time. Only you can see them.
-          </p>
-        </div>
-        {hasPhotos && (
-          <Link
-            href={`/chat?prompt=${encodeURIComponent(`I've been tracking progress photos since ${formatDate(list[list.length - 1].createdAt)}. Based on my training data over that period, how is my progress looking? What should I adjust?`)}`}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-2 transition-all duration-200 hover:border-primary/50 hover:shadow-[0_0_12px_rgba(0,200,200,0.15)]"
-            >
-              <MessageSquare className="size-4" />
-              Discuss progress
-            </Button>
-          </Link>
-        )}
-      </div>
-      {errorMessage && (
-        <div className="mb-4">
-          <ErrorAlert message={errorMessage} onRetry={() => setErrorMessage(null)} />
-        </div>
-      )}
-      {successMessage && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-green-400 ring-1 ring-green-500/20 backdrop-blur-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-green-400" />
-          {successMessage}
-        </div>
-      )}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_IMAGE_TYPES}
-            onChange={handleFileChange}
-            className="sr-only"
-            aria-label="Choose image"
-          />
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={() => setDragOver(false)}
-            className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-10 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${dragOver ? "border-primary bg-primary/[0.06] shadow-[0_0_20px_rgba(0,200,200,0.1)]" : "border-white/[0.1] bg-white/[0.02] hover:border-primary/40 hover:bg-white/[0.04]"}`}
-          >
-            {uploading ? (
-              <Loader2 className="size-10 animate-spin text-primary/60" />
-            ) : (
-              <Upload className="size-10 text-muted-foreground motion-safe:animate-[pulse_3s_ease-in-out_infinite]" />
-            )}
-            <p className="mt-3 text-sm font-medium text-foreground">
-              {uploading ? "Uploading..." : "Drop an image or click to upload"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG, or WebP</p>
-          </div>
-        </CardContent>
-      </Card>
-      {hasComparison && (
-        <ProgressComparison
-          earliest={list[list.length - 1]}
-          latest={list[0]}
-          earliestThumb={thumbnails[list[list.length - 1].id]}
-          latestThumb={thumbnails[list[0].id]}
-        />
-      )}
-      {/* Related pages */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Link href="/stats" className={NAV_PILL}>
-          See how your training has evolved &rarr;
-        </Link>
-        <Link href="/strength" className={NAV_PILL}>
-          Check strength trends &rarr;
-        </Link>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Progress</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Track your strength, stats, and visible changes
+        </p>
       </div>
 
-      {thumbnailError && hasPhotos && (
-        <p className="mb-2 text-xs text-muted-foreground">
-          Photo previews couldn&apos;t be loaded. Your photos are still saved.
-        </p>
-      )}
-      {list === undefined ? (
-        <p className="text-sm text-muted-foreground">Loading photos...</p>
-      ) : list.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-14">
-            <ImageIcon className="size-12 text-muted-foreground/50" />
-            <p className="mt-3 text-sm font-medium text-muted-foreground">No photos yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">Upload one above to get started</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-muted-foreground">Your photos</h2>
-            <Button
-              variant={confirmDeleteAll ? "destructive" : "ghost"}
-              size="sm"
-              className={confirmDeleteAll ? "" : "text-destructive hover:text-destructive"}
-              onClick={handleDeleteAll}
-              disabled={deletingAll}
-            >
-              {deletingAll ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : confirmDeleteAll ? (
-                "Confirm delete all?"
-              ) : (
-                "Delete all"
-              )}
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {list.map((photo) => (
-              <ProgressPhotoItem
-                key={photo.id}
-                photoId={photo.id as Id<"progressPhotos">}
-                createdAt={photo.createdAt}
-                thumbnail={thumbnails[photo.id]}
-                deleting={deletingId === (photo.id as Id<"progressPhotos">)}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {/* Section 1: Strength Overview */}
+      <section>
+        <h2 className={SECTION_HEADING}>Strength</h2>
+        <div className="mt-3">
+          <AsyncCard
+            state={strengthData.state}
+            refetch={strengthData.refetch}
+            lastUpdatedAt={strengthData.lastUpdatedAt}
+            title="Current Scores"
+          >
+            {(d) => <StrengthOverview scores={d.scores} distribution={d.distribution} />}
+          </AsyncCard>
+        </div>
+      </section>
+
+      {/* Section 2: Training Stats */}
+      <section className="mt-10">
+        <h2 className={SECTION_HEADING}>Training Stats</h2>
+        <div className="mt-3">
+          <AsyncCard
+            state={metricsData.state}
+            refetch={metricsData.refetch}
+            lastUpdatedAt={metricsData.lastUpdatedAt}
+            title="Training Overview"
+          >
+            {(d) => <TrainingStatsCompact metrics={d} />}
+          </AsyncCard>
+        </div>
+      </section>
+
+      {/* Section 3: Progress Photos */}
+      <section className="mt-10">
+        <h2 className={SECTION_HEADING}>Progress Photos</h2>
+        <p className="mt-1 pl-3 text-xs text-muted-foreground">Only you can see these</p>
+        <div className="mt-3">
+          <ProgressPhotosSection />
+        </div>
+      </section>
+
+      {/* Bottom navigation links */}
+      <div className="mt-10 flex flex-wrap gap-2">
+        <Link href="/strength" className={NAV_PILL}>
+          Strength history &rarr;
+        </Link>
+        <Link href="/exercises" className={NAV_PILL}>
+          Browse exercises &rarr;
+        </Link>
+        <Link
+          href={`/chat?prompt=${encodeURIComponent("Analyze my overall progress and suggest what to focus on next")}`}
+          className={NAV_PILL}
+        >
+          Ask coach about progress &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

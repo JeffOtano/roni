@@ -24,6 +24,7 @@ import { ChangePassword } from "@/components/settings/ChangePassword";
 import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
+import { ProfileCard } from "@/components/settings/ProfileCard";
 import { Link2, LogOut } from "lucide-react";
 
 const SECTION_HEADING =
@@ -53,6 +54,9 @@ export default function SettingsPage() {
       <div className="mb-10">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
       </div>
+
+      {/* Profile */}
+      <ProfileCard />
 
       {/* Account */}
       <section className="mb-10">
