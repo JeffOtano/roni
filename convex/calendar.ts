@@ -13,6 +13,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
 import { decrypt, encrypt } from "./tonal/encryption";
 import { googleFetch, refreshGoogleToken } from "./google/client";
+import { type AvailableSlot, findGaps, type FreeBusyResponse } from "./calendarHelpers";
+
+// Re-export for test backward compatibility
+export { findGaps } from "./calendarHelpers";
 
 const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
@@ -323,15 +327,6 @@ export const createCalendarEvent = internalAction({
   },
 });
 
-interface AvailableSlot {
-  start: string;
-  end: string;
-}
-
-interface FreeBusyResponse {
-  calendars: Record<string, { busy: Array<{ start: string; end: string }> }>;
-}
-
 export const getAvailableSlots = action({
   args: {
     date: v.string(),
@@ -360,43 +355,3 @@ export const getAvailableSlots = action({
     return findGaps(dayStart, dayEnd, busySlots, durationMinutes);
   },
 });
-
-export function findGaps(
-  windowStart: Date,
-  windowEnd: Date,
-  busy: Array<{ start: string; end: string }>,
-  minDurationMinutes: number,
-): AvailableSlot[] {
-  const sorted = [...busy].sort(
-    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
-  );
-
-  const gaps: AvailableSlot[] = [];
-  let cursor = windowStart.getTime();
-  const minMs = minDurationMinutes * 60_000;
-
-  for (const slot of sorted) {
-    const busyStart = new Date(slot.start).getTime();
-    const busyEnd = new Date(slot.end).getTime();
-
-    if (busyStart > cursor && busyStart - cursor >= minMs) {
-      gaps.push({
-        start: new Date(cursor).toISOString(),
-        end: new Date(busyStart).toISOString(),
-      });
-    }
-
-    cursor = Math.max(cursor, busyEnd);
-  }
-
-  // Gap after last busy slot
-  const windowEndMs = windowEnd.getTime();
-  if (windowEndMs > cursor && windowEndMs - cursor >= minMs) {
-    gaps.push({
-      start: new Date(cursor).toISOString(),
-      end: new Date(windowEndMs).toISOString(),
-    });
-  }
-
-  return gaps;
-}
