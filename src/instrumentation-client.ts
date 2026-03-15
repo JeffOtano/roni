@@ -10,8 +10,7 @@ Sentry.init({
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],
 
-  // Sample 10% of traces in production to avoid burning Sentry quota.
-  tracesSampleRate: 0.1,
+  tracesSampleRate: 1,
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
@@ -23,8 +22,7 @@ Sentry.init({
   // Define how likely Replay events are sampled when an error occurs.
   replaysOnErrorSampleRate: 1.0,
 
-  // Disabled — don't send user IP/cookies to Sentry.
-  sendDefaultPii: false,
+  sendDefaultPii: true,
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
