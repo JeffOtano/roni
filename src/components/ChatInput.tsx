@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useMutation } from "convex/react";
+import { optimisticallySendMessage } from "@convex-dev/agent/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Loader2, SendHorizontal } from "lucide-react";
@@ -14,15 +15,19 @@ function autoGrow(el: HTMLTextAreaElement) {
 }
 
 interface ChatInputProps {
+  threadId: string;
   disabled?: boolean;
 }
 
-export function ChatInput({ disabled }: ChatInputProps) {
+export function ChatInput({ threadId, disabled }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sendMessage = useAction(api.chat.sendMessage);
+
+  const sendMessage = useMutation(api.chat.sendMessageMutation).withOptimisticUpdate(
+    optimisticallySendMessage(api.chat.listMessages),
+  );
 
   useEffect(() => {
     if (!error) return;
@@ -37,7 +42,7 @@ export function ChatInput({ disabled }: ChatInputProps) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     try {
-      await sendMessage({ prompt: trimmed });
+      await sendMessage({ prompt: trimmed, threadId });
     } catch (err) {
       setInput(trimmed);
       console.error("Failed to send message:", err);
@@ -50,7 +55,7 @@ export function ChatInput({ disabled }: ChatInputProps) {
     } finally {
       setSending(false);
     }
-  }, [input, sending, sendMessage]);
+  }, [input, sending, sendMessage, threadId]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

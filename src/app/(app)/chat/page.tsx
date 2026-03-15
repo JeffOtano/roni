@@ -1,12 +1,20 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { ChatThread } from "@/components/ChatThread";
-import { ChatInput } from "@/components/ChatInput";
-import { Activity, Dumbbell, Loader2, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Activity,
+  Dumbbell,
+  Loader2,
+  SendHorizontal,
+  Sparkles,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
 
 const suggestions = [
   { icon: Dumbbell, text: "Program me a workout for today" },
@@ -79,7 +87,7 @@ function ChatPageInner() {
 
         {/* Input always visible even on welcome screen */}
         <div className="shrink-0 p-3 sm:p-4">
-          <ChatInput />
+          <WelcomeInput sendMessage={sendMessage} />
         </div>
       </div>
     );
@@ -94,6 +102,62 @@ function ChatPageInner() {
   return (
     <div className="flex h-full items-center justify-center">
       <Loader2 className="size-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+function WelcomeInput({
+  sendMessage,
+}: {
+  sendMessage: (args: { prompt: string }) => Promise<{ threadId: string }>;
+}) {
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || sending) return;
+    setSending(true);
+    setInput("");
+    try {
+      await sendMessage({ prompt: trimmed });
+    } catch {
+      setInput(trimmed);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder="Ask your coach..."
+          disabled={sending}
+          rows={1}
+          className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+        />
+        <Button
+          size="icon"
+          onClick={handleSend}
+          disabled={sending || !input.trim()}
+          className="mb-0.5 min-h-[44px] min-w-[44px] rounded-xl"
+        >
+          {sending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="size-4" />
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
