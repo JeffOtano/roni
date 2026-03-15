@@ -15,6 +15,7 @@
 - [ ] No file exceeds 300 lines
 - [ ] No function exceeds 60 lines
 - [ ] No new `any` types or unsafe `as` casts
+- [ ] Tested in browser (if UI changes)
 - [ ] Commits follow conventional format (`type: description`)
 - [ ] No unused exports or dead code introduced
 
