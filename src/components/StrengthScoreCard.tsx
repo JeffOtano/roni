@@ -13,7 +13,7 @@ export function StrengthScoreCard({ scores, distribution }: StrengthScoreCardPro
   function findScore(region: string): number {
     const r = region.toLowerCase();
     const match = scores.find((s) => {
-      const key = (s.strengthBodyRegion ?? s.bodyRegionDisplay ?? "").toLowerCase();
+      const key = (s.strengthBodyRegion || s.bodyRegionDisplay || "").toLowerCase();
       return key === r || key.startsWith(r) || key.includes(r);
     });
     return match?.score ?? 0;
