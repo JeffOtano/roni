@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { StaleCta } from "@/components/StaleCta";
 
 interface FrequencyEntry {
   targetArea: string;
@@ -54,8 +53,6 @@ export function TrainingFrequencyChart({ data }: TrainingFrequencyChartProps) {
           );
         })}
       </div>
-
-      <StaleCta data={data} />
 
       <Link
         href="/stats"
