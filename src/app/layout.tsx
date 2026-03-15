@@ -27,8 +27,12 @@ export const metadata: Metadata = {
   },
   description:
     "AI coaching powered by your real Tonal training data. Get personalized advice, push custom workouts, and track your progress.",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     siteName: "tonal.coach",
+    url: "https://tonal.coach",
     locale: "en_US",
     type: "website",
   },
