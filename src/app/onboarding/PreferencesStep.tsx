@@ -20,6 +20,7 @@ export function PreferencesStep({ onComplete }: { readonly onComplete: () => voi
   const [sessionDuration, setSessionDuration] = useState<SessionDuration>(45);
   const [split, setSplit] = useState<SplitValue>("ppl");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const completeOnboarding = useMutation(api.userProfiles.completeOnboarding);
 
@@ -28,6 +29,7 @@ export function PreferencesStep({ onComplete }: { readonly onComplete: () => voi
     if (!goal.trim() || saving) return;
 
     setSaving(true);
+    setError(null);
     try {
       await completeOnboarding({
         goal: goal.trim(),
@@ -38,6 +40,7 @@ export function PreferencesStep({ onComplete }: { readonly onComplete: () => voi
       });
       onComplete();
     } catch {
+      setError("Failed to save preferences. Please try again.");
       setSaving(false);
     }
   };
@@ -57,6 +60,7 @@ export function PreferencesStep({ onComplete }: { readonly onComplete: () => voi
           <SessionDurationField value={sessionDuration} onChange={setSessionDuration} />
           <SplitPreferenceField value={split} onChange={setSplit} />
           <InjuriesField value={injuries} onChange={setInjuries} />
+          {error && <p className="text-center text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" size="lg" disabled={!goal.trim() || saving}>
             {saving ? (
               <>

@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  if (me && !me.hasTonalProfile) {
+  if (me && (!me.hasTonalProfile || !me.onboardingCompleted)) {
     router.replace("/onboarding");
     return null;
   }
