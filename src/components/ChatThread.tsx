@@ -82,7 +82,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
         </div>
       </div>
       <div className="shrink-0 border-t border-border/50 p-3 sm:p-4">
-        <ChatInput disabled={isStreaming} />
+        <ChatInput threadId={threadId} disabled={isStreaming} />
       </div>
     </div>
   );
