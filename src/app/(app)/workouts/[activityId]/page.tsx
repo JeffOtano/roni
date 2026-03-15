@@ -123,7 +123,13 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
   const fetch = useCallback(() => {
     setState({ status: "loading" });
     getDetail({ activityId }).then(
-      (data) => setState({ status: "success", data }),
+      (data) => {
+        if (!data || data.totalVolume === 0) {
+          setState({ status: "error" });
+        } else {
+          setState({ status: "success", data });
+        }
+      },
       () => setState({ status: "error" }),
     );
   }, [getDetail, activityId]);

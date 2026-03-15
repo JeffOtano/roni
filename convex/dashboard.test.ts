@@ -43,10 +43,10 @@ describe("isTonalWorkout", () => {
     expect(isTonalWorkout(activity)).toBe(true);
   });
 
-  it("returns true when workoutId is a non-empty string", () => {
+  it("returns false when workoutId is non-empty but volume is zero (external sync)", () => {
     const activity = makeActivity("workout-abc", 0);
 
-    expect(isTonalWorkout(activity)).toBe(true);
+    expect(isTonalWorkout(activity)).toBe(false);
   });
 
   it("returns true when both totalVolume > 0 and workoutId is non-empty", () => {
