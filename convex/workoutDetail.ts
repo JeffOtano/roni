@@ -2,7 +2,13 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
-import type { Activity, Movement, UserWorkout, WorkoutActivityDetail } from "./tonal/types";
+import type {
+  Activity,
+  FormattedWorkoutSummary,
+  Movement,
+  UserWorkout,
+  WorkoutActivityDetail,
+} from "./tonal/types";
 
 // ---------------------------------------------------------------------------
 // getWorkoutDetail — fetch workout detail enriched with movement names
@@ -12,6 +18,7 @@ export interface EnrichedSetActivity {
   id: string;
   movementId: string;
   movementName: string | null;
+  muscleGroups: string[];
   prescribedReps: number;
   repetition: number;
   repetitionTotal: number;
@@ -26,8 +33,19 @@ export interface EnrichedSetActivity {
   weightPercentage?: number;
 }
 
+export interface MovementSummary {
+  movementId: string;
+  movementName: string;
+  muscleGroups: string[];
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  avgWeightLbs: number;
+}
+
 export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "workoutSetActivity"> {
   workoutSetActivity: EnrichedSetActivity[];
+  movementSummaries: MovementSummary[];
 }
 
 export const getWorkoutDetail = action({
@@ -36,7 +54,7 @@ export const getWorkoutDetail = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const [detail, movementsCached] = await Promise.all([
+    const [detail, movementsCached, formattedSummary] = await Promise.all([
       ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
         userId,
         activityId: args.activityId,
@@ -45,22 +63,88 @@ export const getWorkoutDetail = action({
         userId: undefined,
         dataType: "movements",
       }),
+      ctx
+        .runAction(internal.tonal.proxy.fetchFormattedSummary, {
+          userId,
+          summaryId: args.activityId,
+        })
+        .catch((): null => null),
     ]);
 
     const movements = (movementsCached?.data as Movement[] | undefined) ?? [];
-    const movementMap = new Map(movements.map((m) => [m.id, m.name]));
+    const movementMap = new Map(movements.map((m) => [m.id, m]));
 
     const typedDetail = detail as WorkoutActivityDetail;
 
+    // Volume per movement from formatted summary
+    const volumeMap = new Map<string, number>();
+    if (formattedSummary) {
+      const typed = formattedSummary as FormattedWorkoutSummary;
+      for (const ms of typed.movementSets) {
+        volumeMap.set(ms.movementId, ms.totalVolume);
+      }
+    }
+
+    // Enrich sets with movement name and muscle groups
+    const enrichedSets = typedDetail.workoutSetActivity.map((set) => {
+      const movement = movementMap.get(set.movementId);
+      return {
+        ...set,
+        movementName: movement?.name ?? null,
+        muscleGroups: movement?.muscleGroups ?? [],
+      };
+    });
+
+    // Build movement summaries grouped by movementId
+    const movementSummaries = buildMovementSummaries(enrichedSets, volumeMap);
+
     return {
       ...typedDetail,
-      workoutSetActivity: typedDetail.workoutSetActivity.map((set) => ({
-        ...set,
-        movementName: movementMap.get(set.movementId) ?? null,
-      })),
+      workoutSetActivity: enrichedSets,
+      movementSummaries,
     };
   },
 });
+
+/** Aggregate sets into per-movement summaries. Exported for testing. */
+export function buildMovementSummaries(
+  sets: readonly EnrichedSetActivity[],
+  volumeMap: ReadonlyMap<string, number>,
+): MovementSummary[] {
+  const grouped = new Map<
+    string,
+    { name: string; muscleGroups: string[]; totalSets: number; totalReps: number }
+  >();
+
+  for (const set of sets) {
+    const existing = grouped.get(set.movementId);
+    if (existing) {
+      existing.totalSets += 1;
+      existing.totalReps += set.repetition;
+    } else {
+      grouped.set(set.movementId, {
+        name: set.movementName ?? "Unknown",
+        muscleGroups: set.muscleGroups,
+        totalSets: 1,
+        totalReps: set.repetition,
+      });
+    }
+  }
+
+  return Array.from(grouped.entries()).map(([movementId, data]) => {
+    const totalVolume = volumeMap.get(movementId) ?? 0;
+    return {
+      movementId,
+      movementName: data.name,
+      muscleGroups: data.muscleGroups,
+      totalVolume,
+      totalSets: data.totalSets,
+      totalReps: data.totalReps,
+      avgWeightLbs:
+        data.totalReps > 0 && totalVolume > 0 ? Math.round(totalVolume / data.totalReps) : 0,
+    };
+  });
+}
 
 // ---------------------------------------------------------------------------
 // getExerciseCatalog — search the global movement catalog
