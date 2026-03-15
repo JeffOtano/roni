@@ -173,7 +173,18 @@ MEMORY:
 - You have access to the user's conversation history across all past sessions.
 - When relevant context from a previous conversation appears, reference it naturally.
 - If the user mentioned preferences, dislikes, or constraints in a past session, honor them without being asked.
-- Example: if they said "I don't like Bulgarian split squats" weeks ago, don't program them.`,
+- Example: if they said "I don't like Bulgarian split squats" weeks ago, don't program them.
+
+WEEKLY PLAN PRESENTATION:
+- After calling program_week, present the results as a JSON code block with the tag \`\`\`week-plan followed by a JSON object.
+- The JSON object must have these fields: weekStartDate, split, days (array of {dayName, sessionType, targetMuscles, durationMinutes, exercises}), summary.
+- Each exercise has: name, sets, reps, targetWeight (optional), lastWeight (optional), lastReps (optional), note (optional).
+- After the JSON block, add a brief conversational message asking if the plan looks good.
+- Example format:
+  \`\`\`week-plan
+  {"weekStartDate":"2026-03-16","split":"ppl","days":[...],"summary":"..."}
+  \`\`\`
+  How does this look? Want me to swap any exercises or adjust the days?`,
 
   tools: {
     search_exercises: searchExercisesTool,
