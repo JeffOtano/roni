@@ -1,9 +1,12 @@
 "use client";
 
 import type { UIMessage } from "@convex-dev/agent/react";
+import { useSmoothText } from "@convex-dev/agent/react";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { ToolApprovalCard } from "@/components/ToolApprovalCard";
 import { ToolCallIndicator } from "@/components/ToolCallIndicator";
+import { WeekPlanCard } from "@/components/WeekPlanCard";
+import { weekPlanPresentationSchema } from "../../convex/ai/schemas";
 import { Sparkles } from "lucide-react";
 
 function formatTime(timestamp: number): string {
@@ -11,6 +14,27 @@ function formatTime(timestamp: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function extractWeekPlan(text: string) {
+  const match = text.match(/```week-plan\s*\n([\s\S]*?)\n```/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]);
+    return weekPlanPresentationSchema.parse(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function SmoothAssistantText({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+  const [smoothText] = useSmoothText(text, {
+    charsPerSec: 60,
+    startStreaming: isStreaming,
+  });
+
+  const displayText = isStreaming ? smoothText + "\u258D" : text;
+  return <MarkdownContent content={displayText} />;
 }
 
 interface ChatMessageProps {
@@ -64,9 +88,20 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
               );
             }
 
-            // Coach: render with markdown
-            const displayText = isStreaming ? text + "\u258D" : text;
-            return <MarkdownContent key={i} content={displayText} />;
+            // Coach: check for structured week plan
+            const plan = extractWeekPlan(text);
+            if (plan && !isStreaming) {
+              const remainingText = text.replace(/```week-plan\s*\n[\s\S]*?\n```/, "").trim();
+              return (
+                <div key={i}>
+                  <WeekPlanCard plan={plan} />
+                  {remainingText && <MarkdownContent content={remainingText} />}
+                </div>
+              );
+            }
+
+            // Coach: render with smooth streaming
+            return <SmoothAssistantText key={i} text={text} isStreaming={isStreaming} />;
           }
 
           if (
