@@ -22,6 +22,7 @@ export async function tonalFetch<T = unknown>(
       "Content-Type": "application/json",
     },
     body: options?.body ? JSON.stringify(options.body) : undefined,
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (res.status === 401) {

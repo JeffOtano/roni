@@ -6,11 +6,14 @@ import { paginationOptsValidator } from "convex/server";
 import {
   createThread as agentCreateThread,
   listUIMessages,
+  saveMessage,
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
 import { coachAgent } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
+
+const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 
 export const createThread = mutation({
   args: {},
@@ -64,17 +67,26 @@ export const sendMessage = action({
     }
 
     // Stream response with delta saving
-    const { thread } = await coachAgent.continueThread(ctx, {
-      threadId: targetThreadId,
-      userId,
-    });
+    try {
+      const { thread } = await coachAgent.continueThread(ctx, {
+        threadId: targetThreadId,
+        userId,
+      });
 
-    await thread.streamText(
-      { prompt },
-      {
-        saveStreamDeltas: { chunking: "word", throttleMs: 100 },
-      },
-    );
+      await thread.streamText(
+        { prompt },
+        {
+          saveStreamDeltas: { chunking: "word", throttleMs: 100 },
+        },
+      );
+    } catch (error) {
+      console.error("sendMessage AI error:", error);
+      await saveMessage(ctx, components.agent, {
+        threadId: targetThreadId,
+        userId,
+        message: { role: "assistant", content: AI_ERROR_MESSAGE },
+      });
+    }
 
     return { threadId: targetThreadId };
   },
@@ -137,15 +149,24 @@ export const continueAfterApproval = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const { thread } = await coachAgent.continueThread(ctx, {
-      threadId,
-      userId,
-    });
+    try {
+      const { thread } = await coachAgent.continueThread(ctx, {
+        threadId,
+        userId,
+      });
 
-    await thread.streamText(
-      { promptMessageId: messageId },
-      { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
-    );
+      await thread.streamText(
+        { promptMessageId: messageId },
+        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+      );
+    } catch (error) {
+      console.error("continueAfterApproval AI error:", error);
+      await saveMessage(ctx, components.agent, {
+        threadId,
+        userId,
+        message: { role: "assistant", content: AI_ERROR_MESSAGE },
+      });
+    }
   },
 });
 
@@ -180,14 +201,23 @@ export const processMessage = internalAction({
     prompt: v.string(),
   },
   handler: async (ctx, { threadId, userId, prompt }) => {
-    const { thread } = await coachAgent.continueThread(ctx, {
-      threadId,
-      userId,
-    });
+    try {
+      const { thread } = await coachAgent.continueThread(ctx, {
+        threadId,
+        userId,
+      });
 
-    await thread.streamText(
-      { prompt },
-      { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
-    );
+      await thread.streamText(
+        { prompt },
+        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+      );
+    } catch (error) {
+      console.error("processMessage AI error:", error);
+      await saveMessage(ctx, components.agent, {
+        threadId,
+        userId,
+        message: { role: "assistant", content: AI_ERROR_MESSAGE },
+      });
+    }
   },
 });

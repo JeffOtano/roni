@@ -160,7 +160,7 @@ export const fetchWorkoutHistory = internalAction({
     withTokenRetry(ctx, userId, (token, tonalUserId) =>
       cachedFetch<Activity[]>(ctx, {
         userId,
-        dataType: "workoutHistory",
+        dataType: `workoutHistory:${limit}`,
         ttl: CACHE_TTLS.workoutHistory,
         fetcher: () =>
           tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=${limit}`),

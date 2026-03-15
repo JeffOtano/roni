@@ -142,6 +142,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
+                  minLength={flow === "signUp" ? 8 : undefined}
                   autoComplete={flow === "signIn" ? "current-password" : "new-password"}
                   disabled={submitting}
                   className="h-11 rounded-xl px-4 text-base"
