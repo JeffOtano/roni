@@ -78,12 +78,17 @@ describe("StaleCta", () => {
   });
 
   it("does not show CTA for an entry trained exactly at the 7-day boundary", () => {
-    // Exactly 7 days ago should NOT be stale (boundary condition: < now - SEVEN_DAYS_MS)
-    const sevenDaysAgo = new Date(Date.now() - SEVEN_DAYS_MS).toISOString();
+    // Freeze time so test and component see the same Date.now()
+    const frozenNow = Date.now();
+    vi.useFakeTimers({ now: frozenNow });
+
+    const sevenDaysAgo = new Date(frozenNow - SEVEN_DAYS_MS).toISOString();
     const data = [{ targetArea: "Full Body", count: 1, lastTrainedDate: sevenDaysAgo }];
 
     const { container } = render(<StaleCta data={data} />);
 
     expect(container.firstChild).toBeNull();
+
+    vi.useRealTimers();
   });
 });

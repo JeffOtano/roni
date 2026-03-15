@@ -211,7 +211,7 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
-    .index("by_activityId", ["activityId"]),
+    .index("by_userId_activityId", ["userId", "activityId"]),
 
   /** Training blocks (mesocycles) for periodization. */
   trainingBlocks: defineTable({
