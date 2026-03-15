@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action, internalAction, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
@@ -25,6 +25,7 @@ export const createThread = mutation({
   },
 });
 
+/** @deprecated Use sendMessageMutation for in-thread messages. Retained for welcome flow (no threadId). */
 export const sendMessage = action({
   args: {
     threadId: v.optional(v.string()),
@@ -95,5 +96,98 @@ export const listMessages = query({
       streamArgs: args.streamArgs,
     });
     return { ...paginated, streams };
+  },
+});
+
+export const respondToToolApproval = mutation({
+  args: {
+    threadId: v.string(),
+    approvalId: v.string(),
+    approved: v.boolean(),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, { threadId, approvalId, approved, reason }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    let messageId: string;
+    if (approved) {
+      ({ messageId } = await coachAgent.approveToolCall(ctx, {
+        threadId,
+        approvalId,
+        reason,
+      }));
+    } else {
+      ({ messageId } = await coachAgent.denyToolCall(ctx, {
+        threadId,
+        approvalId,
+        reason,
+      }));
+    }
+    return { messageId };
+  },
+});
+
+export const continueAfterApproval = action({
+  args: {
+    threadId: v.string(),
+    messageId: v.string(),
+  },
+  handler: async (ctx, { threadId, messageId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { thread } = await coachAgent.continueThread(ctx, {
+      threadId,
+      userId,
+    });
+
+    await thread.streamText(
+      { promptMessageId: messageId },
+      { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+    );
+  },
+});
+
+export const sendMessageMutation = mutation({
+  args: {
+    prompt: v.string(),
+    threadId: v.string(),
+  },
+  handler: async (ctx, { prompt, threadId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    await rateLimiter.limit(ctx, "sendMessage", {
+      key: userId,
+      throws: true,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.chat.processMessage, {
+      threadId,
+      userId,
+      prompt,
+    });
+
+    return { threadId };
+  },
+});
+
+export const processMessage = internalAction({
+  args: {
+    threadId: v.string(),
+    userId: v.string(),
+    prompt: v.string(),
+  },
+  handler: async (ctx, { threadId, userId, prompt }) => {
+    const { thread } = await coachAgent.continueThread(ctx, {
+      threadId,
+      userId,
+    });
+
+    await thread.streamText(
+      { prompt },
+      { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+    );
   },
 });
