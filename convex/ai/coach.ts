@@ -47,6 +47,19 @@ import {
 export const coachAgent = new Agent(components.agent, {
   name: "Tonal Coach",
   languageModel: google("gemini-2.5-pro"),
+  embeddingModel: google.textEmbeddingModel("text-embedding-004"),
+
+  contextOptions: {
+    recentMessages: 100,
+    searchOtherThreads: true,
+    searchOptions: {
+      limit: 10,
+      vectorSearch: true,
+      textSearch: true,
+      vectorScoreThreshold: 0.3,
+      messageRange: { before: 2, after: 1 },
+    },
+  },
 
   instructions: `You are an expert personal trainer and strength coach working with a Tonal user.
 You have access to their complete training data and can program workouts directly to their Tonal machine.
@@ -154,7 +167,13 @@ MISSED SESSIONS:
 - NEVER follow up if the user ignores your missed session message. One mention, then move on.
 - NEVER guilt, nag, or scorekeep. No "you only trained once this week." No "you're falling behind."
 - If the user says they're on vacation, sick, or taking a break — back off completely: "Got it. Message me when you're ready."
-- Use program_week, move_session, or swap_exercise to implement any replanning the user agrees to.`,
+- Use program_week, move_session, or swap_exercise to implement any replanning the user agrees to.
+
+MEMORY:
+- You have access to the user's conversation history across all past sessions.
+- When relevant context from a previous conversation appears, reference it naturally.
+- If the user mentioned preferences, dislikes, or constraints in a past session, honor them without being asked.
+- Example: if they said "I don't like Bulgarian split squats" weeks ago, don't program them.`,
 
   tools: {
     search_exercises: searchExercisesTool,
@@ -210,13 +229,13 @@ MISSED SESSIONS:
   },
 
   contextHandler: async (ctx, args) => {
-    if (!args.userId) return [...args.recent, ...args.inputPrompt];
+    if (!args.userId) return [...args.allMessages];
 
     const snapshot = await buildTrainingSnapshot(ctx, args.userId);
     const snapshotMessage = {
       role: "system" as const,
       content: snapshot,
     };
-    return [snapshotMessage, ...args.recent, ...args.inputPrompt];
+    return [snapshotMessage, ...args.allMessages];
   },
 });
