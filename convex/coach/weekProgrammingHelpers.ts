@@ -11,12 +11,12 @@ import type { Id } from "../_generated/dataModel";
 // ---------------------------------------------------------------------------
 
 export const SESSION_DURATION_TO_MAX_EXERCISES: Record<number, number> = {
-  30: 5,
-  45: 7,
-  60: 9,
+  30: 6,
+  45: 8,
+  60: 10,
 };
 
-export const DEFAULT_MAX_EXERCISES = 7;
+export const DEFAULT_MAX_EXERCISES = 8;
 
 /** Session type to target muscle groups (Tonal names). */
 export const SESSION_TYPE_MUSCLES: Record<string, string[]> = {
