@@ -56,7 +56,11 @@ export const getMuscleReadiness = action({
 // ---------------------------------------------------------------------------
 
 export function isTonalWorkout(a: Activity): boolean {
-  return a.workoutPreview?.totalVolume > 0 || a.workoutPreview?.workoutId !== "";
+  const wp = a.workoutPreview;
+  if (!wp) return false;
+  // Must have actual volume (weight lifted) — external activities (Apple Watch, etc.)
+  // sync into Tonal with workoutId but zero volume and no set data.
+  return wp.totalVolume > 0;
 }
 
 export const getWorkoutHistory = action({

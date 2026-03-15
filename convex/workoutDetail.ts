@@ -164,8 +164,6 @@ export const getWorkoutHistoryFull = action({
       limit: limit + 10,
     })) as Activity[];
 
-    return all
-      .filter((a) => a.workoutPreview?.totalVolume > 0 || a.workoutPreview?.workoutId !== "")
-      .slice(0, limit);
+    return all.filter((a) => a.workoutPreview?.totalVolume > 0).slice(0, limit);
   },
 });
