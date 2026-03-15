@@ -4,10 +4,10 @@
  * the local `status` field is a cache/hint kept approximately correct.
  */
 
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { getWeekStartDateString } from "./weekPlanHelpers";
 import type { Activity } from "./tonal/types";
 

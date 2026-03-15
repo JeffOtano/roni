@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   action,
   internalAction,
@@ -6,7 +7,6 @@ import {
   internalQuery,
   query,
 } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { blockInputValidator } from "./validators";

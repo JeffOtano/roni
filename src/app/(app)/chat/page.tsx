@@ -60,7 +60,7 @@ function ChatPageInner() {
     return (
       <div className="flex h-full flex-col">
         <div className="flex flex-1 flex-col items-center justify-center px-4">
-          <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)]">
+          <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-linear-to-br from-primary to-[oklch(0.6_0.22_300)]">
             <Sparkles className="size-6 text-white" />
           </div>
 
@@ -100,8 +100,9 @@ function ChatPageInner() {
 
   // Loading state (activeThread is undefined = query still loading)
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex h-full items-center justify-center" role="status">
       <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <span className="sr-only">Loading chat...</span>
     </div>
   );
 }
@@ -143,12 +144,14 @@ function WelcomeInput({
           placeholder="Ask your coach..."
           disabled={sending}
           rows={1}
+          aria-label="Message input"
           className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
         />
         <Button
           size="icon"
           onClick={handleSend}
           disabled={sending || !input.trim()}
+          aria-label={sending ? "Sending message" : "Send message"}
           className="mb-0.5 min-h-[44px] min-w-[44px] rounded-xl"
         >
           {sending ? (

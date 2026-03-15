@@ -3,12 +3,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 function ShimmerBar({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-primary/[0.06] ${className ?? ""}`} />;
+  return <div className={`animate-pulse rounded-md bg-primary/6 ${className ?? ""}`} />;
 }
 
 export function DashboardCardSkeleton({ tall }: { tall?: boolean }) {
   return (
-    <Card className={tall ? "min-h-[300px]" : "min-h-[200px]"}>
+    <Card className={tall ? "min-h-[300px]" : "min-h-[200px]"} role="status" aria-label="Loading">
       <CardHeader>
         <ShimmerBar className="h-4 w-32" />
       </CardHeader>

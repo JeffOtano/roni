@@ -76,7 +76,9 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
               </button>
             </div>
           )}
-          <MessageList messages={allMessages} userInitial={userInitial} threadId={threadId} />
+          <div role="log" aria-live="polite" aria-label="Chat messages">
+            <MessageList messages={allMessages} userInitial={userInitial} threadId={threadId} />
+          </div>
           {isThinking && <ThinkingIndicator />}
           <div ref={bottomRef} className="h-4" />
         </div>

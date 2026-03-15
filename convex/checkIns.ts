@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   type ActionCtx,
   internalAction,
@@ -7,10 +8,9 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { getMessageForTrigger } from "./checkIns/content";
-import { Id } from "./_generated/dataModel";
 
 const triggerValidator = v.union(
   v.literal("missed_session"),

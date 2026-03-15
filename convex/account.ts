@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { action, internalQuery, mutation, query } from "./_generated/server";
 import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@convex-dev/auth/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 export const getFullProfile = query({

@@ -94,10 +94,13 @@ export default function LoginPage() {
         >
           tonal.coach
         </Link>
+        <h1 className="sr-only">
+          {flow === "signIn" ? "Sign in to tonal.coach" : "Create a tonal.coach account"}
+        </h1>
 
         {/* Glassmorphic card */}
         <div
-          className="rounded-2xl p-[1px]"
+          className="rounded-2xl p-px"
           style={{
             background:
               "linear-gradient(135deg, oklch(1 0 0 / 12%), oklch(0.78 0.154 195 / 20%), oklch(1 0 0 / 8%))",
@@ -127,6 +130,7 @@ export default function LoginPage() {
                   required
                   autoComplete="email"
                   disabled={submitting}
+                  aria-describedby={error ? "login-error" : undefined}
                   className="h-11 rounded-xl px-4 text-base"
                 />
               </div>
@@ -145,11 +149,16 @@ export default function LoginPage() {
                   minLength={flow === "signUp" ? 8 : undefined}
                   autoComplete={flow === "signIn" ? "current-password" : "new-password"}
                   disabled={submitting}
+                  aria-describedby={error ? "login-error" : undefined}
                   className="h-11 rounded-xl px-4 text-base"
                 />
               </div>
 
-              {error && <ErrorAlert message={error} />}
+              {error && (
+                <div id="login-error">
+                  <ErrorAlert message={error} />
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -158,7 +167,12 @@ export default function LoginPage() {
                 disabled={submitting}
               >
                 {submitting ? (
-                  <Loader2 className="size-5 animate-spin" />
+                  <>
+                    <Loader2 className="size-5 animate-spin" />
+                    <span className="sr-only">
+                      {flow === "signIn" ? "Signing in..." : "Signing up..."}
+                    </span>
+                  </>
                 ) : flow === "signIn" ? (
                   "Sign In"
                 ) : (

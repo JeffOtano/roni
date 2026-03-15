@@ -3,8 +3,8 @@
  * Extracted to keep weekProgramming.ts under the 300-line limit.
  */
 
-import type { BlockInput } from "../tonal/transforms";
 import type { Id } from "../_generated/dataModel";
+import type { BlockInput } from "../tonal/transforms";
 import { DELOAD_REPS, DELOAD_SET_MULTIPLIER } from "../coach/periodization";
 
 // ---------------------------------------------------------------------------

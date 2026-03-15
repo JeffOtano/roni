@@ -1,5 +1,9 @@
 /** Progress photos: encrypted at rest, user-only. Requires PROGRESS_PHOTOS_ENCRYPTION_KEY (hex). */
 
+import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { generateText } from "ai";
+import { google } from "@ai-sdk/google";
 import {
   action,
   internalAction,
@@ -9,11 +13,7 @@ import {
   query,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { decrypt, encrypt } from "./tonal/encryption";
-import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
 
 export const MAX_IMAGE_BASE64_LENGTH = 4 * 1024 * 1024;
 

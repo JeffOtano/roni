@@ -79,130 +79,134 @@ export default function HomePage() {
       <style dangerouslySetInnerHTML={{ __html: ANIM_STYLES }} />
 
       {/* Nav */}
-      <nav className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12">
+      <nav
+        aria-label="Main"
+        className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12"
+      >
         <span className="text-xl font-bold tracking-tight text-foreground">tonal.coach</span>
         <AuthCta variant="nav" />
       </nav>
 
-      {/* Hero */}
-      <section className="relative flex flex-1 flex-col items-center justify-center px-6 py-32 text-center sm:py-40">
-        {/* Animated orb */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+      <main>
+        {/* Hero */}
+        <section className="relative flex flex-1 flex-col items-center justify-center px-6 py-32 text-center sm:py-40">
+          {/* Animated orb */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+            <div
+              className="orb-animated h-[500px] w-[500px] rounded-full blur-[120px] sm:h-[700px] sm:w-[700px]"
+              style={{
+                background:
+                  "conic-gradient(from 0deg, oklch(0.78 0.154 195), oklch(0.65 0.19 265), oklch(0.6 0.22 300), oklch(0.78 0.154 195))",
+                animation: "float-orb 20s ease-in-out infinite",
+              }}
+            />
+          </div>
+
+          <div className="relative z-10 mx-auto max-w-3xl">
+            <h1
+              className="anim-fade-up text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              The personal trainer your Tonal deserves
+            </h1>
+            <p className="anim-fade-up anim-delay-1 mx-auto mt-8 max-w-lg text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              AI coaching powered by your real training data. Get personalized advice, push custom
+              workouts, and track your progress.
+            </p>
+            <div className="anim-fade-up anim-delay-2 mt-10">
+              <AuthCta variant="hero" />
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="border-t border-border px-6 py-24 sm:px-8">
+          <div className="mx-auto max-w-5xl">
+            <p className="anim-fade-up mb-4 text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
+              Everything you need
+            </p>
+            <h2 className="anim-fade-up anim-delay-1 mx-auto mb-16 max-w-md text-center text-3xl font-bold tracking-tight text-foreground">
+              The missing piece for your Tonal
+            </h2>
+
+            {/* First row: 2 larger cards */}
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+              {FEATURES.slice(0, 2).map(({ icon: Icon, title, description, badge }) => (
+                <FeatureCard
+                  key={title}
+                  Icon={Icon}
+                  title={title}
+                  description={description}
+                  badge={badge}
+                  large
+                />
+              ))}
+            </div>
+
+            {/* Second row: 3 smaller cards */}
+            <div className="mt-3 grid gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {FEATURES.slice(2).map(({ icon: Icon, title, description, badge }) => (
+                <FeatureCard
+                  key={title}
+                  Icon={Icon}
+                  title={title}
+                  description={description}
+                  badge={badge}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Social proof */}
+        <section className="border-t border-border px-6 py-20">
           <div
-            className="orb-animated h-[500px] w-[500px] rounded-full blur-[120px] sm:h-[700px] sm:w-[700px]"
+            className="mx-auto max-w-lg rounded-2xl p-px"
             style={{
               background:
-                "conic-gradient(from 0deg, oklch(0.78 0.154 195), oklch(0.65 0.19 265), oklch(0.6 0.22 300), oklch(0.78 0.154 195))",
-              animation: "float-orb 20s ease-in-out infinite",
-            }}
-          />
-        </div>
-
-        <div className="relative z-10 mx-auto max-w-3xl">
-          <h1
-            className="anim-fade-up text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl"
-            style={{
-              background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+                "linear-gradient(135deg, oklch(0.78 0.154 195 / 40%), oklch(0.6 0.22 300 / 40%))",
             }}
           >
-            The personal trainer your Tonal deserves
-          </h1>
-          <p className="anim-fade-up anim-delay-1 mx-auto mt-8 max-w-lg text-lg leading-relaxed text-muted-foreground sm:text-xl">
-            AI coaching powered by your real training data. Get personalized advice, push custom
-            workouts, and track your progress.
-          </p>
-          <div className="anim-fade-up anim-delay-2 mt-10">
-            <AuthCta variant="hero" />
+            <blockquote className="rounded-2xl bg-card px-8 py-10 text-center">
+              <span
+                className="block text-5xl font-bold leading-none"
+                style={{ color: "oklch(0.78 0.154 195 / 30%)" }}
+                aria-hidden="true"
+              >
+                &ldquo;
+              </span>
+              <p className="mt-2 text-xl font-medium text-foreground">
+                Built by a Tonal owner, for Tonal owners.
+              </p>
+              <span
+                className="mt-2 block text-5xl font-bold leading-none"
+                style={{ color: "oklch(0.78 0.154 195 / 30%)" }}
+                aria-hidden="true"
+              >
+                &rdquo;
+              </span>
+            </blockquote>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Features */}
-      <section className="border-t border-border px-6 py-24 sm:px-8">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="anim-fade-up mb-4 text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
-            Everything you need
+        {/* Bottom CTA */}
+        <section className="border-t border-border px-6 py-24 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
+            Ready to level up your training?
           </h2>
-          <p className="anim-fade-up anim-delay-1 mx-auto mb-16 max-w-md text-center text-3xl font-bold tracking-tight text-foreground">
-            The missing piece for your Tonal
+          <p className="mt-6 text-lg text-muted-foreground">
+            Connect your Tonal and start coaching in minutes.
           </p>
-
-          {/* First row: 2 larger cards */}
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
-            {FEATURES.slice(0, 2).map(({ icon: Icon, title, description, badge }) => (
-              <FeatureCard
-                key={title}
-                Icon={Icon}
-                title={title}
-                description={description}
-                badge={badge}
-                large
-              />
-            ))}
+          <div className="mt-10">
+            <AuthCta variant="bottom" />
           </div>
-
-          {/* Second row: 3 smaller cards */}
-          <div className="mt-3 grid gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-            {FEATURES.slice(2).map(({ icon: Icon, title, description, badge }) => (
-              <FeatureCard
-                key={title}
-                Icon={Icon}
-                title={title}
-                description={description}
-                badge={badge}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Social proof */}
-      <section className="border-t border-border px-6 py-20">
-        <div
-          className="mx-auto max-w-lg rounded-2xl p-[1px]"
-          style={{
-            background:
-              "linear-gradient(135deg, oklch(0.78 0.154 195 / 40%), oklch(0.6 0.22 300 / 40%))",
-          }}
-        >
-          <blockquote className="rounded-2xl bg-card px-8 py-10 text-center">
-            <span
-              className="block text-5xl font-bold leading-none"
-              style={{ color: "oklch(0.78 0.154 195 / 30%)" }}
-              aria-hidden="true"
-            >
-              &ldquo;
-            </span>
-            <p className="mt-2 text-xl font-medium text-foreground">
-              Built by a Tonal owner, for Tonal owners.
-            </p>
-            <span
-              className="mt-2 block text-5xl font-bold leading-none"
-              style={{ color: "oklch(0.78 0.154 195 / 30%)" }}
-              aria-hidden="true"
-            >
-              &rdquo;
-            </span>
-          </blockquote>
-        </div>
-      </section>
-
-      {/* Bottom CTA */}
-      <section className="border-t border-border px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Ready to level up your training?
-        </h2>
-        <p className="mt-6 text-lg text-muted-foreground">
-          Connect your Tonal and start coaching in minutes.
-        </p>
-        <div className="mt-10">
-          <AuthCta variant="bottom" />
-        </div>
-      </section>
-
+        </section>
+      </main>
       {/* Footer */}
       <footer className="border-t border-border px-6 py-10 text-center">
         <p className="text-sm text-muted-foreground">
@@ -240,6 +244,7 @@ function FeatureCard({
             }}
           >
             <Icon
+              aria-hidden="true"
               className="text-primary"
               style={{ width: large ? 22 : 18, height: large ? 22 : 18 }}
             />

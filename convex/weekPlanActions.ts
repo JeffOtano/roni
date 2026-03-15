@@ -1,8 +1,8 @@
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { preferredSplitValidator } from "./weekPlanHelpers";
 
 export const programWeek = internalAction({
