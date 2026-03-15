@@ -3,32 +3,11 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
-interface EnrichedSet {
-  id: string;
-  movementId: string;
-  movementName: string | null;
-  prescribedReps: number;
-  repetition: number;
-  repetitionTotal: number;
-  blockNumber: number;
-  spotter: boolean;
-  eccentric: boolean;
-  chains: boolean;
-  warmUp: boolean;
-  weightPercentage?: number;
-}
+import type {
+  EnrichedSetActivity,
+  EnrichedWorkoutDetail,
+} from "../../../../../convex/workoutDetail";
 
-interface EnrichedWorkoutDetail {
-  id: string;
-  beginTime: string;
-  endTime: string;
-  totalDuration: number;
-  totalVolume: number;
-  totalSets: number;
-  totalReps: number;
-  percentCompleted: number;
-  workoutSetActivity: EnrichedSet[];
-}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { ArrowLeft, Clock, Dumbbell, MessageSquare, Weight } from "lucide-react";
 import { api } from "../../../../../convex/_generated/api";
-
-// Helpers
 
 function formatDuration(seconds: number): string {
   const mins = Math.round(seconds / 60);
@@ -62,8 +39,8 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function groupSetsByBlock(sets: EnrichedSet[]): Map<number, EnrichedSet[]> {
-  const blocks = new Map<number, EnrichedSet[]>();
+function groupSetsByBlock(sets: EnrichedSetActivity[]): Map<number, EnrichedSetActivity[]> {
+  const blocks = new Map<number, EnrichedSetActivity[]>();
   for (const set of sets) {
     const block = set.blockNumber;
     const existing = blocks.get(block);
@@ -75,8 +52,6 @@ function groupSetsByBlock(sets: EnrichedSet[]): Map<number, EnrichedSet[]> {
   }
   return blocks;
 }
-
-// Loading skeleton
 
 function WorkoutDetailSkeleton() {
   return (
@@ -97,11 +72,9 @@ function WorkoutDetailSkeleton() {
   );
 }
 
-// Set row
-
-function SetRow({ set }: { set: EnrichedSet }) {
+function SetRow({ set }: { set: EnrichedSetActivity }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2.5 text-sm">
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-white/2 px-3 py-2 text-sm">
       <div className="flex items-center gap-2">
         <span className="tabular-nums text-muted-foreground">
           {set.repetition}/{set.repetitionTotal}
@@ -115,22 +88,22 @@ function SetRow({ set }: { set: EnrichedSet }) {
       </div>
       <div className="flex gap-1.5">
         {set.spotter && (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-[10px]">
             Spotter
           </Badge>
         )}
         {set.eccentric && (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-[10px]">
             Eccentric
           </Badge>
         )}
         {set.chains && (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-[10px]">
             Chains
           </Badge>
         )}
         {set.warmUp && (
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-[10px]">
             Warm-up
           </Badge>
         )}
@@ -138,8 +111,6 @@ function SetRow({ set }: { set: EnrichedSet }) {
     </div>
   );
 }
-
-// Page
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = use(params);
@@ -152,7 +123,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
   const fetch = useCallback(() => {
     setState({ status: "loading" });
     getDetail({ activityId }).then(
-      (data: EnrichedWorkoutDetail) => setState({ status: "success", data }),
+      (data) => setState({ status: "success", data }),
       () => setState({ status: "error" }),
     );
   }, [getDetail, activityId]);
@@ -205,7 +176,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {formatDuration(detail.totalDuration)}
             </span>
-            <span className="text-xs text-muted-foreground">Duration</span>
+            <span className="text-[10px] text-muted-foreground">Duration</span>
           </CardContent>
         </Card>
         <Card size="sm">
@@ -214,7 +185,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {formatVolume(detail.totalVolume)}
             </span>
-            <span className="text-xs text-muted-foreground">Volume</span>
+            <span className="text-[10px] text-muted-foreground">Volume</span>
           </CardContent>
         </Card>
         <Card size="sm">
@@ -223,7 +194,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {detail.totalSets}
             </span>
-            <span className="text-xs text-muted-foreground">Sets</span>
+            <span className="text-[10px] text-muted-foreground">Sets</span>
           </CardContent>
         </Card>
         <Card size="sm">
@@ -234,30 +205,27 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <span className="text-lg font-bold tabular-nums text-foreground">
               {Math.round(detail.percentCompleted)}%
             </span>
-            <span className="text-xs text-muted-foreground">Completed</span>
+            <span className="text-[10px] text-muted-foreground">Completed</span>
           </CardContent>
         </Card>
       </div>
 
       {/* Exercise blocks */}
       <div className="mt-8 space-y-4">
-        {Array.from(blocks.entries()).map(([blockNum, sets]) => {
-          const exerciseName = sets[0]?.movementName ?? `Block ${blockNum}`;
-          return (
-            <Card key={blockNum}>
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
-                  {exerciseName}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {sets.map((set) => (
-                  <SetRow key={set.id} set={set} />
-                ))}
-              </CardContent>
-            </Card>
-          );
-        })}
+        {Array.from(blocks.entries()).map(([blockNum, sets]) => (
+          <Card key={blockNum}>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                Block {blockNum}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {sets.map((set) => (
+                <SetRow key={set.id} set={set} />
+              ))}
+            </CardContent>
+          </Card>
+        ))}
 
         {blocks.size === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
@@ -273,28 +241,6 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
             <MessageSquare className="size-4" />
             Ask coach about this workout
           </Button>
-        </Link>
-      </div>
-
-      {/* What's next */}
-      <div className="mt-8 flex flex-wrap gap-2">
-        <Link
-          href={`/chat?prompt=${encodeURIComponent(`Program a similar workout to my session on ${formatDate(detail.beginTime)}`)}`}
-          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
-        >
-          Train this again &rarr;
-        </Link>
-        <Link
-          href="/exercises"
-          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
-        >
-          View exercises &rarr;
-        </Link>
-        <Link
-          href="/stats"
-          className="rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
-        >
-          View stats &rarr;
         </Link>
       </div>
     </div>
