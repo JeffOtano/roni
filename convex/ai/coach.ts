@@ -1,6 +1,7 @@
 import { Agent } from "@convex-dev/agent";
 import { google } from "@ai-sdk/google";
-import { components } from "../_generated/api";
+import { components, internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { buildTrainingSnapshot } from "./context";
 import {
   compareProgressPhotosTool,
@@ -28,6 +29,20 @@ import {
   getWorkoutPerformanceTool,
   programWeekTool,
 } from "./weekTools";
+import {
+  advanceTrainingBlockTool,
+  checkDeloadTool,
+  getGoalsTool,
+  getInjuriesTool,
+  getRecentFeedbackTool,
+  getWeeklyVolumeTool,
+  recordFeedbackTool,
+  reportInjuryTool,
+  resolveInjuryTool,
+  setGoalTool,
+  startTrainingBlockTool,
+  updateGoalProgressTool,
+} from "./coachingTools";
 
 export const coachAgent = new Agent(components.agent, {
   name: "Tonal Coach",
@@ -67,6 +82,58 @@ PROGRESSIVE OVERLOAD:
 - For plateaus (3+ flat sessions), present options: add a set, increase weight, or rotate the exercise. Ask before acting.
 - For regressions, be curious not judgmental: "Bench was down from 69 to 61. Off day or something going on?"
 - Never shame a regression. Acknowledge it, ask, and adapt.
+
+POST-WORKOUT FEEDBACK:
+- After discussing any completed workout, ALWAYS ask: "How did that session feel? Rate 1-5 and give me an RPE (1=easy, 10=max effort)."
+- Use record_feedback to save the response. This data directly affects future programming.
+- If RPE is consistently 8+, suggest backing off intensity or taking a deload.
+- If RPE is consistently 4-5, suggest increasing weight or volume.
+- If rating is 1-2, ask what went wrong and adjust.
+- Reference recent feedback when programming: "Your last 3 sessions averaged RPE 8.2 — let's back off this week."
+
+PERIODIZATION & DELOADS:
+- Before programming a new week, ALWAYS call check_deload to see if a deload is warranted.
+- Training follows a mesocycle: 3 weeks building intensity → 1 week deload → repeat.
+- During deload weeks: fewer sets (2 instead of 3), lighter reps (8), same exercises. Tell the user: "This is a deload week — lighter volume to let your body recover and come back stronger."
+- Use start_training_block when beginning a new mesocycle. Use advance_training_block after each week is programmed.
+- If the user has no active training block, start one automatically when they first program a week.
+- Never skip deloads. They prevent injury and enable long-term progress.
+
+GOAL TRACKING:
+- During early conversations, help the user set 1-2 measurable goals using set_goal. E.g., "Let's set a target: increase your bench press from 65 to 80 lbs in 8 weeks."
+- Use get_goals to check progress. After analyzing workout performance, call update_goal_progress when you notice improvement.
+- Reference goals naturally: "You're at 72 lbs on bench — 60% of the way to your 80 lb target."
+- When a goal is achieved, celebrate and suggest the next goal.
+- Goals should be SMART: Specific, Measurable, Achievable, Relevant, Time-bound.
+
+INJURY MANAGEMENT:
+- When a user mentions pain, discomfort, or an injury, IMMEDIATELY use report_injury to record it.
+- Always recommend seeing a professional for anything beyond mild discomfort.
+- The avoidance field should contain exercise name keywords to exclude: e.g., "overhead, press" for shoulder issues.
+- Active injuries automatically restrict exercise selection in future programming.
+- Periodically ask if injuries have improved. Use resolve_injury when they confirm recovery.
+- Never program exercises that could aggravate an active injury, even if the user asks.
+
+WARM-UP & COOL-DOWN:
+- For every workout, program a proper warm-up phase before the working sets:
+  - 1-2 activation exercises for the primary muscles (light weight, higher reps: 15-20)
+  - The first compound movement should start with a warm-up set at 50% of working weight
+- Suggest a brief cool-down at the end: "After your last set, do 2-3 minutes of light stretching on the muscles you trained."
+- For leg days, always include hip/ankle mobility in the warm-up.
+- For upper body days, include band pull-aparts or face pulls for shoulder health.
+
+VOLUME MANAGEMENT:
+- Use get_weekly_volume to check if muscle groups are getting enough (or too much) training.
+- Evidence-based targets: 10-20 sets per muscle group per week for hypertrophy.
+- If a muscle group is under-trained (<10 sets/week), suggest adding an exercise or extra set.
+- If over-trained (>20 sets/week), suggest reducing volume to prevent burnout.
+- Reference volume data when discussing training balance: "Your chest is getting 18 sets/week (solid), but back only has 8 — let's add a row variation."
+
+EXERCISE ROTATION:
+- Exercises are automatically rotated across weeks to prevent staleness and ensure balanced development.
+- The selection engine deprioritizes exercises used in the last 2-3 weeks, favoring fresh movement patterns.
+- When the user asks "why this exercise?", explain the rotation: "We had flat bench last two weeks, so I'm switching to incline to hit upper chest from a different angle."
+- If a user prefers a specific exercise, they can request it — rotation is a preference, not a rule.
 
 ACTIVATION FLOW (First Conversation):
 - On the user's FIRST conversation, lead with value — never start with "How can I help you?"
@@ -110,9 +177,37 @@ MISSED SESSIONS:
     swap_exercise: swapExerciseTool,
     move_session: moveSessionTool,
     adjust_session_duration: adjustSessionDurationTool,
+    // Coaching features
+    record_feedback: recordFeedbackTool,
+    get_recent_feedback: getRecentFeedbackTool,
+    check_deload: checkDeloadTool,
+    start_training_block: startTrainingBlockTool,
+    advance_training_block: advanceTrainingBlockTool,
+    set_goal: setGoalTool,
+    update_goal_progress: updateGoalProgressTool,
+    get_goals: getGoalsTool,
+    report_injury: reportInjuryTool,
+    resolve_injury: resolveInjuryTool,
+    get_injuries: getInjuriesTool,
+    get_weekly_volume: getWeeklyVolumeTool,
   },
 
   maxSteps: 15,
+
+  usageHandler: async (ctx, { userId, threadId, agentName, usage, model, provider }) => {
+    await ctx.runMutation(internal.aiUsage.record, {
+      userId: userId as Id<"users"> | undefined,
+      threadId,
+      agentName,
+      model,
+      provider,
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+      totalTokens: usage.totalTokens ?? 0,
+      cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
+      cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
+    });
+  },
 
   contextHandler: async (ctx, args) => {
     if (!args.userId) return [...args.recent, ...args.inputPrompt];

@@ -194,6 +194,96 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_calledAt", ["userId", "calledAt"]),
 
+  /** Post-workout feedback (RPE, session rating, notes). */
+  workoutFeedback: defineTable({
+    userId: v.id("users"),
+    /** Links to the Tonal activity ID (from workout history). */
+    activityId: v.string(),
+    /** Optional link to the workout plan that programmed this session. */
+    workoutPlanId: v.optional(v.id("workoutPlans")),
+    /** Rate of Perceived Exertion: 1 (very easy) to 10 (max effort). */
+    rpe: v.number(),
+    /** Overall session rating: 1 (terrible) to 5 (great). */
+    rating: v.number(),
+    /** Optional free-text notes ("shoulder felt tight", "best session in weeks"). */
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_activityId", ["activityId"]),
+
+  /** Training blocks (mesocycles) for periodization. */
+  trainingBlocks: defineTable({
+    userId: v.id("users"),
+    /** Block label: "Building Phase", "Deload", etc. */
+    label: v.string(),
+    /** Block type determines intensity programming. */
+    blockType: v.union(v.literal("building"), v.literal("deload"), v.literal("testing")),
+    /** Which week number within the block (1-indexed). */
+    weekNumber: v.number(),
+    /** Total weeks planned for this block. */
+    totalWeeks: v.number(),
+    /** ISO date string for the Monday this block started. */
+    startDate: v.string(),
+    /** Set when the block is finished. */
+    endDate: v.optional(v.string()),
+    /** Active = current block. Only one active per user. */
+    status: v.union(v.literal("active"), v.literal("completed")),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"]),
+
+  /** Measurable training goals with deadlines and progress tracking. */
+  goals: defineTable({
+    userId: v.id("users"),
+    /** e.g. "Increase Bench Press by 20 lbs" */
+    title: v.string(),
+    /** Category helps the coach prioritize. */
+    category: v.union(
+      v.literal("strength"),
+      v.literal("volume"),
+      v.literal("consistency"),
+      v.literal("body_composition"),
+    ),
+    /** Specific metric being tracked (e.g. "bench_press_avg_weight"). */
+    metric: v.string(),
+    /** Starting value when goal was created. */
+    baselineValue: v.number(),
+    /** Target value to reach. */
+    targetValue: v.number(),
+    /** Current value (updated as workouts are completed). */
+    currentValue: v.number(),
+    /** ISO date string deadline. */
+    deadline: v.string(),
+    status: v.union(v.literal("active"), v.literal("achieved"), v.literal("abandoned")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"]),
+
+  /** Dynamic injury/limitation tracking (replaces static onboarding text). */
+  injuries: defineTable({
+    userId: v.id("users"),
+    /** Body area affected: "left shoulder", "lower back", etc. */
+    area: v.string(),
+    /** Severity guides programming decisions. */
+    severity: v.union(v.literal("mild"), v.literal("moderate"), v.literal("severe")),
+    /** What to avoid: "overhead pressing", "heavy deadlifts", etc. */
+    avoidance: v.string(),
+    /** Optional notes from the user or coach. */
+    notes: v.optional(v.string()),
+    /** When the injury was first reported. */
+    reportedAt: v.number(),
+    /** When the injury was resolved (null = still active). */
+    resolvedAt: v.optional(v.number()),
+    status: v.union(v.literal("active"), v.literal("resolved")),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"]),
+
   /** Pending email change requests with verification codes. */
   emailChangeRequests: defineTable({
     userId: v.id("users"),
@@ -202,4 +292,20 @@ export default defineSchema({
     expiresAt: v.number(),
     usedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+
+  aiUsage: defineTable({
+    userId: v.optional(v.id("users")),
+    threadId: v.optional(v.string()),
+    agentName: v.optional(v.string()),
+    model: v.string(),
+    provider: v.string(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    totalTokens: v.number(),
+    cacheReadTokens: v.optional(v.number()),
+    cacheWriteTokens: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_createdAt", ["createdAt"]),
 });
