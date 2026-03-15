@@ -20,16 +20,9 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("lucide-react", async () => {
-  const React = await import("react");
-  return new Proxy(
-    {},
-    {
-      get: (_target, name: string) => (props: Record<string, unknown>) =>
-        React.createElement("span", { "data-icon": name, ...props }),
-    },
-  );
-});
+vi.mock("lucide-react", () => ({
+  ArrowRight: (props: Record<string, unknown>) => <span data-icon="ArrowRight" {...props} />,
+}));
 
 const BASE_READINESS: MuscleReadiness = {
   Chest: 80,
@@ -150,7 +143,13 @@ describe("MuscleReadinessMap", () => {
   });
 
   it("shows a rest day tips link when a muscle is fatigued (<= 30%)", () => {
-    const readiness: MuscleReadiness = { ...BASE_READINESS, Hamstrings: 15 };
+    // Override all originally-fatigued muscles above 30 so Hamstrings is the first fatigued entry
+    const readiness: MuscleReadiness = {
+      ...BASE_READINESS,
+      Glutes: 50,
+      Calves: 40,
+      Hamstrings: 15,
+    };
 
     render(<MuscleReadinessMap readiness={readiness} />);
 

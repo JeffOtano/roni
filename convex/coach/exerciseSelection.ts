@@ -30,6 +30,8 @@ export interface ExerciseSelectionInput {
     /** Exclude movements whose name contains any of these substrings (case-insensitive). E.g. ["Overhead"] for no overhead pressing. */
     excludeNameSubstrings?: string[];
   };
+  /** Movement IDs used in the last 2-3 weeks — deprioritized (not excluded) for rotation. */
+  recentWeeksMovementIds?: string[];
 }
 
 /**
@@ -49,11 +51,19 @@ export interface ExerciseSelectionInput {
  * @returns Ordered list of movement IDs (compound first, then isolation), length <= maxExercises. Returns empty list if catalog is empty or all candidates are excluded; caller should ensure catalog is loaded before calling.
  */
 export function selectExercises(input: ExerciseSelectionInput): string[] {
-  const { catalog, targetMuscleGroups, userLevel, maxExercises, lastUsedMovementIds, constraints } =
-    input;
+  const {
+    catalog,
+    targetMuscleGroups,
+    userLevel,
+    maxExercises,
+    lastUsedMovementIds,
+    constraints,
+    recentWeeksMovementIds,
+  } = input;
 
   const targetSet = new Set(targetMuscleGroups.map((g) => g.toLowerCase()));
   const lastUsedSet = new Set(lastUsedMovementIds);
+  const recentWeeksSet = new Set(recentWeeksMovementIds ?? []);
   const excludeSubstrings = (constraints?.excludeNameSubstrings ?? []).map((s) => s.toLowerCase());
 
   const eligible = catalog.filter((m) => {
@@ -74,18 +84,20 @@ export function selectExercises(input: ExerciseSelectionInput): string[] {
   const isCompound = (m: Movement): boolean => targetGroupCount(m) >= 2;
   const skillDelta = (m: Movement): number => Math.abs(m.skillLevel - userLevel);
 
-  const compounds = eligible.filter(isCompound).sort((a, b) => {
+  // Rotation penalty: exercises used in recent weeks sort lower (but aren't excluded)
+  const rotationPenalty = (m: Movement): number => (recentWeeksSet.has(m.id) ? 1 : 0);
+
+  const sortFn = (a: Movement, b: Movement): number => {
+    // Prefer exercises NOT used in recent weeks (rotation)
+    const rot = rotationPenalty(a) - rotationPenalty(b);
+    if (rot !== 0) return rot;
     const c = targetGroupCount(b) - targetGroupCount(a);
     if (c !== 0) return c;
     return skillDelta(a) - skillDelta(b);
-  });
-  const isolations = eligible
-    .filter((m) => !isCompound(m))
-    .sort((a, b) => {
-      const c = targetGroupCount(b) - targetGroupCount(a);
-      if (c !== 0) return c;
-      return skillDelta(a) - skillDelta(b);
-    });
+  };
+
+  const compounds = eligible.filter(isCompound).sort(sortFn);
+  const isolations = eligible.filter((m) => !isCompound(m)).sort(sortFn);
 
   const ordered = [...compounds, ...isolations];
   return ordered.slice(0, maxExercises).map((m) => m.id);

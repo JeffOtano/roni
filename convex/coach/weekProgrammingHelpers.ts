@@ -5,6 +5,7 @@
 
 import type { BlockInput } from "../tonal/transforms";
 import type { Id } from "../_generated/dataModel";
+import { DELOAD_REPS, DELOAD_SET_MULTIPLIER } from "../coach/periodization";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -141,6 +142,7 @@ export function parseUserLevel(level: string | undefined): number {
 export function blocksFromMovementIds(
   movementIds: string[],
   suggestions?: { movementId: string; suggestedReps?: number }[],
+  options?: { isDeload?: boolean },
 ): BlockInput[] {
   const repsByMovement = new Map<string, number>();
   for (const s of suggestions ?? []) {
@@ -148,12 +150,14 @@ export function blocksFromMovementIds(
       repsByMovement.set(s.movementId, s.suggestedReps);
     }
   }
+  const normalSets = 3;
+  const baseSets = options?.isDeload ? Math.round(normalSets * DELOAD_SET_MULTIPLIER) : normalSets;
   return [
     {
       exercises: movementIds.map((movementId) => ({
         movementId,
-        sets: 3,
-        reps: repsByMovement.get(movementId) ?? DEFAULT_REPS,
+        sets: baseSets,
+        reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
       })),
     },
   ];

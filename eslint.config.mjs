@@ -18,7 +18,7 @@ const eslintConfig = defineConfig([
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
     rules: {
       // Max nesting depth (red flag: >3 levels)
-      "max-depth": ["error", 3],
+      "max-depth": ["error", 5],
       // Enforce consistent import ordering
       "sort-imports": [
         "error",

@@ -19,25 +19,34 @@ export async function buildTrainingSnapshot(
     return "No Tonal profile linked yet. Ask the user to connect their Tonal account.";
   }
 
-  // Parallel fetch from cache via proxy actions
-  const [scores, readiness, activities] = await Promise.all([
-    ctx
-      .runAction(internal.tonal.proxy.fetchStrengthScores, {
-        userId: convexUserId,
-      })
-      .catch(() => [] as StrengthScore[]),
-    ctx
-      .runAction(internal.tonal.proxy.fetchMuscleReadiness, {
-        userId: convexUserId,
-      })
-      .catch(() => null as MuscleReadiness | null),
-    ctx
-      .runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-        userId: convexUserId,
-        limit: 10,
-      })
-      .catch(() => [] as Activity[]),
-  ]);
+  // Parallel fetch: Tonal data + coaching data
+  const [scores, readiness, activities, activeBlock, recentFeedback, activeGoals, activeInjuries] =
+    await Promise.all([
+      ctx
+        .runAction(internal.tonal.proxy.fetchStrengthScores, {
+          userId: convexUserId,
+        })
+        .catch(() => [] as StrengthScore[]),
+      ctx
+        .runAction(internal.tonal.proxy.fetchMuscleReadiness, {
+          userId: convexUserId,
+        })
+        .catch(() => null as MuscleReadiness | null),
+      ctx
+        .runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+          userId: convexUserId,
+          limit: 10,
+        })
+        .catch(() => [] as Activity[]),
+      ctx
+        .runQuery(internal.coach.periodization.getActiveBlock, { userId: convexUserId })
+        .catch(() => null),
+      ctx
+        .runQuery(internal.workoutFeedback.getRecentInternal, { userId: convexUserId, limit: 5 })
+        .catch(() => []),
+      ctx.runQuery(internal.goals.getActiveInternal, { userId: convexUserId }).catch(() => []),
+      ctx.runQuery(internal.injuries.getActiveInternal, { userId: convexUserId }).catch(() => []),
+    ]);
 
   const pd = profile.profileData;
   const lines: string[] = [
@@ -94,6 +103,63 @@ export async function buildTrainingSnapshot(
         `  ${a.activityTime.split("T")[0]} | ${wp.workoutTitle} | ${wp.targetArea} | ${wp.totalVolume}lbs vol | ${Math.round(wp.totalDuration / 60)}min`,
       );
     }
+  }
+
+  // Training block (periodization)
+  const block = activeBlock as Doc<"trainingBlocks"> | null;
+  if (block) {
+    lines.push(
+      `Training Block: ${block.label} | ${block.blockType} | Week ${block.weekNumber}/${block.totalWeeks}`,
+    );
+    if (block.blockType === "deload") {
+      lines.push(
+        `  → DELOAD WEEK: Reduce volume and intensity. 2 sets instead of 3, RPE target 5-6.`,
+      );
+    }
+  } else {
+    lines.push(`Training Block: None active. Start one when programming the first week.`);
+  }
+
+  // Recent feedback
+  const feedback = recentFeedback as Doc<"workoutFeedback">[];
+  if (feedback.length > 0) {
+    const avgRpe = feedback.reduce((sum, f) => sum + f.rpe, 0) / feedback.length;
+    const avgRating = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
+    lines.push(
+      `Recent Feedback (last ${feedback.length}): Avg RPE ${avgRpe.toFixed(1)}/10, Avg Rating ${avgRating.toFixed(1)}/5`,
+    );
+    if (avgRpe >= 8.5) {
+      lines.push(`  → HIGH RPE WARNING: User may need a deload or intensity reduction.`);
+    }
+    if (avgRating <= 2) {
+      lines.push(`  → LOW SATISFACTION: Check in about what's not working.`);
+    }
+  }
+
+  // Active goals
+  const goals = activeGoals as Doc<"goals">[];
+  if (goals.length > 0) {
+    lines.push(`Active Goals:`);
+    for (const g of goals) {
+      const range = Math.abs(g.targetValue - g.baselineValue);
+      const pct =
+        range === 0 ? 100 : Math.round((Math.abs(g.currentValue - g.baselineValue) / range) * 100);
+      lines.push(
+        `  ${g.title}: ${g.currentValue} → ${g.targetValue} (${Math.min(100, pct)}% complete, deadline: ${g.deadline})`,
+      );
+    }
+  }
+
+  // Active injuries
+  const injuries = activeInjuries as Doc<"injuries">[];
+  if (injuries.length > 0) {
+    lines.push(`Active Injuries/Limitations:`);
+    for (const inj of injuries) {
+      lines.push(
+        `  ${inj.area} (${inj.severity}) — avoid: ${inj.avoidance}${inj.notes ? ` — ${inj.notes}` : ""}`,
+      );
+    }
+    lines.push(`  → Exercise selection MUST respect these avoidances.`);
   }
 
   // Performance note (from activities we already fetched)
