@@ -38,6 +38,29 @@ function getGreeting(): string {
 // Smart coaching summary — synthesizes readiness, workouts, and frequency
 // ---------------------------------------------------------------------------
 
+/** Map Tonal target areas to muscle readiness keys. */
+const AREA_TO_MUSCLES: Record<string, string[]> = {
+  "Full Body": [
+    "Chest",
+    "Shoulders",
+    "Back",
+    "Triceps",
+    "Biceps",
+    "Quads",
+    "Glutes",
+    "Hamstrings",
+    "Calves",
+  ],
+  "Upper Body": ["Chest", "Shoulders", "Back", "Triceps", "Biceps"],
+  "Lower Body": ["Quads", "Glutes", "Hamstrings", "Calves"],
+  Chest: ["Chest"],
+  Back: ["Back"],
+  Shoulders: ["Shoulders"],
+  Arms: ["Triceps", "Biceps"],
+  Legs: ["Quads", "Glutes", "Hamstrings", "Calves"],
+  Core: ["Abs", "Obliques"],
+};
+
 function buildCoachingSummary(
   readiness: MuscleReadiness,
   workouts: Activity[],
@@ -80,9 +103,16 @@ function buildCoachingSummary(
         )
       : null;
 
+    // Find the freshest muscle that belongs to the stale training area
+    const relevantMuscles = AREA_TO_MUSCLES[staleTarget] ?? [];
+    const relevantFreshest =
+      relevantMuscles.length > 0
+        ? (entries.find((e) => relevantMuscles.includes(e.muscle)) ?? freshest)
+        : freshest;
+
     const daysText = staleDays ? ` in ${staleDays} days` : " recently";
-    message = `You haven't trained ${staleTarget.toLowerCase()}${daysText}. Your ${freshest.muscle.toLowerCase()} is at ${freshest.value}% readiness — a great time to hit it.`;
-    chatPrompt = `I haven't trained ${staleTarget.toLowerCase()}${daysText} and my ${freshest.muscle.toLowerCase()} readiness is ${freshest.value}%. Program me a workout for today.`;
+    message = `You haven't trained ${staleTarget.toLowerCase()}${daysText}. Your ${relevantFreshest.muscle.toLowerCase()} is at ${relevantFreshest.value}% readiness — a great time to hit it.`;
+    chatPrompt = `I haven't trained ${staleTarget.toLowerCase()}${daysText} and my ${relevantFreshest.muscle.toLowerCase()} readiness is ${relevantFreshest.value}%. Program me a workout for today.`;
   } else if (daysSinceLast !== null && daysSinceLast >= 2 && freshMuscles.length > 0) {
     const muscleList = freshMuscles
       .slice(0, 2)
