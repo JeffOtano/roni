@@ -52,7 +52,7 @@ export function AsyncCard<T>({
             {title}
           </span>
           {state.status === "refreshing" && (
-            <Loader2 className="size-3.5 animate-spin text-primary" />
+            <Loader2 className="size-3.5 animate-spin text-primary" aria-label="Refreshing" />
           )}
         </CardTitle>
       </CardHeader>

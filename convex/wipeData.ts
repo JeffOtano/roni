@@ -1,7 +1,7 @@
 import { internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { TableNames } from "./_generated/dataModel";
+import type { TableNames } from "./_generated/dataModel";
 
 const APP_TABLES: TableNames[] = [
   "userProfiles",

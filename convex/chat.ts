@@ -1,8 +1,6 @@
 import { v } from "convex/values";
-import { action, internalAction, mutation, query } from "./_generated/server";
-import { components, internal } from "./_generated/api";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   createThread as agentCreateThread,
   listUIMessages,
@@ -10,6 +8,8 @@ import {
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
+import { action, internalAction, mutation, query } from "./_generated/server";
+import { components, internal } from "./_generated/api";
 import { coachAgent } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
 

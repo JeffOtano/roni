@@ -5,8 +5,8 @@
  */
 
 import { v } from "convex/values";
-import { action, internalAction } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { FormattedWorkoutSummary, SetActivity, WorkoutActivityDetail } from "./tonal/types";
 import { generatePerformanceSummary } from "./coach/prDetection";

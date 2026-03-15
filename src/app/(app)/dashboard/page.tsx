@@ -82,10 +82,10 @@ export default function DashboardPage() {
       {/* Coach CTA */}
       <Link
         href="/chat?prompt=Based%20on%20my%20current%20data%2C%20what%20should%20I%20do%20today%3F"
-        className="mb-6 flex items-center justify-between rounded-xl border border-primary/10 bg-primary/[0.03] px-4 py-3.5 transition-colors duration-200 hover:bg-primary/[0.06]"
+        className="mb-6 flex items-center justify-between rounded-xl border border-primary/10 bg-primary/3 px-4 py-3.5 transition-colors duration-200 hover:bg-primary/[0.06]"
       >
         <span className="text-sm font-medium text-foreground/90">Talk to your coach</span>
-        <ArrowRight className="size-4 text-primary" />
+        <ArrowRight className="size-4 text-primary" aria-hidden="true" />
       </Link>
 
       {/* Quick-access navigation */}
