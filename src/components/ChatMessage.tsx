@@ -2,6 +2,7 @@
 
 import type { UIMessage } from "@convex-dev/agent/react";
 import { MarkdownContent } from "@/components/MarkdownContent";
+import { ToolApprovalCard } from "@/components/ToolApprovalCard";
 import { ToolCallIndicator } from "@/components/ToolCallIndicator";
 import { Sparkles } from "lucide-react";
 
@@ -17,9 +18,10 @@ interface ChatMessageProps {
   userInitial?: string;
   /** Whether the previous message was from the same role (enables grouping) */
   isGrouped?: boolean;
+  threadId: string;
 }
 
-export function ChatMessage({ message, userInitial = "U", isGrouped }: ChatMessageProps) {
+export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }: ChatMessageProps) {
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
 
@@ -65,6 +67,42 @@ export function ChatMessage({ message, userInitial = "U", isGrouped }: ChatMessa
             // Coach: render with markdown
             const displayText = isStreaming ? text + "\u258D" : text;
             return <MarkdownContent key={i} content={displayText} />;
+          }
+
+          if (
+            part.type === "dynamic-tool" &&
+            part.state === "approval-requested" &&
+            part.approval
+          ) {
+            return (
+              <ToolApprovalCard
+                key={`approval-${part.toolCallId}`}
+                toolName={part.toolName}
+                input={part.input}
+                approvalId={part.approval.id}
+                threadId={threadId}
+              />
+            );
+          }
+
+          if (
+            part.type === "dynamic-tool" &&
+            (part.state === "approval-responded" || part.state === "output-denied") &&
+            part.approval
+          ) {
+            const approved = part.approval.approved;
+            return (
+              <span
+                key={`approval-response-${part.toolCallId}`}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs ${
+                  approved
+                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                    : "bg-destructive/10 text-destructive"
+                }`}
+              >
+                {approved ? "\u2713 Approved" : "\u2717 Denied"}
+              </span>
+            );
           }
 
           return null;

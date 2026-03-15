@@ -18,9 +18,11 @@ function isDifferentDay(a: number, b: number | null): boolean {
 export function MessageList({
   messages,
   userInitial,
+  threadId,
 }: {
   messages: UIMessage[];
   userInitial?: string;
+  threadId: string;
 }) {
   return (
     <>
@@ -33,7 +35,12 @@ export function MessageList({
         return (
           <div key={message.key}>
             {showDateDivider && <DateDivider timestamp={message._creationTime} />}
-            <ChatMessage message={message} userInitial={userInitial} isGrouped={isGrouped} />
+            <ChatMessage
+              message={message}
+              userInitial={userInitial}
+              isGrouped={isGrouped}
+              threadId={threadId}
+            />
           </div>
         );
       })}

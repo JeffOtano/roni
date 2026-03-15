@@ -76,7 +76,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
               </button>
             </div>
           )}
-          <MessageList messages={allMessages} userInitial={userInitial} />
+          <MessageList messages={allMessages} userInitial={userInitial} threadId={threadId} />
           {isThinking && <ThinkingIndicator />}
           <div ref={bottomRef} className="h-4" />
         </div>
