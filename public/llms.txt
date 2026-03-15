@@ -1,0 +1,25 @@
+# tonal.coach
+
+> AI personal trainer for the Tonal home fitness machine. Connects to your Tonal account, analyzes your training history, and programs custom strength workouts using AI coaching.
+
+## What this site does
+
+tonal.coach is a free, independent web app that integrates with your Tonal smart home gym. It reads your workout history, strength scores, and movement data, then uses AI to generate personalized weekly training programs. Custom workouts are pushed directly to your Tonal machine so you can follow them on-screen like any built-in program.
+
+## Key features
+
+- Weekly programming: AI-generated training plans tailored to your schedule, goals, and recovery
+- Progressive overload: Automatic weight progression based on your performance trends
+- Periodization: Structured training phases (hypertrophy, strength, peaking, deload) planned across weeks and months
+- RPE tracking: Rate of perceived exertion logging to calibrate intensity and manage fatigue
+- Goal setting: Set strength targets and body composition goals that shape your programming
+- Injury management: Flag limitations or injuries so the AI avoids contraindicated movements and substitutes alternatives
+- Muscle readiness: Visual recovery map showing which muscle groups are ready to train
+- Direct Tonal sync: Pushes custom workouts straight to your Tonal machine — no manual entry
+
+## Important context
+
+- tonal.coach is free to use
+- It is an independent project, not affiliated with or endorsed by Tonal
+- A Tonal account and active Tonal membership are required to use the service
+- User data is accessed only with explicit permission via Tonal account credentials

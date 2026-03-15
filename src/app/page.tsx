@@ -1,10 +1,12 @@
-"use client";
-
-import Link from "next/link";
-import { useConvexAuth } from "convex/react";
 import { ArrowRight, BellRing, Brain, Send, TrendingUp, Utensils } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AuthCta } from "./_components/AuthCta";
+
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 interface Feature {
   icon: typeof Brain;
@@ -72,11 +74,6 @@ const ANIM_STYLES = `
 `;
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-
-  const ctaHref = isAuthenticated ? "/chat" : "/login";
-  const ctaLabel = isAuthenticated ? "Go to Chat" : "Get Started";
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <style dangerouslySetInnerHTML={{ __html: ANIM_STYLES }} />
@@ -84,12 +81,7 @@ export default function HomePage() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12">
         <span className="text-xl font-bold tracking-tight text-foreground">tonal.coach</span>
-        <Link
-          href={ctaHref}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground"
-        >
-          {isAuthenticated ? "Go to Chat" : "Sign In"}
-        </Link>
+        <AuthCta variant="nav" />
       </nav>
 
       {/* Hero */}
@@ -123,15 +115,7 @@ export default function HomePage() {
             workouts, and track your progress.
           </p>
           <div className="anim-fade-up anim-delay-2 mt-10">
-            <Button
-              size="lg"
-              className="h-12 px-8 text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
-              render={<Link href={ctaHref} />}
-              disabled={isLoading}
-            >
-              {isLoading ? "Loading..." : ctaLabel}
-              <ArrowRight className="ml-2 size-5" data-icon="inline-end" />
-            </Button>
+            <AuthCta variant="hero" />
           </div>
         </div>
       </section>
@@ -215,23 +199,7 @@ export default function HomePage() {
           Connect your Tonal and start coaching in minutes.
         </p>
         <div className="mt-10">
-          <div
-            className="inline-block rounded-xl p-[1px]"
-            style={{
-              background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
-            }}
-          >
-            <Button
-              size="lg"
-              variant="ghost"
-              className="h-12 rounded-[11px] bg-card px-8 text-base font-semibold text-foreground transition-all duration-300 hover:bg-card/80"
-              render={<Link href={ctaHref} />}
-              disabled={isLoading}
-            >
-              {isLoading ? "Loading..." : ctaLabel}
-              <ArrowRight className="ml-2 size-5" data-icon="inline-end" />
-            </Button>
-          </div>
+          <AuthCta variant="bottom" />
         </div>
       </section>
 
