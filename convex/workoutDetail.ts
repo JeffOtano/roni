@@ -8,7 +8,7 @@ import type { Activity, Movement, UserWorkout, WorkoutActivityDetail } from "./t
 // getWorkoutDetail — fetch workout detail enriched with movement names
 // ---------------------------------------------------------------------------
 
-interface EnrichedSetActivity {
+export interface EnrichedSetActivity {
   id: string;
   movementId: string;
   movementName: string | null;
@@ -26,7 +26,7 @@ interface EnrichedSetActivity {
   weightPercentage?: number;
 }
 
-interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "workoutSetActivity"> {
+export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "workoutSetActivity"> {
   workoutSetActivity: EnrichedSetActivity[];
 }
 
