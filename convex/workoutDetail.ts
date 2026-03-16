@@ -150,7 +150,7 @@ interface CatalogEntry {
   name: string;
   muscleGroups: string[];
   skillLevel: number;
-  thumbnailMediaUrl: string;
+  thumbnailMediaUrl?: string;
   onMachine: boolean;
 }
 
