@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { CalendarIntegration } from "@/components/settings/CalendarIntegration";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
-import { McpKeyManager } from "@/components/settings/McpKeyManager";
 import { ChangePassword } from "@/components/settings/ChangePassword";
 import { EmailChange } from "@/components/settings/EmailChange";
 import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
@@ -173,12 +172,6 @@ function SettingsPageInner() {
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Photo Analysis</h2>
         <PhotoAnalysisToggle />
-      </section>
-
-      {/* Claude Integration */}
-      <section className="mb-10">
-        <h2 className={SECTION_HEADING}>Claude Integration</h2>
-        <McpKeyManager />
       </section>
 
       {/* Data Export */}
