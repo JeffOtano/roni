@@ -165,7 +165,7 @@ export const generateDraftWeekPlan = internalAction({
         // No history; use defaults.
       }
 
-      const blocks = blocksFromMovementIds(movementIds, suggestions);
+      const blocks = blocksFromMovementIds(movementIds, suggestions, { catalog });
       const title = formatSessionTitle(sessionType, weekStartDate, dayIndex);
 
       // Create draft (no Tonal push)

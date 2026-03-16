@@ -157,7 +157,9 @@ export const adjustDayDuration = internalAction({
       // No history; use defaults.
     }
 
-    const blocks = blocksFromMovementIds(movementIds, suggestions);
+    const blocks = blocksFromMovementIds(movementIds, suggestions, {
+      catalog: catalog as { id: string; countReps: boolean }[],
+    });
     const title = formatSessionTitle(sessionType, plan.weekStartDate, dayIndex);
 
     // Delete old draft workout if exists

@@ -139,10 +139,17 @@ export function parseUserLevel(level: string | undefined): number {
  * Tonal blocks accept only movementId, sets, reps (and optional duration/spotter/etc.); suggested
  * weight range (e.g. "72-75 lbs") is not sent to Tonal and is for display only in the app.
  */
+/** Default duration (seconds) for timed/isometric exercises. */
+const DEFAULT_DURATION_SECONDS = 30;
+
 export function blocksFromMovementIds(
   movementIds: string[],
   suggestions?: { movementId: string; suggestedReps?: number }[],
-  options?: { isDeload?: boolean },
+  options?: {
+    isDeload?: boolean;
+    /** Catalog lookup for countReps — movements with countReps=false use duration instead of reps. */
+    catalog?: { id: string; countReps: boolean }[];
+  },
 ): BlockInput[] {
   const repsByMovement = new Map<string, number>();
   for (const s of suggestions ?? []) {
@@ -150,15 +157,24 @@ export function blocksFromMovementIds(
       repsByMovement.set(s.movementId, s.suggestedReps);
     }
   }
+  const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
   const normalSets = 3;
   const baseSets = options?.isDeload ? Math.round(normalSets * DELOAD_SET_MULTIPLIER) : normalSets;
   return [
     {
-      exercises: movementIds.map((movementId) => ({
-        movementId,
-        sets: baseSets,
-        reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
-      })),
+      exercises: movementIds.map((movementId) => {
+        const movement = catalogMap.get(movementId);
+        const isDurationBased = movement ? !movement.countReps : false;
+
+        if (isDurationBased) {
+          return { movementId, sets: baseSets, duration: DEFAULT_DURATION_SECONDS };
+        }
+        return {
+          movementId,
+          sets: baseSets,
+          reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
+        };
+      }),
     },
   ];
 }

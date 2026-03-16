@@ -136,7 +136,9 @@ async function fillWorkoutsPhase(
       // No history or Tonal unavailable; use default reps.
     }
 
-    const blocks = blocksFromMovementIds(movementIds, suggestions);
+    const blocks = blocksFromMovementIds(movementIds, suggestions, {
+      catalog: catalog as unknown as { id: string; countReps: boolean }[],
+    });
     const title = `${sessionType.replaceAll("_", " ")} – ${weekStartDate} day ${dayIndex + 1}`;
     const result = (await ctx.runAction(internal.tonal.mutations.createWorkout, {
       userId,
