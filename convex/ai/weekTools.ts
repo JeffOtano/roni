@@ -232,7 +232,6 @@ export const deleteWeekPlanTool = createTool({
   description:
     "Delete the current week's training plan and all its draft workouts. Use this when the user wants to start over or discard the current plan.",
   inputSchema: z.object({}),
-  needsApproval: true,
   execute: async (ctx): Promise<{ deleted: true } | { deleted: false; message: string }> => {
     const userId = requireUserId(ctx);
     const weekStartDate = getWeekStartDateString(new Date());
