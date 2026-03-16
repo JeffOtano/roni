@@ -22,7 +22,7 @@ interface CatalogEntry {
   name: string;
   muscleGroups: string[];
   skillLevel: number;
-  thumbnailMediaUrl: string;
+  thumbnailMediaUrl?: string;
   onMachine: boolean;
 }
 
@@ -99,7 +99,7 @@ function ExerciseCard({ movement }: { movement: CatalogEntry }) {
   return (
     <Card className="transition-all duration-200 hover:scale-[1.01]">
       <CardContent className="flex gap-3.5 p-3">
-        <ExerciseThumbnail src={movement.thumbnailMediaUrl} name={movement.name} />
+        <ExerciseThumbnail src={movement.thumbnailMediaUrl ?? ""} name={movement.name} />
 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
           <div className="flex items-start justify-between gap-2">

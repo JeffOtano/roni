@@ -32,7 +32,7 @@ export interface Movement {
   isAlternating: boolean;
   descriptionHow: string;
   descriptionWhy: string;
-  thumbnailMediaUrl: string;
+  thumbnailMediaUrl?: string;
   skillLevel: number;
   publishState: string;
   sortOrder: number;

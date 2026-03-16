@@ -30,7 +30,7 @@ const movementFields = {
   isAlternating: v.boolean(),
   descriptionHow: v.string(),
   descriptionWhy: v.string(),
-  thumbnailMediaUrl: v.string(),
+  thumbnailMediaUrl: v.optional(v.string()),
   accessory: v.optional(v.string()),
   onMachineInfo: v.optional(v.any()),
   lastSyncedAt: v.number(),
