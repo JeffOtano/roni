@@ -40,12 +40,16 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const isStreaming = (currentMessages ?? []).some((m) => m.status === "streaming");
   const lastMessage = allMessages[allMessages.length - 1];
 
-  // Show thinking dots when:
-  // 1. Last message is from user and nothing streaming yet (waiting for first response)
-  // 2. Last assistant message has no visible text yet (tool calls in progress, no reply started)
-  const lastAssistantHasNoText =
-    lastMessage?.role === "assistant" && !isStreaming && !lastMessage.text.trim();
-  const isThinking = (lastMessage?.role === "user" && !isStreaming) || lastAssistantHasNoText;
+  // Show thinking dots until the coach produces visible text.
+  // Track mount time to distinguish "user sent a message just now" from
+  // "reopened a thread that ended with a user message hours ago."
+  const [mountTime] = useState(() => Date.now());
+  const STALE_MS = 2 * 60 * 1000;
+
+  const lastIsRecentUser =
+    lastMessage?.role === "user" && lastMessage._creationTime > mountTime - STALE_MS;
+  const lastIsAssistantWithoutText = lastMessage?.role === "assistant" && !lastMessage.text.trim();
+  const isThinking = lastIsRecentUser || lastIsAssistantWithoutText;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
