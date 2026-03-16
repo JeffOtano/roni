@@ -17,9 +17,10 @@ function autoGrow(el: HTMLTextAreaElement) {
 interface ChatInputProps {
   threadId: string;
   disabled?: boolean;
+  onSend?: (text: string) => void;
 }
 
-export function ChatInput({ threadId, disabled }: ChatInputProps) {
+export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function ChatInput({ threadId, disabled }: ChatInputProps) {
     setSending(true);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+    onSend?.(trimmed);
     try {
       await sendMessage({ prompt: trimmed, threadId });
     } catch (err) {
@@ -55,7 +57,7 @@ export function ChatInput({ threadId, disabled }: ChatInputProps) {
     } finally {
       setSending(false);
     }
-  }, [input, sending, sendMessage, threadId]);
+  }, [input, sending, sendMessage, threadId, onSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

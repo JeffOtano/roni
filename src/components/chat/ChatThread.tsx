@@ -16,6 +16,23 @@ interface ChatThreadProps {
   threadId: string;
 }
 
+/**
+ * Fake UIMessage shown instantly while waiting for the server to confirm.
+ * Cleared once the real message appears in the query results.
+ */
+function makePendingMessage(text: string): UIMessage {
+  return {
+    key: `pending-${Date.now()}`,
+    _creationTime: Date.now(),
+    order: Number.MAX_SAFE_INTEGER,
+    stepOrder: 0,
+    status: "pending",
+    role: "user",
+    text,
+    parts: [{ type: "text", text }],
+  } as UIMessage;
+}
+
 export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const {
@@ -25,6 +42,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   } = useUIMessages(api.chat.listMessages, { threadId }, { initialNumItems: 20, stream: true });
 
   const [historicalMessages, setHistoricalMessages] = useState<UIMessage[]>([]);
+  const [pendingText, setPendingText] = useState<string | null>(null);
   const history = useQuery(api.threads.listConversationHistory, {
     beforeThreadId: threadId,
   });
@@ -36,13 +54,30 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
     setHistoricalMessages((prev) => [...converted, ...prev]);
   };
 
-  const allMessages = [...historicalMessages, ...(currentMessages ?? [])];
+  const handleSend = (text: string) => {
+    setPendingText(text);
+  };
+
+  // Derive whether to show the pending message (no effect, no ref)
+  const serverMessages = [...historicalMessages, ...(currentMessages ?? [])];
+  const serverHasPending = pendingText
+    ? serverMessages.some((m) => m.role === "user" && m.text === pendingText)
+    : false;
+  const showPending = pendingText && !serverHasPending;
+
+  const allMessages = showPending
+    ? [...serverMessages, makePendingMessage(pendingText)]
+    : serverMessages;
+
+  // Clear pending text once server confirms (in a microtask to avoid render-time setState)
+  if (serverHasPending && pendingText) {
+    queueMicrotask(() => setPendingText(null));
+  }
+
   const isStreaming = (currentMessages ?? []).some((m) => m.status === "streaming");
   const lastMessage = allMessages[allMessages.length - 1];
 
   // Show thinking dots until the coach produces visible text.
-  // Track mount time to distinguish "user sent a message just now" from
-  // "reopened a thread that ended with a user message hours ago."
   const [mountTime] = useState(() => Date.now());
   const STALE_MS = 2 * 60 * 1000;
 
@@ -94,7 +129,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
         </div>
       </div>
       <div className="shrink-0 border-t border-border/50 p-3 sm:p-4">
-        <ChatInput threadId={threadId} disabled={isStreaming} />
+        <ChatInput threadId={threadId} disabled={isStreaming} onSend={handleSend} />
       </div>
     </div>
   );
