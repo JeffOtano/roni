@@ -218,6 +218,11 @@ export const processMessage = internalAction({
         userId,
         message: { role: "assistant", content: AI_ERROR_MESSAGE },
       });
+      await ctx.runAction(internal.discord.notifyError, {
+        source: "processMessage",
+        message: error instanceof Error ? error.message : String(error),
+        userId,
+      });
     }
   },
 });

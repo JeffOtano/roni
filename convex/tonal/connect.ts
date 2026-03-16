@@ -69,6 +69,12 @@ export const connectTonal = internalAction({
       expiresAt: now + CACHE_TTLS.profile,
     });
 
+    // 8. Notify Discord
+    await ctx.runAction(internal.discord.notifyTonalConnection, {
+      email: tonalEmail,
+      tonalName: `${profile.firstName} ${profile.lastName}`,
+    });
+
     return { success: true, tonalUserId };
   },
 });
