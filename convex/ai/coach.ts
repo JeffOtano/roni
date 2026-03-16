@@ -47,7 +47,7 @@ import {
 export const coachAgent = new Agent(components.agent, {
   name: "Tonal Coach",
   languageModel: google("gemini-2.5-pro"),
-  embeddingModel: google.textEmbeddingModel("text-embedding-004"),
+  embeddingModel: google.textEmbeddingModel("gemini-embedding-001"),
 
   contextOptions: {
     recentMessages: 100,
