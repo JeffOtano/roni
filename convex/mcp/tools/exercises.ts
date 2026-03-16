@@ -3,9 +3,7 @@ import { internal } from "../../_generated/api";
 import type { Movement } from "../../tonal/types";
 
 async function fetchCachedMovements(toolCtx: ToolContext): Promise<Movement[]> {
-  return toolCtx.ctx.runAction(internal.tonal.proxy.fetchMovements, {
-    userId: toolCtx.userId,
-  });
+  return toolCtx.ctx.runQuery(internal.tonal.movementSync.getAllMovements);
 }
 
 async function listMovements(

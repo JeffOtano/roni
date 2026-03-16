@@ -182,12 +182,8 @@ export const getWorkoutPerformanceSummary = internalAction({
       maxActivities: 20,
     });
 
-    // 2. Get movement names from catalog cache
-    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-      userId: undefined,
-      dataType: "movements",
-    });
-    const movements = (cached?.data ?? []) as Array<{ id: string; name: string }>;
+    // 2. Get movement names from movements table
+    const movements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     const nameMap = new Map(movements.map((m) => [m.id, m.name]));
 
     // 3. Generate summary

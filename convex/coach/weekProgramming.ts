@@ -14,7 +14,9 @@ import {
   preferredSplitValidator,
 } from "../weekPlans";
 import { selectExercises } from "./exerciseSelection";
+import type { ExerciseSelectionInput } from "./exerciseSelection";
 import type { Movement } from "../tonal/types";
+import { computeExcludedAccessories } from "../tonal/accessories";
 import {
   blocksFromMovementIds,
   DAY_NAMES,
@@ -43,13 +45,15 @@ export async function fetchAndComputePlanData(
   catalog: Movement[];
   lastUsedMovementIds: string[];
   userLevel: number;
+  constraints: ExerciseSelectionInput["constraints"];
   daySessions: { dayIndex: number; sessionType: SessionType }[];
   initialDays: { sessionType: SessionType | "rest"; status: "programmed" }[];
 }> {
-  const [profile, catalog, lastUsedMovementIds] = await Promise.all([
+  const [profile, catalog, lastUsedMovementIds, activeInjuries] = await Promise.all([
     ctx.runQuery(internal.userProfiles.getByUserId, { userId }),
-    ctx.runAction(internal.tonal.proxy.fetchMovements, { userId }),
+    ctx.runQuery(internal.tonal.movementSync.getAllMovements),
     ctx.runQuery(internal.workoutPlans.getRecentMovementIds, { userId }),
+    ctx.runQuery(internal.injuries.getActiveInternal, { userId }),
   ]);
   const userLevel = parseUserLevel(profile?.profileData?.level);
   const trainingDayIndices = getTrainingDayIndices(targetDays);
@@ -59,10 +63,21 @@ export async function fetchAndComputePlanData(
     sessionType: (sessionTypeByDay.get(i) ?? "rest") as SessionType | "rest",
     status: "programmed" as const,
   }));
+
+  // Build constraints from injuries and equipment
+  const injuryAvoidances = activeInjuries
+    .flatMap((inj) => inj.avoidance.split(",").map((s) => s.trim()))
+    .filter((s) => s.length > 0);
+  const excludeAccessories = computeExcludedAccessories(profile?.ownedAccessories ?? undefined);
+
   return {
-    catalog: catalog as Movement[],
+    catalog,
     lastUsedMovementIds: lastUsedMovementIds as string[],
     userLevel,
+    constraints: {
+      excludeNameSubstrings: injuryAvoidances.length > 0 ? injuryAvoidances : undefined,
+      excludeAccessories: excludeAccessories.length > 0 ? excludeAccessories : undefined,
+    },
     daySessions,
     initialDays,
   };
@@ -146,6 +161,7 @@ export const generateDraftWeekPlan = internalAction({
         userLevel: data.userLevel,
         maxExercises,
         lastUsedMovementIds: data.lastUsedMovementIds,
+        constraints: data.constraints,
       });
       if (movementIds.length === 0) continue;
 

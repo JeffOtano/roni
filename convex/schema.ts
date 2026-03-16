@@ -42,6 +42,17 @@ export default defineSchema({
     checkInsReadAllBeforeAt: v.optional(v.number()),
     /** Allow AI to analyze progress photos (guardrails apply). */
     progressPhotoAnalysisEnabled: v.optional(v.boolean()),
+    /** Which Tonal accessories the user owns (for exercise filtering). */
+    ownedAccessories: v.optional(
+      v.object({
+        smartHandles: v.boolean(),
+        smartBar: v.boolean(),
+        rope: v.boolean(),
+        roller: v.boolean(),
+        weightBar: v.boolean(),
+        pilatesLoops: v.boolean(),
+      }),
+    ),
     /** User's training preferences for weekly programming. */
     trainingPreferences: v.optional(
       v.object({
@@ -98,6 +109,39 @@ export default defineSchema({
   })
     .index("by_userId_dataType", ["userId", "dataType"])
     .index("by_dataType", ["dataType"]),
+
+  movements: defineTable({
+    tonalId: v.string(),
+    name: v.string(),
+    shortName: v.string(),
+    muscleGroups: v.array(v.string()),
+    skillLevel: v.number(),
+    publishState: v.string(),
+    sortOrder: v.number(),
+    onMachine: v.boolean(),
+    inFreeLift: v.boolean(),
+    countReps: v.boolean(),
+    isTwoSided: v.boolean(),
+    isBilateral: v.boolean(),
+    isAlternating: v.boolean(),
+    descriptionHow: v.string(),
+    descriptionWhy: v.string(),
+    thumbnailMediaUrl: v.string(),
+    accessory: v.optional(v.string()),
+    onMachineInfo: v.optional(
+      v.object({
+        accessory: v.string(),
+        resistanceType: v.string(),
+        spotterDisabled: v.boolean(),
+        eccentricDisabled: v.boolean(),
+        chainsDisabled: v.boolean(),
+        burnoutDisabled: v.boolean(),
+      }),
+    ),
+    lastSyncedAt: v.number(),
+  })
+    .index("by_tonalId", ["tonalId"])
+    .index("by_accessory", ["accessory"]),
 
   workoutPlans: defineTable({
     userId: v.id("users"),

@@ -10,7 +10,6 @@ import { withTokenRetry } from "./tokenRetry";
 import type {
   Activity,
   FormattedWorkoutSummary,
-  Movement,
   MuscleReadiness,
   StrengthDistribution,
   StrengthScore,
@@ -204,19 +203,6 @@ export const fetchFormattedSummary = internalAction({
             token,
             `/v6/formatted/users/${tonalUserId}/workout-summaries/${summaryId}`,
           ),
-      }),
-    ),
-});
-
-export const fetchMovements = internalAction({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }): Promise<Movement[]> =>
-    withTokenRetry(ctx, userId, (token) =>
-      cachedFetch<Movement[]>(ctx, {
-        userId: undefined,
-        dataType: "movements",
-        ttl: CACHE_TTLS.movements,
-        fetcher: () => tonalFetch<Movement[]>(token, `/v6/movements`),
       }),
     ),
 });

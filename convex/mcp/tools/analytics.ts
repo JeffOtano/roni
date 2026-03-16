@@ -61,9 +61,7 @@ async function getWorkoutMovements(
         summaryId: activityId,
       })
       .catch(() => null),
-    toolCtx.ctx.runAction(internal.tonal.proxy.fetchMovements, {
-      userId: toolCtx.userId,
-    }),
+    toolCtx.ctx.runQuery(internal.tonal.movementSync.getAllMovements),
   ]);
 
   const movementMap = new Map(movements.map((m) => [m.id, m]));

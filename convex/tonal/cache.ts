@@ -3,7 +3,6 @@ import { internalMutation, internalQuery } from "../_generated/server";
 
 // Cache TTLs in milliseconds
 export const CACHE_TTLS: Record<string, number> = {
-  movements: 24 * 60 * 60 * 1000, // 24 hours (global)
   profile: 24 * 60 * 60 * 1000, // 24 hours
   strengthScores: 60 * 60 * 1000, // 1 hour
   strengthHistory: 60 * 60 * 1000, // 1 hour
