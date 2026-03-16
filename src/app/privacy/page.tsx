@@ -121,10 +121,10 @@ export default function PrivacyPage() {
           <p>
             For questions, data deletion requests, or concerns, email{" "}
             <a
-              href="mailto:privacy@tonal.coach"
+              href="mailto:jeff.tonalcoach@gmail.com"
               className="text-primary underline underline-offset-2"
             >
-              privacy@tonal.coach
+              jeff.tonalcoach@gmail.com
             </a>
             .
           </p>
