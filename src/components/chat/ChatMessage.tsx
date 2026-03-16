@@ -49,44 +49,55 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
 
-  return (
-    <div className={`group relative px-4 sm:px-6 ${isGrouped ? "pt-1" : "pt-4"} pb-1`}>
-      {/* Header: avatar + role + timestamp -- hidden for grouped messages */}
-      {!isGrouped && (
-        <div className="mb-1.5 flex items-center gap-2">
-          {isUser ? (
-            <div className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
-              {userInitial}
-            </div>
-          ) : (
-            <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)]">
-              <Sparkles className="size-3 text-white" />
+  // User messages: right-aligned bubble
+  if (isUser) {
+    return (
+      <div
+        className={`group relative flex justify-end px-4 sm:px-6 ${isGrouped ? "pt-1" : "pt-3"} pb-1`}
+      >
+        <div className="max-w-[80%]">
+          {!isGrouped && (
+            <div className="mb-1 flex items-center justify-end gap-2">
+              <span className="text-xs text-muted-foreground">
+                {formatTime(message._creationTime)}
+              </span>
             </div>
           )}
-          <span className="text-[13px] font-semibold text-foreground">
-            {isUser ? "You" : "Coach"}
-          </span>
+          <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5">
+            {message.parts.map((part, i) =>
+              part.type === "text" ? (
+                <p
+                  key={i}
+                  className="whitespace-pre-wrap text-sm leading-relaxed text-primary-foreground"
+                >
+                  {part.text}
+                </p>
+              ) : null,
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Coach messages: left-aligned with avatar
+  return (
+    <div className={`group relative px-4 sm:px-6 ${isGrouped ? "pt-1" : "pt-4"} pb-1`}>
+      {!isGrouped && (
+        <div className="mb-1.5 flex items-center gap-2">
+          <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)]">
+            <Sparkles className="size-3 text-white" />
+          </div>
+          <span className="text-[13px] font-semibold text-foreground">Coach</span>
           <span className="text-xs text-muted-foreground">{formatTime(message._creationTime)}</span>
         </div>
       )}
 
-      {/* Content -- indented on desktop to align with name, flush on mobile */}
       <div className="sm:pl-8">
         {message.parts.map((part, i) => {
           if (part.type === "text") {
             const text = part.text;
             if (!text && !isStreaming) return null;
-
-            if (isUser) {
-              return (
-                <p
-                  key={i}
-                  className="max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground"
-                >
-                  {text}
-                </p>
-              );
-            }
 
             // Coach: check for structured week plan
             const plan = extractWeekPlan(text);
