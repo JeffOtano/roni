@@ -128,16 +128,7 @@ export default defineSchema({
     descriptionWhy: v.string(),
     thumbnailMediaUrl: v.string(),
     accessory: v.optional(v.string()),
-    onMachineInfo: v.optional(
-      v.object({
-        accessory: v.string(),
-        resistanceType: v.string(),
-        spotterDisabled: v.boolean(),
-        eccentricDisabled: v.boolean(),
-        chainsDisabled: v.boolean(),
-        burnoutDisabled: v.boolean(),
-      }),
-    ),
+    onMachineInfo: v.optional(v.any()),
     lastSyncedAt: v.number(),
   })
     .index("by_tonalId", ["tonalId"])

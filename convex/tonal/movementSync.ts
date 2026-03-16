@@ -14,17 +14,6 @@ import { withTonalToken } from "./proxy";
 import { ACCESSORY_MAP } from "./accessories";
 import type { Movement } from "./types";
 
-const onMachineInfoValidator = v.optional(
-  v.object({
-    accessory: v.string(),
-    resistanceType: v.string(),
-    spotterDisabled: v.boolean(),
-    eccentricDisabled: v.boolean(),
-    chainsDisabled: v.boolean(),
-    burnoutDisabled: v.boolean(),
-  }),
-);
-
 const movementFields = {
   tonalId: v.string(),
   name: v.string(),
@@ -43,7 +32,7 @@ const movementFields = {
   descriptionWhy: v.string(),
   thumbnailMediaUrl: v.string(),
   accessory: v.optional(v.string()),
-  onMachineInfo: onMachineInfoValidator,
+  onMachineInfo: v.optional(v.any()),
   lastSyncedAt: v.number(),
 } as const;
 
