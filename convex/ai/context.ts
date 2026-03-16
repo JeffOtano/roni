@@ -4,6 +4,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { Activity, MuscleReadiness, StrengthScore } from "../tonal/types";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
 import { getWeekStartDateString } from "../weekPlanHelpers";
+import type { OwnedAccessories } from "../tonal/accessories";
+import { ACCESSORY_MAP } from "../tonal/accessories";
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
@@ -75,6 +77,36 @@ export async function buildTrainingSnapshot(
     lines.push(
       `Preferences: ${splitNames[trainingPrefs.preferredSplit] ?? trainingPrefs.preferredSplit} | ${trainingPrefs.sessionDurationMinutes}min | ${days}`,
     );
+  }
+
+  // Equipment
+  const owned = profile.ownedAccessories as OwnedAccessories | undefined;
+  if (owned) {
+    const displayNames: Record<keyof OwnedAccessories, string> = {
+      smartHandles: "Smart Handles",
+      smartBar: "Smart Bar",
+      rope: "Rope",
+      roller: "Roller",
+      weightBar: "Weight Bar",
+      pilatesLoops: "Pilates Loops",
+      ankleStraps: "Ankle Straps",
+    };
+    const ownedNames = Object.entries(displayNames)
+      .filter(([key]) => owned[key as keyof OwnedAccessories])
+      .map(([, name]) => name);
+    const missingNames = Object.entries(displayNames)
+      .filter(([key]) => !owned[key as keyof OwnedAccessories])
+      .map(([, name]) => name);
+    lines.push(`Equipment:`);
+    lines.push(`  Owned: ${ownedNames.length > 0 ? ownedNames.join(", ") : "None"}`);
+    if (missingNames.length > 0) {
+      lines.push(`  Missing: ${missingNames.join(", ")}`);
+      lines.push(
+        `  (Exercises requiring missing equipment are automatically excluded from programming.)`,
+      );
+    }
+  } else {
+    lines.push(`Equipment: All accessories assumed available (no equipment profile set).`);
   }
 
   // Strength scores

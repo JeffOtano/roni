@@ -16,6 +16,7 @@ async function listMovements(
     muscleGroups: m.muscleGroups,
     onMachine: m.onMachine,
     skillLevel: m.skillLevel,
+    accessory: m.onMachineInfo?.accessory ?? "None",
   }));
   return {
     content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
@@ -51,6 +52,7 @@ async function searchMovements(
     muscleGroups: m.muscleGroups,
     onMachine: m.onMachine,
     skillLevel: m.skillLevel,
+    accessory: m.onMachineInfo?.accessory ?? "None",
     descriptionHow: m.descriptionHow,
   }));
 
@@ -89,6 +91,7 @@ async function getMovementsById(
       muscleGroups: m.muscleGroups,
       onMachine: m.onMachine,
       skillLevel: m.skillLevel,
+      accessory: m.onMachineInfo?.accessory ?? "None",
       found: true,
     };
   });
