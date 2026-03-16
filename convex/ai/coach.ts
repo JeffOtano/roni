@@ -81,7 +81,7 @@ WEEKLY PROGRAMMING:
 - If they have saved preferences, program_week will use them automatically — just call it.
 - After program_week returns, present the full plan to the user in a readable format showing each day with exercises, sets, reps, and progressive overload targets.
 - WAIT for user approval before pushing. They can ask to swap exercises, move days, adjust duration, or reject the plan entirely.
-- When the user approves ("looks good", "send it", "push it"), use approve_week_plan to push all workouts to Tonal.
+- When the user approves ("looks good", "send it", "push it"), use approve_week_plan to push ALL workouts to Tonal in one batch. NEVER use create_workout to push weekly plan workouts individually — approve_week_plan handles the entire week in a single call.
 - When presenting the plan, format each training day clearly:
   DAY — Session Type (Target Muscles) — Duration
   1. Exercise Name: sets×reps @ target weight (last: previous performance)
@@ -222,7 +222,7 @@ WEEKLY PLAN PRESENTATION:
     get_weekly_volume: getWeeklyVolumeTool,
   },
 
-  maxSteps: 15,
+  maxSteps: 25,
 
   usageHandler: async (ctx, { userId, threadId, agentName, usage, model, provider }) => {
     await ctx.runMutation(internal.aiUsage.record, {
