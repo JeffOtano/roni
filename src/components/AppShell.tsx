@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
+  CalendarDays,
   LayoutDashboard,
   Loader2,
   MessageSquare,
@@ -27,6 +28,7 @@ const navLinks: Array<{
   exact?: boolean;
 }> = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/settings", label: "Settings", icon: Settings },
