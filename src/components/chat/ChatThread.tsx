@@ -86,11 +86,14 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const lastIsAssistantWithoutText = lastMessage?.role === "assistant" && !lastMessage.text.trim();
   const isThinking = lastIsRecentUser || lastIsAssistantWithoutText;
 
+  // Scroll to bottom on new content. Use last message role + server message count
+  // as dependency to avoid re-scrolling during the pending→server swap.
+  const serverMessageCount = serverMessages.length;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: isStreaming ? "auto" : "smooth",
     });
-  }, [allMessages.length, isStreaming, isThinking]);
+  }, [serverMessageCount, isStreaming, isThinking]);
 
   const canLoadMoreHistory =
     history !== undefined && history.hasMore && historicalMessages.length === 0;
