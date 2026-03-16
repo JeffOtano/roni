@@ -68,6 +68,7 @@ import type * as playground from "../playground.js";
 import type * as progressPhotos from "../progressPhotos.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
+import type * as schedule from "../schedule.js";
 import type * as stats from "../stats.js";
 import type * as threads from "../threads.js";
 import type * as tonal_auth from "../tonal/auth.js";
@@ -165,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   progressPhotos: typeof progressPhotos;
   progressiveOverload: typeof progressiveOverload;
   rateLimits: typeof rateLimits;
+  schedule: typeof schedule;
   stats: typeof stats;
   threads: typeof threads;
   "tonal/auth": typeof tonal_auth;
