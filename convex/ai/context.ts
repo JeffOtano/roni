@@ -114,7 +114,9 @@ export async function buildTrainingSnapshot(
     const scoreLines = (scores as StrengthScore[])
       .map((s) => `${s.bodyRegionDisplay}: ${s.score}`)
       .join(", ");
-    lines.push(`Strength: ${scoreLines}`);
+    lines.push(
+      `Tonal Strength Scores (proprietary fitness metric 0-999 scale, NOT weight in lbs): ${scoreLines}`,
+    );
   }
 
   // Muscle readiness

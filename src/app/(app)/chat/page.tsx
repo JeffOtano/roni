@@ -176,14 +176,14 @@ function WelcomeInput({
           disabled={sending}
           rows={1}
           aria-label="Message input"
-          className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+          className="min-w-0 flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
         />
         <Button
           size="icon"
           onClick={handleSend}
           disabled={sending || !input.trim()}
           aria-label={sending ? "Sending message" : "Send message"}
-          className="mb-0.5 min-h-[44px] min-w-[44px] rounded-xl"
+          className="mb-0.5 min-h-[44px] min-w-[44px] shrink-0 rounded-xl"
         >
           {sending ? (
             <Loader2 className="size-4 animate-spin" />

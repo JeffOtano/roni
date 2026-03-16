@@ -47,11 +47,13 @@ export const searchExercisesTool = createTool({
 });
 
 export const getStrengthScoresTool = createTool({
-  description: "Get Tonal strength scores by body region and percentile.",
+  description:
+    "Get Tonal Strength Scores by body region. These are a PROPRIETARY fitness metric on a 0-999 scale — NOT weight in pounds. Higher means stronger relative to the user's body. Use actual workout history (avgWeightLbs) for real weight data.",
   inputSchema: z.object({}),
   execute: async (
     ctx,
   ): Promise<{
+    note: string;
     scores: { region: string; score: number }[];
     overall: number;
     percentile: number;
@@ -66,6 +68,7 @@ export const getStrengthScoresTool = createTool({
     })) as { overallScore: number; percentile: number };
 
     return {
+      note: "Tonal Strength Scores are a proprietary metric (0-999 scale), NOT weight in pounds. Do not report these as lbs.",
       scores: scores.map((s) => ({
         region: s.bodyRegionDisplay,
         score: s.score,
@@ -222,10 +225,24 @@ export const createWorkoutTool = createTool({
       };
     }
 
+    // Auto-correct duration vs reps based on movement.countReps
+    const movementMap = new Map(validatedMovements.map((m) => [m.id, m]));
+    const correctedBlocks = input.blocks.map((block) => ({
+      exercises: block.exercises.map((ex) => {
+        const movement = movementMap.get(ex.movementId);
+        if (movement && !movement.countReps) {
+          // Duration-based movement: use duration, ignore reps
+          return { ...ex, duration: ex.duration ?? 30, reps: undefined };
+        }
+        // Rep-based movement: use reps, ignore duration
+        return { ...ex, reps: ex.reps ?? 10, duration: undefined };
+      }),
+    }));
+
     return ctx.runAction(internal.tonal.mutations.createWorkout, {
       userId,
       title: input.title,
-      blocks: input.blocks,
+      blocks: correctedBlocks,
     });
   },
 });

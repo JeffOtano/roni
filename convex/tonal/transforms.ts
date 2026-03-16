@@ -14,13 +14,23 @@ export interface BlockInput {
   exercises: ExerciseInput[];
 }
 
+/** Optional movement catalog for auto-correcting duration vs reps in buildSet. */
+export interface MovementCatalogEntry {
+  id: string;
+  countReps: boolean;
+}
+
 interface BuildSetOpts {
   ex: ExerciseInput;
   blockNumber: number;
   exIdx: number;
   round: number;
   isFirstInBlock: boolean;
+  /** If provided, auto-corrects duration vs reps based on countReps. */
+  movementMap?: Map<string, MovementCatalogEntry>;
 }
+
+const DEFAULT_DURATION_SECONDS = 30;
 
 function buildSet({
   ex,
@@ -28,6 +38,7 @@ function buildSet({
   exIdx,
   round,
   isFirstInBlock,
+  movementMap,
 }: BuildSetOpts): WorkoutSetInput {
   const set: WorkoutSetInput = {
     blockStart: isFirstInBlock,
@@ -48,8 +59,12 @@ function buildSet({
     description: "",
   };
 
-  if (ex.duration) {
-    set.prescribedDuration = ex.duration;
+  // Auto-correct based on movement catalog if available
+  const movement = movementMap?.get(ex.movementId);
+  const isDurationBased = movement ? !movement.countReps : false;
+
+  if (isDurationBased || ex.duration) {
+    set.prescribedDuration = ex.duration ?? DEFAULT_DURATION_SECONDS;
     set.prescribedResistanceLevel = 5;
   } else {
     set.prescribedReps = ex.reps ?? 10;
@@ -58,7 +73,12 @@ function buildSet({
   return set;
 }
 
-function expandBlock(block: BlockInput, blockNumber: number, startIdx: number): WorkoutSetInput[] {
+function expandBlock(
+  block: BlockInput,
+  blockNumber: number,
+  startIdx: number,
+  movementMap?: Map<string, MovementCatalogEntry>,
+): WorkoutSetInput[] {
   const sets: WorkoutSetInput[] = [];
   const maxRounds = Math.max(...block.exercises.map((e) => e.sets));
 
@@ -67,7 +87,14 @@ function expandBlock(block: BlockInput, blockNumber: number, startIdx: number): 
       const ex = block.exercises[exIdx];
       if (round > ex.sets) continue;
       sets.push(
-        buildSet({ ex, blockNumber, exIdx, round, isFirstInBlock: startIdx + sets.length === 0 }),
+        buildSet({
+          ex,
+          blockNumber,
+          exIdx,
+          round,
+          isFirstInBlock: startIdx + sets.length === 0,
+          movementMap,
+        }),
       );
     }
   }
@@ -77,6 +104,16 @@ function expandBlock(block: BlockInput, blockNumber: number, startIdx: number): 
   return sets;
 }
 
-export function expandBlocksToSets(blocks: BlockInput[]): WorkoutSetInput[] {
-  return blocks.flatMap((block, blockIdx) => expandBlock(block, blockIdx + 1, blockIdx));
+/**
+ * Expand block inputs into flat workout sets for the Tonal API.
+ * If a movement catalog is provided, auto-corrects duration vs reps based on countReps.
+ */
+export function expandBlocksToSets(
+  blocks: BlockInput[],
+  catalog?: MovementCatalogEntry[],
+): WorkoutSetInput[] {
+  const movementMap = catalog ? new Map(catalog.map((m) => [m.id, m])) : undefined;
+  return blocks.flatMap((block, blockIdx) =>
+    expandBlock(block, blockIdx + 1, blockIdx, movementMap),
+  );
 }
