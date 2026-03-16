@@ -282,9 +282,8 @@ export const getWorkoutPerformanceTool = createTool({
 
 export const approveWeekPlanTool = createTool({
   description:
-    "Push all draft workouts in the current week plan to Tonal. Use after the user approves the plan. Reports per-workout push status.",
+    "Push all draft workouts in the current week plan to Tonal. Use after the user verbally approves the plan in chat. Reports per-workout push status.",
   inputSchema: z.object({}),
-  needsApproval: true,
   execute: async (ctx): Promise<WeekPushResult | { error: string }> => {
     const userId = requireUserId(ctx);
     const weekStartDate = getWeekStartDateString(new Date());
