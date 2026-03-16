@@ -48,6 +48,7 @@ export const updateProfileSettings = mutation({
         roller: v.boolean(),
         weightBar: v.boolean(),
         pilatesLoops: v.boolean(),
+        ankleStraps: v.boolean(),
       }),
     ),
   },
