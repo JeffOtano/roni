@@ -165,6 +165,11 @@ export const pushWeekPlanToTonal = internalAction({
         continue;
       }
 
+      // Brief delay between pushes to avoid Tonal API rate limits
+      if (pushed > 0) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
       // Push draft workout
       const result = await pushOneWorkout(ctx, userId, wp);
 
