@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { useUIMessages } from "@convex-dev/agent/react";
 import { toUIMessages } from "@convex-dev/agent";
@@ -58,21 +58,21 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
     setPendingText(text);
   };
 
-  // Derive whether to show the pending message (no effect, no ref)
+  // Show a local pending message until the server confirms it.
+  // No cleanup needed — once serverHasPending is true, we just stop appending.
   const serverMessages = [...historicalMessages, ...(currentMessages ?? [])];
   const serverHasPending = pendingText
     ? serverMessages.some((m) => m.role === "user" && m.text === pendingText)
     : false;
-  const showPending = pendingText && !serverHasPending;
 
-  const allMessages = showPending
-    ? [...serverMessages, makePendingMessage(pendingText)]
-    : serverMessages;
+  // Stable reference so React doesn't remount between pending and server message
+  const pendingMessage = useMemo(
+    () => (pendingText ? makePendingMessage(pendingText) : null),
+    [pendingText],
+  );
 
-  // Clear pending text once server confirms (in a microtask to avoid render-time setState)
-  if (serverHasPending && pendingText) {
-    queueMicrotask(() => setPendingText(null));
-  }
+  const allMessages =
+    pendingMessage && !serverHasPending ? [...serverMessages, pendingMessage] : serverMessages;
 
   const isStreaming = (currentMessages ?? []).some((m) => m.status === "streaming");
   const lastMessage = allMessages[allMessages.length - 1];
