@@ -81,4 +81,25 @@ describe("isTonalWorkout", () => {
     // 0 > 0 is false; "" !== "" is false → false
     expect(isTonalWorkout(activity)).toBe(false);
   });
+
+  it("returns false when workoutId is present but volume is zero (external synced workout)", () => {
+    // Bug fix: Apple Watch / external activities sync into Tonal with a real workoutId
+    // but zero volume and no set data — they must not be treated as Tonal workouts.
+    const activity = makeActivity("external-workout-id-123", 0);
+
+    expect(isTonalWorkout(activity)).toBe(false);
+  });
+
+  it("returns false when workoutPreview is absent", () => {
+    // Runtime data from external sources may omit workoutPreview entirely.
+    const activity = {
+      activityId: "act-x",
+      userId: "user-1",
+      activityTime: "2026-03-14T10:00:00Z",
+      activityType: "run",
+      workoutPreview: undefined,
+    } as unknown as Parameters<typeof isTonalWorkout>[0];
+
+    expect(isTonalWorkout(activity)).toBe(false);
+  });
 });
