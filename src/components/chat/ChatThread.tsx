@@ -39,7 +39,13 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const allMessages = [...historicalMessages, ...(currentMessages ?? [])];
   const isStreaming = (currentMessages ?? []).some((m) => m.status === "streaming");
   const lastMessage = allMessages[allMessages.length - 1];
-  const isThinking = lastMessage?.role === "user" && !isStreaming;
+
+  // Show thinking dots when:
+  // 1. Last message is from user and nothing streaming yet (waiting for first response)
+  // 2. Last assistant message has no visible text yet (tool calls in progress, no reply started)
+  const lastAssistantHasNoText =
+    lastMessage?.role === "assistant" && !isStreaming && !lastMessage.text.trim();
+  const isThinking = (lastMessage?.role === "user" && !isStreaming) || lastAssistantHasNoText;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
