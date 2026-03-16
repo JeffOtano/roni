@@ -55,7 +55,7 @@ http.route({
     const appUrl = stateResult.origin || fallbackUrl;
 
     try {
-      await ctx.runAction(internal.calendar.handleCallback, {
+      await ctx.runAction(internal.calendarActions.handleCallback, {
         code,
         userId: stateResult.userId,
       });

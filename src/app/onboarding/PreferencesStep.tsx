@@ -5,11 +5,11 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { GoalField } from "@/components/GoalField";
-import { DaysPerWeekField } from "@/components/DaysPerWeekField";
-import { InjuriesField } from "@/components/InjuriesField";
-import { type SessionDuration, SessionDurationField } from "@/components/SessionDurationField";
-import { SplitPreferenceField, type SplitValue } from "@/components/SplitPreferenceField";
+import { GoalField } from "./GoalField";
+import { DaysPerWeekField } from "./DaysPerWeekField";
+import { InjuriesField } from "./InjuriesField";
+import { type SessionDuration, SessionDurationField } from "./SessionDurationField";
+import { SplitPreferenceField, type SplitValue } from "./SplitPreferenceField";
 import { Loader2 } from "lucide-react";
 import { getTrainingDayIndices } from "../../../convex/coach/weekProgrammingHelpers";
 

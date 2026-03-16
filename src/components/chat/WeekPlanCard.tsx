@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { WeekPlanPresentation } from "../../convex/ai/schemas";
+import type { WeekPlanPresentation } from "../../../convex/ai/schemas";
 
 const SPLIT_LABELS: Record<string, string> = {
   ppl: "Push/Pull/Legs",

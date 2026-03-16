@@ -124,7 +124,7 @@ export const createWorkout = internalAction({
       // Schedule calendar event creation (non-blocking)
       const eventDate = scheduledDate ?? new Date().toISOString();
       const durationMinutes = estimatedDurationMinutes ?? DEFAULT_WORKOUT_DURATION_MINUTES;
-      await ctx.scheduler.runAfter(0, internal.calendar.createCalendarEvent, {
+      await ctx.scheduler.runAfter(0, internal.calendarActions.createCalendarEvent, {
         userId,
         title: tonalTitle,
         date: eventDate,

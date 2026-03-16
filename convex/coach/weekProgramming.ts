@@ -1,6 +1,6 @@
 /**
- * Program my week: create week plan, build workouts per session type, push to Tonal, link days.
- * Single internal action used by the AI coach tool and dashboard CTA.
+ * Draft week programming pipeline: creates week plan with draft workouts for review.
+ * The legacy pipeline (programWeek) that pushes directly to Tonal lives in weekProgrammingLegacy.ts.
  */
 
 import { v } from "convex/values";
@@ -31,24 +31,10 @@ import type { DraftDaySummary, DraftWeekSummary, SessionType } from "./weekProgr
 export type { DraftWeekSummary } from "./weekProgrammingHelpers";
 
 // ---------------------------------------------------------------------------
-// Shared helpers
+// Shared helper (also used by weekProgrammingLegacy.ts)
 // ---------------------------------------------------------------------------
 
-type CreatePlanResult =
-  | { error: string }
-  | {
-      weekPlanId: Id<"weekPlans">;
-      daySessions: { dayIndex: number; sessionType: SessionType }[];
-      catalog: Movement[];
-      userLevel: number;
-      maxExercises: number;
-      lastUsedMovementIds: string[];
-      sessionDurationMinutes: number;
-      weekStartDate: string;
-      userId: Id<"users">;
-    };
-
-async function fetchAndComputePlanData(
+export async function fetchAndComputePlanData(
   ctx: ActionCtx,
   userId: Id<"users">,
   preferredSplit: "ppl" | "upper_lower" | "full_body",
@@ -81,140 +67,6 @@ async function fetchAndComputePlanData(
     initialDays,
   };
 }
-
-// ---------------------------------------------------------------------------
-// programWeek — existing pipeline (creates + pushes to Tonal)
-// ---------------------------------------------------------------------------
-
-async function createPlanPhase(
-  ctx: ActionCtx,
-  args: {
-    userId: Id<"users">;
-    weekStartDate?: string;
-    preferredSplit?: "ppl" | "upper_lower" | "full_body";
-    targetDays?: number;
-    sessionDurationMinutes?: 30 | 45 | 60;
-  },
-): Promise<CreatePlanResult> {
-  const weekStartDate = args.weekStartDate ?? getWeekStartDateString(new Date());
-  if (!isValidWeekStartDateString(weekStartDate)) {
-    return { error: "weekStartDate must be YYYY-MM-DD (Monday of the week)." };
-  }
-
-  const preferredSplit = args.preferredSplit ?? "ppl";
-  const targetDays = Math.min(7, Math.max(1, args.targetDays ?? 3));
-  const sessionDurationMinutes = args.sessionDurationMinutes ?? 45;
-  const maxExercises =
-    SESSION_DURATION_TO_MAX_EXERCISES[sessionDurationMinutes] ?? DEFAULT_MAX_EXERCISES;
-
-  const existing = await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-    userId: args.userId,
-    weekStartDate,
-  });
-  if (existing) {
-    return {
-      error: `Week plan already exists for ${weekStartDate}. Use update or a different week.`,
-    };
-  }
-
-  const data = await fetchAndComputePlanData(ctx, args.userId, preferredSplit, targetDays);
-  const weekPlanId = (await ctx.runMutation(internal.weekPlans.createForUserInternal, {
-    userId: args.userId,
-    weekStartDate,
-    preferredSplit,
-    targetDays,
-    days: data.initialDays,
-  })) as Id<"weekPlans">;
-
-  return {
-    weekPlanId,
-    daySessions: data.daySessions,
-    catalog: data.catalog,
-    userLevel: data.userLevel,
-    maxExercises,
-    lastUsedMovementIds: data.lastUsedMovementIds,
-    sessionDurationMinutes,
-    weekStartDate,
-    userId: args.userId,
-  };
-}
-
-async function fillWorkoutsPhase(
-  ctx: ActionCtx,
-  plan: Exclude<CreatePlanResult, { error: string }>,
-): Promise<void> {
-  const {
-    weekPlanId,
-    daySessions,
-    catalog,
-    userLevel,
-    maxExercises,
-    lastUsedMovementIds,
-    sessionDurationMinutes,
-    weekStartDate,
-    userId,
-  } = plan;
-
-  for (const { dayIndex, sessionType } of daySessions) {
-    const targetMuscleGroups = SESSION_TYPE_MUSCLES[sessionType] ?? SESSION_TYPE_MUSCLES.full_body;
-    const movementIds = selectExercises({
-      catalog,
-      targetMuscleGroups,
-      userLevel,
-      maxExercises,
-      lastUsedMovementIds,
-    });
-    if (movementIds.length === 0) continue;
-
-    let suggestions: { movementId: string; suggestedReps?: number }[] = [];
-    try {
-      suggestions = (await ctx.runAction(
-        internal.progressiveOverload.getLastTimeAndSuggestedInternal,
-        { userId, movementIds },
-      )) as { movementId: string; suggestedReps?: number }[];
-    } catch {
-      // No history or Tonal unavailable; use default reps.
-    }
-
-    const blocks = blocksFromMovementIds(movementIds, suggestions);
-    const title = `${sessionType.replaceAll("_", " ")} – ${weekStartDate} day ${dayIndex + 1}`;
-    const result = (await ctx.runAction(internal.tonal.mutations.createWorkout, {
-      userId,
-      title,
-      blocks,
-    })) as { success: boolean; planId?: Id<"workoutPlans"> };
-    if (result.success && result.planId) {
-      await ctx.runMutation(internal.weekPlans.linkWorkoutPlanToDayInternal, {
-        userId,
-        weekPlanId,
-        dayIndex,
-        workoutPlanId: result.planId,
-        estimatedDuration: sessionDurationMinutes,
-      });
-    }
-  }
-}
-
-export const programWeek = internalAction({
-  args: {
-    userId: v.id("users"),
-    weekStartDate: v.optional(v.string()),
-    preferredSplit: v.optional(preferredSplitValidator),
-    targetDays: v.optional(v.number()),
-    sessionDurationMinutes: v.optional(v.union(v.literal(30), v.literal(45), v.literal(60))),
-  },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<
-    { success: true; weekPlanId: Id<"weekPlans"> } | { success: false; error: string }
-  > => {
-    const plan = await createPlanPhase(ctx, args);
-    if ("error" in plan) return { success: false, error: plan.error };
-    await fillWorkoutsPhase(ctx, plan);
-    return { success: true, weekPlanId: plan.weekPlanId };
-  },
-});
 
 // ---------------------------------------------------------------------------
 // generateDraftWeekPlan — draft pipeline (no Tonal push, returns rich summary)

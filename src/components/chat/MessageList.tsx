@@ -2,7 +2,7 @@
 
 import type { UIMessage } from "@convex-dev/agent/react";
 import { ChatMessage } from "./ChatMessage";
-import { DateDivider } from "./DateDivider";
+import { DateDivider } from "@/components/DateDivider";
 
 function isDifferentDay(a: number, b: number | null): boolean {
   if (!b) return true;

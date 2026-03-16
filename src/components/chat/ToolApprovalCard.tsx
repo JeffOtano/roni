@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2, X } from "lucide-react";
 
