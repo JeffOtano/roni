@@ -52,15 +52,11 @@ export default function ConnectTonalPage() {
       clearTimeout(phaseTimer);
       setPhase("done");
       setTimeout(() => router.replace("/onboarding"), 600);
-    } catch (err) {
+    } catch {
       setPhase("idle");
-      const message = err instanceof Error ? err.message : "Failed to connect Tonal account";
-      const isCredentialError = /unauthorized|invalid|credentials/i.test(message);
-      if (isCredentialError) {
-        setError("Invalid Tonal credentials. Please check your email and password.");
-      } else {
-        setError(message);
-      }
+      setError(
+        "Something went wrong connecting your Tonal account. Please try again or contact support.",
+      );
     } finally {
       setSubmitting(false);
     }

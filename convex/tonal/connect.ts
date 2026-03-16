@@ -42,7 +42,7 @@ export const connectTonal = internalAction({
         heightInches: profile.heightInches,
         weightPounds: profile.weightPounds,
         gender: profile.gender,
-        level: profile.tonalStatus,
+        level: profile.tonalStatus ?? "",
         workoutsPerWeek: profile.workoutsPerWeek,
         workoutDurationMin: (profile as unknown as Record<string, number>).workoutDurationMin ?? 0,
         workoutDurationMax: (profile as unknown as Record<string, number>).workoutDurationMax ?? 0,
