@@ -208,9 +208,28 @@ export const createWorkoutTool = createTool({
     input,
   ): Promise<
     | { success: true; workoutId: string; title: string; setCount: number; planId: string }
-    | { success: false; error: string; planId: string }
+    | { success: false; error: string }
   > => {
     const userId = requireUserId(ctx);
+
+    // Pre-validate movement IDs against the cached catalog before calling Tonal
+    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
+      userId: undefined,
+      dataType: "movements",
+    });
+    if (cached) {
+      const catalogIds = new Set((cached.data as Movement[]).map((m) => m.id));
+      const invalidIds = input.blocks
+        .flatMap((b) => b.exercises.map((e) => e.movementId))
+        .filter((id) => !catalogIds.has(id));
+      if (invalidIds.length > 0) {
+        return {
+          success: false,
+          error: `Invalid movementIds: ${invalidIds.join(", ")}. You MUST call search_exercises first to get valid IDs from Tonal's catalog. Do not guess or fabricate IDs.`,
+        };
+      }
+    }
+
     return ctx.runAction(internal.tonal.mutations.createWorkout, {
       userId,
       title: input.title,
