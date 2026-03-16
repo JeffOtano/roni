@@ -28,7 +28,9 @@ export const doTonalCreateWorkout = internalAction({
       const catalog = cached.data as Array<{ id: string }>;
       const validation = validateWorkoutBlocks(blocks as BlockInput[], catalog);
       if (!validation.valid) {
-        throw new Error(`Invalid movement IDs: ${validation.errors.join(", ")}`);
+        throw new Error(
+          `Invalid movement IDs. You must use search_exercises to get real IDs from Tonal's catalog. Do not fabricate IDs. Errors: ${validation.errors.join(", ")}`,
+        );
       }
     }
     const sets = expandBlocksToSets(blocks as BlockInput[]);
