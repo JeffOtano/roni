@@ -99,10 +99,10 @@ export default function TermsPage() {
           <p>
             Questions about these terms? Email{" "}
             <a
-              href="mailto:privacy@tonal.coach"
+              href="mailto:jeff.tonalcoach@gmail.com"
               className="text-primary underline underline-offset-2"
             >
-              privacy@tonal.coach
+              jeff.tonalcoach@gmail.com
             </a>
             .
           </p>
