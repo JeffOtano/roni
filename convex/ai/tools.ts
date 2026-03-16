@@ -203,7 +203,6 @@ export const createWorkoutTool = createTool({
       .min(1)
       .max(10),
   }),
-  needsApproval: true,
   execute: async (
     ctx,
     input,
@@ -224,7 +223,6 @@ export const deleteWorkoutTool = createTool({
   inputSchema: z.object({
     workoutId: z.string().describe("Tonal workout ID"),
   }),
-  needsApproval: true,
   execute: async (ctx, input): Promise<{ deleted: true }> => {
     const userId = requireUserId(ctx);
     return (await ctx.runAction(internal.tonal.mutations.deleteWorkout, {
