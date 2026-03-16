@@ -41,6 +41,7 @@ export const searchExercisesTool = createTool({
       muscleGroups: m.muscleGroups,
       onMachine: m.onMachine,
       skillLevel: m.skillLevel,
+      accessory: m.onMachineInfo?.accessory ?? "None",
     }));
   },
 });
