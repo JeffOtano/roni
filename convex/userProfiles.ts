@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const getByUserId = internalQuery({
@@ -203,6 +204,14 @@ export const completeOnboarding = mutation({
         trainingDays: args.trainingDays,
         sessionDurationMinutes: args.sessionDurationMinutes,
       },
+    });
+
+    // Notify Discord of new signup completion
+    const name = profile.profileData
+      ? `${profile.profileData.firstName} ${profile.profileData.lastName}`
+      : "Unknown";
+    await ctx.scheduler.runAfter(0, internal.discord.notifySignup, {
+      email: name,
     });
   },
 });
