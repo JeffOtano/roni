@@ -227,3 +227,150 @@ describe("selectExercises empty and case-insensitive", () => {
     expect(result).toEqual(["m1"]);
   });
 });
+
+describe("selectExercises rotation (recentWeeksMovementIds)", () => {
+  it("deprioritises exercises in recentWeeksMovementIds but does not exclude them", () => {
+    const catalog: Movement[] = [
+      movement({ id: "m1", name: "Bench", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+      movement({ id: "m2", name: "Incline", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+    ];
+
+    // m1 was used in recent weeks — it should still appear but sorted after m2
+    const result = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: [],
+      recentWeeksMovementIds: ["m1"],
+    });
+
+    expect(result).toContain("m1");
+    expect(result).toContain("m2");
+    // m2 (fresh) should come before m1 (recently used)
+    expect(result.indexOf("m2")).toBeLessThan(result.indexOf("m1"));
+  });
+
+  it("includes all recentWeeksMovementIds in the result (not excluded)", () => {
+    const catalog: Movement[] = [
+      movement({ id: "r1", name: "Fly", muscleGroups: ["Chest"], skillLevel: 1 }),
+      movement({ id: "r2", name: "Pushdown", muscleGroups: ["Triceps"], skillLevel: 1 }),
+    ];
+
+    const result = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: [],
+      recentWeeksMovementIds: ["r1", "r2"],
+    });
+
+    expect(result).toContain("r1");
+    expect(result).toContain("r2");
+  });
+
+  it("selection is unchanged when recentWeeksMovementIds is omitted", () => {
+    const catalog: Movement[] = [
+      movement({ id: "m1", name: "Bench", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+      movement({ id: "m2", name: "Incline", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+    ];
+
+    const withoutRecent = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: [],
+    });
+
+    const withEmptyRecent = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: [],
+      recentWeeksMovementIds: [],
+    });
+
+    expect(withoutRecent).toEqual(withEmptyRecent);
+  });
+
+  it("rotation penalty sorts within groups — fresh compound beats recent compound, but compounds still precede isolations", () => {
+    const catalog: Movement[] = [
+      // recent compound
+      movement({
+        id: "recent-compound",
+        name: "Bench Press",
+        muscleGroups: ["Chest", "Triceps"],
+        skillLevel: 1,
+      }),
+      // fresh compound
+      movement({
+        id: "fresh-compound",
+        name: "Incline Press",
+        muscleGroups: ["Chest", "Triceps"],
+        skillLevel: 1,
+      }),
+      // fresh isolation
+      movement({
+        id: "fresh-iso",
+        name: "Cable Fly",
+        muscleGroups: ["Chest"],
+        skillLevel: 1,
+      }),
+    ];
+
+    const result = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: [],
+      recentWeeksMovementIds: ["recent-compound"],
+    });
+
+    // Within compounds: fresh-compound should precede recent-compound
+    expect(result.indexOf("fresh-compound")).toBeLessThan(result.indexOf("recent-compound"));
+    // Compounds always precede isolations — recent-compound still beats fresh-iso
+    expect(result.indexOf("recent-compound")).toBeLessThan(result.indexOf("fresh-iso"));
+  });
+
+  it("does not confuse recentWeeksMovementIds with lastUsedMovementIds — recent ones still appear", () => {
+    const catalog: Movement[] = [
+      movement({ id: "m1", name: "Bench", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+    ];
+
+    // m1 in recentWeeks (deprioritised) but NOT in lastUsed (so not excluded)
+    const result = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: [],
+      recentWeeksMovementIds: ["m1"],
+    });
+
+    expect(result).toContain("m1");
+  });
+
+  it("excludes exercises in lastUsedMovementIds even if they are also in recentWeeksMovementIds", () => {
+    const catalog: Movement[] = [
+      movement({ id: "m1", name: "Bench", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+      movement({ id: "m2", name: "Incline", muscleGroups: ["Chest", "Triceps"], skillLevel: 1 }),
+    ];
+
+    // m1 is in both lists — lastUsed takes precedence and excludes it
+    const result = selectExercises({
+      catalog,
+      targetMuscleGroups: CHEST_TRICEPS,
+      userLevel: 1,
+      maxExercises: 10,
+      lastUsedMovementIds: ["m1"],
+      recentWeeksMovementIds: ["m1"],
+    });
+
+    expect(result).not.toContain("m1");
+    expect(result).toContain("m2");
+  });
+});
