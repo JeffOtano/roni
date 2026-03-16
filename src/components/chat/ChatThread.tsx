@@ -34,6 +34,7 @@ function makePendingMessage(text: string): UIMessage {
 }
 
 export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const {
     results: currentMessages,
@@ -86,13 +87,16 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const lastIsAssistantWithoutText = lastMessage?.role === "assistant" && !lastMessage.text.trim();
   const isThinking = lastIsRecentUser || lastIsAssistantWithoutText;
 
-  // Scroll to bottom on new content. Use last message role + server message count
-  // as dependency to avoid re-scrolling during the pending→server swap.
+  // Auto-scroll: only if already near the bottom (within 150px).
+  // Prevents yanking user up during the pending→server swap or while reading history.
   const serverMessageCount = serverMessages.length;
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: isStreaming ? "auto" : "smooth",
-    });
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 150) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [serverMessageCount, isStreaming, isThinking]);
 
   const canLoadMoreHistory =
@@ -100,7 +104,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="scrollbar-thin flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="scrollbar-thin flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl">
           {status === "CanLoadMore" && (
             <div className="flex justify-center py-3">
