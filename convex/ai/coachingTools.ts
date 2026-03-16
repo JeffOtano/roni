@@ -15,7 +15,6 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { requireUserId } from "./helpers";
 import { computeWeeklyVolume } from "../coach/periodization";
-import type { Movement } from "../tonal/types";
 
 // ---------------------------------------------------------------------------
 // 1. Post-workout feedback
@@ -315,11 +314,7 @@ export const getWeeklyVolumeTool = createTool({
       .map((p) => p.blocks);
 
     // Get catalog for muscle group mapping
-    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-      userId: undefined,
-      dataType: "movements",
-    });
-    const catalog = (cached?.data as Movement[] | undefined) ?? [];
+    const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
 
     const volume = computeWeeklyVolume(weekBlocks, catalog);
     return {

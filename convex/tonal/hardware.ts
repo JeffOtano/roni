@@ -176,8 +176,8 @@ export function activityToCompletedEntry(a: Activity): CompletedWorkoutEntry {
 }
 
 /**
- * Create the Tonal-backed hardware adapter. Uses existing proxy actions
- * (fetchMovements, createWorkout, fetchWorkoutHistory). Call from a Convex
+ * Create the Tonal-backed hardware adapter. Uses the movements table and
+ * proxy actions (createWorkout, fetchWorkoutHistory). Call from a Convex
  * action that has ActionCtx and the authenticated userId.
  *
  * **How createWorkout is invoked through the abstraction:** The coaching
@@ -191,7 +191,7 @@ export function activityToCompletedEntry(a: Activity): CompletedWorkoutEntry {
 export function createTonalHardware(ctx: ActionCtx, userId: Id<"users">): HardwareAdapter {
   return {
     async getExercises(filters) {
-      const movements = await ctx.runAction(internal.tonal.proxy.fetchMovements, { userId });
+      const movements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
       const exercises = movements.map(movementToHardwareExercise);
       return filterExercises(exercises, filters);
     },

@@ -29,6 +29,8 @@ export interface ExerciseSelectionInput {
   constraints?: {
     /** Exclude movements whose name contains any of these substrings (case-insensitive). E.g. ["Overhead"] for no overhead pressing. */
     excludeNameSubstrings?: string[];
+    /** Tonal API accessory strings the user does NOT have — movements requiring these are excluded. */
+    excludeAccessories?: string[];
   };
   /** Movement IDs used in the last 2-3 weeks — deprioritized (not excluded) for rotation. */
   recentWeeksMovementIds?: string[];
@@ -65,6 +67,7 @@ export function selectExercises(input: ExerciseSelectionInput): string[] {
   const lastUsedSet = new Set(lastUsedMovementIds);
   const recentWeeksSet = new Set(recentWeeksMovementIds ?? []);
   const excludeSubstrings = (constraints?.excludeNameSubstrings ?? []).map((s) => s.toLowerCase());
+  const excludeAccessorySet = new Set(constraints?.excludeAccessories ?? []);
 
   const eligible = catalog.filter((m) => {
     if (lastUsedSet.has(m.id)) return false;
@@ -73,6 +76,9 @@ export function selectExercises(input: ExerciseSelectionInput): string[] {
     if (excludeSubstrings.length) {
       const nameLower = m.name.toLowerCase();
       if (excludeSubstrings.some((sub) => nameLower.includes(sub))) return false;
+    }
+    if (excludeAccessorySet.size > 0 && m.onMachineInfo?.accessory) {
+      if (excludeAccessorySet.has(m.onMachineInfo.accessory)) return false;
     }
     if (m.skillLevel > userLevel + MAX_SKILL_LEVEL_DELTA) return false;
     return true;

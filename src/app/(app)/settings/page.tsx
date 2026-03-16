@@ -21,6 +21,7 @@ import { CalendarIntegration } from "@/components/settings/CalendarIntegration";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { ChangePassword } from "@/components/settings/ChangePassword";
 import { EmailChange } from "@/components/settings/EmailChange";
+import { EquipmentSettings } from "@/components/settings/EquipmentSettings";
 import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
@@ -154,6 +155,12 @@ function SettingsPageInner() {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      {/* Equipment */}
+      <section className="mb-10">
+        <h2 className={SECTION_HEADING}>Equipment</h2>
+        <EquipmentSettings />
       </section>
 
       {/* Check-in Preferences */}

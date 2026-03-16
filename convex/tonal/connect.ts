@@ -4,7 +4,7 @@ import { internal } from "../_generated/api";
 import { encryptToken, obtainTonalToken } from "./auth";
 import { tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
-import type { Movement, TonalUser } from "./types";
+import type { TonalUser } from "./types";
 
 export const connectTonal = internalAction({
   args: {
@@ -49,18 +49,14 @@ export const connectTonal = internalAction({
       },
     });
 
-    // 6. Pre-cache movement catalog (global)
-    const movements = await tonalFetch<Movement[]>(idToken, "/v6/movements");
-    const now = Date.now();
-    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-      userId: undefined,
-      dataType: "movements",
-      data: movements,
-      fetchedAt: now,
-      expiresAt: now + CACHE_TTLS.movements,
-    });
+    // 6. Seed movements table if empty (first user connecting)
+    const existingMovements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+    if (existingMovements.length === 0) {
+      await ctx.runAction(internal.tonal.movementSync.syncMovementCatalog);
+    }
 
     // 7. Cache user profile
+    const now = Date.now();
     await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
       userId,
       dataType: "profile",

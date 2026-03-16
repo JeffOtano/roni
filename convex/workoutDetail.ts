@@ -54,15 +54,12 @@ export const getWorkoutDetail = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const [detail, movementsCached, formattedSummary] = await Promise.all([
+    const [detail, movements, formattedSummary] = await Promise.all([
       ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
         userId,
         activityId: args.activityId,
       }),
-      ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-        userId: undefined,
-        dataType: "movements",
-      }),
+      ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx
         .runAction(internal.tonal.proxy.fetchFormattedSummary, {
           userId,
@@ -70,8 +67,6 @@ export const getWorkoutDetail = action({
         })
         .catch((): null => null),
     ]);
-
-    const movements = (movementsCached?.data as Movement[] | undefined) ?? [];
     const movementMap = new Map(movements.map((m) => [m.id, m]));
 
     const typedDetail = detail as WorkoutActivityDetail;
@@ -168,19 +163,7 @@ export const getExerciseCatalog = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-      userId: undefined,
-      dataType: "movements",
-    });
-
-    let catalog = (cached?.data as Movement[] | undefined) ?? [];
-
-    // If cache is empty, fetch it via the proxy (requires a userId for token)
-    if (catalog.length === 0) {
-      catalog = (await ctx.runAction(internal.tonal.proxy.fetchMovements, {
-        userId,
-      })) as Movement[];
-    }
+    const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
 
     return filterCatalog(catalog, args);
   },

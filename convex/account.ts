@@ -32,6 +32,7 @@ export const getFullProfile = query({
       hasTonalProfile: !!profile,
       tonalTokenExpired,
       checkInPreferences: profile?.checkInPreferences ?? null,
+      ownedAccessories: profile?.ownedAccessories ?? null,
     };
   },
 });
@@ -39,6 +40,16 @@ export const getFullProfile = query({
 export const updateProfileSettings = mutation({
   args: {
     progressPhotoAnalysisEnabled: v.optional(v.boolean()),
+    ownedAccessories: v.optional(
+      v.object({
+        smartHandles: v.boolean(),
+        smartBar: v.boolean(),
+        rope: v.boolean(),
+        roller: v.boolean(),
+        weightBar: v.boolean(),
+        pilatesLoops: v.boolean(),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -50,10 +61,15 @@ export const updateProfileSettings = mutation({
       .first();
     if (!profile) throw new Error("User profile not found");
 
+    const patch: Record<string, unknown> = {};
     if (args.progressPhotoAnalysisEnabled !== undefined) {
-      await ctx.db.patch(profile._id, {
-        progressPhotoAnalysisEnabled: args.progressPhotoAnalysisEnabled,
-      });
+      patch.progressPhotoAnalysisEnabled = args.progressPhotoAnalysisEnabled;
+    }
+    if (args.ownedAccessories !== undefined) {
+      patch.ownedAccessories = args.ownedAccessories;
+    }
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(profile._id, patch);
     }
   },
 });

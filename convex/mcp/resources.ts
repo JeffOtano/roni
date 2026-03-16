@@ -2,9 +2,7 @@ import type { ResourceDefinition, ResourceHandler, ToolContext } from "./registr
 import { internal } from "../_generated/api";
 
 async function readExercises(toolCtx: ToolContext, uri: string): ReturnType<ResourceHandler> {
-  const movements = await toolCtx.ctx.runAction(internal.tonal.proxy.fetchMovements, {
-    userId: toolCtx.userId,
-  });
+  const movements = await toolCtx.ctx.runQuery(internal.tonal.movementSync.getAllMovements);
   const summary = movements.map(
     (m: {
       id: string;

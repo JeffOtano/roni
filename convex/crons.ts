@@ -31,4 +31,6 @@ crons.interval(
   internal.calendarOAuth.cleanupExpiredOAuthStates,
 );
 
+crons.cron("sync-movement-catalog", "0 3 * * *", internal.tonal.movementSync.syncMovementCatalog);
+
 export default crons;

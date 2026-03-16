@@ -12,6 +12,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { Movement } from "../tonal/types";
 import { selectExercises } from "./exerciseSelection";
+import { computeExcludedAccessories } from "../tonal/accessories";
 import {
   blocksFromMovementIds,
   DEFAULT_MAX_EXERCISES,
@@ -123,23 +124,34 @@ export const adjustDayDuration = internalAction({
     const maxExercises =
       SESSION_DURATION_TO_MAX_EXERCISES[newDurationMinutes] ?? DEFAULT_MAX_EXERCISES;
 
-    // Fetch catalog, recent movement IDs, and user profile in parallel
-    const [catalog, lastUsedMovementIds, profile] = await Promise.all([
-      ctx.runAction(internal.tonal.proxy.fetchMovements, { userId }),
+    // Fetch catalog, recent movement IDs, user profile, and active injuries in parallel
+    const [catalog, lastUsedMovementIds, profile, activeInjuries] = await Promise.all([
+      ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx.runQuery(internal.workoutPlans.getRecentMovementIds, { userId }),
       ctx.runQuery(internal.userProfiles.getByUserId, { userId }),
+      ctx.runQuery(internal.injuries.getActiveInternal, { userId }),
     ]);
 
     const userLevel = parseUserLevel(
       (profile as { profileData?: { level?: string } } | null)?.profileData?.level,
     );
 
+    // Build constraints from injuries and equipment
+    const injuryAvoidances = activeInjuries
+      .flatMap((inj) => inj.avoidance.split(",").map((s) => s.trim()))
+      .filter((s) => s.length > 0);
+    const excludeAccessories = computeExcludedAccessories(profile?.ownedAccessories ?? undefined);
+
     const movementIds = selectExercises({
-      catalog: catalog as Movement[],
+      catalog,
       targetMuscleGroups,
       userLevel,
       maxExercises,
       lastUsedMovementIds: lastUsedMovementIds as string[],
+      constraints: {
+        excludeNameSubstrings: injuryAvoidances.length > 0 ? injuryAvoidances : undefined,
+        excludeAccessories: excludeAccessories.length > 0 ? excludeAccessories : undefined,
+      },
     });
 
     if (movementIds.length === 0) {
@@ -158,7 +170,7 @@ export const adjustDayDuration = internalAction({
     }
 
     const blocks = blocksFromMovementIds(movementIds, suggestions, {
-      catalog: catalog as { id: string; countReps: boolean }[],
+      catalog,
     });
     const title = formatSessionTitle(sessionType, plan.weekStartDate, dayIndex);
 

@@ -37,6 +37,7 @@ type CreatePlanResult =
       userLevel: number;
       maxExercises: number;
       lastUsedMovementIds: string[];
+      constraints: { excludeNameSubstrings?: string[]; excludeAccessories?: string[] };
       sessionDurationMinutes: number;
       weekStartDate: string;
       userId: Id<"users">;
@@ -93,6 +94,7 @@ async function createPlanPhase(
     userLevel: data.userLevel,
     maxExercises,
     lastUsedMovementIds: data.lastUsedMovementIds,
+    constraints: data.constraints ?? {},
     sessionDurationMinutes,
     weekStartDate,
     userId: args.userId,
@@ -110,6 +112,7 @@ async function fillWorkoutsPhase(
     userLevel,
     maxExercises,
     lastUsedMovementIds,
+    constraints,
     sessionDurationMinutes,
     weekStartDate,
     userId,
@@ -123,6 +126,7 @@ async function fillWorkoutsPhase(
       userLevel,
       maxExercises,
       lastUsedMovementIds,
+      constraints,
     });
     if (movementIds.length === 0) continue;
 

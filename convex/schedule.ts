@@ -9,7 +9,6 @@ import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import type { EnrichedWeekPlan } from "./weekPlanEnriched";
-import type { Movement } from "./tonal/types";
 import { DAY_NAMES } from "./coach/weekProgrammingHelpers";
 
 // ---------------------------------------------------------------------------
@@ -101,9 +100,7 @@ export const getScheduleData = action({
     // 4. Fetch movement catalog for name resolution
     let movementMap = new Map<string, string>();
     if (allMovementIds.size > 0) {
-      const movements = (await ctx.runAction(internal.tonal.proxy.fetchMovements, {
-        userId,
-      })) as Movement[];
+      const movements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
       movementMap = new Map(movements.map((m) => [m.id, m.name]));
     }
 
