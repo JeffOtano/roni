@@ -39,6 +39,17 @@ function ChatPageInner() {
   const sendMessage = useAction(api.chat.sendMessage);
   const me = useQuery(api.users.getMe);
   const autoSentRef = useRef(false);
+  const [waitingForCoach, setWaitingForCoach] = useState(false);
+
+  // Wrap sendMessage to track loading state
+  const sendAndWait = async (args: { prompt: string }) => {
+    setWaitingForCoach(true);
+    try {
+      return await sendMessage(args);
+    } finally {
+      setWaitingForCoach(false);
+    }
+  };
 
   // Auto-send from ?prompt= query param (once only)
   const promptParam = searchParams.get("prompt");
@@ -46,12 +57,32 @@ function ChatPageInner() {
     if (promptParam && !autoSentRef.current) {
       autoSentRef.current = true;
       router.replace("/chat");
-      sendMessage({ prompt: promptParam });
+      sendAndWait({ prompt: promptParam });
     }
-  }, [promptParam, router, sendMessage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promptParam, router]);
 
   const hasThread = activeThread !== undefined && activeThread !== null;
   const userInitial = me?.tonalName?.charAt(0).toUpperCase() ?? "U";
+
+  // Waiting for first response — show thinking state
+  if (waitingForCoach && !hasThread) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+        <div className="flex size-14 items-center justify-center rounded-full bg-linear-to-br from-primary to-[oklch(0.6_0.22_300)]">
+          <Sparkles className="size-6 text-white" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <span className="inline-block size-2 rounded-full bg-foreground/30 motion-safe:animate-[thinking-dot_1.4s_ease-in-out_infinite]" />
+            <span className="inline-block size-2 rounded-full bg-foreground/30 motion-safe:animate-[thinking-dot_1.4s_ease-in-out_0.2s_infinite]" />
+            <span className="inline-block size-2 rounded-full bg-foreground/30 motion-safe:animate-[thinking-dot_1.4s_ease-in-out_0.4s_infinite]" />
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">Your coach is reviewing your data...</p>
+      </div>
+    );
+  }
 
   // Show welcome state when no thread/messages exist
   if (activeThread !== undefined && !hasThread && !promptParam) {
@@ -75,7 +106,7 @@ function ChatPageInner() {
             {suggestions.map(({ icon: Icon, text }) => (
               <button
                 key={text}
-                onClick={() => sendMessage({ prompt: text })}
+                onClick={() => sendAndWait({ prompt: text })}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-foreground transition-colors duration-150 hover:bg-accent active:scale-[0.98]"
               >
                 <Icon className="size-4 shrink-0 text-muted-foreground" />
@@ -87,7 +118,7 @@ function ChatPageInner() {
 
         {/* Input always visible even on welcome screen */}
         <div className="shrink-0 p-3 sm:p-4">
-          <WelcomeInput sendMessage={sendMessage} />
+          <WelcomeInput sendMessage={sendAndWait} />
         </div>
       </div>
     );
