@@ -14,6 +14,7 @@ export interface OwnedAccessories {
   roller: boolean;
   weightBar: boolean;
   pilatesLoops: boolean;
+  ankleStraps: boolean;
 }
 
 /** Maps Tonal API accessory string values to OwnedAccessories keys. */
@@ -22,12 +23,15 @@ export const ACCESSORY_MAP: Record<string, keyof OwnedAccessories> = {
   Handle: "smartHandles",
   Handles: "smartHandles",
   "Smart Bar": "smartBar",
+  StraightBar: "smartBar",
   Bar: "smartBar",
   Rope: "rope",
   Roller: "roller",
   "Weight Bar": "weightBar",
   Barbell: "weightBar",
   "Pilates Loops": "pilatesLoops",
+  PilatesLoops: "pilatesLoops",
+  AnkleStraps: "ankleStraps",
 };
 
 /**

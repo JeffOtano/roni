@@ -51,6 +51,7 @@ export default defineSchema({
         roller: v.boolean(),
         weightBar: v.boolean(),
         pilatesLoops: v.boolean(),
+        ankleStraps: v.boolean(),
       }),
     ),
     /** User's training preferences for weekly programming. */

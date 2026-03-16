@@ -13,6 +13,7 @@ const ACCESSORIES = [
   { key: "roller", label: "Roller" },
   { key: "weightBar", label: "Weight Bar" },
   { key: "pilatesLoops", label: "Pilates Loops" },
+  { key: "ankleStraps", label: "Ankle Straps" },
 ] as const;
 
 type AccessoryKey = (typeof ACCESSORIES)[number]["key"];
@@ -26,6 +27,7 @@ const ALL_OWNED: OwnedAccessories = {
   roller: true,
   weightBar: true,
   pilatesLoops: true,
+  ankleStraps: true,
 };
 
 export function EquipmentSettings() {
@@ -39,7 +41,7 @@ export function EquipmentSettings() {
           <div className="space-y-3">
             <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: 7 }).map((_, i) => (
                 <div key={i} className="h-8 animate-pulse rounded-lg bg-muted" />
               ))}
             </div>
