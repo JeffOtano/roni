@@ -220,6 +220,14 @@ export default function HomePage() {
           <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
             Terms of Service
           </Link>
+          <a
+            href="https://discord.gg/dShrKkwz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Discord
+          </a>
         </div>
       </footer>
     </div>
