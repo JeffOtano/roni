@@ -40,15 +40,12 @@ export function ConnectStep({ onComplete }: { readonly onComplete: () => void })
       clearTimeout(fetchTimer);
       setPhase("done");
       setTimeout(onComplete, 800);
-    } catch (err) {
+    } catch {
       clearTimeout(fetchTimer);
       setPhase("idle");
-      const message = err instanceof Error ? err.message : "Failed to connect Tonal account";
-      if (/unauthorized|invalid|credentials/i.test(message)) {
-        setError("Invalid Tonal credentials. Please check your email and password.");
-      } else {
-        setError(message);
-      }
+      setError(
+        "Something went wrong connecting your Tonal account. Please try again or contact support.",
+      );
     }
   };
 
