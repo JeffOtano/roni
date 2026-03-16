@@ -61,7 +61,6 @@ export const syncMovementCatalog = internalAction({
     for (const m of movements) {
       const accessory = m.onMachineInfo?.accessory ?? undefined;
 
-      // Track unmapped accessory values for logging
       if (accessory && !(accessory in ACCESSORY_MAP)) {
         unmappedAccessories.add(accessory);
       }
@@ -73,8 +72,8 @@ export const syncMovementCatalog = internalAction({
       const doc = {
         tonalId: m.id,
         name: m.name,
-        shortName: m.shortName,
-        muscleGroups: m.muscleGroups,
+        shortName: m.shortName ?? m.name,
+        muscleGroups: m.muscleGroups ?? [],
         skillLevel: m.skillLevel,
         publishState: m.publishState,
         sortOrder: m.sortOrder,
