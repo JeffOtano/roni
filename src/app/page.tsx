@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRight, BellRing, Brain, Send, TrendingUp, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AuthCta } from "./_components/AuthCta";
@@ -212,6 +213,14 @@ export default function HomePage() {
         <p className="text-sm text-muted-foreground">
           tonal.coach is an independent project. Not affiliated with or endorsed by Tonal.
         </p>
+        <div className="mt-3 flex justify-center gap-4 text-xs text-muted-foreground/70">
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
+            Terms of Service
+          </Link>
+        </div>
       </footer>
     </div>
   );
