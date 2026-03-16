@@ -17,7 +17,7 @@ interface CalendarIntegrationProps {
 
 export function CalendarIntegration({ justConnected, oauthError }: CalendarIntegrationProps) {
   const settings = useQuery(api.calendar.getCalendarSettings);
-  const getAuthUrl = useAction(api.calendar.getAuthUrl);
+  const getAuthUrl = useAction(api.calendarActions.getAuthUrl);
   const disconnect = useMutation(api.calendar.disconnectCalendar);
 
   const [connecting, setConnecting] = useState(false);

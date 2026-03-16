@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { useUIMessages } from "@convex-dev/agent/react";
 import { toUIMessages } from "@convex-dev/agent";
 import type { UIMessage } from "@convex-dev/agent/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ThinkingIndicator } from "./ThinkingIndicator";

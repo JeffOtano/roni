@@ -14,7 +14,7 @@ export const programWeek = internalAction({
     sessionDurationMinutes: v.optional(v.union(v.literal(30), v.literal(45), v.literal(60))),
   },
   handler: async (ctx, args): Promise<{ weekPlanId: Id<"weekPlans"> } | { error: string }> => {
-    const result = (await ctx.runAction(internal.coach.weekProgramming.programWeek, {
+    const result = (await ctx.runAction(internal.coach.weekProgrammingLegacy.programWeek, {
       userId: args.userId,
       weekStartDate: args.weekStartDate,
       preferredSplit: args.preferredSplit,

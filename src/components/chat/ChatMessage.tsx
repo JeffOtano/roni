@@ -2,11 +2,11 @@
 
 import type { UIMessage } from "@convex-dev/agent/react";
 import { useSmoothText } from "@convex-dev/agent/react";
-import { MarkdownContent } from "@/components/MarkdownContent";
-import { ToolApprovalCard } from "@/components/ToolApprovalCard";
-import { ToolCallIndicator } from "@/components/ToolCallIndicator";
-import { WeekPlanCard } from "@/components/WeekPlanCard";
-import { weekPlanPresentationSchema } from "../../convex/ai/schemas";
+import { MarkdownContent } from "@/components/chat/MarkdownContent";
+import { ToolApprovalCard } from "@/components/chat/ToolApprovalCard";
+import { ToolCallIndicator } from "@/components/chat/ToolCallIndicator";
+import { WeekPlanCard } from "@/components/chat/WeekPlanCard";
+import { weekPlanPresentationSchema } from "../../../convex/ai/schemas";
 import { Sparkles } from "lucide-react";
 
 function formatTime(timestamp: number): string {

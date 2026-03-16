@@ -1,6 +1,6 @@
 "use client";
 
-import { WorkoutCard } from "./WorkoutCard";
+import { WorkoutCard } from "@/components/WorkoutCard";
 
 const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
   search_exercises: {

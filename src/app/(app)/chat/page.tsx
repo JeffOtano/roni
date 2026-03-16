@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ChatThread } from "@/components/ChatThread";
+import { ChatThread } from "@/components/chat/ChatThread";
 import { Button } from "@/components/ui/button";
 import {
   Activity,
