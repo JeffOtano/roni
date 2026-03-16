@@ -27,6 +27,10 @@ export function MessageList({
   return (
     <>
       {messages.map((message, i) => {
+        // Hide empty assistant messages (no text, no tool calls) — ThinkingIndicator covers this state
+        const hasToolParts = message.parts.some((p) => p.type === "dynamic-tool");
+        if (message.role === "assistant" && !message.text.trim() && !hasToolParts) return null;
+
         const prev = i > 0 ? messages[i - 1] : null;
         const showDateDivider = isDifferentDay(message._creationTime, prev?._creationTime ?? null);
         // Group consecutive messages from the same role (unless separated by a date)
