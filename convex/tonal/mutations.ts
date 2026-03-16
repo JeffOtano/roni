@@ -96,7 +96,7 @@ export const createWorkout = internalAction({
   > => {
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
-      const tonalTitle = formatTonalTitle(title);
+      const tonalTitle = title;
       const { id } = await ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
         userId,
         title: tonalTitle,
