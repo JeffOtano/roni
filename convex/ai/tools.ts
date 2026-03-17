@@ -10,7 +10,7 @@ import type {
   StrengthScoreHistoryEntry,
   WorkoutActivityDetail,
 } from "../tonal/types";
-import { requireUserId } from "./helpers";
+import { requireUserId, withToolTracking } from "./helpers";
 import { matchesNameSearch } from "../tonal/movementSearch";
 
 async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
@@ -26,7 +26,7 @@ export const searchExercisesTool = createTool({
       .describe("Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL')"),
     muscleGroup: z.string().optional().describe("e.g. Chest, Back, Quads, Shoulders"),
   }),
-  execute: async (ctx, input) => {
+  execute: withToolTracking("search_exercises", async (ctx, input, _options) => {
     const catalog = await getGlobalMovementCatalog(ctx);
     let results = catalog;
 
@@ -46,62 +46,73 @@ export const searchExercisesTool = createTool({
       skillLevel: m.skillLevel,
       accessory: m.onMachineInfo?.accessory ?? "None",
     }));
-  },
+  }),
 });
 
 export const getStrengthScoresTool = createTool({
   description:
     "Get Tonal Strength Scores by body region. These are a PROPRIETARY fitness metric on a 0-999 scale — NOT weight in pounds. Higher means stronger relative to the user's body. Use actual workout history (avgWeightLbs) for real weight data.",
   inputSchema: z.object({}),
-  execute: async (
-    ctx,
-  ): Promise<{
-    note: string;
-    scores: { region: string; score: number }[];
-    overall: number;
-    percentile: number;
-  }> => {
-    const userId = requireUserId(ctx);
-    const scores = (await ctx.runAction(internal.tonal.proxy.fetchStrengthScores, {
-      userId,
-    })) as StrengthScore[];
+  execute: withToolTracking(
+    "get_strength_scores",
+    async (
+      ctx,
+      _input,
+      _options,
+    ): Promise<{
+      note: string;
+      scores: { region: string; score: number }[];
+      overall: number;
+      percentile: number;
+    }> => {
+      const userId = requireUserId(ctx);
+      const scores = (await ctx.runAction(internal.tonal.proxy.fetchStrengthScores, {
+        userId,
+      })) as StrengthScore[];
 
-    const distribution = (await ctx.runAction(internal.tonal.proxy.fetchStrengthDistribution, {
-      userId,
-    })) as { overallScore: number; percentile: number };
+      const distribution = (await ctx.runAction(internal.tonal.proxy.fetchStrengthDistribution, {
+        userId,
+      })) as { overallScore: number; percentile: number };
 
-    return {
-      note: "Tonal Strength Scores are a proprietary metric (0-999 scale), NOT weight in pounds. Do not report these as lbs.",
-      scores: scores.map((s) => ({
-        region: s.bodyRegionDisplay,
-        score: s.score,
-      })),
-      overall: distribution.overallScore,
-      percentile: distribution.percentile,
-    };
-  },
+      return {
+        note: "Tonal Strength Scores are a proprietary metric (0-999 scale), NOT weight in pounds. Do not report these as lbs.",
+        scores: scores.map((s) => ({
+          region: s.bodyRegionDisplay,
+          score: s.score,
+        })),
+        overall: distribution.overallScore,
+        percentile: distribution.percentile,
+      };
+    },
+  ),
 });
 
 export const getStrengthHistoryTool = createTool({
   description: "Get strength score history over time by region.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<StrengthScoreHistoryEntry[]> => {
-    const userId = requireUserId(ctx);
-    return (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
-      userId,
-    })) as StrengthScoreHistoryEntry[];
-  },
+  execute: withToolTracking(
+    "get_strength_history",
+    async (ctx, _input, _options): Promise<StrengthScoreHistoryEntry[]> => {
+      const userId = requireUserId(ctx);
+      return (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
+        userId,
+      })) as StrengthScoreHistoryEntry[];
+    },
+  ),
 });
 
 export const getMuscleReadinessTool = createTool({
   description: "Get muscle readiness (0-100) per muscle group.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<MuscleReadiness> => {
-    const userId = requireUserId(ctx);
-    return (await ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, {
-      userId,
-    })) as MuscleReadiness;
-  },
+  execute: withToolTracking(
+    "get_muscle_readiness",
+    async (ctx, _input, _options): Promise<MuscleReadiness> => {
+      const userId = requireUserId(ctx);
+      return (await ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, {
+        userId,
+      })) as MuscleReadiness;
+    },
+  ),
 });
 
 export const getWorkoutHistoryTool = createTool({
@@ -109,7 +120,7 @@ export const getWorkoutHistoryTool = createTool({
   inputSchema: z.object({
     limit: z.number().optional().default(20).describe("Max workouts to return"),
   }),
-  execute: async (ctx, input) => {
+  execute: withToolTracking("get_workout_history", async (ctx, input, _options) => {
     const userId = requireUserId(ctx);
     const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
@@ -125,7 +136,7 @@ export const getWorkoutHistoryTool = createTool({
       duration: a.workoutPreview.totalDuration,
       type: a.workoutPreview.workoutType,
     }));
-  },
+  }),
 });
 
 export const getWorkoutDetailTool = createTool({
@@ -133,21 +144,24 @@ export const getWorkoutDetailTool = createTool({
   inputSchema: z.object({
     activityId: z.string().describe("Activity ID from workout history"),
   }),
-  execute: async (ctx, input): Promise<WorkoutActivityDetail> => {
-    const userId = requireUserId(ctx);
-    const detail = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
-      userId,
-      activityId: input.activityId,
-    })) as WorkoutActivityDetail | null;
-    if (!detail) throw new Error("Workout activity not found");
-    return detail;
-  },
+  execute: withToolTracking(
+    "get_workout_detail",
+    async (ctx, input, _options): Promise<WorkoutActivityDetail> => {
+      const userId = requireUserId(ctx);
+      const detail = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+        userId,
+        activityId: input.activityId,
+      })) as WorkoutActivityDetail | null;
+      if (!detail) throw new Error("Workout activity not found");
+      return detail;
+    },
+  ),
 });
 
 export const getTrainingFrequencyTool = createTool({
   description: "Training frequency per muscle group from recent history.",
   inputSchema: z.object({}),
-  execute: async (ctx) => {
+  execute: withToolTracking("get_training_frequency", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
     const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
@@ -173,7 +187,7 @@ export const getTrainingFrequencyTool = createTool({
       totalSessions: activities.length,
       periodDays: 30,
     };
-  },
+  }),
 });
 
 export const createWorkoutTool = createTool({
@@ -207,62 +221,69 @@ export const createWorkoutTool = createTool({
       .min(1)
       .max(10),
   }),
-  execute: async (
-    ctx,
-    input,
-  ): Promise<
-    | { success: true; workoutId: string; title: string; setCount: number; planId: string }
-    | { success: false; error: string }
-  > => {
-    const userId = requireUserId(ctx);
+  execute: withToolTracking(
+    "create_workout",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<
+      | { success: true; workoutId: string; title: string; setCount: number; planId: string }
+      | { success: false; error: string }
+    > => {
+      const userId = requireUserId(ctx);
 
-    // Pre-validate movement IDs against the movements table
-    const allMovementIds = input.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
-    const validatedMovements = await ctx.runQuery(internal.tonal.movementSync.getByTonalIds, {
-      tonalIds: allMovementIds,
-    });
-    const validIds = new Set(validatedMovements.map((m) => m.id));
-    const invalidIds = allMovementIds.filter((id) => !validIds.has(id));
-    if (invalidIds.length > 0) {
-      return {
-        success: false,
-        error: `Invalid movementIds: ${invalidIds.join(", ")}. You MUST call search_exercises first to get valid IDs from Tonal's catalog. Do not guess or fabricate IDs.`,
-      };
-    }
+      // Pre-validate movement IDs against the movements table
+      const allMovementIds = input.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
+      const validatedMovements = await ctx.runQuery(internal.tonal.movementSync.getByTonalIds, {
+        tonalIds: allMovementIds,
+      });
+      const validIds = new Set(validatedMovements.map((m) => m.id));
+      const invalidIds = allMovementIds.filter((id) => !validIds.has(id));
+      if (invalidIds.length > 0) {
+        return {
+          success: false,
+          error: `Invalid movementIds: ${invalidIds.join(", ")}. You MUST call search_exercises first to get valid IDs from Tonal's catalog. Do not guess or fabricate IDs.`,
+        };
+      }
 
-    // Auto-correct duration vs reps based on movement.countReps
-    const movementMap = new Map(validatedMovements.map((m) => [m.id, m]));
-    const correctedBlocks = input.blocks.map((block) => ({
-      exercises: block.exercises.map((ex) => {
-        const movement = movementMap.get(ex.movementId);
-        if (movement && !movement.countReps) {
-          // Duration-based movement: use duration, ignore reps
-          return { ...ex, duration: ex.duration ?? 30, reps: undefined };
-        }
-        // Rep-based movement: use reps, ignore duration
-        return { ...ex, reps: ex.reps ?? 10, duration: undefined };
-      }),
-    }));
+      // Auto-correct duration vs reps based on movement.countReps
+      const movementMap = new Map(validatedMovements.map((m) => [m.id, m]));
+      const correctedBlocks = input.blocks.map((block) => ({
+        exercises: block.exercises.map((ex) => {
+          const movement = movementMap.get(ex.movementId);
+          if (movement && !movement.countReps) {
+            // Duration-based movement: use duration, ignore reps
+            return { ...ex, duration: ex.duration ?? 30, reps: undefined };
+          }
+          // Rep-based movement: use reps, ignore duration
+          return { ...ex, reps: ex.reps ?? 10, duration: undefined };
+        }),
+      }));
 
-    return ctx.runAction(internal.tonal.mutations.createWorkout, {
-      userId,
-      title: input.title,
-      blocks: correctedBlocks,
-    });
-  },
+      return ctx.runAction(internal.tonal.mutations.createWorkout, {
+        userId,
+        title: input.title,
+        blocks: correctedBlocks,
+      });
+    },
+  ),
 });
 export const deleteWorkoutTool = createTool({
   description: "Delete a custom workout from Tonal.",
   inputSchema: z.object({
     workoutId: z.string().describe("Tonal workout ID"),
   }),
-  execute: async (ctx, input): Promise<{ deleted: true }> => {
-    const userId = requireUserId(ctx);
-    return (await ctx.runAction(internal.tonal.mutations.deleteWorkout, {
-      userId,
-      workoutId: input.workoutId,
-    })) as { deleted: true };
-  },
+  execute: withToolTracking(
+    "delete_workout",
+    async (ctx, input, _options): Promise<{ deleted: true }> => {
+      const userId = requireUserId(ctx);
+      return (await ctx.runAction(internal.tonal.mutations.deleteWorkout, {
+        userId,
+        workoutId: input.workoutId,
+      })) as { deleted: true };
+    },
+  ),
 });
 
 export const estimateDurationTool = createTool({
@@ -285,29 +306,35 @@ export const estimateDurationTool = createTool({
       )
       .min(1),
   }),
-  execute: async (ctx, input): Promise<{ estimatedMinutes: number }> => {
-    const userId = requireUserId(ctx);
-    const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
-      userId,
-      blocks: input.blocks,
-    })) as { duration: number };
-    return { estimatedMinutes: Math.round(result.duration / 60) };
-  },
+  execute: withToolTracking(
+    "estimate_duration",
+    async (ctx, input, _options): Promise<{ estimatedMinutes: number }> => {
+      const userId = requireUserId(ctx);
+      const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
+        userId,
+        blocks: input.blocks,
+      })) as { duration: number };
+      return { estimatedMinutes: Math.round(result.duration / 60) };
+    },
+  ),
 });
 
 export const listProgressPhotosTool = createTool({
   description:
     "List progress photos (id, date). Use for compare only if analysis enabled in Settings.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<{ photos: { id: string; createdAt: number }[] }> => {
-    const userId = requireUserId(ctx);
-    const rows = (await ctx.runQuery(internal.progressPhotos.listByUserId, {
-      userId,
-    })) as { _id: Id<"progressPhotos">; createdAt: number }[];
-    return {
-      photos: rows.map((r) => ({ id: r._id, createdAt: r.createdAt })),
-    };
-  },
+  execute: withToolTracking(
+    "list_progress_photos",
+    async (ctx, _input, _options): Promise<{ photos: { id: string; createdAt: number }[] }> => {
+      const userId = requireUserId(ctx);
+      const rows = (await ctx.runQuery(internal.progressPhotos.listByUserId, {
+        userId,
+      })) as { _id: Id<"progressPhotos">; createdAt: number }[];
+      return {
+        photos: rows.map((r) => ({ id: r._id, createdAt: r.createdAt })),
+      };
+    },
+  ),
 });
 
 export const compareProgressPhotosTool = createTool({
@@ -317,20 +344,23 @@ export const compareProgressPhotosTool = createTool({
     photoId1: z.string().describe("First photo id (earlier)"),
     photoId2: z.string().describe("Second photo id (later)"),
   }),
-  execute: async (ctx, input): Promise<{ observations: string; error?: string }> => {
-    const userId = requireUserId(ctx);
-    try {
-      const observations = await ctx.runAction(internal.progressPhotos.compareProgressPhotos, {
-        userId,
-        photoId1: input.photoId1 as Id<"progressPhotos">,
-        photoId2: input.photoId2 as Id<"progressPhotos">,
-      });
-      return { observations };
-    } catch (err) {
-      return {
-        observations: "",
-        error: err instanceof Error ? err.message : "Comparison failed",
-      };
-    }
-  },
+  execute: withToolTracking(
+    "compare_progress_photos",
+    async (ctx, input, _options): Promise<{ observations: string; error?: string }> => {
+      const userId = requireUserId(ctx);
+      try {
+        const observations = await ctx.runAction(internal.progressPhotos.compareProgressPhotos, {
+          userId,
+          photoId1: input.photoId1 as Id<"progressPhotos">,
+          photoId2: input.photoId2 as Id<"progressPhotos">,
+        });
+        return { observations };
+      } catch (err) {
+        return {
+          observations: "",
+          error: err instanceof Error ? err.message : "Comparison failed",
+        };
+      }
+    },
+  ),
 });
