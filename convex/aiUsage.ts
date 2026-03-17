@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 
 export const record = internalMutation({
@@ -16,6 +17,28 @@ export const record = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("aiUsage", { ...args, createdAt: Date.now() });
+  },
+});
+
+export const recordRouting = internalMutation({
+  args: {
+    userId: v.string(),
+    threadId: v.string(),
+    intent: v.string(),
+  },
+  handler: async (ctx, { userId, threadId, intent }) => {
+    await ctx.db.insert("aiUsage", {
+      userId: userId as Id<"users">,
+      threadId,
+      agentName: `router:${intent}`,
+      model: "keyword-classifier",
+      provider: "local",
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      routedIntent: intent,
+      createdAt: Date.now(),
+    });
   },
 });
 

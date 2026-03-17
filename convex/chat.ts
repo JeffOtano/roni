@@ -88,6 +88,13 @@ export const sendMessage = action({
     }
 
     const routed = getRoutedAgents(prompt);
+    if (routed) {
+      await ctx.runMutation(internal.aiUsage.recordRouting, {
+        userId,
+        threadId: targetThreadId,
+        intent: classifyIntent(prompt),
+      });
+    }
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
@@ -200,6 +207,13 @@ export const processMessage = internalAction({
   },
   handler: async (ctx, { threadId, userId, prompt }) => {
     const routed = getRoutedAgents(prompt);
+    if (routed) {
+      await ctx.runMutation(internal.aiUsage.recordRouting, {
+        userId,
+        threadId,
+        intent: classifyIntent(prompt),
+      });
+    }
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,

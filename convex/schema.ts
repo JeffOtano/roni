@@ -390,6 +390,7 @@ export default defineSchema({
     totalTokens: v.number(),
     cacheReadTokens: v.optional(v.number()),
     cacheWriteTokens: v.optional(v.number()),
+    routedIntent: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_userId", ["userId"])
