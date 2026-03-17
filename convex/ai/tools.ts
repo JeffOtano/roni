@@ -18,13 +18,17 @@ async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
 }
 
 export const searchExercisesTool = createTool({
-  description: "Search Tonal exercise catalog by name and/or muscle group.",
+  description: "Search Tonal exercise catalog by name, muscle group, and/or training type.",
   inputSchema: z.object({
     name: z
       .string()
       .optional()
       .describe("Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL')"),
     muscleGroup: z.string().optional().describe("e.g. Chest, Back, Quads, Shoulders"),
+    trainingType: z
+      .string()
+      .optional()
+      .describe("Filter by training type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
   }),
   execute: withToolTracking("search_exercises", async (ctx, input, _options) => {
     const catalog = await getGlobalMovementCatalog(ctx);
@@ -37,6 +41,10 @@ export const searchExercisesTool = createTool({
       const g = input.muscleGroup.toLowerCase();
       results = results.filter((m) => m.muscleGroups.some((mg) => mg.toLowerCase() === g));
     }
+    if (input.trainingType) {
+      const t = input.trainingType.toLowerCase();
+      results = results.filter((m) => m.trainingTypes?.some((tt) => tt.toLowerCase() === t));
+    }
 
     return results.slice(0, 30).map((m) => ({
       movementId: m.id,
@@ -45,6 +53,7 @@ export const searchExercisesTool = createTool({
       onMachine: m.onMachine,
       skillLevel: m.skillLevel,
       accessory: m.onMachineInfo?.accessory ?? "None",
+      trainingTypes: m.trainingTypes ?? [],
     }));
   }),
 });
