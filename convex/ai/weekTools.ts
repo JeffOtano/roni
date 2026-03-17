@@ -16,7 +16,7 @@ import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-import { requireUserId } from "./helpers";
+import { requireUserId, withToolTracking } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // programWeekTool
@@ -49,43 +49,47 @@ export const programWeekTool = createTool({
       .optional()
       .describe("Session duration. Omit to use saved preferences."),
   }),
-  execute: async (
-    ctx,
-    input,
-  ): Promise<
-    | { success: true; weekPlanId: string; summary: DraftWeekSummary }
-    | { success: false; error: string }
-  > => {
-    const userId = requireUserId(ctx);
+  execute: withToolTracking(
+    "program_week",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<
+      | { success: true; weekPlanId: string; summary: DraftWeekSummary }
+      | { success: false; error: string }
+    > => {
+      const userId = requireUserId(ctx);
 
-    // Load saved preferences as defaults
-    const saved = (await ctx.runQuery(internal.userProfiles.getTrainingPreferencesInternal, {
-      userId,
-    })) as {
-      preferredSplit?: "ppl" | "upper_lower" | "full_body";
-      trainingDays?: number[];
-      sessionDurationMinutes?: number;
-    } | null;
+      // Load saved preferences as defaults
+      const saved = (await ctx.runQuery(internal.userProfiles.getTrainingPreferencesInternal, {
+        userId,
+      })) as {
+        preferredSplit?: "ppl" | "upper_lower" | "full_body";
+        trainingDays?: number[];
+        sessionDurationMinutes?: number;
+      } | null;
 
-    const preferredSplit = input.preferredSplit ?? saved?.preferredSplit ?? "ppl";
-    const sessionDuration = input.sessionDurationMinutes
-      ? (parseInt(input.sessionDurationMinutes) as 30 | 45 | 60)
-      : ((saved?.sessionDurationMinutes as 30 | 45 | 60 | undefined) ?? 45);
+      const preferredSplit = input.preferredSplit ?? saved?.preferredSplit ?? "ppl";
+      const sessionDuration = input.sessionDurationMinutes
+        ? (parseInt(input.sessionDurationMinutes) as 30 | 45 | 60)
+        : ((saved?.sessionDurationMinutes as 30 | 45 | 60 | undefined) ?? 45);
 
-    const result = (await ctx.runAction(internal.coach.weekProgramming.generateDraftWeekPlan, {
-      userId,
-      weekStartDate: getWeekStartDateString(new Date()),
-      preferredSplit,
-      targetDays:
-        input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3,
-      sessionDurationMinutes: sessionDuration,
-      trainingDayIndicesOverride: input.trainingDays ?? saved?.trainingDays,
-    })) as
-      | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
-      | { success: false; error: string };
+      const result = (await ctx.runAction(internal.coach.weekProgramming.generateDraftWeekPlan, {
+        userId,
+        weekStartDate: getWeekStartDateString(new Date()),
+        preferredSplit,
+        targetDays:
+          input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3,
+        sessionDurationMinutes: sessionDuration,
+        trainingDayIndicesOverride: input.trainingDays ?? saved?.trainingDays,
+      })) as
+        | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
+        | { success: false; error: string };
 
-    return result;
-  },
+      return result;
+    },
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -149,74 +153,79 @@ export const getWeekPlanDetailsTool = createTool({
   description:
     "Retrieve the current week's training plan with full exercise details (names, muscle groups, sets, reps, push status). Use this to show the user their plan or to check what's already programmed before making changes.",
   inputSchema: z.object({}),
-  execute: async (
-    ctx,
-  ): Promise<{ found: true; plan: WeekPlanDetails } | { found: false; message: string }> => {
-    const userId = requireUserId(ctx);
-    const weekStartDate = getWeekStartDateString(new Date());
+  execute: withToolTracking(
+    "get_week_plan_details",
+    async (
+      ctx,
+      _input,
+      _options,
+    ): Promise<{ found: true; plan: WeekPlanDetails } | { found: false; message: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
 
-    const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-      userId,
-      weekStartDate,
-    })) as {
-      _id: Id<"weekPlans">;
-      weekStartDate: string;
-      preferredSplit: string;
-      targetDays: number;
-      days: {
-        sessionType: string;
-        status: string;
-        workoutPlanId?: Id<"workoutPlans">;
-        estimatedDuration?: number;
-      }[];
-    } | null;
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as {
+        _id: Id<"weekPlans">;
+        weekStartDate: string;
+        preferredSplit: string;
+        targetDays: number;
+        days: {
+          sessionType: string;
+          status: string;
+          workoutPlanId?: Id<"workoutPlans">;
+          estimatedDuration?: number;
+        }[];
+      } | null;
 
-    if (!weekPlan) {
-      return { found: false, message: "No week plan found for the current week." };
-    }
-
-    // Load movement catalog for name resolution
-    const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
-    const movementMap = new Map(catalog.map((m) => [m.id, m]));
-
-    // Resolve each day's workout details
-    const dayDetails: WeekPlanDayDetail[] = [];
-
-    for (let i = 0; i < weekPlan.days.length; i++) {
-      const day = weekPlan.days[i];
-      const detail: WeekPlanDayDetail = {
-        dayIndex: i,
-        dayName: DAY_NAMES[i],
-        sessionType: day.sessionType,
-        status: day.status,
-        estimatedDuration: day.estimatedDuration,
-        exercises: [],
-      };
-
-      if (day.workoutPlanId) {
-        const plan = (await ctx.runQuery(internal.workoutPlans.getById, {
-          planId: day.workoutPlanId,
-          userId,
-        })) as { blocks: WorkoutBlocks } | null;
-
-        if (plan?.blocks) {
-          detail.exercises = resolveExercises(plan.blocks, movementMap);
-        }
+      if (!weekPlan) {
+        return { found: false, message: "No week plan found for the current week." };
       }
 
-      dayDetails.push(detail);
-    }
+      // Load movement catalog for name resolution
+      const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+      const movementMap = new Map(catalog.map((m) => [m.id, m]));
 
-    return {
-      found: true,
-      plan: {
-        weekStartDate: weekPlan.weekStartDate,
-        preferredSplit: weekPlan.preferredSplit,
-        targetDays: weekPlan.targetDays,
-        days: dayDetails,
-      },
-    };
-  },
+      // Resolve each day's workout details
+      const dayDetails: WeekPlanDayDetail[] = [];
+
+      for (let i = 0; i < weekPlan.days.length; i++) {
+        const day = weekPlan.days[i];
+        const detail: WeekPlanDayDetail = {
+          dayIndex: i,
+          dayName: DAY_NAMES[i],
+          sessionType: day.sessionType,
+          status: day.status,
+          estimatedDuration: day.estimatedDuration,
+          exercises: [],
+        };
+
+        if (day.workoutPlanId) {
+          const plan = (await ctx.runQuery(internal.workoutPlans.getById, {
+            planId: day.workoutPlanId,
+            userId,
+          })) as { blocks: WorkoutBlocks } | null;
+
+          if (plan?.blocks) {
+            detail.exercises = resolveExercises(plan.blocks, movementMap);
+          }
+        }
+
+        dayDetails.push(detail);
+      }
+
+      return {
+        found: true,
+        plan: {
+          weekStartDate: weekPlan.weekStartDate,
+          preferredSplit: weekPlan.preferredSplit,
+          targetDays: weekPlan.targetDays,
+          days: dayDetails,
+        },
+      };
+    },
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -227,26 +236,33 @@ export const deleteWeekPlanTool = createTool({
   description:
     "Delete the current week's training plan and all its draft workouts. Use this when the user wants to start over or discard the current plan.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<{ deleted: true } | { deleted: false; message: string }> => {
-    const userId = requireUserId(ctx);
-    const weekStartDate = getWeekStartDateString(new Date());
+  execute: withToolTracking(
+    "delete_week_plan",
+    async (
+      ctx,
+      _input,
+      _options,
+    ): Promise<{ deleted: true } | { deleted: false; message: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
 
-    const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-      userId,
-      weekStartDate,
-    })) as { _id: Id<"weekPlans"> } | null;
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as { _id: Id<"weekPlans"> } | null;
 
-    if (!weekPlan) {
-      return { deleted: false, message: "No week plan found for the current week." };
-    }
+      if (!weekPlan) {
+        return { deleted: false, message: "No week plan found for the current week." };
+      }
 
-    await ctx.runMutation(internal.weekPlans.deleteWeekPlanInternal, {
-      userId,
-      weekPlanId: weekPlan._id,
-    });
+      await ctx.runMutation(internal.weekPlans.deleteWeekPlanInternal, {
+        userId,
+        weekPlanId: weekPlan._id,
+      });
 
-    return { deleted: true };
-  },
+      return { deleted: true };
+    },
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -261,13 +277,17 @@ export const getWorkoutPerformanceTool = createTool({
   description:
     "Get performance summary for the user's recent training. Shows PRs (personal records), plateaus, regressions, and progression trends per exercise. Use this when the user asks about their progress, after they complete a workout, or when you want to acknowledge their recent performance.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<WorkoutPerformanceSummary> => {
-    const userId = requireUserId(ctx);
-    const result = (await ctx.runAction(internal.progressiveOverload.getWorkoutPerformanceSummary, {
-      userId,
-    })) as WorkoutPerformanceSummary;
-    return result;
-  },
+  execute: withToolTracking(
+    "get_workout_performance",
+    async (ctx, _input, _options): Promise<WorkoutPerformanceSummary> => {
+      const userId = requireUserId(ctx);
+      const result = (await ctx.runAction(
+        internal.progressiveOverload.getWorkoutPerformanceSummary,
+        { userId },
+      )) as WorkoutPerformanceSummary;
+      return result;
+    },
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -278,24 +298,27 @@ export const approveWeekPlanTool = createTool({
   description:
     "Push all draft workouts in the current week plan to Tonal. Use after the user verbally approves the plan in chat. Reports per-workout push status.",
   inputSchema: z.object({}),
-  execute: async (ctx): Promise<WeekPushResult | { error: string }> => {
-    const userId = requireUserId(ctx);
-    const weekStartDate = getWeekStartDateString(new Date());
+  execute: withToolTracking(
+    "approve_week_plan",
+    async (ctx, _input, _options): Promise<WeekPushResult | { error: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
 
-    const plan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-      userId,
-      weekStartDate,
-    })) as { _id: Id<"weekPlans"> } | null;
+      const plan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as { _id: Id<"weekPlans"> } | null;
 
-    if (!plan) {
-      return { error: "No week plan found. Use program_week first." };
-    }
+      if (!plan) {
+        return { error: "No week plan found. Use program_week first." };
+      }
 
-    const result = (await ctx.runAction(internal.coach.pushAndVerify.pushWeekPlanToTonal, {
-      userId,
-      weekPlanId: plan._id,
-    })) as WeekPushResult;
+      const result = (await ctx.runAction(internal.coach.pushAndVerify.pushWeekPlanToTonal, {
+        userId,
+        weekPlanId: plan._id,
+      })) as WeekPushResult;
 
-    return result;
-  },
+      return result;
+    },
+  ),
 });

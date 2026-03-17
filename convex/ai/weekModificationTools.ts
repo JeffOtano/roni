@@ -12,7 +12,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-import { requireUserId } from "./helpers";
+import { requireUserId, withToolTracking } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // swapExerciseTool
@@ -31,45 +31,49 @@ export const swapExerciseTool = createTool({
     oldMovementId: z.string().describe("The movement ID to replace"),
     newMovementId: z.string().describe("The replacement movement ID (from search_exercises)"),
   }),
-  execute: async (
-    ctx,
-    input,
-  ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
-    const userId = requireUserId(ctx);
-    const weekStartDate = getWeekStartDateString(new Date());
+  execute: withToolTracking(
+    "swap_exercise",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
 
-    const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-      userId,
-      weekStartDate,
-    })) as {
-      _id: Id<"weekPlans">;
-      days: { workoutPlanId?: Id<"workoutPlans">; sessionType: string }[];
-    } | null;
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as {
+        _id: Id<"weekPlans">;
+        days: { workoutPlanId?: Id<"workoutPlans">; sessionType: string }[];
+      } | null;
 
-    if (!weekPlan) {
-      return { success: false, error: "No week plan found for the current week." };
-    }
+      if (!weekPlan) {
+        return { success: false, error: "No week plan found for the current week." };
+      }
 
-    const day = weekPlan.days[input.dayIndex];
-    if (!day?.workoutPlanId) {
+      const day = weekPlan.days[input.dayIndex];
+      if (!day?.workoutPlanId) {
+        return {
+          success: false,
+          error: `No workout linked to ${DAY_NAMES[input.dayIndex]}. Nothing to swap.`,
+        };
+      }
+
+      await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
+        userId,
+        workoutPlanId: day.workoutPlanId,
+        oldMovementId: input.oldMovementId,
+        newMovementId: input.newMovementId,
+      });
+
       return {
-        success: false,
-        error: `No workout linked to ${DAY_NAMES[input.dayIndex]}. Nothing to swap.`,
+        success: true,
+        message: `Swapped exercise on ${DAY_NAMES[input.dayIndex]}. Use get_week_plan_details to see the updated plan.`,
       };
-    }
-
-    await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
-      userId,
-      workoutPlanId: day.workoutPlanId,
-      oldMovementId: input.oldMovementId,
-      newMovementId: input.newMovementId,
-    });
-
-    return {
-      success: true,
-      message: `Swapped exercise on ${DAY_NAMES[input.dayIndex]}. Use get_week_plan_details to see the updated plan.`,
-    };
-  },
+    },
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -88,38 +92,42 @@ export const moveSessionTool = createTool({
       .max(6)
       .describe("Destination day index: 0=Monday..6=Sunday"),
   }),
-  execute: async (
-    ctx,
-    input,
-  ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
-    const userId = requireUserId(ctx);
-    const weekStartDate = getWeekStartDateString(new Date());
+  execute: withToolTracking(
+    "move_session",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
 
-    const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-      userId,
-      weekStartDate,
-    })) as { _id: Id<"weekPlans"> } | null;
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as { _id: Id<"weekPlans"> } | null;
 
-    if (!weekPlan) {
-      return { success: false, error: "No week plan found for the current week." };
-    }
+      if (!weekPlan) {
+        return { success: false, error: "No week plan found for the current week." };
+      }
 
-    if (input.fromDayIndex === input.toDayIndex) {
-      return { success: false, error: "Source and destination days are the same." };
-    }
+      if (input.fromDayIndex === input.toDayIndex) {
+        return { success: false, error: "Source and destination days are the same." };
+      }
 
-    await ctx.runMutation(internal.coach.weekModifications.swapDaySlots, {
-      userId,
-      weekPlanId: weekPlan._id,
-      fromDayIndex: input.fromDayIndex,
-      toDayIndex: input.toDayIndex,
-    });
+      await ctx.runMutation(internal.coach.weekModifications.swapDaySlots, {
+        userId,
+        weekPlanId: weekPlan._id,
+        fromDayIndex: input.fromDayIndex,
+        toDayIndex: input.toDayIndex,
+      });
 
-    return {
-      success: true,
-      message: `Swapped ${DAY_NAMES[input.fromDayIndex]} and ${DAY_NAMES[input.toDayIndex]}. Use get_week_plan_details to see the updated plan.`,
-    };
-  },
+      return {
+        success: true,
+        message: `Swapped ${DAY_NAMES[input.fromDayIndex]} and ${DAY_NAMES[input.toDayIndex]}. Use get_week_plan_details to see the updated plan.`,
+      };
+    },
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -133,43 +141,47 @@ export const adjustSessionDurationTool = createTool({
     dayIndex: z.number().int().min(0).max(6).describe("Day of the week: 0=Monday..6=Sunday"),
     newDurationMinutes: z.enum(["30", "45", "60"]).describe("New session duration in minutes"),
   }),
-  execute: async (
-    ctx,
-    input,
-  ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
-    const userId = requireUserId(ctx);
-    const weekStartDate = getWeekStartDateString(new Date());
+  execute: withToolTracking(
+    "adjust_session_duration",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
 
-    const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
-      userId,
-      weekStartDate,
-    })) as {
-      _id: Id<"weekPlans">;
-      days: { sessionType: string; workoutPlanId?: Id<"workoutPlans"> }[];
-    } | null;
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as {
+        _id: Id<"weekPlans">;
+        days: { sessionType: string; workoutPlanId?: Id<"workoutPlans"> }[];
+      } | null;
 
-    if (!weekPlan) {
-      return { success: false, error: "No week plan found for the current week." };
-    }
+      if (!weekPlan) {
+        return { success: false, error: "No week plan found for the current week." };
+      }
 
-    const day = weekPlan.days[input.dayIndex];
-    if (!day || day.sessionType === "rest" || day.sessionType === "recovery") {
+      const day = weekPlan.days[input.dayIndex];
+      if (!day || day.sessionType === "rest" || day.sessionType === "recovery") {
+        return {
+          success: false,
+          error: `${DAY_NAMES[input.dayIndex]} is a ${day?.sessionType ?? "rest"} day. Cannot adjust duration.`,
+        };
+      }
+
+      await ctx.runAction(internal.coach.weekModifications.adjustDayDuration, {
+        userId,
+        weekPlanId: weekPlan._id,
+        dayIndex: input.dayIndex,
+        newDurationMinutes: parseInt(input.newDurationMinutes) as 30 | 45 | 60,
+      });
+
       return {
-        success: false,
-        error: `${DAY_NAMES[input.dayIndex]} is a ${day?.sessionType ?? "rest"} day. Cannot adjust duration.`,
+        success: true,
+        message: `Adjusted ${DAY_NAMES[input.dayIndex]} to ${input.newDurationMinutes} minutes with new exercises. Use get_week_plan_details to see the updated plan.`,
       };
-    }
-
-    await ctx.runAction(internal.coach.weekModifications.adjustDayDuration, {
-      userId,
-      weekPlanId: weekPlan._id,
-      dayIndex: input.dayIndex,
-      newDurationMinutes: parseInt(input.newDurationMinutes) as 30 | 45 | 60,
-    });
-
-    return {
-      success: true,
-      message: `Adjusted ${DAY_NAMES[input.dayIndex]} to ${input.newDurationMinutes} minutes with new exercises. Use get_week_plan_details to see the updated plan.`,
-    };
-  },
+    },
+  ),
 });
