@@ -54,6 +54,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as discord from "../discord.js";
 import type * as email from "../email.js";
 import type * as emailChange from "../emailChange.js";
+import type * as emailTemplates from "../emailTemplates.js";
 import type * as goals from "../goals.js";
 import type * as google_client from "../google/client.js";
 import type * as http from "../http.js";
@@ -167,6 +168,7 @@ declare const fullApi: ApiFromModules<{
   discord: typeof discord;
   email: typeof email;
   emailChange: typeof emailChange;
+  emailTemplates: typeof emailTemplates;
   goals: typeof goals;
   "google/client": typeof google_client;
   http: typeof http;
