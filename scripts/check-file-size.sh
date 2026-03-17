@@ -6,8 +6,8 @@ MAX_LINES=400
 EXIT_CODE=0
 
 for file in "$@"; do
-  # Skip generated files (e.g., convex/_generated/) and reference material
-  if [[ "$file" == *"_generated"* ]] || [[ "$file" == *"docs/reference"* ]]; then
+  # Skip generated files (e.g., convex/_generated/), reference material, and schema registry
+  if [[ "$file" == *"_generated"* ]] || [[ "$file" == *"docs/reference"* ]] || [[ "$file" == *"convex/schema.ts" ]]; then
     continue
   fi
   if [ -f "$file" ]; then
