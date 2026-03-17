@@ -279,6 +279,11 @@ export const runCheckInTriggerEvaluation = internalAction({
             userId,
             error: err instanceof Error ? err.message : String(err),
           });
+          void ctx.runAction(internal.discord.notifyError, {
+            source: "checkIns",
+            message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
+            userId,
+          });
         }
       }
       if (i + BATCH_SIZE < userIds.length) {

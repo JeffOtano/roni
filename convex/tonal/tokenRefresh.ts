@@ -39,6 +39,11 @@ export const refreshExpiringTokens = internalAction({
         });
       } catch (error) {
         console.error(`Failed to refresh token for user ${profile.userId}:`, error);
+        void ctx.runAction(internal.discord.notifyError, {
+          source: "tokenRefresh",
+          message: `Token refresh failed: ${error instanceof Error ? error.message : String(error)}`,
+          userId: profile.userId,
+        });
         await ctx.runMutation(internal.userProfiles.markTokenExpired, {
           userId: profile.userId,
         });

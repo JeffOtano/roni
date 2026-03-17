@@ -136,8 +136,13 @@ async function fillWorkoutsPhase(
         internal.progressiveOverload.getLastTimeAndSuggestedInternal,
         { userId, movementIds },
       )) as { movementId: string; suggestedReps?: number }[];
-    } catch {
-      // No history or Tonal unavailable; use default reps.
+    } catch (error) {
+      console.error("[weekProgrammingLegacy] Progressive overload lookup failed", error);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "weekProgrammingLegacy",
+        message: `Progressive overload failed: ${error instanceof Error ? error.message : String(error)}`,
+        userId,
+      });
     }
 
     const blocks = blocksFromMovementIds(movementIds, suggestions, {
