@@ -93,6 +93,8 @@ export default defineSchema({
     googleCalendarTokenExpiresAt: v.optional(v.number()),
     googleCalendarEnabled: v.optional(v.boolean()),
     googleCalendarId: v.optional(v.string()),
+    /** Hours of inactivity before a new chat thread is created. Default: 24. */
+    threadStaleHours: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"])
@@ -361,4 +363,14 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"]),
+
+  aiToolCalls: defineTable({
+    userId: v.optional(v.string()),
+    threadId: v.optional(v.string()),
+    toolName: v.string(),
+    durationMs: v.number(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_tool", ["toolName", "createdAt"]),
 });
