@@ -51,7 +51,6 @@ export const setCacheEntry = internalMutation({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
-    // Upsert: delete old entry if exists, then insert
     const existing = await ctx.db
       .query("tonalCache")
       .withIndex("by_userId_dataType", (q) =>
@@ -60,9 +59,10 @@ export const setCacheEntry = internalMutation({
       .unique();
 
     if (existing) {
-      await ctx.db.replace(existing._id, {
-        userId: args.userId,
-        dataType: args.dataType,
+      // Freshness guard: skip write if existing data is already newer.
+      // This makes concurrent cache writers harmless instead of conflicting.
+      if (args.fetchedAt <= existing.fetchedAt) return;
+      await ctx.db.patch(existing._id, {
         data: args.data,
         fetchedAt: args.fetchedAt,
         expiresAt: args.expiresAt,
