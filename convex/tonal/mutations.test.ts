@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatTonalTitle } from "./mutations";
+import { correctDurationRepsMismatch, formatTonalTitle } from "./mutations";
+import type { WorkoutSetInput } from "./types";
 
 // ---------------------------------------------------------------------------
 // formatTonalTitle
@@ -70,5 +71,81 @@ describe("formatTonalTitle", () => {
 
     expect(result).toContain(" · ");
     expect(result.endsWith("Quick Check")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// correctDurationRepsMismatch
+// ---------------------------------------------------------------------------
+
+function makeSet(overrides: Partial<WorkoutSetInput> = {}): WorkoutSetInput {
+  return {
+    movementId: "move-1",
+    blockNumber: 1,
+    ...overrides,
+  };
+}
+
+describe("correctDurationRepsMismatch", () => {
+  const durationMovement = { id: "pushup-1", name: "Pushup", countReps: false };
+  const repMovement = { id: "bench-1", name: "Bench Press", countReps: true };
+
+  it("corrects a duration-based movement that has prescribedReps", () => {
+    const sets = [makeSet({ movementId: "pushup-1", prescribedReps: 10 })];
+
+    const corrections = correctDurationRepsMismatch(sets, [durationMovement]);
+
+    expect(corrections).toBe(1);
+    expect(sets[0].prescribedReps).toBeUndefined();
+    expect(sets[0].prescribedDuration).toBe(30);
+    expect(sets[0].prescribedResistanceLevel).toBe(5);
+  });
+
+  it("preserves existing prescribedDuration when correcting", () => {
+    const sets = [makeSet({ movementId: "pushup-1", prescribedReps: 10, prescribedDuration: 45 })];
+
+    correctDurationRepsMismatch(sets, [durationMovement]);
+
+    expect(sets[0].prescribedDuration).toBe(45);
+  });
+
+  it("does not touch rep-based movements", () => {
+    const sets = [makeSet({ movementId: "bench-1", prescribedReps: 8 })];
+
+    const corrections = correctDurationRepsMismatch(sets, [repMovement]);
+
+    expect(corrections).toBe(0);
+    expect(sets[0].prescribedReps).toBe(8);
+    expect(sets[0].prescribedDuration).toBeUndefined();
+  });
+
+  it("does not touch movements not in catalog", () => {
+    const sets = [makeSet({ movementId: "unknown", prescribedReps: 10 })];
+
+    const corrections = correctDurationRepsMismatch(sets, [durationMovement]);
+
+    expect(corrections).toBe(0);
+    expect(sets[0].prescribedReps).toBe(10);
+  });
+
+  it("handles empty sets array", () => {
+    const corrections = correctDurationRepsMismatch([], [durationMovement]);
+
+    expect(corrections).toBe(0);
+  });
+
+  it("corrects multiple sets in one pass", () => {
+    const sets = [
+      makeSet({ movementId: "pushup-1", prescribedReps: 10 }),
+      makeSet({ movementId: "bench-1", prescribedReps: 8 }),
+      makeSet({ movementId: "pushup-1", prescribedReps: 12 }),
+    ];
+
+    const corrections = correctDurationRepsMismatch(sets, [durationMovement, repMovement]);
+
+    expect(corrections).toBe(2);
+    expect(sets[0].prescribedReps).toBeUndefined();
+    expect(sets[1].prescribedReps).toBe(8);
+    expect(sets[2].prescribedReps).toBeUndefined();
   });
 });

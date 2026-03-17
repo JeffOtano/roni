@@ -5,12 +5,37 @@ import type { Id } from "../_generated/dataModel";
 import { tonalFetch } from "./client";
 import { type BlockInput, expandBlocksToSets } from "./transforms";
 import { validateWorkoutBlocks } from "./validation";
-import type { Activity, WorkoutEstimate } from "./types";
+import type { Activity, WorkoutEstimate, WorkoutSetInput } from "./types";
 import { cachedFetch } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
 const DEFAULT_WORKOUT_DURATION_MINUTES = 45;
+
+/**
+ * Correct sets where a duration-based movement was incorrectly assigned prescribedReps.
+ * Mutates the sets in place; returns the number of corrections made.
+ */
+export function correctDurationRepsMismatch(
+  sets: WorkoutSetInput[],
+  catalog: Array<{ id: string; name?: string; countReps: boolean }>,
+): number {
+  const catalogMap = new Map(catalog.map((m) => [m.id, m]));
+  let corrections = 0;
+  for (const set of sets) {
+    const movement = catalogMap.get(set.movementId);
+    if (movement && !movement.countReps && set.prescribedReps != null) {
+      console.warn(
+        `Duration/reps mismatch: ${movement.name ?? set.movementId} has countReps=false but got prescribedReps=${set.prescribedReps}. Correcting to duration.`,
+      );
+      set.prescribedReps = undefined;
+      set.prescribedDuration = set.prescribedDuration ?? 30;
+      set.prescribedResistanceLevel = set.prescribedResistanceLevel ?? 5;
+      corrections++;
+    }
+  }
+  return corrections;
+}
 
 /** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
 export const doTonalCreateWorkout = internalAction({
@@ -21,6 +46,11 @@ export const doTonalCreateWorkout = internalAction({
   },
   handler: async (ctx, { userId, title, blocks }): Promise<{ id: string }> => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+    if (catalog.length === 0) {
+      throw new Error(
+        "Movement catalog is empty — cannot validate or create workout. Run movement sync first.",
+      );
+    }
     const validation = validateWorkoutBlocks(blocks as BlockInput[], catalog);
     if (!validation.valid) {
       throw new Error(
@@ -28,6 +58,7 @@ export const doTonalCreateWorkout = internalAction({
       );
     }
     const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
+    correctDurationRepsMismatch(sets, catalog);
 
     return withTokenRetry(ctx, userId, async (token) => {
       const workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {

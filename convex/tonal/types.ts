@@ -144,7 +144,7 @@ export interface WorkoutActivityDetail {
   totalVolume: number;
   totalConcentricWork: number;
   percentCompleted: number;
-  workoutSetActivity: SetActivity[];
+  workoutSetActivity?: SetActivity[];
 }
 
 export interface SetActivity {

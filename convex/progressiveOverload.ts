@@ -37,13 +37,13 @@ export interface LastTimeAndSuggested {
 }
 
 /** Aggregate workoutSetActivity by movementId into per-movement session snapshot. */
-function aggregateDetailToSessions(
+export function aggregateDetailToSessions(
   detail: WorkoutActivityDetail,
   volumeByMovement?: Map<string, number>,
 ): Map<string, MovementSessionSnapshot> {
   const sessionDate = detail.beginTime.slice(0, 10);
   const byMovement = new Map<string, SetActivity[]>();
-  for (const set of detail.workoutSetActivity) {
+  for (const set of detail.workoutSetActivity ?? []) {
     const list = byMovement.get(set.movementId) ?? [];
     list.push(set);
     byMovement.set(set.movementId, list);
