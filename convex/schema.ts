@@ -150,9 +150,17 @@ export default defineSchema({
     accessory: v.optional(v.string()),
     onMachineInfo: v.optional(v.any()),
     lastSyncedAt: v.number(),
+    trainingTypes: v.optional(v.array(v.string())),
   })
     .index("by_tonalId", ["tonalId"])
     .index("by_accessory", ["accessory"]),
+
+  trainingTypes: defineTable({
+    tonalId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    lastSyncedAt: v.number(),
+  }).index("by_tonalId", ["tonalId"]),
 
   workoutPlans: defineTable({
     userId: v.id("users"),

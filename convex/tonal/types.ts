@@ -44,6 +44,7 @@ export interface Movement {
     chainsDisabled: boolean;
     burnoutDisabled: boolean;
   };
+  trainingTypes?: string[];
 }
 
 // Strength score from GET /v6/users/{userId}/strength-scores/current
@@ -218,6 +219,33 @@ export interface CreateWorkoutInput {
 // Response from POST /v6/user-workouts/estimate
 export interface WorkoutEstimate {
   duration: number;
+}
+
+// Training type from GET /v6/training-types
+export interface TrainingType {
+  id: string;
+  name: string;
+  description: string;
+}
+
+// Workout detail from GET /v6/workouts/{workoutId}
+export interface TonalWorkoutDetail {
+  id: string;
+  sets: Array<{ movementId: string }>;
+}
+
+// Tile from GET /v6/explore/workouts
+export interface TonalExploreTile {
+  workoutId: string;
+  trainingTypeIds: string[];
+  publishedAt?: string;
+}
+
+// Group from GET /v6/explore/workouts
+export interface TonalExploreGroup {
+  title: string;
+  total: number;
+  tiles: TonalExploreTile[];
 }
 
 // Strength score history from GET /v6/users/{userId}/strength-scores/history
