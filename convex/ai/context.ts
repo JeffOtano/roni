@@ -6,6 +6,8 @@ import { detectMissedSessions, formatMissedSessionContext } from "../coach/misse
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
 import { ACCESSORY_MAP } from "../tonal/accessories";
+export { getRecencyLabel } from "./timeDecay";
+import { getRecencyLabel } from "./timeDecay";
 
 export interface SnapshotSection {
   priority: number; // 1 = highest (dropped last), 12 = lowest (dropped first)
@@ -72,23 +74,6 @@ export function formatExternalActivityLine(a: ExternalActivity): string {
     line += ` | Avg HR ${Math.round(a.averageHeartRate)} (${hrLabel})`;
   }
   return line;
-}
-
-export function getRecencyLabel(
-  isoTimestamp: string,
-  now: Date = new Date(),
-): "today" | "yesterday" | "this week" | "last week" | "older" {
-  const ts = new Date(isoTimestamp);
-  const diffMs = now.getTime() - ts.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-  if (diffDays < 1 && ts.toISOString().slice(0, 10) === now.toISOString().slice(0, 10)) {
-    return "today";
-  }
-  if (diffDays < 2) return "yesterday";
-  if (diffDays < 7) return "this week";
-  if (diffDays < 14) return "last week";
-  return "older";
 }
 
 export async function buildTrainingSnapshot(
@@ -294,34 +279,47 @@ export async function buildTrainingSnapshot(
     sections.push({ priority: 8, lines: [`Muscle Readiness (0-100): ${readyParts}`] });
   }
 
-  // Priority 9: Recent workouts
+  // Priority 9: Recent workouts (time-decay: recent = more detail)
   if ((activities as Activity[]).length > 0) {
-    const workoutLines: string[] = [`Recent Workouts:`];
+    const now = new Date();
+    const wl = [`Recent Workouts:`];
     for (const a of activities as Activity[]) {
       const wp = a.workoutPreview;
-      workoutLines.push(
-        `  ${a.activityTime.split("T")[0]} | ${wp.workoutTitle} | ${wp.targetArea} | ${wp.totalVolume}lbs vol | ${Math.round(wp.totalDuration / 60)}min`,
-      );
+      const r = getRecencyLabel(a.activityTime, now);
+      const date = a.activityTime.split("T")[0];
+      const recent = r === "today" || r === "yesterday";
+      const tag = recent ? `[${r.toUpperCase()}] ` : "";
+      const vol = r !== "last week" && r !== "older" ? ` | ${wp.totalVolume}lbs vol` : "";
+      const dur = recent ? ` | ${Math.round(wp.totalDuration / 60)}min` : "";
+      wl.push(`  ${tag}${date} | ${wp.workoutTitle} | ${wp.targetArea}${vol}${dur}`);
     }
-    sections.push({ priority: 9, lines: workoutLines });
+    sections.push({ priority: 9, lines: wl });
   }
 
-  // Priority 10: External activities (API-limited, no date filter)
-  const extActivities = externalActivities as ExternalActivity[];
-  if (extActivities.length > 0) {
-    const extLines: string[] = [`External Activities (non-Tonal):`];
-    for (const ext of extActivities) {
-      extLines.push(formatExternalActivityLine(ext));
+  // Priority 10: External activities (time-decay: highlight recent high-intensity)
+  const extActs = externalActivities as ExternalActivity[];
+  if (extActs.length > 0) {
+    const now = new Date();
+    const el: string[] = [`External Activities (non-Tonal):`];
+    let vigorousThisWeek = 0;
+    for (const ext of extActs) {
+      const r = getRecencyLabel(ext.beginTime, now);
+      const tag = r === "today" || r === "yesterday" ? `  [${r.toUpperCase()}] ` : "  ";
+      el.push(tag + formatExternalActivityLine(ext).trimStart());
+      if (
+        r !== "last week" &&
+        r !== "older" &&
+        getHrIntensityLabel(ext.averageHeartRate) === "vigorous"
+      ) {
+        vigorousThisWeek++;
+      }
     }
-    const hasVigorous = extActivities.some(
-      (e) => getHrIntensityLabel(e.averageHeartRate) === "vigorous",
-    );
-    if (hasVigorous) {
-      extLines.push(
-        `  → Recent external load includes high-intensity activity. Factor into recovery and programming decisions.`,
+    if (vigorousThisWeek > 0) {
+      el.push(
+        `  → ${vigorousThisWeek} vigorous session(s) this week. Factor into recovery and volume decisions.`,
       );
     }
-    sections.push({ priority: 10, lines: extLines });
+    sections.push({ priority: 10, lines: el });
   }
 
   // Priority 11: Performance notes
