@@ -159,6 +159,33 @@ describe("expandBlocksToSets defaults and fields", () => {
   });
 });
 
+describe("expandBlocksToSets alternating exercises", () => {
+  it("doubles reps for alternating movements when catalog is provided", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "alt-move", sets: 3, reps: 10 }] }];
+    const catalog = [{ id: "alt-move", countReps: true, isAlternating: true }];
+    const sets = expandBlocksToSets(blocks, catalog);
+
+    expect(sets).toHaveLength(3);
+    expect(sets[0].prescribedReps).toBe(20); // 10 per side × 2
+    expect(sets[1].prescribedReps).toBe(20);
+  });
+
+  it("does not double reps for bilateral movements", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "bi-move", sets: 2, reps: 10 }] }];
+    const catalog = [{ id: "bi-move", countReps: true, isAlternating: false }];
+    const sets = expandBlocksToSets(blocks, catalog);
+
+    expect(sets[0].prescribedReps).toBe(10);
+  });
+
+  it("does not double reps without catalog", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "move-1", sets: 2, reps: 10 }] }];
+    const sets = expandBlocksToSets(blocks);
+
+    expect(sets[0].prescribedReps).toBe(10);
+  });
+});
+
 describe("expandBlocksToSets edge cases", () => {
   it("defaults reps via expandBlocksToSets are included in prescribedReps", () => {
     const blocks: BlockInput[] = [{ exercises: [{ movementId: "move-1", sets: 1, reps: 10 }] }];

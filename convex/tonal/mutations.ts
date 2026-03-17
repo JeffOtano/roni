@@ -27,7 +27,7 @@ export const doTonalCreateWorkout = internalAction({
         `Invalid movement IDs. You must use search_exercises to get real IDs from Tonal's catalog. Do not fabricate IDs. Errors: ${validation.errors.join(", ")}`,
       );
     }
-    const sets = expandBlocksToSets(blocks as BlockInput[]);
+    const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
 
     return withTokenRetry(ctx, userId, async (token) => {
       const workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
@@ -190,7 +190,8 @@ export const estimateWorkout = internalAction({
     blocks: blockInputValidator,
   },
   handler: async (ctx, { userId, blocks }): Promise<WorkoutEstimate> => {
-    const sets = expandBlocksToSets(blocks as BlockInput[]);
+    const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+    const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
     return withTokenRetry(ctx, userId, async (token) =>
       tonalFetch<WorkoutEstimate>(token, "/v6/user-workouts/estimate", {
         method: "POST",
