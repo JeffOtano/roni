@@ -17,6 +17,7 @@ import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import { requireUserId, withToolTracking } from "./helpers";
+import { buildReasoningPrompt } from "./weekReasoning";
 
 // ---------------------------------------------------------------------------
 // programWeekTool
@@ -56,7 +57,12 @@ export const programWeekTool = createTool({
       input,
       _options,
     ): Promise<
-      | { success: true; weekPlanId: string; summary: DraftWeekSummary }
+      | {
+          success: true;
+          weekPlanId: string;
+          summary: DraftWeekSummary;
+          reasoningHints: string;
+        }
       | { success: false; error: string }
     > => {
       const userId = requireUserId(ctx);
@@ -75,19 +81,37 @@ export const programWeekTool = createTool({
         ? (parseInt(input.sessionDurationMinutes) as 30 | 45 | 60)
         : ((saved?.sessionDurationMinutes as 30 | 45 | 60 | undefined) ?? 45);
 
+      const targetDays =
+        input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3;
+
       const result = (await ctx.runAction(internal.coach.weekProgramming.generateDraftWeekPlan, {
         userId,
         weekStartDate: getWeekStartDateString(new Date()),
         preferredSplit,
-        targetDays:
-          input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3,
+        targetDays,
         sessionDurationMinutes: sessionDuration,
         trainingDayIndicesOverride: input.trainingDays ?? saved?.trainingDays,
       })) as
         | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
         | { success: false; error: string };
 
-      return result;
+      if (!result.success) return result;
+
+      // Build lightweight reasoning hints from data already in scope.
+      // The AI agent has the full training snapshot (muscle readiness,
+      // injuries, feedback) in its context — no need to duplicate here.
+      const reasoningHints = buildReasoningPrompt({
+        split: preferredSplit,
+        targetDays,
+        sessionDuration,
+        muscleReadiness: {},
+        recentWorkouts: [],
+        activeInjuries: [],
+        recentFeedback: null,
+        isDeload: false,
+      });
+
+      return { ...result, reasoningHints };
     },
   ),
 });
