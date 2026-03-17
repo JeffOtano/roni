@@ -1,4 +1,5 @@
 import { Agent } from "@convex-dev/agent";
+import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
 import { google } from "@ai-sdk/google";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -44,9 +45,7 @@ import {
   updateGoalProgressTool,
 } from "./coachingTools";
 
-export const coachAgent = new Agent(components.agent, {
-  name: "Tonal Coach",
-  languageModel: google("gemini-2.5-pro"),
+const coachAgentConfig = {
   embeddingModel: google.textEmbeddingModel("gemini-embedding-001"),
 
   contextOptions: {
@@ -252,7 +251,7 @@ BOUNDARIES:
 
   maxSteps: 25,
 
-  usageHandler: async (ctx, { userId, threadId, agentName, usage, model, provider }) => {
+  usageHandler: (async (ctx, { userId, threadId, agentName, usage, model, provider }) => {
     await ctx.runMutation(internal.aiUsage.record, {
       userId: userId as Id<"users"> | undefined,
       threadId,
@@ -265,9 +264,9 @@ BOUNDARIES:
       cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
       cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
     });
-  },
+  }) satisfies UsageHandler,
 
-  contextHandler: async (ctx, args) => {
+  contextHandler: (async (ctx, args) => {
     if (!args.userId) return [...args.allMessages];
 
     const snapshot = await buildTrainingSnapshot(ctx, args.userId);
@@ -276,5 +275,17 @@ BOUNDARIES:
       content: `<training-data>\n${snapshot}\n</training-data>`,
     };
     return [snapshotMessage, ...args.allMessages];
-  },
+  }) satisfies ContextHandler,
+};
+
+export const coachAgent = new Agent(components.agent, {
+  name: "Tonal Coach",
+  languageModel: google("gemini-2.5-pro"),
+  ...coachAgentConfig,
+});
+
+export const coachAgentFallback = new Agent(components.agent, {
+  name: "Tonal Coach (Fallback)",
+  languageModel: google("gemini-2.5-flash"),
+  ...coachAgentConfig,
 });

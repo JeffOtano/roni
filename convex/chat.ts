@@ -3,17 +3,15 @@ import { paginationOptsValidator } from "convex/server";
 import {
   createThread as agentCreateThread,
   listUIMessages,
-  saveMessage,
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
 import { action, internalAction, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
-import { coachAgent } from "./ai/coach";
+import { coachAgent, coachAgentFallback } from "./ai/coach";
+import { streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
-
-const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 
 export const createThread = mutation({
   args: {},
@@ -44,7 +42,8 @@ export const sendMessage = action({
       throws: true,
     });
 
-    const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const staleHours = await ctx.runQuery(internal.userProfiles.getThreadStaleHours, { userId });
+    const staleMs = staleHours * 60 * 60 * 1000;
 
     let targetThreadId: string;
     if (threadId) {
@@ -55,7 +54,7 @@ export const sendMessage = action({
         userId,
       });
 
-      if (active && Date.now() - active.lastMessageTime < STALE_THRESHOLD_MS) {
+      if (active && Date.now() - active.lastMessageTime < staleMs) {
         targetThreadId = active.threadId;
       } else {
         // Create new thread (stale or none exists)
@@ -66,27 +65,13 @@ export const sendMessage = action({
       }
     }
 
-    // Stream response with delta saving
-    try {
-      const { thread } = await coachAgent.continueThread(ctx, {
-        threadId: targetThreadId,
-        userId,
-      });
-
-      await thread.streamText(
-        { prompt },
-        {
-          saveStreamDeltas: { chunking: "word", throttleMs: 100 },
-        },
-      );
-    } catch (error) {
-      console.error("sendMessage AI error:", error);
-      await saveMessage(ctx, components.agent, {
-        threadId: targetThreadId,
-        userId,
-        message: { role: "assistant", content: AI_ERROR_MESSAGE },
-      });
-    }
+    await streamWithRetry(ctx, {
+      primaryAgent: coachAgent,
+      fallbackAgent: coachAgentFallback,
+      threadId: targetThreadId,
+      userId,
+      prompt,
+    });
 
     return { threadId: targetThreadId };
   },
@@ -149,24 +134,13 @@ export const continueAfterApproval = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    try {
-      const { thread } = await coachAgent.continueThread(ctx, {
-        threadId,
-        userId,
-      });
-
-      await thread.streamText(
-        { promptMessageId: messageId },
-        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
-      );
-    } catch (error) {
-      console.error("continueAfterApproval AI error:", error);
-      await saveMessage(ctx, components.agent, {
-        threadId,
-        userId,
-        message: { role: "assistant", content: AI_ERROR_MESSAGE },
-      });
-    }
+    await streamWithRetry(ctx, {
+      primaryAgent: coachAgent,
+      fallbackAgent: coachAgentFallback,
+      threadId,
+      userId,
+      promptMessageId: messageId,
+    });
   },
 });
 
@@ -201,28 +175,12 @@ export const processMessage = internalAction({
     prompt: v.string(),
   },
   handler: async (ctx, { threadId, userId, prompt }) => {
-    try {
-      const { thread } = await coachAgent.continueThread(ctx, {
-        threadId,
-        userId,
-      });
-
-      await thread.streamText(
-        { prompt },
-        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
-      );
-    } catch (error) {
-      console.error("processMessage AI error:", error);
-      await saveMessage(ctx, components.agent, {
-        threadId,
-        userId,
-        message: { role: "assistant", content: AI_ERROR_MESSAGE },
-      });
-      await ctx.runAction(internal.discord.notifyError, {
-        source: "processMessage",
-        message: error instanceof Error ? error.message : String(error),
-        userId,
-      });
-    }
+    await streamWithRetry(ctx, {
+      primaryAgent: coachAgent,
+      fallbackAgent: coachAgentFallback,
+      threadId,
+      userId,
+      prompt,
+    });
   },
 });
