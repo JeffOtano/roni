@@ -280,7 +280,7 @@ export async function buildTrainingSnapshot(
         `  → ${vigorousThisWeek} vigorous session(s) this week. Factor into recovery and volume decisions.`,
       );
     }
-    sections.push({ priority: 10, lines: el });
+    sections.push({ priority: 6, lines: el });
   }
 
   // Priority 11: Performance notes
