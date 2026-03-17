@@ -93,14 +93,11 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
     return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_THRESHOLD;
   }, []);
 
-  const scrollToBottom = useCallback(
-    (behavior: ScrollBehavior = "instant") => {
-      const el = scrollContainerRef.current;
-      if (!el) return;
-      el.scrollTo({ top: el.scrollHeight, behavior });
-    },
-    [],
-  );
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
 
   // Update FAB visibility on scroll.
   useEffect(() => {
@@ -138,8 +135,8 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
     history !== undefined && history.hasMore && historicalMessages.length === 0;
 
   return (
-    <div className="flex h-full flex-col">
-      <div ref={scrollContainerRef} className="scrollbar-thin flex-1 overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-col">
+      <div ref={scrollContainerRef} className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl">
           {status === "CanLoadMore" && (
             <div className="flex justify-center py-3">

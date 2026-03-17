@@ -155,8 +155,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <StatusBanner />
 
-          {/* Content */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0">{children}</main>
+          {/* Content — min-h-0 constrains flex height so child scroll containers work */}
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0">
+            {children}
+          </main>
 
           {/* Mobile bottom tabs -- frosted glass */}
           <nav

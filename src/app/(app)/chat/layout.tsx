@@ -6,5 +6,7 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  // Chat page manages its own scroll via ChatThread.
+  // overflow-hidden prevents content from propagating into AppShell's <main> scroll.
+  return <div className="h-full overflow-hidden">{children}</div>;
 }

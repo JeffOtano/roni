@@ -68,7 +68,7 @@ function ChatPageInner() {
   // Waiting for first response — show thinking state
   if (waitingForCoach && !hasThread) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 px-4">
         <div className="flex size-14 items-center justify-center rounded-full bg-linear-to-br from-primary to-[oklch(0.6_0.22_300)]">
           <Sparkles className="size-6 text-white" />
         </div>
@@ -89,8 +89,8 @@ function ChatPageInner() {
     const firstName = me?.tonalName?.split(" ")[0];
 
     return (
-      <div className="flex h-full flex-col">
-        <div className="flex flex-1 flex-col items-center justify-center px-4">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
           <div className="mb-6 flex size-14 items-center justify-center rounded-full bg-linear-to-br from-primary to-[oklch(0.6_0.22_300)]">
             <Sparkles className="size-6 text-white" />
           </div>
