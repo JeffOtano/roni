@@ -7,6 +7,39 @@ import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
 import { ACCESSORY_MAP } from "../tonal/accessories";
 
+export interface SnapshotSection {
+  priority: number; // 1 = highest (dropped last), 11 = lowest (dropped first)
+  lines: string[];
+}
+
+const SNAPSHOT_MAX_CHARS = 4000;
+
+export function trimSnapshot(sections: SnapshotSection[], maxChars: number): string {
+  const header = "=== TRAINING SNAPSHOT ===";
+  const footer = "=== END SNAPSHOT ===";
+  const fixedLen = header.length + footer.length + 2; // 2 newlines
+
+  // Sort by priority ascending (highest priority = lowest number = kept first)
+  const sorted = [...sections].sort((a, b) => a.priority - b.priority);
+
+  const included: SnapshotSection[] = [];
+  let currentLen = fixedLen;
+
+  for (const section of sorted) {
+    const sectionLen = section.lines.join("\n").length + 1; // +1 for joining newline
+    if (currentLen + sectionLen <= maxChars) {
+      included.push(section);
+      currentLen += sectionLen;
+    }
+  }
+
+  // Re-sort included by priority to maintain logical order
+  included.sort((a, b) => a.priority - b.priority);
+
+  const body = included.flatMap((s) => s.lines).join("\n");
+  return [header, body, footer].filter(Boolean).join("\n");
+}
+
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
   userId: string,
@@ -51,20 +84,19 @@ export async function buildTrainingSnapshot(
     ]);
 
   const pd = profile.profileData;
-  const lines: string[] = [
-    `=== TRAINING SNAPSHOT ===`,
+  const sections: SnapshotSection[] = [];
+
+  // Priority 1: User profile + onboarding + preferences
+  const profileLines: string[] = [
     `User: ${pd.firstName} ${pd.lastName} | ${pd.heightInches}"/${pd.weightPounds}lbs | Level: ${pd.level} | ${pd.workoutsPerWeek}x/week`,
   ];
-
-  // Onboarding data (goal, injuries, preferences)
   const onboardingData = profile?.onboardingData;
   const trainingPrefs = profile?.trainingPreferences;
-
   if (onboardingData?.goal) {
-    lines.push(`Goal: ${onboardingData.goal}`);
+    profileLines.push(`Goal: ${onboardingData.goal}`);
   }
   if (onboardingData?.injuries) {
-    lines.push(`Injuries/Constraints: ${onboardingData.injuries}`);
+    profileLines.push(`Injuries/Constraints: ${onboardingData.injuries}`);
   }
   if (trainingPrefs) {
     const splitNames: Record<string, string> = {
@@ -74,13 +106,15 @@ export async function buildTrainingSnapshot(
     };
     const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const days = trainingPrefs.trainingDays.map((d: number) => dayNames[d]).join(", ");
-    lines.push(
+    profileLines.push(
       `Preferences: ${splitNames[trainingPrefs.preferredSplit] ?? trainingPrefs.preferredSplit} | ${trainingPrefs.sessionDurationMinutes}min | ${days}`,
     );
   }
+  sections.push({ priority: 1, lines: profileLines });
 
-  // Equipment
+  // Priority 2: Equipment
   const owned = profile.ownedAccessories as OwnedAccessories | undefined;
+  const equipmentLines: string[] = [];
   if (owned) {
     const displayNames: Record<keyof OwnedAccessories, string> = {
       smartHandles: "Smart Handles",
@@ -97,118 +131,133 @@ export async function buildTrainingSnapshot(
     const missingNames = Object.entries(displayNames)
       .filter(([key]) => !owned[key as keyof OwnedAccessories])
       .map(([, name]) => name);
-    lines.push(`Equipment:`);
-    lines.push(`  Owned: ${ownedNames.length > 0 ? ownedNames.join(", ") : "None"}`);
+    equipmentLines.push(`Equipment:`);
+    equipmentLines.push(`  Owned: ${ownedNames.length > 0 ? ownedNames.join(", ") : "None"}`);
     if (missingNames.length > 0) {
-      lines.push(`  Missing: ${missingNames.join(", ")}`);
-      lines.push(
+      equipmentLines.push(`  Missing: ${missingNames.join(", ")}`);
+      equipmentLines.push(
         `  (Exercises requiring missing equipment are automatically excluded from programming.)`,
       );
     }
   } else {
-    lines.push(`Equipment: All accessories assumed available (no equipment profile set).`);
+    equipmentLines.push(`Equipment: All accessories assumed available (no equipment profile set).`);
+  }
+  sections.push({ priority: 2, lines: equipmentLines });
+
+  // Priority 3: Active injuries
+  const injuries = activeInjuries as Doc<"injuries">[];
+  if (injuries.length > 0) {
+    const injuryLines: string[] = [`Active Injuries/Limitations:`];
+    for (const inj of injuries) {
+      injuryLines.push(
+        `  ${inj.area} (${inj.severity}) — avoid: ${inj.avoidance}${inj.notes ? ` — ${inj.notes}` : ""}`,
+      );
+    }
+    injuryLines.push(`  → Exercise selection MUST respect these avoidances.`);
+    sections.push({ priority: 3, lines: injuryLines });
   }
 
-  // Strength scores
+  // Priority 4: Active goals
+  const goals = activeGoals as Doc<"goals">[];
+  if (goals.length > 0) {
+    const goalLines: string[] = [`Active Goals:`];
+    for (const g of goals) {
+      const range = Math.abs(g.targetValue - g.baselineValue);
+      const pct =
+        range === 0 ? 100 : Math.round((Math.abs(g.currentValue - g.baselineValue) / range) * 100);
+      goalLines.push(
+        `  ${g.title}: ${g.currentValue} → ${g.targetValue} (${Math.min(100, pct)}% complete, deadline: ${g.deadline})`,
+      );
+    }
+    sections.push({ priority: 4, lines: goalLines });
+  }
+
+  // Priority 5: Training block
+  const block = activeBlock as Doc<"trainingBlocks"> | null;
+  const blockLines: string[] = [];
+  if (block) {
+    blockLines.push(
+      `Training Block: ${block.label} | ${block.blockType} | Week ${block.weekNumber}/${block.totalWeeks}`,
+    );
+    if (block.blockType === "deload") {
+      blockLines.push(
+        `  → DELOAD WEEK: Reduce volume and intensity. 2 sets instead of 3, RPE target 5-6.`,
+      );
+    }
+  } else {
+    blockLines.push(`Training Block: None active. Start one when programming the first week.`);
+  }
+  sections.push({ priority: 5, lines: blockLines });
+
+  // Priority 6: Recent feedback
+  const feedback = recentFeedback as Doc<"workoutFeedback">[];
+  if (feedback.length > 0) {
+    const feedbackLines: string[] = [];
+    const avgRpe = feedback.reduce((sum, f) => sum + f.rpe, 0) / feedback.length;
+    const avgRating = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
+    feedbackLines.push(
+      `Recent Feedback (last ${feedback.length}): Avg RPE ${avgRpe.toFixed(1)}/10, Avg Rating ${avgRating.toFixed(1)}/5`,
+    );
+    if (avgRpe >= 8.5) {
+      feedbackLines.push(`  → HIGH RPE WARNING: User may need a deload or intensity reduction.`);
+    }
+    if (avgRating <= 2) {
+      feedbackLines.push(`  → LOW SATISFACTION: Check in about what's not working.`);
+    }
+    sections.push({ priority: 6, lines: feedbackLines });
+  }
+
+  // Priority 7: Strength scores
   if ((scores as StrengthScore[]).length > 0) {
     const scoreLines = (scores as StrengthScore[])
       .map((s) => `${s.bodyRegionDisplay}: ${s.score}`)
       .join(", ");
-    lines.push(
-      `Tonal Strength Scores (proprietary fitness metric 0-999 scale, NOT weight in lbs): ${scoreLines}`,
-    );
+    sections.push({
+      priority: 7,
+      lines: [
+        `Tonal Strength Scores (proprietary fitness metric 0-999 scale, NOT weight in lbs): ${scoreLines}`,
+      ],
+    });
   }
 
-  // Muscle readiness
+  // Priority 8: Muscle readiness
   if (readiness) {
     const mr = readiness as MuscleReadiness;
     const readyParts = Object.entries(mr)
       .map(([k, v]) => `${k}: ${v}`)
       .join(", ");
-    lines.push(`Muscle Readiness (0-100): ${readyParts}`);
+    sections.push({ priority: 8, lines: [`Muscle Readiness (0-100): ${readyParts}`] });
   }
 
-  // Recent workouts
+  // Priority 9: Recent workouts
   if ((activities as Activity[]).length > 0) {
-    lines.push(`Recent Workouts:`);
+    const workoutLines: string[] = [`Recent Workouts:`];
     for (const a of activities as Activity[]) {
       const wp = a.workoutPreview;
-      lines.push(
+      workoutLines.push(
         `  ${a.activityTime.split("T")[0]} | ${wp.workoutTitle} | ${wp.targetArea} | ${wp.totalVolume}lbs vol | ${Math.round(wp.totalDuration / 60)}min`,
       );
     }
+    sections.push({ priority: 9, lines: workoutLines });
   }
 
-  // Training block (periodization)
-  const block = activeBlock as Doc<"trainingBlocks"> | null;
-  if (block) {
-    lines.push(
-      `Training Block: ${block.label} | ${block.blockType} | Week ${block.weekNumber}/${block.totalWeeks}`,
-    );
-    if (block.blockType === "deload") {
-      lines.push(
-        `  → DELOAD WEEK: Reduce volume and intensity. 2 sets instead of 3, RPE target 5-6.`,
-      );
-    }
-  } else {
-    lines.push(`Training Block: None active. Start one when programming the first week.`);
-  }
-
-  // Recent feedback
-  const feedback = recentFeedback as Doc<"workoutFeedback">[];
-  if (feedback.length > 0) {
-    const avgRpe = feedback.reduce((sum, f) => sum + f.rpe, 0) / feedback.length;
-    const avgRating = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
-    lines.push(
-      `Recent Feedback (last ${feedback.length}): Avg RPE ${avgRpe.toFixed(1)}/10, Avg Rating ${avgRating.toFixed(1)}/5`,
-    );
-    if (avgRpe >= 8.5) {
-      lines.push(`  → HIGH RPE WARNING: User may need a deload or intensity reduction.`);
-    }
-    if (avgRating <= 2) {
-      lines.push(`  → LOW SATISFACTION: Check in about what's not working.`);
-    }
-  }
-
-  // Active goals
-  const goals = activeGoals as Doc<"goals">[];
-  if (goals.length > 0) {
-    lines.push(`Active Goals:`);
-    for (const g of goals) {
-      const range = Math.abs(g.targetValue - g.baselineValue);
-      const pct =
-        range === 0 ? 100 : Math.round((Math.abs(g.currentValue - g.baselineValue) / range) * 100);
-      lines.push(
-        `  ${g.title}: ${g.currentValue} → ${g.targetValue} (${Math.min(100, pct)}% complete, deadline: ${g.deadline})`,
-      );
-    }
-  }
-
-  // Active injuries
-  const injuries = activeInjuries as Doc<"injuries">[];
-  if (injuries.length > 0) {
-    lines.push(`Active Injuries/Limitations:`);
-    for (const inj of injuries) {
-      lines.push(
-        `  ${inj.area} (${inj.severity}) — avoid: ${inj.avoidance}${inj.notes ? ` — ${inj.notes}` : ""}`,
-      );
-    }
-    lines.push(`  → Exercise selection MUST respect these avoidances.`);
-  }
-
-  // Performance note (from activities we already fetched)
+  // Priority 10: Performance notes
   if ((activities as Activity[]).length >= 2) {
+    const perfLines: string[] = [];
     const latest = (activities as Activity[])[0];
     const previous = (activities as Activity[])[1];
     if (latest.workoutPreview.totalVolume > previous.workoutPreview.totalVolume * 1.1) {
-      lines.push(
+      perfLines.push(
         `Performance: Last session volume was ${Math.round((latest.workoutPreview.totalVolume / previous.workoutPreview.totalVolume - 1) * 100)}% higher than previous.`,
       );
     }
-    lines.push(`Tip: Use get_workout_performance for detailed per-exercise PR/plateau analysis.`);
+    perfLines.push(
+      `Tip: Use get_workout_performance for detailed per-exercise PR/plateau analysis.`,
+    );
+    sections.push({ priority: 10, lines: perfLines });
   }
 
-  // Missed session detection — non-critical, skip on error
+  // Priority 11: Missed session detection — non-critical, skip on error
   try {
     const weekStartDate = getWeekStartDateString(new Date());
     const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
@@ -255,13 +304,12 @@ export async function buildTrainingSnapshot(
 
       const missedContext = formatMissedSessionContext(missedSummary);
       if (missedContext) {
-        lines.push(missedContext);
+        sections.push({ priority: 11, lines: [missedContext] });
       }
     }
   } catch {
     // Missed session detection is non-critical; continue without it
   }
 
-  lines.push(`=== END SNAPSHOT ===`);
-  return lines.join("\n");
+  return trimSnapshot(sections, SNAPSHOT_MAX_CHARS);
 }
