@@ -7,6 +7,7 @@ import { type BlockInput, expandBlocksToSets } from "./transforms";
 import { validateWorkoutBlocks } from "./validation";
 import type { Activity, WorkoutEstimate } from "./types";
 import { cachedFetch, withTonalToken } from "./proxy";
+import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
 const DEFAULT_WORKOUT_DURATION_MINUTES = 45;
@@ -52,15 +53,16 @@ export const doTonalCreateWorkout = internalAction({
 /** Activities for activation eligibility check (separate cache key). */
 export const fetchWorkoutHistoryForEligibility = internalAction({
   args: { userId: v.id("users") },
-  handler: async (ctx, { userId }): Promise<Activity[]> => {
-    const { token, tonalUserId } = await withTonalToken(ctx, userId);
-    return cachedFetch<Activity[]>(ctx, {
-      userId,
-      dataType: "workoutHistoryEligibility",
-      ttl: 60 * 5,
-      fetcher: () => tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=100`),
-    });
-  },
+  handler: async (ctx, { userId }): Promise<Activity[]> =>
+    withTokenRetry(ctx, userId, (token, tonalUserId) =>
+      cachedFetch<Activity[]>(ctx, {
+        userId,
+        dataType: "workoutHistoryEligibility",
+        ttl: 60 * 5,
+        fetcher: () =>
+          tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=100`),
+      }),
+    ),
 });
 
 export function formatTonalTitle(title: string, now?: Date): string {

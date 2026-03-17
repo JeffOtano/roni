@@ -132,15 +132,16 @@ export const getPerMovementHistory = internalAction({
 
     for (const activity of activities) {
       const activityId = activity.activityId;
-      let detail: WorkoutActivityDetail;
+      let detail: WorkoutActivityDetail | null;
       try {
-        detail = await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+        detail = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
           userId,
           activityId,
-        });
+        })) as WorkoutActivityDetail | null;
       } catch {
         continue;
       }
+      if (!detail) continue;
 
       let volumeByMovement: Map<string, number> | undefined;
       try {

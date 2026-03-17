@@ -66,6 +66,7 @@ export const getWorkoutDetail = action({
         })
         .catch((): null => null),
     ]);
+    if (!detail) throw new Error("Workout not found");
     const movementMap = new Map(movements.map((m) => [m.id, m]));
 
     const typedDetail = detail as WorkoutActivityDetail;
