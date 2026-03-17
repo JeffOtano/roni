@@ -45,7 +45,7 @@ import {
   updateGoalProgressTool,
 } from "./coachingTools";
 
-const coachAgentConfig = {
+export const coachAgentConfig = {
   embeddingModel: google.textEmbeddingModel("gemini-embedding-001"),
 
   contextOptions: {
