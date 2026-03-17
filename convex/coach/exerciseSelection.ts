@@ -108,3 +108,66 @@ export function selectExercises(input: ExerciseSelectionInput): string[] {
   const ordered = [...compounds, ...isolations];
   return ordered.slice(0, maxExercises).map((m) => m.id);
 }
+
+export interface WarmupCooldownInput {
+  catalog: Movement[];
+  targetMuscleGroups: string[];
+  maxExercises: number;
+  constraints?: {
+    excludeAccessories?: string[];
+  };
+}
+
+/**
+ * Select warmup exercises: movements tagged "Warm-up" or "Mobility" matching
+ * target muscles. Falls back to "Recovery" then "Yoga" if insufficient matches.
+ * No skill level filtering. No rotation logic.
+ */
+export function selectWarmupExercises(input: WarmupCooldownInput): string[] {
+  return selectByTrainingType(input, [
+    ["Warm-up", "Mobility"],
+    ["Recovery", "Yoga"],
+  ]);
+}
+
+/**
+ * Select cooldown exercises: movements tagged "Recovery" or "Mobility" matching
+ * target muscles. Falls back to "Yoga" if insufficient matches.
+ */
+export function selectCooldownExercises(input: WarmupCooldownInput): string[] {
+  return selectByTrainingType(input, [["Recovery", "Mobility"], ["Yoga"]]);
+}
+
+/** Shared selection logic with fallback chain of training type groups. */
+function selectByTrainingType(input: WarmupCooldownInput, fallbackChain: string[][]): string[] {
+  const { catalog, targetMuscleGroups, maxExercises, constraints } = input;
+  const targetSet = new Set(targetMuscleGroups.map((g) => g.toLowerCase()));
+  const excludeAccessorySet = new Set(constraints?.excludeAccessories ?? []);
+
+  const eligible = catalog.filter((m) => {
+    if (!m.trainingTypes?.length) return false;
+    if (!m.muscleGroups.some((g) => targetSet.has(g.toLowerCase()))) return false;
+    if (excludeAccessorySet.size > 0 && m.onMachineInfo?.accessory) {
+      if (excludeAccessorySet.has(m.onMachineInfo.accessory)) return false;
+    }
+    return true;
+  });
+
+  const selected: string[] = [];
+  const usedIds = new Set<string>();
+
+  for (const typeGroup of fallbackChain) {
+    if (selected.length >= maxExercises) break;
+    const typeSet = new Set(typeGroup.map((t) => t.toLowerCase()));
+    const matches = eligible.filter(
+      (m) => !usedIds.has(m.id) && m.trainingTypes!.some((t) => typeSet.has(t.toLowerCase())),
+    );
+    for (const m of matches) {
+      if (selected.length >= maxExercises) break;
+      selected.push(m.id);
+      usedIds.add(m.id);
+    }
+  }
+
+  return selected;
+}
