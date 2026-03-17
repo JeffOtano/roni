@@ -5,6 +5,7 @@ import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type {
   Activity,
+  ExternalActivity,
   MuscleReadiness,
   StrengthDistribution,
   StrengthScore,
@@ -13,6 +14,7 @@ import { StrengthScoreCard } from "@/components/StrengthScoreCard";
 import { MuscleReadinessMap } from "@/components/MuscleReadinessMap";
 import { TrainingFrequencyChart } from "@/components/TrainingFrequencyChart";
 import { RecentWorkoutsList } from "@/components/RecentWorkoutsList";
+import { ExternalActivitiesList } from "@/components/ExternalActivitiesList";
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
 import { ArrowRight } from "lucide-react";
@@ -56,6 +58,9 @@ export default function DashboardPage() {
   const readiness = useActionData<MuscleReadiness>(useAction(api.dashboard.getMuscleReadiness));
   const workouts = useActionData<Activity[]>(useAction(api.dashboard.getWorkoutHistory));
   const frequency = useActionData<FrequencyEntry[]>(useAction(api.dashboard.getTrainingFrequency));
+  const externalActivities = useActionData<ExternalActivity[]>(
+    useAction(api.dashboard.getExternalActivities),
+  );
 
   const me = useQuery(api.users.getMe);
   const firstName = me?.tonalName?.split(" ")[0] ?? "there";
@@ -135,6 +140,14 @@ export default function DashboardPage() {
           tall
         >
           {(d) => <RecentWorkoutsList workouts={d} />}
+        </AsyncCard>
+        <AsyncCard
+          state={externalActivities.state}
+          refetch={externalActivities.refetch}
+          lastUpdatedAt={externalActivities.lastUpdatedAt}
+          title="Other Activities"
+        >
+          {(d) => <ExternalActivitiesList activities={d} />}
         </AsyncCard>
       </div>
     </div>
