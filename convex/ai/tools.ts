@@ -11,6 +11,7 @@ import type {
   WorkoutActivityDetail,
 } from "../tonal/types";
 import { requireUserId } from "./helpers";
+import { matchesNameSearch } from "../tonal/movementSearch";
 
 async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
   return ctx.runQuery(internal.tonal.movementSync.getAllMovements);
@@ -19,7 +20,10 @@ async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
 export const searchExercisesTool = createTool({
   description: "Search Tonal exercise catalog by name and/or muscle group.",
   inputSchema: z.object({
-    name: z.string().optional().describe("Exercise name substring"),
+    name: z
+      .string()
+      .optional()
+      .describe("Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL')"),
     muscleGroup: z.string().optional().describe("e.g. Chest, Back, Quads, Shoulders"),
   }),
   execute: async (ctx, input) => {
@@ -27,8 +31,7 @@ export const searchExercisesTool = createTool({
     let results = catalog;
 
     if (input.name) {
-      const q = input.name.toLowerCase();
-      results = results.filter((m) => m.name.toLowerCase().includes(q));
+      results = results.filter((m) => matchesNameSearch(m, input.name!));
     }
     if (input.muscleGroup) {
       const g = input.muscleGroup.toLowerCase();
