@@ -18,6 +18,7 @@ async function listMovements(
     onMachine: m.onMachine,
     skillLevel: m.skillLevel,
     accessory: m.onMachineInfo?.accessory ?? "None",
+    trainingTypes: m.trainingTypes ?? [],
   }));
   return {
     content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
@@ -45,6 +46,11 @@ async function searchMovements(
   if (onMachine !== undefined) {
     movements = movements.filter((m) => m.onMachine === onMachine);
   }
+  const trainingType = args.trainingType as string | undefined;
+  if (trainingType) {
+    const t = trainingType.toLowerCase();
+    movements = movements.filter((m) => m.trainingTypes?.some((tt) => tt.toLowerCase() === t));
+  }
 
   const results = movements.map((m) => ({
     id: m.id,
@@ -53,6 +59,7 @@ async function searchMovements(
     onMachine: m.onMachine,
     skillLevel: m.skillLevel,
     accessory: m.onMachineInfo?.accessory ?? "None",
+    trainingTypes: m.trainingTypes ?? [],
     descriptionHow: m.descriptionHow,
   }));
 
@@ -125,6 +132,10 @@ export const exerciseToolDefinitions: ToolDefinition[] = [
         onMachine: {
           type: "boolean",
           description: "Filter to on-machine (true) or free-lift (false)",
+        },
+        trainingType: {
+          type: "string",
+          description: "Filter by training type: Warm-up, Mobility, Recovery, Yoga, Strength, etc.",
         },
       },
     },
