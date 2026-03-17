@@ -9,6 +9,7 @@ import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
   Activity,
+  ExternalActivity,
   FormattedWorkoutSummary,
   MuscleReadiness,
   StrengthDistribution,
@@ -224,6 +225,26 @@ export const fetchCustomWorkouts = internalAction({
         dataType: "customWorkouts",
         ttl: CACHE_TTLS.customWorkouts,
         fetcher: () => tonalFetch<UserWorkout[]>(token, `/v6/user-workouts`),
+      }),
+    ),
+});
+
+export const fetchExternalActivities = internalAction({
+  args: {
+    userId: v.id("users"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { userId, limit = 20 }): Promise<ExternalActivity[]> =>
+    withTokenRetry(ctx, userId, (token, tonalUserId) =>
+      cachedFetch<ExternalActivity[]>(ctx, {
+        userId,
+        dataType: `externalActivities:${limit}`,
+        ttl: CACHE_TTLS.workoutHistory,
+        fetcher: () =>
+          tonalFetch<ExternalActivity[]>(
+            token,
+            `/v6/users/${tonalUserId}/external-activities?limit=${limit}`,
+          ),
       }),
     ),
 });
