@@ -10,7 +10,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { CheckInTrigger } from "./content";
-import type { Activity } from "../tonal/types";
+import type { Activity, ExternalActivity } from "../tonal/types";
 import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import { getWeekStartDateString } from "../weekPlans";
 
@@ -24,6 +24,9 @@ const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
 const TOUGH_SESSION_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 const STRENGTH_MILESTONE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const PLATEAU_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
+const HIGH_EXTERNAL_LOAD_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
+const CONSISTENCY_STREAK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const VIGOROUS_HR_THRESHOLD = 130;
 
 type TriggerResult = { trigger: CheckInTrigger; triggerContext?: string; message?: string };
 
@@ -177,6 +180,73 @@ async function evaluatePlateau(
   return null;
 }
 
+async function evaluateHighExternalLoad(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  now: number,
+): Promise<TriggerResult | null> {
+  const externals = (await ctx.runAction(internal.tonal.proxy.fetchExternalActivities, {
+    userId,
+    limit: 20,
+  })) as ExternalActivity[];
+
+  const seventyTwoHoursAgo = now - 3 * 24 * 60 * 60 * 1000;
+  const recentVigorous = externals.filter((e) => {
+    const ts = new Date(e.beginTime).getTime();
+    return ts > seventyTwoHoursAgo && e.averageHeartRate >= VIGOROUS_HR_THRESHOLD;
+  });
+
+  if (recentVigorous.length < 3) return null;
+
+  const hasRecent = await ctx.runQuery(internal.checkIns.hasRecentCheckIn, {
+    userId,
+    trigger: "high_external_load",
+    since: now - HIGH_EXTERNAL_LOAD_COOLDOWN_MS,
+  });
+  if (hasRecent) return null;
+
+  return {
+    trigger: "high_external_load",
+    triggerContext: `${recentVigorous.length} vigorous sessions in 72h`,
+  };
+}
+
+async function evaluateConsistencyStreak(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  now: number,
+): Promise<TriggerResult | null> {
+  const threeWeeksAgo = new Date(now - 21 * 24 * 60 * 60 * 1000);
+
+  const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+    userId,
+    limit: 30,
+  })) as Activity[];
+
+  const weekCounts = new Map<string, number>();
+  for (const a of activities) {
+    const actDate = new Date(a.activityTime);
+    if (actDate < threeWeeksAgo) continue;
+    const weekKey = getWeekStartDateString(actDate);
+    weekCounts.set(weekKey, (weekCounts.get(weekKey) ?? 0) + 1);
+  }
+
+  const completeWeeks = [...weekCounts.values()].filter((count) => count >= 3).length;
+  if (completeWeeks < 3) return null;
+
+  const hasRecent = await ctx.runQuery(internal.checkIns.hasRecentCheckIn, {
+    userId,
+    trigger: "consistency_streak",
+    since: now - CONSISTENCY_STREAK_COOLDOWN_MS,
+  });
+  if (hasRecent) return null;
+
+  return {
+    trigger: "consistency_streak",
+    triggerContext: `${completeWeeks} consecutive weeks with 3+ sessions`,
+  };
+}
+
 /** Evaluate triggers for one user; returns triggers to send (with optional context). */
 export const evaluateTriggersForUser = internalAction({
   args: { userId: v.id("users") },
@@ -224,6 +294,12 @@ export const evaluateTriggersForUser = internalAction({
 
     const plateauResult = await evaluatePlateau(ctx, userId, now, summary);
     if (plateauResult) triggers.push(plateauResult);
+
+    const externalLoad = await evaluateHighExternalLoad(ctx, userId, now);
+    if (externalLoad) triggers.push(externalLoad);
+
+    const streak = await evaluateConsistencyStreak(ctx, userId, now);
+    if (streak) triggers.push(streak);
 
     return triggers;
   },
