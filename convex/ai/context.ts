@@ -8,73 +8,16 @@ import type { OwnedAccessories } from "../tonal/accessories";
 import { ACCESSORY_MAP } from "../tonal/accessories";
 export { getRecencyLabel } from "./timeDecay";
 import { getRecencyLabel } from "./timeDecay";
+import {
+  formatExternalActivityLine,
+  getHrIntensityLabel,
+  SNAPSHOT_MAX_CHARS,
+  type SnapshotSection,
+  trimSnapshot,
+} from "./snapshotHelpers";
 
-export interface SnapshotSection {
-  priority: number; // 1 = highest (dropped last), 12 = lowest (dropped first)
-  lines: string[];
-}
-
-const SNAPSHOT_MAX_CHARS = 4000;
-
-export function trimSnapshot(sections: SnapshotSection[], maxChars: number): string {
-  const header = "=== TRAINING SNAPSHOT ===";
-  const footer = "=== END SNAPSHOT ===";
-  const fixedLen = header.length + footer.length + 2; // 2 newlines
-
-  // Sort by priority ascending (highest priority = lowest number = kept first)
-  const sorted = [...sections].sort((a, b) => a.priority - b.priority);
-
-  const included: SnapshotSection[] = [];
-  let currentLen = fixedLen;
-
-  for (const section of sorted) {
-    const sectionLen = section.lines.join("\n").length + 1; // +1 for joining newline
-    if (currentLen + sectionLen <= maxChars) {
-      included.push(section);
-      currentLen += sectionLen;
-    }
-  }
-
-  // Re-sort included by priority to maintain logical order
-  included.sort((a, b) => a.priority - b.priority);
-
-  const body = included.flatMap((s) => s.lines).join("\n");
-  return [header, body, footer].filter(Boolean).join("\n");
-}
-
-// ---------------------------------------------------------------------------
-// External activity helpers
-// ---------------------------------------------------------------------------
-
-export function getHrIntensityLabel(hr: number): string | null {
-  if (hr === 0) return null;
-  if (hr < 100) return "light";
-  if (hr <= 130) return "moderate";
-  return "vigorous";
-}
-
-function capitalizeWorkoutType(workoutType: string): string {
-  return workoutType
-    .replace(/([A-Z])/g, " $1")
-    .trim()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-export function formatExternalActivityLine(a: ExternalActivity): string {
-  const type = capitalizeWorkoutType(a.workoutType);
-  const mins = Math.round(a.totalDuration / 60);
-  const cal = Math.round(a.totalCalories);
-  const date = a.beginTime.split("T")[0];
-
-  let line = `  ${date} — ${type} (${a.source}) | ${mins}min | ${cal} cal`;
-  const hrLabel = getHrIntensityLabel(a.averageHeartRate);
-  if (hrLabel) {
-    line += ` | Avg HR ${Math.round(a.averageHeartRate)} (${hrLabel})`;
-  }
-  return line;
-}
+// Re-export for backward compatibility (tests, other consumers)
+export { type SnapshotSection, trimSnapshot, getHrIntensityLabel, formatExternalActivityLine };
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
@@ -100,6 +43,7 @@ export async function buildTrainingSnapshot(
     activeGoals,
     activeInjuries,
     externalActivities,
+    coachingNotes,
   ] = await Promise.all([
     ctx
       .runAction(internal.tonal.proxy.fetchStrengthScores, {
@@ -131,6 +75,9 @@ export async function buildTrainingSnapshot(
         limit: 20,
       })
       .catch(() => [] as ExternalActivity[]),
+    ctx
+      .runQuery(internal.ai.memory.getNotesForUser, { userId: convexUserId, limit: 10 })
+      .catch(() => []),
   ]);
 
   const pd = profile.profileData;
@@ -193,6 +140,20 @@ export async function buildTrainingSnapshot(
     equipmentLines.push(`Equipment: All accessories assumed available (no equipment profile set).`);
   }
   sections.push({ priority: 2, lines: equipmentLines });
+
+  // Priority 2.5: Coaching notes (procedural memory — learned preferences)
+  const notes = coachingNotes as Doc<"coachingNotes">[];
+  if (notes.length > 0) {
+    const noteLines: string[] = [`Coaching Notes (learned from past conversations):`];
+    for (const note of notes) {
+      const confidence = note.confidence === "confirmed" ? "\u2713" : "?";
+      noteLines.push(`  [${confidence}] ${note.content}`);
+    }
+    noteLines.push(
+      `  \u2192 Honor these preferences without asking. They came from the user directly.`,
+    );
+    sections.push({ priority: 2.5, lines: noteLines });
+  }
 
   // Priority 3: Active injuries
   const injuries = activeInjuries as Doc<"injuries">[];
