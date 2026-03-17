@@ -246,3 +246,15 @@ export const saveTrainingPreferencesInternal = internalMutation({
     });
   },
 });
+
+/** Get thread staleness threshold for a user (server-only). */
+export const getThreadStaleHours = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return profile?.threadStaleHours ?? 24;
+  },
+});
