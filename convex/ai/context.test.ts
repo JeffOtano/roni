@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  filterLast7Days,
   formatExternalActivityLine,
   getHrIntensityLabel,
   type SnapshotSection,
@@ -96,53 +95,6 @@ describe("getHrIntensityLabel", () => {
 
   it("returns 'vigorous' at exactly 131", () => {
     expect(getHrIntensityLabel(131)).toBe("vigorous");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 7-day filter
-// ---------------------------------------------------------------------------
-
-describe("filterLast7Days", () => {
-  const now = new Date("2026-03-16T12:00:00Z");
-
-  function makeExternal(beginTime: string): ExternalActivity {
-    return {
-      id: "ext-1",
-      userId: "user-1",
-      workoutType: "pickleball",
-      beginTime,
-      endTime: beginTime,
-      timezone: "America/Denver",
-      activeDuration: 3600,
-      totalDuration: 3600,
-      distance: 0,
-      activeCalories: 0,
-      totalCalories: 500,
-      averageHeartRate: 140,
-      source: "Apple Watch",
-      externalId: "ext-id",
-      deviceId: "device-1",
-    };
-  }
-
-  it("includes activities within 7 days", () => {
-    const activity = makeExternal("2026-03-15T10:00:00Z");
-    expect(filterLast7Days([activity], now)).toHaveLength(1);
-  });
-
-  it("excludes activities older than 7 days", () => {
-    const activity = makeExternal("2026-03-08T10:00:00Z");
-    expect(filterLast7Days([activity], now)).toHaveLength(0);
-  });
-
-  it("returns empty array for empty input", () => {
-    expect(filterLast7Days([], now)).toHaveLength(0);
-  });
-
-  it("excludes activity at exactly the 7-day boundary", () => {
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    expect(filterLast7Days([makeExternal(sevenDaysAgo)], now)).toHaveLength(0);
   });
 });
 

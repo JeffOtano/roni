@@ -51,14 +51,6 @@ export function getHrIntensityLabel(hr: number): string | null {
   return "vigorous";
 }
 
-export function filterLast7Days(
-  activities: ExternalActivity[],
-  now: Date = new Date(),
-): ExternalActivity[] {
-  const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-  return activities.filter((a) => new Date(a.beginTime).getTime() > sevenDaysAgo);
-}
-
 function capitalizeWorkoutType(workoutType: string): string {
   return workoutType
     .replace(/([A-Z])/g, " $1")
@@ -297,14 +289,14 @@ export async function buildTrainingSnapshot(
     sections.push({ priority: 9, lines: workoutLines });
   }
 
-  // Priority 10: External activities (last 7 days)
-  const recentExternal = filterLast7Days(externalActivities as ExternalActivity[]);
-  if (recentExternal.length > 0) {
-    const extLines: string[] = [`External Activities (last 7 days):`];
-    for (const ext of recentExternal) {
+  // Priority 10: External activities (API-limited, no date filter)
+  const extActivities = externalActivities as ExternalActivity[];
+  if (extActivities.length > 0) {
+    const extLines: string[] = [`External Activities (non-Tonal):`];
+    for (const ext of extActivities) {
       extLines.push(formatExternalActivityLine(ext));
     }
-    const hasVigorous = recentExternal.some(
+    const hasVigorous = extActivities.some(
       (e) => getHrIntensityLabel(e.averageHeartRate) === "vigorous",
     );
     if (hasVigorous) {
