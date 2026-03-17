@@ -1,4 +1,5 @@
 import type { Agent } from "@convex-dev/agent";
+import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
@@ -59,7 +60,8 @@ interface StreamWithRetryArgs {
   fallbackAgent: Agent;
   threadId: string;
   userId: string;
-  prompt?: string;
+  /** Text prompt or multimodal message array (text + images). */
+  prompt?: string | Array<ModelMessage>;
   promptMessageId?: string;
   /** Optional routed specialist agent (overrides primaryAgent for first attempt). */
   routedPrimary?: Agent;
@@ -68,7 +70,7 @@ interface StreamWithRetryArgs {
 }
 
 type PromptArgs =
-  | { prompt: string; maxOutputTokens: number }
+  | { prompt: string | Array<ModelMessage>; maxOutputTokens: number }
   | { promptMessageId: string; maxOutputTokens: number };
 
 const STREAM_OPTIONS = {

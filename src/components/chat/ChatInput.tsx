@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { optimisticallySendMessage } from "@convex-dev/agent/react";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { Loader2, SendHorizontal } from "lucide-react";
+import { ImagePreviewRow } from "@/components/chat/ImagePreviewRow";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -25,6 +28,12 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { pendingImages, addImages, removeImage, uploadAll, clearAll, isUploading } =
+    useImageUpload();
+
+  const generateUploadUrl = useMutation(api.chat.generateImageUploadUrl);
 
   const sendMessage = useMutation(api.chat.sendMessageMutation).withOptimisticUpdate(
     optimisticallySendMessage(api.chat.listMessages),
@@ -38,26 +47,57 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
 
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed && pendingImages.length === 0) return;
+    if (sending) return;
+
     setSending(true);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     onSend?.(trimmed);
+
     try {
-      await sendMessage({ prompt: trimmed, threadId });
+      // Upload images first if any are attached
+      let imageStorageIds: Id<"_storage">[] | undefined;
+      if (pendingImages.length > 0) {
+        const ids = await uploadAll(async () => {
+          const { uploadUrl } = await generateUploadUrl();
+          return uploadUrl;
+        });
+        // Convex upload endpoint returns branded Id<"_storage"> values at runtime
+        imageStorageIds = ids as Id<"_storage">[];
+        clearAll();
+      }
+
+      await sendMessage({
+        prompt: trimmed || "What do you see in these images?",
+        threadId,
+        ...(imageStorageIds && imageStorageIds.length > 0 && { imageStorageIds }),
+      });
     } catch (err) {
       setInput(trimmed);
       console.error("Failed to send message:", err);
       const message = err instanceof Error ? err.message.toLowerCase() : "";
       if (message.includes("rate") || message.includes("limit")) {
         setError("Sending too fast. Please wait a moment.");
+      } else if (message.includes("upload")) {
+        setError("Image upload failed. Please try again.");
       } else {
         setError("Message failed to send. Please try again.");
       }
     } finally {
       setSending(false);
     }
-  }, [input, sending, sendMessage, threadId, onSend]);
+  }, [
+    input,
+    sending,
+    pendingImages,
+    sendMessage,
+    threadId,
+    onSend,
+    uploadAll,
+    generateUploadUrl,
+    clearAll,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -66,8 +106,16 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
     }
   };
 
-  const isDisabled = disabled || sending;
-  const hasInput = input.trim().length > 0;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const validationError = addImages(e.target.files);
+    if (validationError) setError(validationError);
+    // Reset so the same file can be re-selected
+    e.target.value = "";
+  };
+
+  const isDisabled = disabled || sending || isUploading;
+  const hasContent = input.trim().length > 0 || pendingImages.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -79,35 +127,58 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
           {error}
         </div>
       )}
-      <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm transition-colors duration-200 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            autoGrow(e.target);
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask your coach..."
-          disabled={isDisabled}
-          rows={1}
-          aria-label="Message input"
-          className="min-w-0 flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-base leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
-          style={{ height: "auto", maxHeight: `${MAX_TEXTAREA_HEIGHT}px` }}
-        />
-        <Button
-          size="icon"
-          onClick={handleSend}
-          disabled={isDisabled || !hasInput}
-          aria-label={sending ? "Sending message" : "Send message"}
-          className="mb-0.5 min-h-[44px] min-w-[44px] shrink-0 rounded-xl"
-        >
-          {sending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <SendHorizontal className="size-4" />
-          )}
-        </Button>
+      <div className="rounded-2xl border border-border bg-card p-2 shadow-sm transition-colors duration-200 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5">
+        <ImagePreviewRow images={pendingImages} onRemove={removeImage} disabled={isDisabled} />
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isDisabled || pendingImages.length >= 4}
+            aria-label="Attach images"
+            className="mb-0.5 min-h-[44px] min-w-[44px] shrink-0 rounded-xl text-muted-foreground"
+          >
+            <ImagePlus className="size-4" />
+          </Button>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autoGrow(e.target);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask your coach..."
+            disabled={isDisabled}
+            rows={1}
+            aria-label="Message input"
+            className="min-w-0 flex-1 resize-none rounded-xl bg-transparent px-3 py-2.5 text-base leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+            style={{ height: "auto", maxHeight: `${MAX_TEXTAREA_HEIGHT}px` }}
+          />
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={isDisabled || !hasContent}
+            aria-label={sending || isUploading ? "Sending message" : "Send message"}
+            className="mb-0.5 min-h-[44px] min-w-[44px] shrink-0 rounded-xl"
+          >
+            {sending || isUploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <SendHorizontal className="size-4" />
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

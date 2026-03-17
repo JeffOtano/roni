@@ -7,8 +7,11 @@ import {
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
+import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { action, internalAction, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
+import type { ActionCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { coachAgent, coachAgentFallback } from "./ai/coach";
 import { programmingAgent, programmingAgentFallback } from "./ai/agents/programming";
@@ -20,6 +23,8 @@ import {
 import { classifyIntent, type Intent } from "./ai/router";
 import { streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
+
+const MAX_IMAGES_PER_MESSAGE = 4;
 
 function getRoutedAgents(intent: Intent): { primary: Agent; fallback: Agent } | null {
   switch (intent) {
@@ -33,6 +38,51 @@ function getRoutedAgents(intent: Intent): { primary: Agent; fallback: Agent } | 
       return null;
   }
 }
+
+/**
+ * Resolves storage IDs to URLs and builds a multimodal ModelMessage array.
+ * Returns the plain text string when no images are provided.
+ */
+async function buildPrompt(
+  ctx: ActionCtx,
+  text: string,
+  imageStorageIds?: Id<"_storage">[],
+): Promise<string | Array<ModelMessage>> {
+  if (!imageStorageIds || imageStorageIds.length === 0) return text;
+
+  if (imageStorageIds.length > MAX_IMAGES_PER_MESSAGE) {
+    throw new Error(`Maximum ${MAX_IMAGES_PER_MESSAGE} images per message`);
+  }
+
+  const imageUrls = await Promise.all(
+    imageStorageIds.map(async (storageId) => {
+      const url = await ctx.storage.getUrl(storageId);
+      if (!url) throw new Error(`Image not found: ${storageId}`);
+      return url;
+    }),
+  );
+
+  return [
+    {
+      role: "user" as const,
+      content: [
+        { type: "text" as const, text },
+        ...imageUrls.map((url) => ({ type: "image" as const, image: new URL(url) })),
+      ],
+    },
+  ];
+}
+
+export const generateImageUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const uploadUrl = await ctx.storage.generateUploadUrl();
+    return { uploadUrl };
+  },
+});
 
 export const createThread = mutation({
   args: {},
@@ -52,8 +102,9 @@ export const sendMessage = action({
   args: {
     threadId: v.optional(v.string()),
     prompt: v.string(),
+    imageStorageIds: v.optional(v.array(v.id("_storage"))),
   },
-  handler: async (ctx, { threadId, prompt }) => {
+  handler: async (ctx, { threadId, prompt, imageStorageIds }) => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
@@ -86,6 +137,8 @@ export const sendMessage = action({
       }
     }
 
+    const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
+
     const intent = classifyIntent(prompt);
     const routed = getRoutedAgents(intent);
     if (routed) {
@@ -100,7 +153,7 @@ export const sendMessage = action({
       fallbackAgent: coachAgentFallback,
       threadId: targetThreadId,
       userId,
-      prompt,
+      prompt: resolvedPrompt,
       ...(routed && { routedPrimary: routed.primary, routedFallback: routed.fallback }),
     });
 
@@ -179,8 +232,9 @@ export const sendMessageMutation = mutation({
   args: {
     prompt: v.string(),
     threadId: v.string(),
+    imageStorageIds: v.optional(v.array(v.id("_storage"))),
   },
-  handler: async (ctx, { prompt, threadId }) => {
+  handler: async (ctx, { prompt, threadId, imageStorageIds }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
@@ -193,6 +247,7 @@ export const sendMessageMutation = mutation({
       threadId,
       userId,
       prompt,
+      imageStorageIds,
     });
 
     return { threadId };
@@ -204,8 +259,12 @@ export const processMessage = internalAction({
     threadId: v.string(),
     userId: v.string(),
     prompt: v.string(),
+    imageStorageIds: v.optional(v.array(v.id("_storage"))),
   },
-  handler: async (ctx, { threadId, userId, prompt }) => {
+  handler: async (ctx, { threadId, userId, prompt, imageStorageIds }) => {
+    const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
+
+    // Intent classification uses text only (images require AI to classify)
     const intent = classifyIntent(prompt);
     const routed = getRoutedAgents(intent);
     if (routed) {
@@ -220,7 +279,7 @@ export const processMessage = internalAction({
       fallbackAgent: coachAgentFallback,
       threadId,
       userId,
-      prompt,
+      prompt: resolvedPrompt,
       ...(routed && { routedPrimary: routed.primary, routedFallback: routed.fallback }),
     });
   },

@@ -51,6 +51,12 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
 
   // User messages: right-aligned bubble
   if (isUser) {
+    const imageParts = message.parts.filter(
+      (part): part is Extract<typeof part, { type: "file" }> =>
+        part.type === "file" && part.mediaType.startsWith("image/"),
+    );
+    const textParts = message.parts.filter((part) => part.type === "text");
+
     return (
       <div
         className={`group relative flex justify-end px-4 sm:px-6 ${isGrouped ? "pt-1" : "pt-3"} pb-1`}
@@ -63,8 +69,21 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
               </span>
             </div>
           )}
+          {imageParts.length > 0 && (
+            <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
+              {imageParts.map((part, i) => (
+                <img
+                  key={`img-${i}`}
+                  src={part.url}
+                  alt={part.filename ?? `Attached image ${i + 1}`}
+                  className="max-h-48 max-w-full rounded-xl border border-border object-contain"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          )}
           <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5">
-            {message.parts.map((part, i) =>
+            {textParts.map((part, i) =>
               part.type === "text" ? (
                 <p
                   key={i}
