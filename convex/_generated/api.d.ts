@@ -17,6 +17,7 @@ import type * as ai_coach from "../ai/coach.js";
 import type * as ai_coachingTools from "../ai/coachingTools.js";
 import type * as ai_context from "../ai/context.js";
 import type * as ai_helpers from "../ai/helpers.js";
+import type * as ai_resilience from "../ai/resilience.js";
 import type * as ai_schemas from "../ai/schemas.js";
 import type * as ai_tools from "../ai/tools.js";
 import type * as ai_weekModificationTools from "../ai/weekModificationTools.js";
@@ -120,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   "ai/coachingTools": typeof ai_coachingTools;
   "ai/context": typeof ai_context;
   "ai/helpers": typeof ai_helpers;
+  "ai/resilience": typeof ai_resilience;
   "ai/schemas": typeof ai_schemas;
   "ai/tools": typeof ai_tools;
   "ai/weekModificationTools": typeof ai_weekModificationTools;
