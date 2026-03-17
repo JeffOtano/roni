@@ -13,20 +13,28 @@ import {
   isValidWeekStartDateString,
   preferredSplitValidator,
 } from "../weekPlans";
-import { selectExercises } from "./exerciseSelection";
+import {
+  selectCooldownExercises,
+  selectExercises,
+  selectWarmupExercises,
+} from "./exerciseSelection";
 import type { ExerciseSelectionInput } from "./exerciseSelection";
 import type { Movement } from "../tonal/types";
 import { computeExcludedAccessories } from "../tonal/accessories";
 import {
   blocksFromMovementIds,
+  cooldownBlockFromMovementIds,
   DAY_NAMES,
   DEFAULT_MAX_EXERCISES,
+  DEFAULT_WARMUP_COOLDOWN,
   formatSessionTitle,
   getSessionTypesForSplit,
   getTrainingDayIndices,
   parseUserLevel,
   SESSION_DURATION_TO_MAX_EXERCISES,
   SESSION_TYPE_MUSCLES,
+  WARMUP_COOLDOWN_COUNTS,
+  warmupBlockFromMovementIds,
 } from "./weekProgrammingHelpers";
 import type { DraftDaySummary, DraftWeekSummary, SessionType } from "./weekProgrammingHelpers";
 
@@ -155,15 +163,35 @@ export const generateDraftWeekPlan = internalAction({
     for (const { dayIndex, sessionType } of daySessions) {
       const targetMuscleGroups =
         SESSION_TYPE_MUSCLES[sessionType] ?? SESSION_TYPE_MUSCLES.full_body;
+
+      // Warmup/cooldown budget subtracted from main exercise count
+      const wcCounts = WARMUP_COOLDOWN_COUNTS[sessionDurationMinutes] ?? DEFAULT_WARMUP_COOLDOWN;
+      const mainMaxExercises = maxExercises - wcCounts.warmup - wcCounts.cooldown;
+
       const movementIds = selectExercises({
         catalog,
         targetMuscleGroups,
         userLevel: data.userLevel,
-        maxExercises,
+        maxExercises: mainMaxExercises,
         lastUsedMovementIds: data.lastUsedMovementIds,
         constraints: data.constraints,
       });
       if (movementIds.length === 0) continue;
+
+      // Select warmup and cooldown exercises
+      const accessoryConstraints = { excludeAccessories: data.constraints?.excludeAccessories };
+      const warmupIds = selectWarmupExercises({
+        catalog,
+        targetMuscleGroups,
+        maxExercises: wcCounts.warmup,
+        constraints: accessoryConstraints,
+      });
+      const cooldownIds = selectCooldownExercises({
+        catalog,
+        targetMuscleGroups,
+        maxExercises: wcCounts.cooldown,
+        constraints: accessoryConstraints,
+      });
 
       // Progressive overload suggestions
       let suggestions: {
@@ -181,7 +209,10 @@ export const generateDraftWeekPlan = internalAction({
         // No history; use defaults.
       }
 
-      const blocks = blocksFromMovementIds(movementIds, suggestions, { catalog });
+      const warmupBlocks = warmupBlockFromMovementIds(warmupIds, { catalog });
+      const mainBlocks = blocksFromMovementIds(movementIds, suggestions, { catalog });
+      const cooldownBlocks = cooldownBlockFromMovementIds(cooldownIds, { catalog });
+      const blocks = [...warmupBlocks, ...mainBlocks, ...cooldownBlocks];
       const title = formatSessionTitle(sessionType, weekStartDate, dayIndex);
 
       // Create draft (no Tonal push)

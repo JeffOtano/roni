@@ -41,6 +41,20 @@ export const SESSION_TYPE_MUSCLES: Record<string, string[]> = {
 
 export const DEFAULT_REPS = 10;
 
+/** Warmup/cooldown exercise counts per duration tier. */
+export const WARMUP_COOLDOWN_COUNTS: Record<number, { warmup: number; cooldown: number }> = {
+  30: { warmup: 1, cooldown: 1 },
+  45: { warmup: 2, cooldown: 1 },
+  60: { warmup: 2, cooldown: 2 },
+};
+
+export const DEFAULT_WARMUP_COOLDOWN = { warmup: 2, cooldown: 1 };
+
+const WARMUP_REPS = 15;
+const WARMUP_SETS = 2;
+const COOLDOWN_REPS = 12;
+const COOLDOWN_SETS = 2;
+
 export const DAY_NAMES = [
   "Monday",
   "Tuesday",
@@ -174,6 +188,57 @@ export function blocksFromMovementIds(
           sets: baseSets,
           reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
         };
+      }),
+    },
+  ];
+}
+
+/**
+ * Build a warmup block. Each exercise gets warmUp: true flag (Tonal renders at 50% weight).
+ */
+export function warmupBlockFromMovementIds(
+  movementIds: string[],
+  options?: { catalog?: { id: string; countReps: boolean }[] },
+): BlockInput[] {
+  if (movementIds.length === 0) return [];
+  const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
+  return [
+    {
+      exercises: movementIds.map((movementId) => {
+        const movement = catalogMap.get(movementId);
+        const isDurationBased = movement ? !movement.countReps : false;
+        if (isDurationBased) {
+          return {
+            movementId,
+            sets: WARMUP_SETS,
+            duration: DEFAULT_DURATION_SECONDS,
+            warmUp: true,
+          };
+        }
+        return { movementId, sets: WARMUP_SETS, reps: WARMUP_REPS, warmUp: true };
+      }),
+    },
+  ];
+}
+
+/**
+ * Build a cooldown block. Lower sets, moderate reps, no warmUp flag.
+ */
+export function cooldownBlockFromMovementIds(
+  movementIds: string[],
+  options?: { catalog?: { id: string; countReps: boolean }[] },
+): BlockInput[] {
+  if (movementIds.length === 0) return [];
+  const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
+  return [
+    {
+      exercises: movementIds.map((movementId) => {
+        const movement = catalogMap.get(movementId);
+        const isDurationBased = movement ? !movement.countReps : false;
+        if (isDurationBased) {
+          return { movementId, sets: COOLDOWN_SETS, duration: DEFAULT_DURATION_SECONDS };
+        }
+        return { movementId, sets: COOLDOWN_SETS, reps: COOLDOWN_REPS };
       }),
     },
   ];
