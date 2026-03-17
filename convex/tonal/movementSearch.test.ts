@@ -77,7 +77,17 @@ describe("matchesNameSearch", () => {
   });
 
   it("works without description fields", () => {
-    expect(matchesNameSearch({ name: "RDL", shortName: "RDL" }, "Romanian")).toBe(false);
     expect(matchesNameSearch({ name: "RDL", shortName: "RDL" }, "RDL")).toBe(true);
+  });
+
+  it("matches abbreviation aliases (RDL ↔ Romanian Deadlift)", () => {
+    expect(matchesNameSearch({ name: "RDL", shortName: "RDL" }, "Romanian Deadlift")).toBe(true);
+    expect(
+      matchesNameSearch({ name: "Romanian Deadlift", shortName: "Romanian Deadlift" }, "RDL"),
+    ).toBe(true);
+  });
+
+  it("matches OHP ↔ Overhead Press alias", () => {
+    expect(matchesNameSearch({ name: "OHP", shortName: "OHP" }, "overhead press")).toBe(true);
   });
 });

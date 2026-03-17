@@ -6,7 +6,7 @@
  * variations that descriptions won't cover (pullup vs pull-up, etc.).
  */
 
-/** Spelling/formatting variations only — not abbreviation↔full-name mappings. */
+/** Spelling variations and common abbreviation ↔ full-name mappings. */
 const ALIAS_GROUPS: string[][] = [
   ["pullup", "pull-up", "pull up"],
   ["pushup", "push-up", "push up"],
@@ -14,6 +14,11 @@ const ALIAS_GROUPS: string[][] = [
   ["tricep", "triceps"],
   ["bicep", "biceps"],
   ["fly", "flye"],
+  ["rdl", "romanian deadlift"],
+  ["ohp", "overhead press"],
+  ["sldl", "stiff leg deadlift", "stiff-leg deadlift"],
+  ["db", "dumbbell"],
+  ["bb", "barbell"],
 ];
 
 /** Map from any alias to all alternatives in its group. */

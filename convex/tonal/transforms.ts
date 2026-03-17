@@ -14,10 +14,11 @@ export interface BlockInput {
   exercises: ExerciseInput[];
 }
 
-/** Optional movement catalog for auto-correcting duration vs reps in buildSet. */
+/** Optional movement catalog for auto-correcting duration vs reps and alternating rep counts. */
 export interface MovementCatalogEntry {
   id: string;
   countReps: boolean;
+  isAlternating: boolean;
 }
 
 interface BuildSetOpts {
@@ -67,7 +68,11 @@ function buildSet({
     set.prescribedDuration = ex.duration ?? DEFAULT_DURATION_SECONDS;
     set.prescribedResistanceLevel = 5;
   } else {
-    set.prescribedReps = ex.reps ?? 10;
+    const baseReps = ex.reps ?? 10;
+    // Tonal counts total reps for alternating exercises (5 per side = 10 total).
+    // AI prescribes per-side reps, so double for alternating movements.
+    const isAlternating = movement?.isAlternating ?? false;
+    set.prescribedReps = isAlternating ? baseReps * 2 : baseReps;
   }
 
   return set;
