@@ -33,6 +33,7 @@ import {
   parseUserLevel,
   SESSION_DURATION_TO_MAX_EXERCISES,
   SESSION_TYPE_MUSCLES,
+  sortForMinimalArmAdjustments,
   WARMUP_COOLDOWN_COUNTS,
   warmupBlockFromMovementIds,
 } from "./weekProgrammingHelpers";
@@ -168,7 +169,7 @@ export const generateDraftWeekPlan = internalAction({
       const wcCounts = WARMUP_COOLDOWN_COUNTS[sessionDurationMinutes] ?? DEFAULT_WARMUP_COOLDOWN;
       const mainMaxExercises = maxExercises - wcCounts.warmup - wcCounts.cooldown;
 
-      const movementIds = selectExercises({
+      const rawMovementIds = selectExercises({
         catalog,
         targetMuscleGroups,
         userLevel: data.userLevel,
@@ -176,7 +177,10 @@ export const generateDraftWeekPlan = internalAction({
         lastUsedMovementIds: data.lastUsedMovementIds,
         constraints: data.constraints,
       });
-      if (movementIds.length === 0) continue;
+      if (rawMovementIds.length === 0) continue;
+
+      // Sort exercises to minimize Tonal arm adjustments within the block
+      const movementIds = sortForMinimalArmAdjustments(rawMovementIds, catalog);
 
       // Select warmup and cooldown exercises
       const accessoryConstraints = { excludeAccessories: data.constraints?.excludeAccessories };
