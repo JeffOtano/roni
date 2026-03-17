@@ -1,14 +1,14 @@
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { Activity, MuscleReadiness, StrengthScore } from "../tonal/types";
+import type { Activity, ExternalActivity, MuscleReadiness, StrengthScore } from "../tonal/types";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
 import { ACCESSORY_MAP } from "../tonal/accessories";
 
 export interface SnapshotSection {
-  priority: number; // 1 = highest (dropped last), 11 = lowest (dropped first)
+  priority: number; // 1 = highest (dropped last), 12 = lowest (dropped first)
   lines: string[];
 }
 
@@ -40,6 +40,48 @@ export function trimSnapshot(sections: SnapshotSection[], maxChars: number): str
   return [header, body, footer].filter(Boolean).join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// External activity helpers
+// ---------------------------------------------------------------------------
+
+export function getHrIntensityLabel(hr: number): string | null {
+  if (hr === 0) return null;
+  if (hr < 100) return "light";
+  if (hr <= 130) return "moderate";
+  return "vigorous";
+}
+
+export function filterLast7Days(
+  activities: ExternalActivity[],
+  now: Date = new Date(),
+): ExternalActivity[] {
+  const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  return activities.filter((a) => new Date(a.beginTime).getTime() > sevenDaysAgo);
+}
+
+function capitalizeWorkoutType(workoutType: string): string {
+  return workoutType
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+export function formatExternalActivityLine(a: ExternalActivity): string {
+  const type = capitalizeWorkoutType(a.workoutType);
+  const mins = Math.round(a.totalDuration / 60);
+  const cal = Math.round(a.totalCalories);
+  const date = a.beginTime.split("T")[0];
+
+  let line = `  ${date} — ${type} (${a.source}) | ${mins}min | ${cal} cal`;
+  const hrLabel = getHrIntensityLabel(a.averageHeartRate);
+  if (hrLabel) {
+    line += ` | Avg HR ${Math.round(a.averageHeartRate)} (${hrLabel})`;
+  }
+  return line;
+}
+
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
   userId: string,
@@ -55,33 +97,47 @@ export async function buildTrainingSnapshot(
   }
 
   // Parallel fetch: Tonal data + coaching data
-  const [scores, readiness, activities, activeBlock, recentFeedback, activeGoals, activeInjuries] =
-    await Promise.all([
-      ctx
-        .runAction(internal.tonal.proxy.fetchStrengthScores, {
-          userId: convexUserId,
-        })
-        .catch(() => [] as StrengthScore[]),
-      ctx
-        .runAction(internal.tonal.proxy.fetchMuscleReadiness, {
-          userId: convexUserId,
-        })
-        .catch(() => null as MuscleReadiness | null),
-      ctx
-        .runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-          userId: convexUserId,
-          limit: 10,
-        })
-        .catch(() => [] as Activity[]),
-      ctx
-        .runQuery(internal.coach.periodization.getActiveBlock, { userId: convexUserId })
-        .catch(() => null),
-      ctx
-        .runQuery(internal.workoutFeedback.getRecentInternal, { userId: convexUserId, limit: 5 })
-        .catch(() => []),
-      ctx.runQuery(internal.goals.getActiveInternal, { userId: convexUserId }).catch(() => []),
-      ctx.runQuery(internal.injuries.getActiveInternal, { userId: convexUserId }).catch(() => []),
-    ]);
+  const [
+    scores,
+    readiness,
+    activities,
+    activeBlock,
+    recentFeedback,
+    activeGoals,
+    activeInjuries,
+    externalActivities,
+  ] = await Promise.all([
+    ctx
+      .runAction(internal.tonal.proxy.fetchStrengthScores, {
+        userId: convexUserId,
+      })
+      .catch(() => [] as StrengthScore[]),
+    ctx
+      .runAction(internal.tonal.proxy.fetchMuscleReadiness, {
+        userId: convexUserId,
+      })
+      .catch(() => null as MuscleReadiness | null),
+    ctx
+      .runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+        userId: convexUserId,
+        limit: 10,
+      })
+      .catch(() => [] as Activity[]),
+    ctx
+      .runQuery(internal.coach.periodization.getActiveBlock, { userId: convexUserId })
+      .catch(() => null),
+    ctx
+      .runQuery(internal.workoutFeedback.getRecentInternal, { userId: convexUserId, limit: 5 })
+      .catch(() => []),
+    ctx.runQuery(internal.goals.getActiveInternal, { userId: convexUserId }).catch(() => []),
+    ctx.runQuery(internal.injuries.getActiveInternal, { userId: convexUserId }).catch(() => []),
+    ctx
+      .runAction(internal.tonal.proxy.fetchExternalActivities, {
+        userId: convexUserId,
+        limit: 20,
+      })
+      .catch(() => [] as ExternalActivity[]),
+  ]);
 
   const pd = profile.profileData;
   const sections: SnapshotSection[] = [];
@@ -241,7 +297,25 @@ export async function buildTrainingSnapshot(
     sections.push({ priority: 9, lines: workoutLines });
   }
 
-  // Priority 10: Performance notes
+  // Priority 10: External activities (last 7 days)
+  const recentExternal = filterLast7Days(externalActivities as ExternalActivity[]);
+  if (recentExternal.length > 0) {
+    const extLines: string[] = [`External Activities (last 7 days):`];
+    for (const ext of recentExternal) {
+      extLines.push(formatExternalActivityLine(ext));
+    }
+    const hasVigorous = recentExternal.some(
+      (e) => getHrIntensityLabel(e.averageHeartRate) === "vigorous",
+    );
+    if (hasVigorous) {
+      extLines.push(
+        `  → Recent external load includes high-intensity activity. Factor into recovery and programming decisions.`,
+      );
+    }
+    sections.push({ priority: 10, lines: extLines });
+  }
+
+  // Priority 11: Performance notes
   if ((activities as Activity[]).length >= 2) {
     const perfLines: string[] = [];
     const latest = (activities as Activity[])[0];
@@ -254,10 +328,10 @@ export async function buildTrainingSnapshot(
     perfLines.push(
       `Tip: Use get_workout_performance for detailed per-exercise PR/plateau analysis.`,
     );
-    sections.push({ priority: 10, lines: perfLines });
+    sections.push({ priority: 11, lines: perfLines });
   }
 
-  // Priority 11: Missed session detection — non-critical, skip on error
+  // Priority 12: Missed session detection — non-critical, skip on error
   try {
     const weekStartDate = getWeekStartDateString(new Date());
     const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
@@ -304,7 +378,7 @@ export async function buildTrainingSnapshot(
 
       const missedContext = formatMissedSessionContext(missedSummary);
       if (missedContext) {
-        sections.push({ priority: 11, lines: [missedContext] });
+        sections.push({ priority: 12, lines: [missedContext] });
       }
     }
   } catch {
