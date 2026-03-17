@@ -110,6 +110,8 @@ export default defineSchema({
       v.literal("weekly_recap"),
       v.literal("strength_milestone"),
       v.literal("plateau"),
+      v.literal("high_external_load"),
+      v.literal("consistency_streak"),
     ),
     message: v.string(),
     readAt: v.optional(v.number()),
