@@ -66,6 +66,10 @@ export function formatExternalActivityLine(a: ExternalActivity): string {
   const date = a.beginTime.split("T")[0];
 
   let line = `  ${date} — ${type} (${a.source}) | ${mins}min | ${cal} cal`;
+  if (a.distance > 0) {
+    const miles = (a.distance / 1609.34).toFixed(1);
+    line += ` | ${miles} mi`;
+  }
   const hrLabel = getHrIntensityLabel(a.averageHeartRate);
   if (hrLabel) {
     line += ` | Avg HR ${Math.round(a.averageHeartRate)} (${hrLabel})`;
