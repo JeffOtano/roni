@@ -142,7 +142,7 @@ export const updateMovement = internalMutation({
     ...movementFields,
   },
   handler: async (ctx, { id, ...fields }) => {
-    await ctx.db.replace(id, fields);
+    await ctx.db.patch(id, fields);
   },
 });
 
@@ -171,6 +171,7 @@ export const getAllMovements = internalQuery({
       descriptionWhy: doc.descriptionWhy,
       thumbnailMediaUrl: doc.thumbnailMediaUrl,
       onMachineInfo: doc.onMachineInfo,
+      trainingTypes: doc.trainingTypes,
     }));
   },
 });
@@ -204,6 +205,7 @@ export const getByTonalIds = internalQuery({
           descriptionWhy: doc.descriptionWhy,
           thumbnailMediaUrl: doc.thumbnailMediaUrl,
           onMachineInfo: doc.onMachineInfo,
+          trainingTypes: doc.trainingTypes,
         });
       }
     }
