@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import type { Agent } from "@convex-dev/agent";
 import {
   createThread as agentCreateThread,
   listUIMessages,
@@ -10,8 +11,29 @@ import { action, internalAction, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { coachAgent, coachAgentFallback } from "./ai/coach";
+import { programmingAgent, programmingAgentFallback } from "./ai/agents/programming";
+import { recoveryAgent, recoveryAgentFallback } from "./ai/agents/recovery";
+import {
+  coachingAgent as coachingSpecialist,
+  coachingAgentFallback as coachingSpecialistFallback,
+} from "./ai/agents/coaching";
+import { classifyIntent } from "./ai/router";
 import { streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
+
+function getRoutedAgents(prompt: string): { primary: Agent; fallback: Agent } | null {
+  const intent = classifyIntent(prompt);
+  switch (intent) {
+    case "programming":
+      return { primary: programmingAgent, fallback: programmingAgentFallback };
+    case "data":
+      return { primary: recoveryAgent, fallback: recoveryAgentFallback };
+    case "coaching":
+      return { primary: coachingSpecialist, fallback: coachingSpecialistFallback };
+    case "general":
+      return null;
+  }
+}
 
 export const createThread = mutation({
   args: {},
@@ -65,12 +87,14 @@ export const sendMessage = action({
       }
     }
 
+    const routed = getRoutedAgents(prompt);
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
       threadId: targetThreadId,
       userId,
       prompt,
+      ...(routed && { routedPrimary: routed.primary, routedFallback: routed.fallback }),
     });
 
     return { threadId: targetThreadId };
@@ -175,12 +199,14 @@ export const processMessage = internalAction({
     prompt: v.string(),
   },
   handler: async (ctx, { threadId, userId, prompt }) => {
+    const routed = getRoutedAgents(prompt);
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
       threadId,
       userId,
       prompt,
+      ...(routed && { routedPrimary: routed.primary, routedFallback: routed.fallback }),
     });
   },
 });
