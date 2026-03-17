@@ -9,7 +9,9 @@ export type CheckInTrigger =
   | "tough_session_completed"
   | "weekly_recap"
   | "strength_milestone"
-  | "plateau";
+  | "plateau"
+  | "high_external_load"
+  | "consistency_streak";
 
 /** Default copy for each trigger. No templating for now; can add placeholders later. */
 export const CHECK_IN_MESSAGES: Record<CheckInTrigger, string> = {
@@ -25,6 +27,10 @@ export const CHECK_IN_MESSAGES: Record<CheckInTrigger, string> = {
     "Your strength numbers are moving in the right direction. That's real progress.",
   plateau:
     "You've been at this weight for a few sessions. Options: add a set, bump weight slightly, or swap the exercise for a few weeks. Your call.",
+  high_external_load:
+    "You've had several intense sessions outside of Tonal recently. Your body might benefit from a lighter Tonal session or extra recovery today.",
+  consistency_streak:
+    "You've hit every programmed session for 3 weeks straight. That consistency is what drives real results. Keep it going.",
 };
 
 export function getMessageForTrigger(trigger: CheckInTrigger): string {

@@ -19,6 +19,7 @@ import type * as ai_context from "../ai/context.js";
 import type * as ai_helpers from "../ai/helpers.js";
 import type * as ai_resilience from "../ai/resilience.js";
 import type * as ai_schemas from "../ai/schemas.js";
+import type * as ai_timeDecay from "../ai/timeDecay.js";
 import type * as ai_tools from "../ai/tools.js";
 import type * as ai_weekModificationTools from "../ai/weekModificationTools.js";
 import type * as ai_weekTools from "../ai/weekTools.js";
@@ -124,6 +125,7 @@ declare const fullApi: ApiFromModules<{
   "ai/helpers": typeof ai_helpers;
   "ai/resilience": typeof ai_resilience;
   "ai/schemas": typeof ai_schemas;
+  "ai/timeDecay": typeof ai_timeDecay;
   "ai/tools": typeof ai_tools;
   "ai/weekModificationTools": typeof ai_weekModificationTools;
   "ai/weekTools": typeof ai_weekTools;

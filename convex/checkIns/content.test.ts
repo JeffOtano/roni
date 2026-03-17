@@ -10,12 +10,22 @@ describe("getMessageForTrigger", () => {
       "weekly_recap",
       "strength_milestone",
       "plateau",
+      "high_external_load",
+      "consistency_streak",
     ] as const;
     for (const trigger of triggers) {
       const msg = getMessageForTrigger(trigger);
       expect(msg).toBe(CHECK_IN_MESSAGES[trigger]);
       expect(msg.length).toBeGreaterThan(0);
     }
+  });
+
+  it("returns message for high_external_load trigger", () => {
+    expect(getMessageForTrigger("high_external_load")).toBeTruthy();
+  });
+
+  it("returns message for consistency_streak trigger", () => {
+    expect(getMessageForTrigger("consistency_streak")).toBeTruthy();
   });
 
   it("returns different messages for different triggers", () => {
@@ -27,8 +37,10 @@ describe("getMessageForTrigger", () => {
         "weekly_recap",
         "strength_milestone",
         "plateau",
+        "high_external_load",
+        "consistency_streak",
       ].map((t) => getMessageForTrigger(t as Parameters<typeof getMessageForTrigger>[0])),
     );
-    expect(messages.size).toBe(6);
+    expect(messages.size).toBe(8);
   });
 });
