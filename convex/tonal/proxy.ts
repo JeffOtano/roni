@@ -41,7 +41,7 @@ export async function withTonalToken(
   return { token, tonalUserId: profile.tonalUserId };
 }
 
-/** Generic cache-check-then-fetch helper. */
+/** Generic cache-check-then-fetch helper with stale-while-revalidate. */
 export async function cachedFetch<T>(
   ctx: ActionCtx,
   opts: {
@@ -62,18 +62,28 @@ export async function cachedFetch<T>(
     return cached.data as T;
   }
 
-  const data = await fetcher();
-  const now = Date.now();
+  // Stale-while-revalidate: try to refresh, fall back to stale data
+  try {
+    const data = await fetcher();
+    const now = Date.now();
 
-  await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-    userId,
-    dataType,
-    data,
-    fetchedAt: now,
-    expiresAt: now + ttl,
-  });
+    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
+      userId,
+      dataType,
+      data,
+      fetchedAt: now,
+      expiresAt: now + ttl,
+    });
 
-  return data;
+    return data;
+  } catch (error) {
+    // If we have stale data, return it rather than failing
+    if (cached) {
+      console.warn(`cachedFetch(${dataType}): refresh failed, serving stale data`, error);
+      return cached.data as T;
+    }
+    throw error;
+  }
 }
 
 export const fetchUserProfile = internalAction({
