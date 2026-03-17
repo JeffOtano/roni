@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { useUIMessages } from "@convex-dev/agent/react";
 import { toUIMessages } from "@convex-dev/agent";
@@ -9,7 +9,7 @@ import { api } from "../../../convex/_generated/api";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ThinkingIndicator } from "./ThinkingIndicator";
-import { ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ChatThreadProps {
   userInitial?: string;
@@ -55,10 +55,6 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
     setHistoricalMessages((prev) => [...converted, ...prev]);
   };
 
-  const handleSend = (text: string) => {
-    setPendingText(text);
-  };
-
   // Show a local pending message until the server confirms it.
   // No cleanup needed — once serverHasPending is true, we just stop appending.
   const serverMessages = [...historicalMessages, ...(currentMessages ?? [])];
@@ -87,17 +83,56 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const lastIsAssistantWithoutText = lastMessage?.role === "assistant" && !lastMessage.text.trim();
   const isThinking = lastIsRecentUser || lastIsAssistantWithoutText;
 
-  // Auto-scroll: only if already near the bottom (within 150px).
-  // Prevents yanking user up during the pending→server swap or while reading history.
-  const serverMessageCount = serverMessages.length;
+  // Track whether the user has scrolled away from the bottom.
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const NEAR_BOTTOM_THRESHOLD = 150;
+
+  const isNearBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_THRESHOLD;
+  }, []);
+
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior = "instant") => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      el.scrollTo({ top: el.scrollHeight, behavior });
+    },
+    [],
+  );
+
+  // Update FAB visibility on scroll.
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom < 150) {
-      el.scrollTop = el.scrollHeight;
+    const handleScroll = () => setShowScrollButton(!isNearBottom());
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [isNearBottom]);
+
+  // Scroll to bottom on initial mount.
+  const hasMountScrolled = useRef(false);
+  useEffect(() => {
+    if (hasMountScrolled.current || !currentMessages?.length) return;
+    hasMountScrolled.current = true;
+    scrollToBottom("instant");
+  }, [currentMessages, scrollToBottom]);
+
+  // Auto-scroll during streaming / thinking — only if already near the bottom.
+  // Prevents yanking user up during the pending→server swap or while reading history.
+  const serverMessageCount = serverMessages.length;
+  useEffect(() => {
+    if (isNearBottom()) {
+      scrollToBottom("smooth");
     }
-  }, [serverMessageCount, isStreaming, isThinking]);
+  }, [serverMessageCount, isStreaming, isThinking, isNearBottom, scrollToBottom]);
+
+  // Always scroll to bottom when the user sends a message.
+  const handleSend = (text: string) => {
+    setPendingText(text);
+    scrollToBottom("smooth");
+  };
 
   const canLoadMoreHistory =
     history !== undefined && history.hasMore && historicalMessages.length === 0;
@@ -135,7 +170,17 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
           <div ref={bottomRef} className="h-4" />
         </div>
       </div>
-      <div className="shrink-0 border-t border-border/50 p-3 sm:p-4">
+      <div className="relative shrink-0 border-t border-border/50 p-3 sm:p-4">
+        {showScrollButton && (
+          <button
+            onClick={() => scrollToBottom("smooth")}
+            aria-label="Scroll to latest messages"
+            className="absolute -top-12 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-md transition-colors duration-150 hover:bg-accent hover:text-foreground"
+          >
+            <ChevronDown className="size-3" />
+            Latest
+          </button>
+        )}
         <ChatInput threadId={threadId} disabled={isStreaming} onSend={handleSend} />
       </div>
     </div>
