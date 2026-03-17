@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatExternalActivityLine,
   getHrIntensityLabel,
+  getRecencyLabel,
   type SnapshotSection,
   trimSnapshot,
 } from "./context";
@@ -143,5 +144,36 @@ describe("formatExternalActivityLine", () => {
       makeExternal({ workoutType: "traditionalStrengthTraining" }),
     );
     expect(line).toContain("Traditional Strength Training");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Recency labels
+// ---------------------------------------------------------------------------
+
+describe("getRecencyLabel", () => {
+  it("returns 'today' for same-day timestamps", () => {
+    const now = new Date("2026-03-16T15:00:00Z");
+    expect(getRecencyLabel("2026-03-16T08:00:00Z", now)).toBe("today");
+  });
+
+  it("returns 'yesterday' for previous day", () => {
+    const now = new Date("2026-03-16T15:00:00Z");
+    expect(getRecencyLabel("2026-03-15T20:00:00Z", now)).toBe("yesterday");
+  });
+
+  it("returns 'this week' for 3 days ago", () => {
+    const now = new Date("2026-03-16T15:00:00Z");
+    expect(getRecencyLabel("2026-03-13T10:00:00Z", now)).toBe("this week");
+  });
+
+  it("returns 'last week' for 10 days ago", () => {
+    const now = new Date("2026-03-16T15:00:00Z");
+    expect(getRecencyLabel("2026-03-06T10:00:00Z", now)).toBe("last week");
+  });
+
+  it("returns 'older' for 20+ days ago", () => {
+    const now = new Date("2026-03-16T15:00:00Z");
+    expect(getRecencyLabel("2026-02-20T10:00:00Z", now)).toBe("older");
   });
 });
