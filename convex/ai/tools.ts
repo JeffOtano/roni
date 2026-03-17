@@ -132,10 +132,12 @@ export const getWorkoutDetailTool = createTool({
   }),
   execute: async (ctx, input): Promise<WorkoutActivityDetail> => {
     const userId = requireUserId(ctx);
-    return (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+    const detail = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
       userId,
       activityId: input.activityId,
-    })) as WorkoutActivityDetail;
+    })) as WorkoutActivityDetail | null;
+    if (!detail) throw new Error("Workout activity not found");
+    return detail;
   },
 });
 

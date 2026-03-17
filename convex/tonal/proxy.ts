@@ -4,7 +4,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
-import { tonalFetch } from "./client";
+import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
@@ -172,17 +172,25 @@ export const fetchWorkoutDetail = internalAction({
     userId: v.id("users"),
     activityId: v.string(),
   },
-  handler: async (ctx, { userId, activityId }): Promise<WorkoutActivityDetail> =>
+  handler: async (ctx, { userId, activityId }): Promise<WorkoutActivityDetail | null> =>
     withTokenRetry(ctx, userId, (token, tonalUserId) =>
-      cachedFetch<WorkoutActivityDetail>(ctx, {
+      cachedFetch<WorkoutActivityDetail | null>(ctx, {
         userId,
         dataType: `workoutDetail:${activityId}`,
         ttl: CACHE_TTLS.workoutHistory,
-        fetcher: () =>
-          tonalFetch<WorkoutActivityDetail>(
-            token,
-            `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
-          ),
+        fetcher: async () => {
+          try {
+            return await tonalFetch<WorkoutActivityDetail>(
+              token,
+              `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
+            );
+          } catch (error) {
+            if (error instanceof TonalApiError && error.status === 404) {
+              return null;
+            }
+            throw error;
+          }
+        },
       }),
     ),
 });

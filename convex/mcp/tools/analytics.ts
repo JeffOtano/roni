@@ -1,6 +1,7 @@
 import type { ToolContext, ToolDefinition, ToolHandler } from "../registry";
 import { internal } from "../../_generated/api";
 import { aggregateProgressMetrics, aggregateTrainingFrequency } from "./aggregations";
+import type { WorkoutActivityDetail } from "../../tonal/types";
 
 // --- Tool handlers ---
 
@@ -38,6 +39,9 @@ async function getWorkoutDetail(
     userId: toolCtx.userId,
     activityId,
   });
+  if (!detail) {
+    return { content: [{ type: "text", text: "Workout activity not found." }] };
+  }
 
   return {
     content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
@@ -64,6 +68,11 @@ async function getWorkoutMovements(
     toolCtx.ctx.runQuery(internal.tonal.movementSync.getAllMovements),
   ]);
 
+  if (!detail) {
+    return { content: [{ type: "text", text: "Workout activity not found." }] };
+  }
+
+  const typedDetail = detail as WorkoutActivityDetail;
   const movementMap = new Map(movements.map((m) => [m.id, m]));
 
   // Volume per movement from formatted summary
@@ -80,7 +89,7 @@ async function getWorkoutMovements(
     { sets: number; totalReps: number; usedSpotter: boolean; usedEccentric: boolean }
   >();
 
-  for (const set of detail.workoutSetActivity) {
+  for (const set of typedDetail.workoutSetActivity) {
     const existing = byMovement.get(set.movementId) ?? {
       sets: 0,
       totalReps: 0,

@@ -62,10 +62,16 @@ export const checkActivation = internalAction({
     const pushedIds = await ctx.runQuery(internal.workoutPlans.getPushedAiWorkoutIds, { userId });
     if (pushedIds.length === 0) return;
 
-    const activities = (await ctx.runAction(
-      internal.tonal.mutations.fetchWorkoutHistoryForEligibility,
-      { userId },
-    )) as Activity[];
+    let activities: Activity[];
+    try {
+      activities = (await ctx.runAction(
+        internal.tonal.mutations.fetchWorkoutHistoryForEligibility,
+        { userId },
+      )) as Activity[];
+    } catch {
+      // Token expired or Tonal API unreachable — skip this user
+      return;
+    }
 
     const ourIdsSet = new Set(pushedIds);
     const completed = activities.filter(
