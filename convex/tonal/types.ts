@@ -79,6 +79,25 @@ export interface MuscleReadiness {
   Calves: number;
 }
 
+// External activity from GET /v6/users/{userId}/external-activities
+export interface ExternalActivity {
+  id: string;
+  userId: string;
+  workoutType: string;
+  beginTime: string;
+  endTime: string;
+  timezone: string;
+  activeDuration: number;
+  totalDuration: number;
+  distance: number;
+  activeCalories: number;
+  totalCalories: number;
+  averageHeartRate: number;
+  source: string;
+  externalId: string;
+  deviceId: string;
+}
+
 // Activity (workout history) from GET /v6/users/{userId}/activities
 export interface Activity {
   activityId: string;
@@ -101,6 +120,8 @@ export interface Activity {
     totalWork: number;
     totalAchievements: number;
     activityType: string;
+    source?: string;
+    externalWorkoutType?: string;
   };
 }
 
