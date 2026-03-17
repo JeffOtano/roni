@@ -10,7 +10,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { tonalFetch } from "./client";
-import { withTonalToken } from "./proxy";
+import { withTokenRetry } from "./tokenRetry";
 import { ACCESSORY_MAP } from "./accessories";
 import type { Movement } from "./types";
 
@@ -50,8 +50,9 @@ export const syncMovementCatalog = internalAction({
       return;
     }
 
-    const { token } = await withTonalToken(ctx, activeUsers[0].userId);
-    const movements = await tonalFetch<Movement[]>(token, "/v6/movements");
+    const movements = await withTokenRetry(ctx, activeUsers[0].userId, (token) =>
+      tonalFetch<Movement[]>(token, "/v6/movements"),
+    );
     const now = Date.now();
 
     let inserted = 0;
