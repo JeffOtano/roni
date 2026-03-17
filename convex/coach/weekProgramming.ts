@@ -209,8 +209,13 @@ export const generateDraftWeekPlan = internalAction({
           internal.progressiveOverload.getLastTimeAndSuggestedInternal,
           { userId: args.userId, movementIds },
         )) as typeof suggestions;
-      } catch {
-        // No history; use defaults.
+      } catch (error) {
+        console.error("[weekProgramming] Progressive overload lookup failed", error);
+        void ctx.runAction(internal.discord.notifyError, {
+          source: "weekProgramming",
+          message: `Progressive overload failed for ${sessionType} (day ${dayIndex}): ${error instanceof Error ? error.message : String(error)}`,
+          userId: args.userId,
+        });
       }
 
       const warmupBlocks = warmupBlockFromMovementIds(warmupIds, { catalog });

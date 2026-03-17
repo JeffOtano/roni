@@ -138,7 +138,11 @@ export const getPerMovementHistory = internalAction({
           userId,
           activityId,
         })) as WorkoutActivityDetail | null;
-      } catch {
+      } catch (error) {
+        console.error(
+          `[progressiveOverload] Failed to fetch detail for activity ${activityId}`,
+          error,
+        );
         continue;
       }
       if (!detail) continue;
