@@ -225,7 +225,7 @@ Token usage is tracked per-request in `aiUsage` table via the agent's `usageHand
 
 ```ts
 aiToolCalls: defineTable({
-  userId: v.optional(v.id("users")),
+  userId: v.optional(v.string()),
   threadId: v.optional(v.string()),
   toolName: v.string(),
   durationMs: v.number(),
