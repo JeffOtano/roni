@@ -74,6 +74,23 @@ export function formatExternalActivityLine(a: ExternalActivity): string {
   return line;
 }
 
+export function getRecencyLabel(
+  isoTimestamp: string,
+  now: Date = new Date(),
+): "today" | "yesterday" | "this week" | "last week" | "older" {
+  const ts = new Date(isoTimestamp);
+  const diffMs = now.getTime() - ts.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  if (diffDays < 1 && ts.toISOString().slice(0, 10) === now.toISOString().slice(0, 10)) {
+    return "today";
+  }
+  if (diffDays < 2) return "yesterday";
+  if (diffDays < 7) return "this week";
+  if (diffDays < 14) return "last week";
+  return "older";
+}
+
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
   userId: string,
