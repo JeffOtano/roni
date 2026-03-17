@@ -1,15 +1,13 @@
 /**
- * Fuzzy exercise search matching.
+ * Exercise search matching.
  *
- * Handles abbreviations (RDL ↔ Romanian Deadlift), multi-word queries,
- * and searches both name and shortName fields.
+ * Searches name, shortName, descriptionHow, and descriptionWhy fields
+ * for natural synonym coverage. A small alias map handles spelling
+ * variations that descriptions won't cover (pullup vs pull-up, etc.).
  */
 
-/** Equivalence groups: any term in a group should match any other. */
+/** Spelling/formatting variations only — not abbreviation↔full-name mappings. */
 const ALIAS_GROUPS: string[][] = [
-  ["rdl", "romanian deadlift"],
-  ["ohp", "overhead press"],
-  ["sldl", "stiff leg deadlift", "straight leg deadlift"],
   ["pullup", "pull-up", "pull up"],
   ["pushup", "push-up", "push up"],
   ["lat pulldown", "lat pull-down", "lat pull down"],
@@ -33,37 +31,37 @@ function buildAliasLookup(): Map<string, string[]> {
   return map;
 }
 
-function containsSubstring(haystack: string, needle: string): boolean {
-  return haystack.includes(needle);
+interface SearchableMovement {
+  name: string;
+  shortName: string;
+  descriptionHow?: string;
+  descriptionWhy?: string;
 }
 
 /** Returns true if the movement matches the search query. */
-export function matchesNameSearch(
-  movement: { name: string; shortName: string },
-  query: string,
-): boolean {
+export function matchesNameSearch(movement: SearchableMovement, query: string): boolean {
   const q = query.toLowerCase().trim();
   if (!q) return true;
 
-  const name = movement.name.toLowerCase();
-  const shortName = movement.shortName.toLowerCase();
+  const fields = [
+    movement.name.toLowerCase(),
+    movement.shortName.toLowerCase(),
+    movement.descriptionHow?.toLowerCase() ?? "",
+    movement.descriptionWhy?.toLowerCase() ?? "",
+  ];
 
-  // Direct substring match on name or shortName
-  if (containsSubstring(name, q) || containsSubstring(shortName, q)) return true;
+  // Direct substring match on any field
+  if (fields.some((f) => f.includes(q))) return true;
 
-  // Word-level: any word (>= 3 chars) from query appears in name/shortName
+  // Word-level: any word (>= 3 chars) from query appears in any field
   const queryWords = q.split(/[\s\-]+/).filter((w) => w.length >= 3);
-  if (queryWords.some((w) => containsSubstring(name, w) || containsSubstring(shortName, w))) {
-    return true;
-  }
+  if (queryWords.some((w) => fields.some((f) => f.includes(w)))) return true;
 
-  // Alias expansion: check full query and individual words against alias groups
+  // Alias expansion for spelling variations
   const termsToExpand = [q, ...queryWords];
   for (const term of termsToExpand) {
     const aliases = ALIAS_LOOKUP.get(term);
-    if (aliases?.some((a) => containsSubstring(name, a) || containsSubstring(shortName, a))) {
-      return true;
-    }
+    if (aliases?.some((a) => fields.some((f) => f.includes(a)))) return true;
   }
 
   return false;

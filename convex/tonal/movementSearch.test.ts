@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { matchesNameSearch } from "./movementSearch";
 
-const rdl = { name: "RDL", shortName: "RDL" };
+const rdl = {
+  name: "RDL",
+  shortName: "RDL",
+  descriptionHow:
+    "Stand with feet hip-width apart. Hinge at the hips, pushing them back while keeping a slight bend in the knees. Lower the handles along your legs until you feel a stretch in your hamstrings, then drive your hips forward to return to standing. This is also known as a Romanian Deadlift.",
+  descriptionWhy: "Strengthens the posterior chain — hamstrings, glutes, and lower back.",
+};
+
 const benchPress = { name: "Bench Press", shortName: "Bench Press" };
 const bicepCurl = { name: "Bicep Curl", shortName: "Bicep Curl" };
 const latPulldown = { name: "Lat Pulldown", shortName: "Lat Pulldown" };
@@ -23,16 +30,19 @@ describe("matchesNameSearch", () => {
     expect(matchesNameSearch(tricepExtension, "Ext")).toBe(true);
   });
 
-  it("matches via alias: common name → abbreviation", () => {
+  it("matches common name via description (RDL → Romanian Deadlift)", () => {
     expect(matchesNameSearch(rdl, "Romanian Deadlift")).toBe(true);
   });
 
-  it("matches via alias: abbreviation → common name", () => {
-    const romanianDeadlift = { name: "Romanian Deadlift", shortName: "Romanian Deadlift" };
-    expect(matchesNameSearch(romanianDeadlift, "RDL")).toBe(true);
+  it("matches via descriptionWhy", () => {
+    expect(matchesNameSearch(rdl, "posterior chain")).toBe(true);
   });
 
-  it("matches word-level: any word from query", () => {
+  it("matches word-level: any word from query in description", () => {
+    expect(matchesNameSearch(rdl, "hamstring exercise")).toBe(true);
+  });
+
+  it("matches word-level: any word from query in name", () => {
     expect(matchesNameSearch(gobletSquat, "barbell squat")).toBe(true);
   });
 
@@ -63,7 +73,11 @@ describe("matchesNameSearch", () => {
   });
 
   it("skips short words (< 3 chars) for word-level matching", () => {
-    // "an" is too short to match on its own
     expect(matchesNameSearch(benchPress, "an")).toBe(false);
+  });
+
+  it("works without description fields", () => {
+    expect(matchesNameSearch({ name: "RDL", shortName: "RDL" }, "Romanian")).toBe(false);
+    expect(matchesNameSearch({ name: "RDL", shortName: "RDL" }, "RDL")).toBe(true);
   });
 });
