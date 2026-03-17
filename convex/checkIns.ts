@@ -248,8 +248,8 @@ async function evaluateUserCheckIn(
   const toSend = await ctx.runAction(internal.checkIns.triggers.evaluateTriggersForUser, {
     userId,
   });
-  for (const { trigger, triggerContext } of toSend) {
-    const message = getMessageForTrigger(trigger);
+  for (const { trigger, triggerContext, message: customMessage } of toSend) {
+    const message = customMessage ?? getMessageForTrigger(trigger);
     await ctx.runMutation(internal.checkIns.createCheckIn, {
       userId,
       trigger,

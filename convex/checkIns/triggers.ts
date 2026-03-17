@@ -1,5 +1,6 @@
 /**
- * Check-in trigger evaluation: missed session, 3-day gap, weekly recap.
+ * Check-in trigger evaluation: missed session, 3-day gap, weekly recap,
+ * tough session, strength milestone, plateau.
  * Extracted so checkIns.ts stays under file line limit; handler kept under 60 lines.
  */
 
@@ -10,6 +11,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { CheckInTrigger } from "./content";
 import type { Activity } from "../tonal/types";
+import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import { getWeekStartDateString } from "../weekPlans";
 
 const EIGHTEEN_HOURS_MS = 18 * 60 * 60 * 1000;
@@ -17,8 +19,13 @@ const MISSED_SESSION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const GAP_3_DAYS_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
 const WEEKLY_RECAP_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+const TOUGH_SESSION_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+const STRENGTH_MILESTONE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const PLATEAU_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
 
-type TriggerResult = { trigger: CheckInTrigger; triggerContext?: string };
+type TriggerResult = { trigger: CheckInTrigger; triggerContext?: string; message?: string };
 
 async function evaluateMissedSession(opts: {
   ctx: ActionCtx;
@@ -87,6 +94,89 @@ async function evaluateWeeklyRecap(
   return { trigger: "weekly_recap", triggerContext: weekStart };
 }
 
+async function evaluateToughSession(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  now: number,
+): Promise<TriggerResult | null> {
+  const feedback = await ctx.runQuery(internal.workoutFeedback.getRecentInternal, {
+    userId,
+    limit: 1,
+  });
+  if (feedback.length === 0) return null;
+
+  const latest = feedback[0];
+  const age = now - latest.createdAt;
+  if (age > TWENTY_FOUR_HOURS_MS) return null;
+  if (latest.rpe < 8 || latest.rating < 4) return null;
+
+  const triggerContext = latest.activityId;
+  const hasRecent = await ctx.runQuery(internal.checkIns.hasRecentCheckIn, {
+    userId,
+    trigger: "tough_session_completed",
+    since: now - TOUGH_SESSION_COOLDOWN_MS,
+    triggerContext,
+  });
+  if (hasRecent) return null;
+
+  const message = `Solid work — RPE ${latest.rpe} and you rated it ${latest.rating}/5. Your body's adapting. Rest up and we'll keep building.`;
+  return { trigger: "tough_session_completed", triggerContext, message };
+}
+
+async function evaluateStrengthMilestone(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  now: number,
+  summary: WorkoutPerformanceSummary,
+  latestActivity: Activity | null,
+): Promise<TriggerResult | null> {
+  if (summary.prs.length === 0 || !latestActivity) return null;
+
+  const activityAge = now - new Date(latestActivity.activityTime).getTime();
+  if (activityAge > FORTY_EIGHT_HOURS_MS) return null;
+
+  const triggerContext = latestActivity.activityId;
+  const hasRecent = await ctx.runQuery(internal.checkIns.hasRecentCheckIn, {
+    userId,
+    trigger: "strength_milestone",
+    since: now - STRENGTH_MILESTONE_COOLDOWN_MS,
+    triggerContext,
+  });
+  if (hasRecent) return null;
+
+  const bestPR = summary.prs.reduce((best, pr) =>
+    pr.improvementPct > best.improvementPct ? pr : best,
+  );
+  const message = `New PR on ${bestPR.movementName} — ${bestPR.newWeightLbs} lbs, up ${bestPR.improvementPct}% from your previous best of ${bestPR.previousBestLbs} lbs.`;
+  return { trigger: "strength_milestone", triggerContext, message };
+}
+
+async function evaluatePlateau(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  now: number,
+  summary: WorkoutPerformanceSummary,
+): Promise<TriggerResult | null> {
+  if (summary.plateaus.length === 0) return null;
+
+  // Fire for first plateau not on cooldown
+  for (const plateau of summary.plateaus) {
+    const triggerContext = plateau.movementId;
+    const hasRecent = await ctx.runQuery(internal.checkIns.hasRecentCheckIn, {
+      userId,
+      trigger: "plateau",
+      since: now - PLATEAU_COOLDOWN_MS,
+      triggerContext,
+    });
+    if (hasRecent) continue;
+
+    const message = `Your ${plateau.movementName} has been at ${plateau.weightLbs} lbs for ${plateau.flatSessionCount} sessions. Options: add a set, bump weight 5%, or swap the exercise for a few weeks.`;
+    return { trigger: "plateau", triggerContext, message };
+  }
+
+  return null;
+}
+
 /** Evaluate triggers for one user; returns triggers to send (with optional context). */
 export const evaluateTriggersForUser = internalAction({
   args: { userId: v.id("users") },
@@ -117,6 +207,23 @@ export const evaluateTriggersForUser = internalAction({
       const recap = await evaluateWeeklyRecap(ctx, userId, now, weekStart);
       if (recap) triggers.push(recap);
     }
+
+    const tough = await evaluateToughSession(ctx, userId, now);
+    if (tough) triggers.push(tough);
+
+    // Performance triggers share one expensive call
+    const [summary, activities] = await Promise.all([
+      ctx.runAction(internal.progressiveOverload.getWorkoutPerformanceSummary, { userId }),
+      ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, { userId, limit: 1 }),
+    ]);
+    const latestActivity =
+      (activities as Activity[]).length > 0 ? (activities as Activity[])[0] : null;
+
+    const milestone = await evaluateStrengthMilestone(ctx, userId, now, summary, latestActivity);
+    if (milestone) triggers.push(milestone);
+
+    const plateauResult = await evaluatePlateau(ctx, userId, now, summary);
+    if (plateauResult) triggers.push(plateauResult);
 
     return triggers;
   },
