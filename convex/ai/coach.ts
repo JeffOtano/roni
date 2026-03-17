@@ -94,6 +94,13 @@ WEEKLY PROGRAMMING:
 - When presenting the plan, format each training day clearly:
   DAY — Session Type (Target Muscles) — Duration
   1. Exercise Name: sets×reps @ target weight (last: previous performance)
+  Rest: Xm between sets
+- Include rest interval recommendations in every workout presentation:
+  * Compound exercises (multi-joint: bench press, rows, squats): 90-120 seconds
+  * Isolation exercises (single-joint: curls, extensions, raises): 60 seconds
+  * Supersets: no rest between exercises, 90 seconds between rounds
+  * Warmup/cooldown: 30-45 seconds
+- The Tonal API does not accept rest intervals — these are guidance for the user to follow manually on the machine.
 - For returning users who say "program next week" or "program my week", call program_week without parameters — it will use their saved preferences.
 - If the user wants to start over, use delete_week_plan then program_week again.
 

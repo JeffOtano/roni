@@ -244,6 +244,51 @@ export function cooldownBlockFromMovementIds(
   ];
 }
 
+// ---------------------------------------------------------------------------
+// Arm position optimization — minimize arm adjustments within a workout
+// ---------------------------------------------------------------------------
+
+type ArmPosition = "low" | "mid" | "high";
+
+/** Position sort order: low → mid → high for a smooth flow down→up. */
+const ARM_POSITION_ORDER: Record<ArmPosition, number> = { low: 0, mid: 1, high: 2 };
+
+const HIGH_PATTERNS = /pulldown|face pull|overhead|skull.?crush|high.?pull|lat.?raise/i;
+const LOW_PATTERNS = /deadlift|rdl|squat|lunge|calf|leg press|hip|step.?up|goblet/i;
+
+/**
+ * Infer arm position from exercise name and muscle groups.
+ * Heuristic: name patterns first (most reliable), then muscle-group fallback.
+ */
+export function inferArmPosition(movement: { name: string; muscleGroups: string[] }): ArmPosition {
+  const name = movement.name;
+  if (HIGH_PATTERNS.test(name)) return "high";
+  if (LOW_PATTERNS.test(name)) return "low";
+  // Leg exercises default to low
+  const lowerMuscles = ["quads", "glutes", "hamstrings", "calves"];
+  if (movement.muscleGroups.some((g) => lowerMuscles.includes(g.toLowerCase()))) return "low";
+  return "mid";
+}
+
+/**
+ * Sort movement IDs to minimize Tonal arm adjustments.
+ * Groups exercises by inferred arm position (low → mid → high),
+ * preserving compound-before-isolation order within each group.
+ */
+export function sortForMinimalArmAdjustments(
+  movementIds: string[],
+  catalog: { id: string; name: string; muscleGroups: string[] }[],
+): string[] {
+  const catalogMap = new Map(catalog.map((m) => [m.id, m]));
+  return [...movementIds].sort((a, b) => {
+    const ma = catalogMap.get(a);
+    const mb = catalogMap.get(b);
+    const posA = ma ? ARM_POSITION_ORDER[inferArmPosition(ma)] : 1;
+    const posB = mb ? ARM_POSITION_ORDER[inferArmPosition(mb)] : 1;
+    return posA - posB;
+  });
+}
+
 export function formatSessionTitle(
   sessionType: SessionType,
   _weekStartDate: string,
