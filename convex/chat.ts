@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   createThread as agentCreateThread,
   listUIMessages,
@@ -10,6 +9,7 @@ import {
 } from "@convex-dev/agent";
 import { action, internalAction, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
+import { getEffectiveUserId } from "./lib/auth";
 import { coachAgent } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
 
@@ -18,7 +18,7 @@ const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a mo
 export const createThread = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const threadId = await agentCreateThread(ctx, components.agent, {
@@ -35,7 +35,7 @@ export const sendMessage = action({
     prompt: v.string(),
   },
   handler: async (ctx, { threadId, prompt }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     // Rate limit
@@ -119,7 +119,7 @@ export const respondToToolApproval = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, { threadId, approvalId, approved, reason }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     let messageId: string;
@@ -146,7 +146,7 @@ export const continueAfterApproval = action({
     messageId: v.string(),
   },
   handler: async (ctx, { threadId, messageId }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     try {
@@ -176,7 +176,7 @@ export const sendMessageMutation = mutation({
     threadId: v.string(),
   },
   handler: async (ctx, { prompt, threadId }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     await rateLimiter.limit(ctx, "sendMessage", {

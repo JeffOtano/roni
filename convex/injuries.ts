@@ -6,7 +6,7 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
 
 const MAX_ACTIVE_INJURIES = 10;
@@ -20,7 +20,7 @@ export const report = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     await rateLimiter.limit(ctx, "reportInjury", { key: userId });
 
@@ -51,7 +51,7 @@ export const report = mutation({
 export const resolve = mutation({
   args: { injuryId: v.id("injuries") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const injury = await ctx.db.get(args.injuryId);
     if (!injury || injury.userId !== userId) throw new Error("Injury not found");
@@ -66,7 +66,7 @@ export const updateSeverity = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const injury = await ctx.db.get(args.injuryId);
     if (!injury || injury.userId !== userId) throw new Error("Injury not found");
@@ -80,7 +80,7 @@ export const updateSeverity = mutation({
 export const getActive = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
     return ctx.db
       .query("injuries")
@@ -92,7 +92,7 @@ export const getActive = query({
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
     return ctx.db
       .query("injuries")

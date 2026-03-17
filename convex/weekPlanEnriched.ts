@@ -4,7 +4,6 @@
  * the local `status` field is a cache/hint kept approximately correct.
  */
 
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -123,7 +122,7 @@ function toStoredStatus(
 export const getWeekPlanEnriched = action({
   args: {},
   handler: async (ctx): Promise<EnrichedWeekPlan | null> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     // 1. Get local week plan

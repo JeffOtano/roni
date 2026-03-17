@@ -4,7 +4,6 @@
  */
 
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -41,7 +40,7 @@ function getGoogleCredentials(): { clientId: string; clientSecret: string; redir
 export const getAuthUrl = action({
   args: { origin: v.optional(v.string()) },
   handler: async (ctx, args): Promise<string> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const { clientId, redirectUri } = getGoogleCredentials();
@@ -209,7 +208,7 @@ export const getAvailableSlots = action({
     durationMinutes: v.number(),
   },
   handler: async (ctx, { date, durationMinutes }): Promise<AvailableSlot[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const { token, calendarId } = await resolveGoogleToken(ctx, userId);

@@ -6,7 +6,7 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
 
 const MAX_ACTIVE_GOALS = 10;
@@ -35,7 +35,7 @@ export const create = mutation({
     deadline: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     await rateLimiter.limit(ctx, "createGoal", { key: userId });
     validateGoalInput(args);
@@ -72,7 +72,7 @@ export const updateProgress = mutation({
     currentValue: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const goal = await ctx.db.get(args.goalId);
     if (!goal || goal.userId !== userId) throw new Error("Goal not found");
@@ -93,7 +93,7 @@ export const updateProgress = mutation({
 export const abandon = mutation({
   args: { goalId: v.id("goals") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const goal = await ctx.db.get(args.goalId);
     if (!goal || goal.userId !== userId) throw new Error("Goal not found");
@@ -104,7 +104,7 @@ export const abandon = mutation({
 export const getActive = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
     return ctx.db
       .query("goals")
@@ -116,7 +116,7 @@ export const getActive = query({
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
     return ctx.db
       .query("goals")

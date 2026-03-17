@@ -2,11 +2,12 @@ import { v } from "convex/values";
 import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@convex-dev/auth/server";
 import { action, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { getEffectiveUserId } from "./lib/auth";
 
 export const getFullProfile = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
 
     const user = await ctx.db.get(userId);
@@ -53,7 +54,7 @@ export const updateProfileSettings = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const profile = await ctx.db
@@ -95,7 +96,7 @@ interface ExportedData {
 export const exportData = action({
   args: {},
   handler: async (ctx): Promise<ExportedData> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     return (await ctx.runQuery(internal.account.collectUserData, {

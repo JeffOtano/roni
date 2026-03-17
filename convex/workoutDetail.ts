@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type {
@@ -51,7 +50,7 @@ export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "work
 export const getWorkoutDetail = action({
   args: { activityId: v.string() },
   handler: async (ctx, args): Promise<EnrichedWorkoutDetail> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const [detail, movements, formattedSummary] = await Promise.all([
@@ -160,7 +159,7 @@ export const getExerciseCatalog = action({
     muscleGroup: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<CatalogEntry[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
@@ -203,7 +202,7 @@ export function filterCatalog(
 export const getCustomWorkouts = action({
   args: {},
   handler: async (ctx): Promise<UserWorkout[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     return (await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
@@ -221,7 +220,7 @@ export const getWorkoutHistoryFull = action({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<Activity[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);

@@ -26,6 +26,7 @@ import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ProfileCard } from "@/components/settings/ProfileCard";
+import { ImpersonateUserPicker } from "@/components/admin/ImpersonateUserPicker";
 import { Link2, LogOut } from "lucide-react";
 
 const SECTION_HEADING =
@@ -198,6 +199,9 @@ function SettingsPageInner() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Admin -- ImpersonateUserPicker renders nothing for non-admins */}
+      <ImpersonateUserPicker />
 
       {/* Danger Zone */}
       <section className="mb-10">

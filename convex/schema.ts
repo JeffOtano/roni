@@ -6,6 +6,23 @@ import { blockInputValidator } from "./validators";
 export default defineSchema({
   ...authTables,
 
+  /** Override the auth users table to add admin impersonation fields. */
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    /** Whether this user has admin privileges. */
+    isAdmin: v.optional(v.boolean()),
+    /** When set, the admin sees the app as this user. */
+    impersonatingUserId: v.optional(v.id("users")),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+
   userProfiles: defineTable({
     userId: v.id("users"),
     tonalUserId: v.string(),

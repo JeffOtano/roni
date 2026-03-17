@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getEffectiveUserId } from "./lib/auth";
 
 export const getByUserId = internalQuery({
   args: { userId: v.id("users") },
@@ -145,7 +145,7 @@ const trainingPreferencesArgs = {
 export const getTrainingPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
     const profile = await ctx.db
       .query("userProfiles")
@@ -159,7 +159,7 @@ export const getTrainingPreferences = query({
 export const saveTrainingPreferences = mutation({
   args: trainingPreferencesArgs,
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const profile = await ctx.db
       .query("userProfiles")
@@ -186,7 +186,7 @@ export const completeOnboarding = mutation({
     sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const profile = await ctx.db
       .query("userProfiles")

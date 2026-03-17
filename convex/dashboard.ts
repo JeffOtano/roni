@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Activity, MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
@@ -25,7 +24,7 @@ interface TrainingFrequencyEntry {
 export const getStrengthData = action({
   args: {},
   handler: async (ctx): Promise<StrengthData> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const [scores, distribution] = await Promise.all([
@@ -44,7 +43,7 @@ export const getStrengthData = action({
 export const getMuscleReadiness = action({
   args: {},
   handler: async (ctx): Promise<MuscleReadiness> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     return ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, { userId });
@@ -66,7 +65,7 @@ export function isTonalWorkout(a: Activity): boolean {
 export const getWorkoutHistory = action({
   args: {},
   handler: async (ctx): Promise<Activity[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const all: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
@@ -84,7 +83,7 @@ export const getWorkoutHistory = action({
 export const getTrainingFrequency = action({
   args: {},
   handler: async (ctx): Promise<TrainingFrequencyEntry[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {

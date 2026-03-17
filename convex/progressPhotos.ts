@@ -1,7 +1,6 @@
 /** Progress photos: encrypted at rest, user-only. Requires PROGRESS_PHOTOS_ENCRYPTION_KEY (hex). */
 
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 import {
@@ -13,6 +12,7 @@ import {
   query,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { getEffectiveUserId } from "./lib/auth";
 import { decrypt, encrypt } from "./tonal/encryption";
 
 export const MAX_IMAGE_BASE64_LENGTH = 4 * 1024 * 1024;
@@ -57,7 +57,7 @@ export const upload = action({
     imageBase64: v.string(),
   },
   handler: async (ctx, { imageBase64 }): Promise<{ photoId: string }> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
@@ -83,7 +83,7 @@ export const upload = action({
 export const list = query({
   args: {},
   handler: async (ctx): Promise<{ id: string; createdAt: number }[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     const rows = await ctx.db
@@ -99,7 +99,7 @@ export const list = query({
 export const getPhoto = action({
   args: { photoId: v.id("progressPhotos") },
   handler: async (ctx, { photoId }): Promise<{ base64: string } | null> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const row = await ctx.runQuery(internal.progressPhotos.getById, {
@@ -120,7 +120,7 @@ export const getPhoto = action({
 export const remove = mutation({
   args: { photoId: v.id("progressPhotos") },
   handler: async (ctx, { photoId }): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const row = await ctx.db.get(photoId);
@@ -136,7 +136,7 @@ export const remove = mutation({
 export const deleteAll = mutation({
   args: {},
   handler: async (ctx): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const rows = await ctx.db
@@ -154,7 +154,7 @@ export const deleteAll = mutation({
 export const getAnalysisEnabled = query({
   args: {},
   handler: async (ctx): Promise<boolean> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return true;
 
     const profile = await ctx.db
@@ -169,7 +169,7 @@ export const getAnalysisEnabled = query({
 export const updateAnalysisEnabled = mutation({
   args: { enabled: v.boolean() },
   handler: async (ctx, { enabled }): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const profile = await ctx.db
@@ -187,7 +187,7 @@ const LIST_THUMBNAILS_LIMIT = 30;
 export const getListWithThumbnails = action({
   args: {},
   handler: async (ctx): Promise<{ id: string; createdAt: number; base64: string | null }[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) return [];
 
     const rows = await ctx.runQuery(internal.progressPhotos.listByUserId, {

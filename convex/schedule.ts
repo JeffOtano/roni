@@ -4,7 +4,6 @@
  * catalog lookups so the frontend receives everything in one action call.
  */
 
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -56,7 +55,7 @@ function dayDate(weekStartDate: string, dayIndex: number): string {
 export const getScheduleData = action({
   args: {},
   handler: async (ctx): Promise<ScheduleData | null> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     // 1. Fetch enriched week plan (handles Tonal activity sync)
