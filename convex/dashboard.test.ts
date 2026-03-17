@@ -6,12 +6,17 @@ import type { Activity } from "./tonal/types";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeActivity(workoutId: string, totalVolume: number, targetArea = "Full Body"): Activity {
+function makeActivity(
+  workoutId: string,
+  totalVolume: number,
+  targetArea = "Full Body",
+  activityType = "workout",
+): Activity {
   return {
     activityId: "act-1",
     userId: "user-1",
     activityTime: "2026-03-14T10:00:00Z",
-    activityType: "workout",
+    activityType,
     workoutPreview: {
       activityId: "act-1",
       workoutId,
@@ -27,7 +32,7 @@ function makeActivity(workoutId: string, totalVolume: number, targetArea = "Full
       totalVolume,
       totalWork: 0,
       totalAchievements: 0,
-      activityType: "workout",
+      activityType,
     },
   };
 }
@@ -88,6 +93,18 @@ describe("isTonalWorkout", () => {
     const activity = makeActivity("external-workout-id-123", 0);
 
     expect(isTonalWorkout(activity)).toBe(false);
+  });
+
+  it("returns false for External activityType even with non-zero volume", () => {
+    const activity = makeActivity("ext-id", 500, "Full Body", "External");
+
+    expect(isTonalWorkout(activity)).toBe(false);
+  });
+
+  it("returns true for Internal activityType with non-zero volume", () => {
+    const activity = makeActivity("workout-123", 5000, "Full Body", "Internal");
+
+    expect(isTonalWorkout(activity)).toBe(true);
   });
 
   it("returns false when workoutPreview is absent", () => {

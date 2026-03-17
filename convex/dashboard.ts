@@ -1,6 +1,12 @@
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { Activity, MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
+import type {
+  Activity,
+  ExternalActivity,
+  MuscleReadiness,
+  StrengthDistribution,
+  StrengthScore,
+} from "./tonal/types";
 
 // ---------------------------------------------------------------------------
 // Return types — explicit to avoid TS7022 circular inference
@@ -57,9 +63,7 @@ export const getMuscleReadiness = action({
 export function isTonalWorkout(a: Activity): boolean {
   const wp = a.workoutPreview;
   if (!wp) return false;
-  // Must have actual volume (weight lifted) — external activities (Apple Watch, etc.)
-  // sync into Tonal with workoutId but zero volume and no set data.
-  return wp.totalVolume > 0;
+  return a.activityType !== "External" && wp.totalVolume > 0;
 }
 
 export const getWorkoutHistory = action({
@@ -117,5 +121,22 @@ export const getTrainingFrequency = action({
         lastTrainedDate: lastDates[targetArea],
       }))
       .sort((a, b) => b.count - a.count);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 5. getExternalActivities — recent non-Tonal activities (Apple Watch, etc.)
+// ---------------------------------------------------------------------------
+
+export const getExternalActivities = action({
+  args: {},
+  handler: async (ctx): Promise<ExternalActivity[]> => {
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    if (!userId) throw new Error("Not authenticated");
+
+    return ctx.runAction(internal.tonal.proxy.fetchExternalActivities, {
+      userId,
+      limit: 10,
+    });
   },
 });
