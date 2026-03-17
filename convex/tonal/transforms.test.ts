@@ -186,6 +186,45 @@ describe("expandBlocksToSets alternating exercises", () => {
   });
 });
 
+describe("expandBlocksToSets catalog-based duration correction", () => {
+  it("uses duration for movements with countReps=false even when reps are specified", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "pushup", sets: 2, reps: 10 }] }];
+    const catalog = [{ id: "pushup", countReps: false, isAlternating: false }];
+    const sets = expandBlocksToSets(blocks, catalog);
+
+    expect(sets).toHaveLength(2);
+    expect(sets[0].prescribedDuration).toBe(30);
+    expect(sets[0].prescribedReps).toBeUndefined();
+    expect(sets[0].prescribedResistanceLevel).toBe(5);
+  });
+
+  it("uses reps for movements with countReps=true", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "bench", sets: 1, reps: 8 }] }];
+    const catalog = [{ id: "bench", countReps: true, isAlternating: false }];
+    const sets = expandBlocksToSets(blocks, catalog);
+
+    expect(sets[0].prescribedReps).toBe(8);
+    expect(sets[0].prescribedDuration).toBeUndefined();
+  });
+
+  it("uses explicit duration for duration-based movement", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "pushup", sets: 1, duration: 45 }] }];
+    const catalog = [{ id: "pushup", countReps: false, isAlternating: false }];
+    const sets = expandBlocksToSets(blocks, catalog);
+
+    expect(sets[0].prescribedDuration).toBe(45);
+  });
+
+  it("falls back to reps when movement is not in catalog", () => {
+    const blocks: BlockInput[] = [{ exercises: [{ movementId: "unknown", sets: 1, reps: 12 }] }];
+    const catalog = [{ id: "other", countReps: false, isAlternating: false }];
+    const sets = expandBlocksToSets(blocks, catalog);
+
+    expect(sets[0].prescribedReps).toBe(12);
+    expect(sets[0].prescribedDuration).toBeUndefined();
+  });
+});
+
 describe("expandBlocksToSets edge cases", () => {
   it("defaults reps via expandBlocksToSets are included in prescribedReps", () => {
     const blocks: BlockInput[] = [{ exercises: [{ movementId: "move-1", sets: 1, reps: 10 }] }];

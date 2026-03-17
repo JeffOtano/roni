@@ -81,7 +81,7 @@ export const getWorkoutDetail = action({
     }
 
     // Enrich sets with movement name and muscle groups
-    const enrichedSets = typedDetail.workoutSetActivity.map((set) => {
+    const enrichedSets = (typedDetail.workoutSetActivity ?? []).map((set) => {
       const movement = movementMap.get(set.movementId);
       return {
         ...set,

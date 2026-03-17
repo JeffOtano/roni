@@ -81,6 +81,7 @@ export const workoutToolDefinitions: ToolDefinition[] = [
     name: "create_custom_workout",
     description: `Create a custom workout on Tonal. Specify exercises grouped into blocks.
 Each block contains 1+ exercises. Multiple exercises in a block = superset.
+Duration-based exercises (e.g. Pushup, Plank) use 'duration' (seconds) instead of 'reps'. The system auto-corrects based on the movement catalog if needed.
 ${EXERCISE_SCHEMA_DESCRIPTION}`,
     inputSchema: {
       type: "object",

@@ -89,7 +89,7 @@ async function getWorkoutMovements(
     { sets: number; totalReps: number; usedSpotter: boolean; usedEccentric: boolean }
   >();
 
-  for (const set of typedDetail.workoutSetActivity) {
+  for (const set of typedDetail.workoutSetActivity ?? []) {
     const existing = byMovement.get(set.movementId) ?? {
       sets: 0,
       totalReps: 0,

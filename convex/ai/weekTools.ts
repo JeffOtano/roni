@@ -120,14 +120,17 @@ export const programWeekTool = createTool({
 // getWeekPlanDetailsTool
 // ---------------------------------------------------------------------------
 
-type WorkoutBlocks = { exercises?: { movementId?: string; sets?: number; reps?: number }[] }[];
+type WorkoutBlocks = {
+  exercises?: { movementId?: string; sets?: number; reps?: number; duration?: number }[];
+}[];
 
 interface ExerciseDetail {
   movementId: string;
   name: string;
   muscleGroups: string[];
   sets: number;
-  reps: number;
+  reps?: number;
+  durationSeconds?: number;
 }
 
 function resolveExercises(
@@ -139,12 +142,13 @@ function resolveExercises(
     for (const ex of block.exercises ?? []) {
       if (!ex.movementId) continue;
       const movement = movementMap.get(ex.movementId);
+      const isDurationBased = movement ? !movement.countReps : false;
       exercises.push({
         movementId: ex.movementId,
         name: movement?.name ?? ex.movementId,
         muscleGroups: movement?.muscleGroups ?? [],
         sets: ex.sets ?? 3,
-        reps: ex.reps ?? 10,
+        ...(isDurationBased ? { durationSeconds: ex.duration ?? 30 } : { reps: ex.reps ?? 10 }),
       });
     }
   }
@@ -162,7 +166,8 @@ interface WeekPlanDayDetail {
     name: string;
     muscleGroups: string[];
     sets: number;
-    reps: number;
+    reps?: number;
+    durationSeconds?: number;
   }[];
 }
 

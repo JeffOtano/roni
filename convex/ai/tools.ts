@@ -54,6 +54,7 @@ export const searchExercisesTool = createTool({
       skillLevel: m.skillLevel,
       accessory: m.onMachineInfo?.accessory ?? "None",
       trainingTypes: m.trainingTypes ?? [],
+      isDurationBased: !m.countReps,
     }));
   }),
 });
@@ -201,7 +202,7 @@ export const getTrainingFrequencyTool = createTool({
 
 export const createWorkoutTool = createTool({
   description:
-    "Create a custom workout on Tonal. Confirm with the user first. Use movementIds from search_exercises. A date prefix is added automatically to the title on Tonal.",
+    "Create a custom workout on Tonal. Confirm with the user first. Use movementIds from search_exercises. A date prefix is added automatically to the title on Tonal. For duration-based exercises (isDurationBased=true from search_exercises, e.g. Pushup), specify 'duration' in seconds instead of 'reps'. The system auto-corrects if you get this wrong, but specifying correctly avoids warnings.",
   inputSchema: z.object({
     title: z
       .string()
