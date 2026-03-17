@@ -33,4 +33,10 @@ crons.interval(
 
 crons.cron("sync-movement-catalog", "0 3 * * *", internal.tonal.movementSync.syncMovementCatalog);
 
+crons.cron(
+  "sync-workout-catalog",
+  "0 4 * * 0",
+  internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
+);
+
 export default crons;
