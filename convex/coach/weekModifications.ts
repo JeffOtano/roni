@@ -165,8 +165,13 @@ export const adjustDayDuration = internalAction({
         internal.progressiveOverload.getLastTimeAndSuggestedInternal,
         { userId, movementIds },
       )) as typeof suggestions;
-    } catch {
-      // No history; use defaults.
+    } catch (error) {
+      console.error("[weekModifications] Progressive overload lookup failed", error);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "weekModifications",
+        message: `Progressive overload failed during exercise swap: ${error instanceof Error ? error.message : String(error)}`,
+        userId,
+      });
     }
 
     const blocks = blocksFromMovementIds(movementIds, suggestions, {

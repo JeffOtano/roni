@@ -68,8 +68,13 @@ export const checkActivation = internalAction({
         internal.tonal.mutations.fetchWorkoutHistoryForEligibility,
         { userId },
       )) as Activity[];
-    } catch {
-      // Token expired or Tonal API unreachable — skip this user
+    } catch (error) {
+      console.error("[activation] Failed to fetch workout history for eligibility", error);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "activation",
+        message: `Eligibility check failed: ${error instanceof Error ? error.message : String(error)}`,
+        userId,
+      });
       return;
     }
 

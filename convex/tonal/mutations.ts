@@ -173,6 +173,12 @@ export const createWorkout = internalAction({
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      console.error("[createWorkout] Tonal push failed", e);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "createWorkout",
+        message: `Workout push failed for "${title}": ${message}`,
+        userId,
+      });
       const planId = await ctx.runMutation(internal.workoutPlans.create, {
         userId,
         title,
