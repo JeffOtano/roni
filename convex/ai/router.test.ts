@@ -28,4 +28,22 @@ describe("classifyIntent", () => {
     expect(classifyIntent("Thanks")).toBe("general");
     expect(classifyIntent("What do you think?")).toBe("general");
   });
+
+  it("routes data over programming when keywords overlap", () => {
+    // "workout history" matches both data and programming — data wins ties
+    expect(classifyIntent("program my workout history")).toBe("data");
+    expect(classifyIntent("show me last week workout plan")).toBe("data");
+    expect(classifyIntent("delete my workout and show stats")).toBe("data");
+  });
+
+  it("uses word-boundary matching for short keywords", () => {
+    // "pr" should match standalone but not inside "program"
+    expect(classifyIntent("pr on deadlift")).toBe("data");
+    expect(classifyIntent("program a push day")).toBe("programming");
+  });
+
+  it("routes coaching when injury/pain keywords dominate", () => {
+    expect(classifyIntent("I have back pain, should I skip my session?")).toBe("coaching");
+    expect(classifyIntent("what exercises should I do for my goal?")).toBe("coaching");
+  });
 });

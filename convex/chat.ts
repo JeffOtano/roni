@@ -17,12 +17,11 @@ import {
   coachingAgent as coachingSpecialist,
   coachingAgentFallback as coachingSpecialistFallback,
 } from "./ai/agents/coaching";
-import { classifyIntent } from "./ai/router";
+import { classifyIntent, type Intent } from "./ai/router";
 import { streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 
-function getRoutedAgents(prompt: string): { primary: Agent; fallback: Agent } | null {
-  const intent = classifyIntent(prompt);
+function getRoutedAgents(intent: Intent): { primary: Agent; fallback: Agent } | null {
   switch (intent) {
     case "programming":
       return { primary: programmingAgent, fallback: programmingAgentFallback };
@@ -87,12 +86,13 @@ export const sendMessage = action({
       }
     }
 
-    const routed = getRoutedAgents(prompt);
+    const intent = classifyIntent(prompt);
+    const routed = getRoutedAgents(intent);
     if (routed) {
       await ctx.runMutation(internal.aiUsage.recordRouting, {
         userId,
         threadId: targetThreadId,
-        intent: classifyIntent(prompt),
+        intent,
       });
     }
     await streamWithRetry(ctx, {
@@ -206,12 +206,13 @@ export const processMessage = internalAction({
     prompt: v.string(),
   },
   handler: async (ctx, { threadId, userId, prompt }) => {
-    const routed = getRoutedAgents(prompt);
+    const intent = classifyIntent(prompt);
+    const routed = getRoutedAgents(intent);
     if (routed) {
       await ctx.runMutation(internal.aiUsage.recordRouting, {
         userId,
         threadId,
-        intent: classifyIntent(prompt),
+        intent,
       });
     }
     await streamWithRetry(ctx, {
