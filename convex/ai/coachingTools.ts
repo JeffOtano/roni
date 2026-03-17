@@ -13,7 +13,7 @@ import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { requireUserId } from "./helpers";
+import { requireUserId, withToolTracking } from "./helpers";
 import { computeWeeklyVolume } from "../coach/periodization";
 
 // ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ export const recordFeedbackTool = createTool({
     rating: z.number().min(1).max(5).describe("Session rating: 1 (terrible) to 5 (great)"),
     notes: z.string().optional().describe("Optional notes from the user"),
   }),
-  execute: async (ctx, input) => {
+  execute: withToolTracking("record_feedback", async (ctx, input, _options) => {
     const userId = requireUserId(ctx);
     await ctx.runMutation(internal.workoutFeedback.submitInternal, {
       userId: userId as Id<"users">,
@@ -43,7 +43,7 @@ export const recordFeedbackTool = createTool({
       notes: input.notes,
     });
     return { recorded: true, rpe: input.rpe, rating: input.rating };
-  },
+  }),
 });
 
 export const getRecentFeedbackTool = createTool({
@@ -52,7 +52,7 @@ export const getRecentFeedbackTool = createTool({
   inputSchema: z.object({
     limit: z.number().optional().default(5).describe("Number of recent entries"),
   }),
-  execute: async (ctx, input) => {
+  execute: withToolTracking("get_recent_feedback", async (ctx, input, _options) => {
     const userId = requireUserId(ctx);
     const feedback = (await ctx.runQuery(internal.workoutFeedback.getRecentInternal, {
       userId: userId as Id<"users">,
@@ -65,7 +65,7 @@ export const getRecentFeedbackTool = createTool({
       notes: f.notes,
       date: new Date(f.createdAt).toISOString().slice(0, 10),
     }));
-  },
+  }),
 });
 
 // ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ export const checkDeloadTool = createTool({
   description:
     "Check if the user should take a deload week based on their training block schedule and recent RPE. Call this before programming a new week.",
   inputSchema: z.object({}),
-  execute: async (ctx) => {
+  execute: withToolTracking("check_deload", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
     const result = (await ctx.runQuery(internal.coach.periodization.shouldDeload, {
       userId: userId as Id<"users">,
@@ -97,7 +97,7 @@ export const checkDeloadTool = createTool({
           }
         : null,
     };
-  },
+  }),
 });
 
 export const startTrainingBlockTool = createTool({
@@ -108,28 +108,32 @@ export const startTrainingBlockTool = createTool({
     totalWeeks: z.number().min(1).max(8).describe("How many weeks for this block"),
     label: z.string().optional().describe("Custom label like 'Hypertrophy Phase'"),
   }),
-  execute: async (
-    ctx,
-    input,
-  ): Promise<{ started: boolean; blockType: string; totalWeeks: number }> => {
-    const userId = requireUserId(ctx);
-    const startDate = new Date().toISOString().slice(0, 10);
-    await ctx.runMutation(internal.coach.periodization.startBlock, {
-      userId: userId as Id<"users">,
-      blockType: input.blockType,
-      totalWeeks: input.totalWeeks,
-      startDate,
-      label: input.label,
-    });
-    return { started: true, blockType: input.blockType, totalWeeks: input.totalWeeks };
-  },
+  execute: withToolTracking(
+    "start_training_block",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ started: boolean; blockType: string; totalWeeks: number }> => {
+      const userId = requireUserId(ctx);
+      const startDate = new Date().toISOString().slice(0, 10);
+      await ctx.runMutation(internal.coach.periodization.startBlock, {
+        userId: userId as Id<"users">,
+        blockType: input.blockType,
+        totalWeeks: input.totalWeeks,
+        startDate,
+        label: input.label,
+      });
+      return { started: true, blockType: input.blockType, totalWeeks: input.totalWeeks };
+    },
+  ),
 });
 
 export const advanceTrainingBlockTool = createTool({
   description:
     "Advance the current training block to the next week. Call this after programming a new week. Auto-transitions building → deload and deload → building.",
   inputSchema: z.object({}),
-  execute: async (ctx) => {
+  execute: withToolTracking("advance_training_block", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
     const result = (await ctx.runMutation(internal.coach.periodization.advanceWeek, {
       userId: userId as Id<"users">,
@@ -141,7 +145,7 @@ export const advanceTrainingBlockTool = createTool({
         ? { type: result.newBlock.blockType, label: result.newBlock.label }
         : null,
     };
-  },
+  }),
 });
 
 // ---------------------------------------------------------------------------
@@ -159,14 +163,17 @@ export const setGoalTool = createTool({
     targetValue: z.number().describe("Target value"),
     deadline: z.string().describe("ISO date string deadline, e.g. 2026-06-01"),
   }),
-  execute: async (ctx, input): Promise<{ created: boolean; progress: string }> => {
-    const userId = requireUserId(ctx);
-    await ctx.runMutation(internal.goals.createInternal, {
-      userId: userId as Id<"users">,
-      ...input,
-    });
-    return { created: true, progress: "0%" };
-  },
+  execute: withToolTracking(
+    "set_goal",
+    async (ctx, input, _options): Promise<{ created: boolean; progress: string }> => {
+      const userId = requireUserId(ctx);
+      await ctx.runMutation(internal.goals.createInternal, {
+        userId: userId as Id<"users">,
+        ...input,
+      });
+      return { created: true, progress: "0%" };
+    },
+  ),
 });
 
 export const updateGoalProgressTool = createTool({
@@ -176,7 +183,7 @@ export const updateGoalProgressTool = createTool({
     goalId: z.string().describe("Goal ID"),
     currentValue: z.number().describe("Updated current value"),
   }),
-  execute: async (ctx, input) => {
+  execute: withToolTracking("update_goal_progress", async (ctx, input, _options) => {
     const userId = requireUserId(ctx);
     const result = (await ctx.runMutation(internal.goals.updateProgressInternal, {
       goalId: input.goalId as Id<"goals">,
@@ -184,13 +191,13 @@ export const updateGoalProgressTool = createTool({
       currentValue: input.currentValue,
     })) as { reached: boolean };
     return { updated: true, reached: result.reached, currentValue: input.currentValue };
-  },
+  }),
 });
 
 export const getGoalsTool = createTool({
   description: "Get the user's active training goals with progress.",
   inputSchema: z.object({}),
-  execute: async (ctx) => {
+  execute: withToolTracking("get_goals", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
     const goals = (await ctx.runQuery(internal.goals.getActiveInternal, {
       userId: userId as Id<"users">,
@@ -210,7 +217,7 @@ export const getGoalsTool = createTool({
         deadline: g.deadline,
       };
     });
-  },
+  }),
 });
 
 // ---------------------------------------------------------------------------
@@ -230,17 +237,24 @@ export const reportInjuryTool = createTool({
       ),
     notes: z.string().optional(),
   }),
-  execute: async (ctx, input): Promise<{ recorded: boolean; area: string; severity: string }> => {
-    const userId = requireUserId(ctx);
-    await ctx.runMutation(internal.injuries.reportInternal, {
-      userId: userId as Id<"users">,
-      area: input.area,
-      severity: input.severity,
-      avoidance: input.avoidance,
-      notes: input.notes,
-    });
-    return { recorded: true, area: input.area, severity: input.severity };
-  },
+  execute: withToolTracking(
+    "report_injury",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ recorded: boolean; area: string; severity: string }> => {
+      const userId = requireUserId(ctx);
+      await ctx.runMutation(internal.injuries.reportInternal, {
+        userId: userId as Id<"users">,
+        area: input.area,
+        severity: input.severity,
+        avoidance: input.avoidance,
+        notes: input.notes,
+      });
+      return { recorded: true, area: input.area, severity: input.severity };
+    },
+  ),
 });
 
 export const resolveInjuryTool = createTool({
@@ -248,20 +262,20 @@ export const resolveInjuryTool = createTool({
   inputSchema: z.object({
     injuryId: z.string().describe("Injury ID to resolve"),
   }),
-  execute: async (ctx, input) => {
+  execute: withToolTracking("resolve_injury", async (ctx, input, _options) => {
     const userId = requireUserId(ctx);
     await ctx.runMutation(internal.injuries.resolveInternal, {
       injuryId: input.injuryId as Id<"injuries">,
       userId: userId as Id<"users">,
     });
     return { resolved: true };
-  },
+  }),
 });
 
 export const getInjuriesTool = createTool({
   description: "Get the user's active injuries and limitations.",
   inputSchema: z.object({}),
-  execute: async (ctx) => {
+  execute: withToolTracking("get_injuries", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
     const injuries = (await ctx.runQuery(internal.injuries.getActiveInternal, {
       userId: userId as Id<"users">,
@@ -274,7 +288,7 @@ export const getInjuriesTool = createTool({
       notes: i.notes,
       reportedAt: new Date(i.reportedAt).toISOString().slice(0, 10),
     }));
-  },
+  }),
 });
 
 // ---------------------------------------------------------------------------
@@ -285,7 +299,7 @@ export const getWeeklyVolumeTool = createTool({
   description:
     "Analyze weekly training volume per muscle group. Shows sets per muscle group vs evidence-based recommendations (10-20 sets/week for most groups). Use this to identify under-trained or over-trained muscles.",
   inputSchema: z.object({}),
-  execute: async (ctx) => {
+  execute: withToolTracking("get_weekly_volume", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
     const typedUserId = userId as Id<"users">;
 
@@ -326,7 +340,7 @@ export const getWeeklyVolumeTool = createTool({
         status: v.status,
       })),
     };
-  },
+  }),
 });
 
 // ---------------------------------------------------------------------------
