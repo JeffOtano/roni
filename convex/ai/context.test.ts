@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type SnapshotSection, trimSnapshot } from "./context";
+import {
+  filterLast7Days,
+  formatExternalActivityLine,
+  getHrIntensityLabel,
+  type SnapshotSection,
+  trimSnapshot,
+} from "./context";
+import type { ExternalActivity } from "../tonal/types";
 
 describe("trimSnapshot", () => {
   const makeSection = (priority: number, text: string): SnapshotSection => ({
@@ -59,5 +66,130 @@ describe("trimSnapshot", () => {
     expect(result).toContain("Injuries");
     expect(result).not.toContain("Missed");
     expect(result).not.toContain("Performance");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HR intensity labels
+// ---------------------------------------------------------------------------
+
+describe("getHrIntensityLabel", () => {
+  it("returns null for zero HR", () => {
+    expect(getHrIntensityLabel(0)).toBeNull();
+  });
+
+  it("returns 'light' for HR below 100", () => {
+    expect(getHrIntensityLabel(90)).toBe("light");
+  });
+
+  it("returns 'moderate' for HR between 100 and 130", () => {
+    expect(getHrIntensityLabel(115)).toBe("moderate");
+  });
+
+  it("returns 'vigorous' for HR above 130", () => {
+    expect(getHrIntensityLabel(145)).toBe("vigorous");
+  });
+
+  it("returns 'moderate' at exactly 100", () => {
+    expect(getHrIntensityLabel(100)).toBe("moderate");
+  });
+
+  it("returns 'vigorous' at exactly 131", () => {
+    expect(getHrIntensityLabel(131)).toBe("vigorous");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7-day filter
+// ---------------------------------------------------------------------------
+
+describe("filterLast7Days", () => {
+  const now = new Date("2026-03-16T12:00:00Z");
+
+  function makeExternal(beginTime: string): ExternalActivity {
+    return {
+      id: "ext-1",
+      userId: "user-1",
+      workoutType: "pickleball",
+      beginTime,
+      endTime: beginTime,
+      timezone: "America/Denver",
+      activeDuration: 3600,
+      totalDuration: 3600,
+      distance: 0,
+      activeCalories: 0,
+      totalCalories: 500,
+      averageHeartRate: 140,
+      source: "Apple Watch",
+      externalId: "ext-id",
+      deviceId: "device-1",
+    };
+  }
+
+  it("includes activities within 7 days", () => {
+    const activity = makeExternal("2026-03-15T10:00:00Z");
+    expect(filterLast7Days([activity], now)).toHaveLength(1);
+  });
+
+  it("excludes activities older than 7 days", () => {
+    const activity = makeExternal("2026-03-08T10:00:00Z");
+    expect(filterLast7Days([activity], now)).toHaveLength(0);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(filterLast7Days([], now)).toHaveLength(0);
+  });
+
+  it("excludes activity at exactly the 7-day boundary", () => {
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    expect(filterLast7Days([makeExternal(sevenDaysAgo)], now)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Format line
+// ---------------------------------------------------------------------------
+
+describe("formatExternalActivityLine", () => {
+  function makeExternal(overrides: Partial<ExternalActivity> = {}): ExternalActivity {
+    return {
+      id: "ext-1",
+      userId: "user-1",
+      workoutType: "pickleball",
+      beginTime: "2026-03-15T14:00:00Z",
+      endTime: "2026-03-15T16:00:00Z",
+      timezone: "America/Denver",
+      activeDuration: 7200,
+      totalDuration: 7200,
+      distance: 0,
+      activeCalories: 0,
+      totalCalories: 1100,
+      averageHeartRate: 140,
+      source: "Apple Watch",
+      externalId: "ext-id",
+      deviceId: "device-1",
+      ...overrides,
+    };
+  }
+
+  it("formats a standard activity line", () => {
+    const line = formatExternalActivityLine(makeExternal());
+    expect(line).toContain("Pickleball");
+    expect(line).toContain("Apple Watch");
+    expect(line).toContain("120min");
+    expect(line).toContain("1100 cal");
+    expect(line).toContain("vigorous");
+  });
+
+  it("omits HR label when averageHeartRate is 0", () => {
+    const line = formatExternalActivityLine(makeExternal({ averageHeartRate: 0 }));
+    expect(line).not.toContain("Avg HR");
+  });
+
+  it("capitalizes and space-separates camelCase workout type", () => {
+    const line = formatExternalActivityLine(
+      makeExternal({ workoutType: "traditionalStrengthTraining" }),
+    );
+    expect(line).toContain("Traditional Strength Training");
   });
 });
