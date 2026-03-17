@@ -205,12 +205,26 @@ export const pushWeekPlanToTonal = internalAction({
       }
     }
 
-    return {
+    const outcome: WeekPushResult = {
       success: failed === 0,
       pushed,
       failed,
       skipped,
       results,
     };
+
+    if (failed > 0) {
+      const failedDays = results
+        .filter((r) => r.status === "failed")
+        .map((r) => `${r.dayName}: ${r.error ?? "unknown"}`)
+        .join("; ");
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "pushWeekPlan",
+        message: `Week push: ${pushed} pushed, ${failed} failed. Failures: ${failedDays}`,
+        userId,
+      });
+    }
+
+    return outcome;
   },
 });
