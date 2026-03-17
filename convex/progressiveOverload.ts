@@ -5,7 +5,6 @@
  */
 
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { FormattedWorkoutSummary, SetActivity, WorkoutActivityDetail } from "./tonal/types";
@@ -201,7 +200,7 @@ export const getLastTimeAndSuggested = action({
     movementIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, { movementIds }): Promise<LastTimeAndSuggested[]> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const historyEntries: PerMovementHistoryEntry[] = await ctx.runAction(

@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   type ActionCtx,
   internalAction,
@@ -8,6 +7,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { getEffectiveUserId } from "./lib/auth";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { getMessageForTrigger } from "./checkIns/content";
@@ -36,7 +36,7 @@ const DEFAULT_PREFS = {
 export const getPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
 
     const profile = await ctx.db
@@ -58,7 +58,7 @@ export const updatePreferences = mutation({
     muted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const profile = await ctx.db
@@ -81,7 +81,7 @@ export const updatePreferences = mutation({
 export const listUnread = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     const profile = await ctx.db
@@ -103,7 +103,7 @@ export const listUnread = query({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     return await ctx.db
@@ -117,7 +117,7 @@ export const list = query({
 export const markRead = mutation({
   args: { checkInId: v.id("checkIns") },
   handler: async (ctx, { checkInId }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const row = await ctx.db.get(checkInId);
@@ -131,7 +131,7 @@ export const markRead = mutation({
 export const markAllRead = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const profile = await ctx.db

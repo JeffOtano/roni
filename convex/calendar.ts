@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { getEffectiveUserId } from "./lib/auth";
 
 // Re-export for test backward compatibility
 export { findGaps } from "./calendarHelpers";
@@ -12,7 +12,7 @@ export { findGaps } from "./calendarHelpers";
 export const isCalendarConnected = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return { connected: false };
 
     const profile = await ctx.db
@@ -32,7 +32,7 @@ export const isCalendarConnected = query({
 export const getCalendarSettings = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
 
     const profile = await ctx.db
@@ -57,7 +57,7 @@ export const getCalendarSettings = query({
 export const disconnectCalendar = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const profile = await ctx.db

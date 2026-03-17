@@ -4,8 +4,8 @@
  */
 
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
 
 export const submit = mutation({
@@ -17,7 +17,7 @@ export const submit = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     await rateLimiter.limit(ctx, "submitFeedback", { key: userId });
 
@@ -48,7 +48,7 @@ export const submit = mutation({
 export const getRecent = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
     const limit = Math.min(args.limit ?? 10, 50);
     return ctx.db
@@ -62,7 +62,7 @@ export const getRecent = query({
 export const getByActivityId = query({
   args: { activityId: v.string() },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
     return ctx.db
       .query("workoutFeedback")

@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -29,7 +28,7 @@ export const programWeek = internalAction({
 export const programMyWeek = action({
   args: {},
   handler: async (ctx): Promise<{ weekPlanId: Id<"weekPlans"> }> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
     const result: { weekPlanId: Id<"weekPlans"> } | { error: string } = await ctx.runAction(
       internal.weekPlans.programWeek,

@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { sendEmail } from "./email";
@@ -9,7 +8,7 @@ const EMAIL_CHANGE_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 export const requestEmailChange = action({
   args: { newEmail: v.string() },
   handler: async (ctx, { newEmail }): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const normalizedEmail = newEmail.trim().toLowerCase();
@@ -56,7 +55,7 @@ export const requestEmailChange = action({
 export const confirmEmailChange = action({
   args: { code: v.string() },
   handler: async (ctx, { code }): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     // Find the pending request

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getEffectiveUserId } from "./lib/auth";
 import {
   daySlotValidator,
   dayStatusValidator,
@@ -36,7 +36,7 @@ export {
 export const getCurrentWeekPlan = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
     const weekStartDate = getWeekStartDateString(new Date());
     return await ctx.db
@@ -52,7 +52,7 @@ export const getCurrentWeekPlan = query({
 export const getByUserIdAndWeekStart = query({
   args: { weekStartDate: v.string() },
   handler: async (ctx, { weekStartDate }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
     return await ctx.db
       .query("weekPlans")
@@ -72,7 +72,7 @@ export const create = mutation({
     days: v.optional(v.array(daySlotValidator)),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     if (!isValidWeekStartDateString(args.weekStartDate)) {
       throw new Error(
@@ -112,7 +112,7 @@ export const update = mutation({
     days: v.optional(v.array(daySlotValidator)),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const plan = await ctx.db.get(args.weekPlanId);
     if (!plan || plan.userId !== userId) {
@@ -141,7 +141,7 @@ export const linkWorkoutPlanToDay = mutation({
     estimatedDuration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     if (args.dayIndex < 0 || args.dayIndex > 6) {
       throw new Error("dayIndex must be 0 (Monday) through 6 (Sunday)");

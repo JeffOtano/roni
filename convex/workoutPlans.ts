@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import {
   action,
   internalAction,
@@ -7,6 +6,7 @@ import {
   internalQuery,
   query,
 } from "./_generated/server";
+import { getEffectiveUserId } from "./lib/auth";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { blockInputValidator } from "./validators";
@@ -122,7 +122,7 @@ export const transitionToPushing = internalMutation({
 export const getPlanForCurrentUser = query({
   args: { planId: v.id("workoutPlans") },
   handler: async (ctx, { planId }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
     const plan = await ctx.db.get(planId);
     if (!plan || plan.userId !== userId) return null;

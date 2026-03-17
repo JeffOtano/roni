@@ -1,12 +1,12 @@
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "../_generated/server";
+import { getEffectiveUserId } from "../lib/auth";
 import { generateKeyString, hashApiKey } from "./crypto";
 
 export const generateMcpApiKey = mutation({
   args: { label: v.optional(v.string()) },
   handler: async (ctx, { label }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const plaintext = generateKeyString();
@@ -26,7 +26,7 @@ export const generateMcpApiKey = mutation({
 export const revokeMcpApiKey = mutation({
   args: { keyId: v.id("mcpApiKeys") },
   handler: async (ctx, { keyId }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const keyRow = await ctx.db.get(keyId);
@@ -41,7 +41,7 @@ export const revokeMcpApiKey = mutation({
 
 export const listMcpApiKeys = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
 
     const keys = await ctx.db

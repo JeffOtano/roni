@@ -1,7 +1,7 @@
 import { internalQuery, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getEffectiveUserId } from "./lib/auth";
 
 /**
  * Internal query: find the user's most recent active thread
@@ -39,7 +39,7 @@ export const getActiveThread = internalQuery({
 export const getCurrentThread = query({
   args: {},
   handler: async (ctx): Promise<{ threadId: string; lastMessageTime: number } | null> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
 
     return ctx.runQuery(internal.threads.getActiveThread, { userId });
@@ -56,7 +56,7 @@ export const listConversationHistory = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { beforeThreadId, limit = 20 }) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) return { messages: [], hasMore: false };
 
     const threads = await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
