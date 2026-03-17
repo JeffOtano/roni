@@ -1,6 +1,7 @@
 import type { ToolContext, ToolDefinition, ToolHandler } from "../registry";
 import { internal } from "../../_generated/api";
 import type { Movement } from "../../tonal/types";
+import { matchesNameSearch } from "../../tonal/movementSearch";
 
 async function fetchCachedMovements(toolCtx: ToolContext): Promise<Movement[]> {
   return toolCtx.ctx.runQuery(internal.tonal.movementSync.getAllMovements);
@@ -33,8 +34,7 @@ async function searchMovements(
   const onMachine = args.onMachine as boolean | undefined;
 
   if (name) {
-    const lower = name.toLowerCase();
-    movements = movements.filter((m) => m.name.toLowerCase().includes(lower));
+    movements = movements.filter((m) => matchesNameSearch(m, name));
   }
   if (muscleGroup) {
     const lower = muscleGroup.toLowerCase();
