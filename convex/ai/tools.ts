@@ -98,15 +98,17 @@ export const getStrengthScoresTool = createTool({
 });
 
 export const getStrengthHistoryTool = createTool({
-  description: "Get strength score history over time by region.",
+  description: "Get strength score history over time by region (last 30 entries per region).",
   inputSchema: z.object({}),
   execute: withToolTracking(
     "get_strength_history",
     async (ctx, _input, _options): Promise<StrengthScoreHistoryEntry[]> => {
       const userId = requireUserId(ctx);
-      return (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
+      const history = (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
         userId,
       })) as StrengthScoreHistoryEntry[];
+      // Cap returned entries to prevent large tool results from bloating context
+      return history.slice(0, 30);
     },
   ),
 });
