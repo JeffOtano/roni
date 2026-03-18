@@ -17,6 +17,7 @@ export const create = internalMutation({
   args: {
     userId: v.id("users"),
     tonalUserId: v.string(),
+    tonalEmail: v.optional(v.string()),
     tonalToken: v.string(),
     tonalRefreshToken: v.optional(v.string()),
     tonalTokenExpiresAt: v.optional(v.number()),
@@ -44,6 +45,7 @@ export const create = internalMutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         tonalUserId: args.tonalUserId,
+        tonalEmail: args.tonalEmail,
         tonalToken: args.tonalToken,
         tonalRefreshToken: args.tonalRefreshToken,
         tonalTokenExpiresAt: args.tonalTokenExpiresAt,

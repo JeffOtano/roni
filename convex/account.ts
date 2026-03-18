@@ -30,6 +30,7 @@ export const getFullProfile = query({
       profileData: profile?.profileData ?? null,
       tonalConnectedAt: profile?.tonalConnectedAt ?? null,
       progressPhotoAnalysisEnabled: profile?.progressPhotoAnalysisEnabled !== false,
+      tonalEmail: profile?.tonalEmail,
       hasTonalProfile: !!profile,
       tonalTokenExpired,
       checkInPreferences: profile?.checkInPreferences ?? null,

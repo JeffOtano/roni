@@ -21,6 +21,7 @@ import { StatusBanner } from "@/components/StatusBanner";
 import { CheckInBell } from "@/components/CheckInBell";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { Button } from "@/components/ui/button";
+import { ReconnectModal } from "@/components/ReconnectModal";
 
 const navLinks: Array<{
   href: string;
@@ -69,6 +70,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
+
+  // Dismissed resets when token status changes (successful reconnect or new expiry).
+  // The key ensures a fresh dismissed=false whenever tokenExpired flips.
+  const tokenExpiredKey = me?.tonalTokenExpired ? "expired" : "valid";
+  const [dismissState, setDismissState] = useState({ key: tokenExpiredKey, dismissed: false });
+  if (dismissState.key !== tokenExpiredKey) {
+    setDismissState({ key: tokenExpiredKey, dismissed: false });
+  }
+  const reconnectDismissed = dismissState.dismissed;
+  const setReconnectDismissed = (v: boolean) =>
+    setDismissState({ key: tokenExpiredKey, dismissed: v });
 
   if (authLoading || (isAuthenticated && me === undefined)) {
     return (
@@ -188,6 +200,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </div>
+
+      <ReconnectModal
+        open={me?.tonalTokenExpired === true && !!me?.tonalEmail && !reconnectDismissed}
+        tonalEmail={me?.tonalEmail ?? ""}
+        onDismiss={() => setReconnectDismissed(true)}
+      />
     </div>
   );
 }

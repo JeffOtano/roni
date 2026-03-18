@@ -51,7 +51,8 @@ export default function ConnectTonalPage() {
       await connectTonal({ tonalEmail, tonalPassword });
       clearTimeout(phaseTimer);
       setPhase("done");
-      setTimeout(() => router.replace("/onboarding"), 600);
+      const destination = isReconnecting ? "/dashboard" : "/onboarding";
+      setTimeout(() => router.replace(destination), 600);
     } catch {
       setPhase("idle");
       setError(
