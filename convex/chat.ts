@@ -67,7 +67,11 @@ async function buildPrompt(
       role: "user" as const,
       content: [
         { type: "text" as const, text },
-        ...imageUrls.map((url) => ({ type: "image" as const, image: new URL(url) })),
+        ...imageUrls.map((url) => ({
+          type: "image" as const,
+          image: new URL(url),
+          mimeType: "image/jpeg" as const,
+        })),
       ],
     },
   ];
