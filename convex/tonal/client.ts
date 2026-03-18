@@ -26,7 +26,8 @@ export async function tonalFetch<T = unknown>(
   });
 
   if (res.status === 401) {
-    throw new TonalApiError(401, "Token expired or invalid");
+    const body = await res.text().catch(() => "Token expired or invalid");
+    throw new TonalApiError(401, body);
   }
 
   if (res.status === 204) {

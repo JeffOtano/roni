@@ -4,10 +4,10 @@ import { decryptToken, encryptToken, refreshTonalToken } from "./auth";
 
 export const refreshExpiringTokens = internalAction({
   handler: async (ctx) => {
-    const oneHourFromNow = Date.now() + 60 * 60 * 1000;
+    const twoHoursFromNow = Date.now() + 2 * 60 * 60 * 1000;
 
     const expiring = await ctx.runQuery(internal.userProfiles.getExpiringTokens, {
-      beforeTimestamp: oneHourFromNow,
+      beforeTimestamp: twoHoursFromNow,
     });
 
     const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
