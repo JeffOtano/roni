@@ -1,5 +1,8 @@
-import { MINUTE, RateLimiter, SECOND } from "@convex-dev/rate-limiter";
+import { DAY, MINUTE, RateLimiter, SECOND } from "@convex-dev/rate-limiter";
 import { components } from "./_generated/api";
+
+/** Daily message cap per user. Easy to adjust per tier later. */
+export const DAILY_MESSAGE_LIMIT = 30;
 
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
   sendMessage: {
@@ -7,6 +10,11 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     rate: 1,
     period: 5 * SECOND,
     capacity: 3,
+  },
+  dailyMessages: {
+    kind: "fixed window",
+    rate: DAILY_MESSAGE_LIMIT,
+    period: DAY,
   },
   globalAICalls: {
     kind: "token bucket",

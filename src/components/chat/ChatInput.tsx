@@ -77,7 +77,9 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
       setInput(trimmed);
       console.error("Failed to send message:", err);
       const message = err instanceof Error ? err.message.toLowerCase() : "";
-      if (message.includes("rate") || message.includes("limit")) {
+      if (message.includes("dailymessages") || message.includes("daily")) {
+        setError("You've hit your daily message limit. Come back tomorrow!");
+      } else if (message.includes("rate") || message.includes("limit")) {
         setError("Sending too fast. Please wait a moment.");
       } else if (message.includes("upload")) {
         setError("Image upload failed. Please try again.");

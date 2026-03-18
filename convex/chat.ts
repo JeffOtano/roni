@@ -112,8 +112,12 @@ export const sendMessage = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    // Rate limit
+    // Rate limit: burst + daily cap
     await rateLimiter.limit(ctx, "sendMessage", {
+      key: userId,
+      throws: true,
+    });
+    await rateLimiter.limit(ctx, "dailyMessages", {
       key: userId,
       throws: true,
     });
@@ -243,6 +247,10 @@ export const sendMessageMutation = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     await rateLimiter.limit(ctx, "sendMessage", {
+      key: userId,
+      throws: true,
+    });
+    await rateLimiter.limit(ctx, "dailyMessages", {
       key: userId,
       throws: true,
     });
