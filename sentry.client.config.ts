@@ -18,7 +18,7 @@ Sentry.init({
 
   // Enable session replay to capture what users see when errors occur
   replaysOnErrorSampleRate: 1.0,
-  replaysSessionSampleRate: 0.1,
+  replaysSessionSampleRate: 1.0,
 
   integrations: [
     Sentry.replayIntegration({
