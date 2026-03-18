@@ -45,11 +45,46 @@ import {
   updateGoalProgressTool,
 } from "./coachingTools";
 
+/**
+ * Remove image parts from all messages except the most recent user message.
+ * Images stored in older messages cause unbounded memory growth when loaded
+ * via recentMessages, leading to 64 MB OOM on Convex actions.
+ */
+function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMessage[] {
+  // Find the index of the last user message (the one that may contain fresh images)
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+
+  return messages.map((msg, idx) => {
+    // Keep the most recent user message intact (it has the current images)
+    if (idx === lastUserIdx) return msg;
+    // Only user messages can contain image parts from buildPrompt
+    if (msg.role !== "user") return msg;
+    // String content has no images
+    if (typeof msg.content === "string") return msg;
+    if (!Array.isArray(msg.content)) return msg;
+
+    const filtered = (msg.content as Array<{ type: string }>).filter(
+      (part) => part.type !== "image",
+    );
+    // If all parts were images, replace with a placeholder
+    if (filtered.length === 0) {
+      return { ...msg, content: "[image message]" };
+    }
+    return { ...msg, content: filtered };
+  });
+}
+
 export const coachAgentConfig = {
   embeddingModel: google.textEmbeddingModel("gemini-embedding-001"),
 
   contextOptions: {
-    recentMessages: 100,
+    recentMessages: 30,
     searchOtherThreads: true,
     searchOptions: {
       limit: 10,
@@ -314,7 +349,10 @@ BOUNDARIES:
       role: "system" as const,
       content: `<training-data>\n${snapshot}\n</training-data>`,
     };
-    return [snapshotMessage, ...args.allMessages];
+    // Strip image parts from all messages except the most recent user message
+    // to prevent OOM from large image data accumulating in context.
+    const messages = stripImagesFromOlderMessages(args.allMessages);
+    return [snapshotMessage, ...messages];
   }) satisfies ContextHandler,
 };
 
