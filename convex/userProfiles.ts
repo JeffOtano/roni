@@ -84,7 +84,7 @@ export const updateTonalToken = internalMutation({
     tonalRefreshToken: v.optional(v.string()),
     tonalTokenExpiresAt: v.optional(v.number()),
   },
-  handler: async (ctx, { userId, ...tokenData }) => {
+  handler: async (ctx, { userId, tonalToken, tonalRefreshToken, tonalTokenExpiresAt }) => {
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -94,10 +94,24 @@ export const updateTonalToken = internalMutation({
       throw new Error("User profile not found");
     }
 
-    await ctx.db.patch(profile._id, {
-      ...tokenData,
+    // Freshness guard: skip if DB already has a newer token.
+    // Prevents race between cron refresh and on-demand withTokenRetry.
+    if (
+      tonalTokenExpiresAt &&
+      profile.tonalTokenExpiresAt &&
+      tonalTokenExpiresAt <= profile.tonalTokenExpiresAt
+    ) {
+      return;
+    }
+
+    const patch: Record<string, unknown> = {
+      tonalToken,
       lastActiveAt: Date.now(),
-    });
+    };
+    if (tonalRefreshToken !== undefined) patch.tonalRefreshToken = tonalRefreshToken;
+    if (tonalTokenExpiresAt !== undefined) patch.tonalTokenExpiresAt = tonalTokenExpiresAt;
+
+    await ctx.db.patch(profile._id, patch);
   },
 });
 

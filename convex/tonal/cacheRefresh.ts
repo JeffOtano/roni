@@ -3,10 +3,10 @@ import { internal } from "../_generated/api";
 
 export const refreshActiveUsers = internalAction({
   handler: async (ctx) => {
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const threeDaysAgo = Date.now() - 72 * 60 * 60 * 1000;
 
     const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-      sinceTimestamp: oneDayAgo,
+      sinceTimestamp: threeDaysAgo,
     });
 
     for (const profile of activeUsers) {

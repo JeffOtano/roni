@@ -77,7 +77,11 @@ export async function cachedFetch<T>(
 
     return data;
   } catch (error) {
-    // If we have stale data, return it rather than failing
+    // Never swallow auth errors — the user must reconnect
+    if (error instanceof TonalApiError && error.status === 401) throw error;
+    if (error instanceof Error && error.message.includes("session expired")) throw error;
+
+    // For non-auth errors, fall back to stale data if available
     if (cached) {
       console.warn(`cachedFetch(${dataType}): refresh failed, serving stale data`, error);
       return cached.data as T;
