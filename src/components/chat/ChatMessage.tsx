@@ -53,7 +53,7 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
   if (isUser) {
     const imageParts = message.parts.filter(
       (part): part is Extract<typeof part, { type: "file" }> =>
-        part.type === "file" && part.mediaType.startsWith("image/"),
+        part.type === "file" && !!part.mediaType?.startsWith("image/"),
     );
     const textParts = message.parts.filter((part) => part.type === "text");
 
