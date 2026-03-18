@@ -25,6 +25,12 @@ export const refreshActiveUsers = internalAction({
         await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
           userId: profile.userId,
         });
+
+        // Refresh external activities (30m TTL)
+        await ctx.runAction(internal.tonal.proxy.fetchExternalActivities, {
+          userId: profile.userId,
+          limit: 20,
+        });
       } catch (error) {
         console.error(`Failed to refresh cache for user ${profile.userId}:`, error);
       }
