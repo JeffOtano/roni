@@ -1,5 +1,6 @@
 import { Agent } from "@convex-dev/agent";
 import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
+import type { ModelMessage, UserContent } from "ai";
 import { google } from "@ai-sdk/google";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -76,7 +77,7 @@ function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMessage[] 
     if (filtered.length === 0) {
       return { ...msg, content: "[image message]" };
     }
-    return { ...msg, content: filtered };
+    return { ...msg, content: filtered as UserContent };
   });
 }
 
