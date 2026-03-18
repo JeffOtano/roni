@@ -26,6 +26,7 @@ export const getMe = query({
       tonalName: profile?.profileData
         ? `${profile.profileData.firstName} ${profile.profileData.lastName}`
         : undefined,
+      tonalEmail: profile?.tonalEmail,
       tonalTokenExpired,
     };
   },

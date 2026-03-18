@@ -27,6 +27,7 @@ export default defineSchema({
     userId: v.id("users"),
     tonalUserId: v.string(),
     tonalToken: v.string(),
+    tonalEmail: v.optional(v.string()),
     tonalRefreshToken: v.optional(v.string()),
     tonalTokenExpiresAt: v.optional(v.number()),
     profileData: v.optional(

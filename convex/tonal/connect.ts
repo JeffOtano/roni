@@ -33,6 +33,7 @@ export const connectTonal = internalAction({
     await ctx.runMutation(internal.userProfiles.create, {
       userId,
       tonalUserId,
+      tonalEmail,
       tonalToken: encryptedToken,
       tonalRefreshToken: encryptedRefresh,
       tonalTokenExpiresAt: expiresAt,
