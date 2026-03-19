@@ -123,15 +123,22 @@ export default function PricingPage() {
           </section>
 
           {/* Future pricing */}
-          <section className="border-t border-border px-6 py-16 text-center">
-            <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-              After beta
-            </p>
-            <p className="mt-3 text-3xl font-bold tracking-tight">$10 / month</p>
-            <p className="mt-2 text-muted-foreground">Same features, same experience</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sign up now during beta — no commitment
-            </p>
+          <section className="border-t border-border px-6 py-16">
+            <div className="mx-auto max-w-lg text-center">
+              <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                After beta
+              </p>
+              <p className="mt-3 text-3xl font-bold tracking-tight">$10 / month</p>
+              <p className="mt-4 leading-relaxed text-muted-foreground">
+                Every workout your coach programs uses AI that costs real money to run. During beta,
+                that&apos;s on us. After 50 users, we charge $10/month to keep things running
+                &mdash; no investors, no ads, no data selling. Just a fair price for a tool built by
+                a Tonal owner for Tonal owners.
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground/70">
+                Sign up now during beta &mdash; no commitment, no credit card.
+              </p>
+            </div>
           </section>
 
           {/* Trust signals */}
