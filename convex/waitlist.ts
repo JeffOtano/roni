@@ -3,15 +3,20 @@ import { mutation, query } from "./_generated/server";
 
 /** Add an email to the beta waitlist. Idempotent — ignores duplicates. */
 export const join = mutation({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
+  args: { email: v.string(), firstName: v.string(), lastName: v.string() },
+  handler: async (ctx, { email, firstName, lastName }) => {
     const normalized = email.toLowerCase().trim();
     const existing = await ctx.db
       .query("waitlist")
       .withIndex("by_email", (q) => q.eq("email", normalized))
       .first();
     if (existing) return { alreadyOnList: true };
-    await ctx.db.insert("waitlist", { email: normalized, createdAt: Date.now() });
+    await ctx.db.insert("waitlist", {
+      email: normalized,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      createdAt: Date.now(),
+    });
     return { alreadyOnList: false };
   },
 });

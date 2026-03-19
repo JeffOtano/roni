@@ -11,6 +11,8 @@ import { DISCORD_URL } from "../_components/BetaCounter";
 
 export default function WaitlistPage() {
   const joinWaitlist = useMutation(api.waitlist.join);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "already">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export default function WaitlistPage() {
     setStatus("submitting");
 
     try {
-      const result = await joinWaitlist({ email });
+      const result = await joinWaitlist({ email, firstName, lastName });
       setStatus(result.alreadyOnList ? "already" : "done");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -70,24 +72,46 @@ export default function WaitlistPage() {
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-8 flex gap-3">
-              <Input
-                type="email"
-                required
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-12 flex-1"
-                disabled={status === "submitting"}
-              />
-              <Button
-                type="submit"
-                size="lg"
-                className="h-12 px-6"
-                disabled={status === "submitting"}
-              >
-                {status === "submitting" ? "Joining..." : "Join Waitlist"}
-              </Button>
+            <form onSubmit={handleSubmit} className="mt-8 space-y-3">
+              <div className="flex gap-3">
+                <Input
+                  type="text"
+                  required
+                  placeholder="First name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="h-12 flex-1"
+                  disabled={status === "submitting"}
+                />
+                <Input
+                  type="text"
+                  required
+                  placeholder="Last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="h-12 flex-1"
+                  disabled={status === "submitting"}
+                />
+              </div>
+              <div className="flex gap-3">
+                <Input
+                  type="email"
+                  required
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-12 flex-1"
+                  disabled={status === "submitting"}
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="h-12 px-6"
+                  disabled={status === "submitting"}
+                >
+                  {status === "submitting" ? "Joining..." : "Join"}
+                </Button>
+              </div>
             </form>
           )}
 

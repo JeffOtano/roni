@@ -462,6 +462,8 @@ export default defineSchema({
   /** Beta waitlist: email signups for when spots open. */
   waitlist: defineTable({
     email: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 });
