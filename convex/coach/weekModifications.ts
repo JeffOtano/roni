@@ -57,6 +57,53 @@ export const swapExerciseInDraft = internalMutation({
 });
 
 // ---------------------------------------------------------------------------
+// addExerciseToDraft
+// ---------------------------------------------------------------------------
+
+/** Add an exercise to a draft workout. Appends to the last main block or creates a new block. */
+export const addExerciseToDraft = internalMutation({
+  args: {
+    userId: v.id("users"),
+    workoutPlanId: v.id("workoutPlans"),
+    movementId: v.string(),
+    sets: v.number(),
+    reps: v.optional(v.number()),
+    duration: v.optional(v.number()),
+    warmUp: v.optional(v.boolean()),
+    eccentric: v.optional(v.boolean()),
+    spotter: v.optional(v.boolean()),
+    chains: v.optional(v.boolean()),
+    burnout: v.optional(v.boolean()),
+    dropSet: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { userId, workoutPlanId, movementId, sets, ...opts }) => {
+    const wp = await ctx.db.get(workoutPlanId);
+    if (!wp || wp.userId !== userId) {
+      throw new Error("Workout plan not found or access denied");
+    }
+    if (wp.status !== "draft") {
+      throw new Error("Can only add exercises to draft workout plans");
+    }
+
+    const blocks = [...wp.blocks];
+    const newExercise = { movementId, sets, ...opts };
+
+    // Find the last non-cooldown block. Cooldown is always the last block
+    // and warmup is always the first. Insert before cooldown.
+    if (blocks.length <= 1) {
+      // Only warmup or empty — add as a new block
+      blocks.push({ exercises: [newExercise] });
+    } else {
+      // Insert a new single-exercise block before the cooldown (last block)
+      const cooldownIdx = blocks.length - 1;
+      blocks.splice(cooldownIdx, 0, { exercises: [newExercise] });
+    }
+
+    await ctx.db.patch(workoutPlanId, { blocks });
+  },
+});
+
+// ---------------------------------------------------------------------------
 // swapDaySlots
 // ---------------------------------------------------------------------------
 
