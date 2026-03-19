@@ -115,7 +115,10 @@ export function HowItWorksSection() {
         </h2>
         <div className="grid gap-6 sm:grid-cols-3">
           {STEPS.map(({ number, heading, description }) => (
-            <div key={number} className="rounded-xl bg-card p-6 ring-1 ring-border">
+            <div
+              key={number}
+              className={`scroll-fade-up scroll-stagger-${number} rounded-xl bg-card p-6 ring-1 ring-border`}
+            >
               <span
                 className="mb-4 flex size-10 items-center justify-center rounded-full text-sm font-bold"
                 style={{
@@ -150,7 +153,7 @@ export function FeatureDeepDives() {
           {FEATURE_ITEMS.map(({ heading, description }, i) => (
             <div
               key={heading}
-              className={`grid items-center gap-8 lg:grid-cols-2 ${i % 2 === 1 ? "lg:[direction:rtl]" : ""}`}
+              className={`scroll-fade-up grid items-center gap-8 lg:grid-cols-2 ${i % 2 === 1 ? "lg:[direction:rtl]" : ""}`}
             >
               <div className={i % 2 === 1 ? "lg:[direction:ltr]" : ""}>
                 <h3 className="text-xl font-bold tracking-tight text-foreground">{heading}</h3>
@@ -248,7 +251,7 @@ export function FaqPreview() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <div className="mx-auto max-w-3xl">
-        <h2 className="mb-10 text-center text-3xl font-bold tracking-tight text-foreground">
+        <h2 className="scroll-fade-up mb-10 text-center text-3xl font-bold tracking-tight text-foreground">
           Common Questions
         </h2>
         <div className="divide-y divide-border">
@@ -279,7 +282,7 @@ export function PricingTeaser() {
     <section className="border-t border-border px-6 py-20 sm:py-24">
       <div className="mx-auto max-w-md">
         <div
-          className="rounded-2xl p-[1px]"
+          className="scroll-scale-in rounded-2xl p-[1px]"
           style={{
             background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
           }}
