@@ -4,7 +4,7 @@ export function ProductMockup() {
     <section className="border-t border-border px-6 py-20 sm:py-24">
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-2">
         {/* AI Coach Chat */}
-        <div className="rounded-xl bg-card p-5 ring-1 ring-border">
+        <div className="scroll-slide-right rounded-xl bg-card p-5 ring-1 ring-border">
           <p className="mb-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             AI Coach
           </p>
@@ -37,7 +37,7 @@ export function ProductMockup() {
         </div>
 
         {/* Strength Score */}
-        <div className="rounded-xl bg-card p-5 ring-1 ring-border">
+        <div className="scroll-slide-left rounded-xl bg-card p-5 ring-1 ring-border">
           <p className="mb-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             Strength Score
           </p>

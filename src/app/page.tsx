@@ -38,9 +38,55 @@ const ANIM_STYLES = `
   .anim-delay-3 { animation-delay: 0.3s; }
   .anim-delay-4 { animation-delay: 0.4s; }
   .anim-delay-5 { animation-delay: 0.5s; }
+  /* Scroll-driven entrance animations (CSS-only, no JS) */
+  @keyframes scroll-fade-up {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scroll-scale-in {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes scroll-slide-left {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scroll-slide-right {
+    from { opacity: 0; transform: translateX(-40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @supports (animation-timeline: view()) {
+    .scroll-fade-up {
+      animation: scroll-fade-up ease-out both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+    .scroll-scale-in {
+      animation: scroll-scale-in ease-out both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+    .scroll-slide-left {
+      animation: scroll-slide-left ease-out both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+    .scroll-slide-right {
+      animation: scroll-slide-right ease-out both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+    .scroll-stagger-1 { animation-range: entry 5% entry 40%; }
+    .scroll-stagger-2 { animation-range: entry 10% entry 45%; }
+    .scroll-stagger-3 { animation-range: entry 15% entry 50%; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .anim-fade-up { animation: none; opacity: 1; }
     .orb-animated { animation: none !important; }
+    .scroll-fade-up, .scroll-scale-in,
+    .scroll-slide-left, .scroll-slide-right { animation: none !important; opacity: 1; transform: none; }
   }
 `;
 
@@ -119,7 +165,7 @@ export default function HomePage() {
 
         {/* 8. Bottom CTA */}
         <section className="border-t border-border px-6 py-24 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
+          <h2 className="scroll-fade-up text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
             Start training smarter today
           </h2>
           <p className="mt-6 text-lg text-muted-foreground">
