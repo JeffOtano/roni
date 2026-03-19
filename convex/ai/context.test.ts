@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildExerciseCatalogSection,
   formatExternalActivityLine,
   getHrIntensityLabel,
   getRecencyLabel,
   type SnapshotSection,
   trimSnapshot,
 } from "./context";
-import type { ExternalActivity } from "../tonal/types";
+import type { ExternalActivity, Movement } from "../tonal/types";
+import type { OwnedAccessories } from "../tonal/accessories";
 
 describe("trimSnapshot", () => {
   const makeSection = (priority: number, text: string): SnapshotSection => ({
@@ -175,5 +177,208 @@ describe("getRecencyLabel", () => {
   it("returns 'older' for 20+ days ago", () => {
     const now = new Date("2026-03-16T15:00:00Z");
     expect(getRecencyLabel("2026-02-20T10:00:00Z", now)).toBe("older");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exercise catalog section
+// ---------------------------------------------------------------------------
+
+describe("buildExerciseCatalogSection", () => {
+  function makeMovement(overrides: Partial<Movement> = {}): Movement {
+    return {
+      id: "m-1",
+      name: "Bench Press",
+      shortName: "Bench Press",
+      muscleGroups: ["Chest"],
+      skillLevel: 1,
+      publishState: "published",
+      sortOrder: 1,
+      onMachine: true,
+      inFreeLift: false,
+      countReps: true,
+      isTwoSided: false,
+      isBilateral: true,
+      isAlternating: false,
+      descriptionHow: "",
+      descriptionWhy: "",
+      onMachineInfo: {
+        accessory: "Handle",
+        resistanceType: "cable",
+        spotterDisabled: false,
+        eccentricDisabled: false,
+        chainsDisabled: false,
+        burnoutDisabled: false,
+      },
+      ...overrides,
+    };
+  }
+
+  const allOwned: OwnedAccessories = {
+    smartHandles: true,
+    smartBar: true,
+    rope: true,
+    roller: true,
+    weightBar: true,
+    pilatesLoops: true,
+    ankleStraps: true,
+  };
+
+  it("groups exercises by accessory display name", () => {
+    const movements = [
+      makeMovement({
+        id: "1",
+        name: "Bench Press",
+        onMachineInfo: {
+          accessory: "Handle",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+      makeMovement({
+        id: "2",
+        name: "Biceps Curl",
+        onMachineInfo: {
+          accessory: "Handle",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+      makeMovement({
+        id: "3",
+        name: "Seated Row",
+        onMachineInfo: {
+          accessory: "Rope",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+    ];
+    const section = buildExerciseCatalogSection(movements, allOwned);
+    expect(section).not.toBeNull();
+    const text = section!.lines.join("\n");
+    expect(text).toContain("Handles: Bench Press, Biceps Curl");
+    expect(text).toContain("Rope: Seated Row");
+  });
+
+  it("filters out exercises requiring unowned accessories", () => {
+    const noRope: OwnedAccessories = { ...allOwned, rope: false };
+    const movements = [
+      makeMovement({
+        id: "1",
+        name: "Bench Press",
+        onMachineInfo: {
+          accessory: "Handle",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+      makeMovement({
+        id: "2",
+        name: "Face Pull",
+        onMachineInfo: {
+          accessory: "Rope",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+    ];
+    const section = buildExerciseCatalogSection(movements, noRope);
+    expect(section).not.toBeNull();
+    const text = section!.lines.join("\n");
+    expect(text).toContain("Bench Press");
+    expect(text).not.toContain("Face Pull");
+  });
+
+  it("excludes placeholder movements", () => {
+    const movements = [
+      makeMovement({ id: "1", name: "Bench Press" }),
+      makeMovement({ id: "2", name: "Handle Move" }),
+      makeMovement({ id: "3", name: "Rope Move" }),
+    ];
+    const section = buildExerciseCatalogSection(movements, allOwned);
+    expect(section).not.toBeNull();
+    const text = section!.lines.join("\n");
+    expect(text).toContain("Bench Press");
+    expect(text).not.toContain("Handle Move");
+    expect(text).not.toContain("Rope Move");
+  });
+
+  it("excludes unpublished movements", () => {
+    const movements = [
+      makeMovement({ id: "1", name: "Bench Press", publishState: "published" }),
+      makeMovement({ id: "2", name: "Secret Move", publishState: "draft" }),
+    ];
+    const section = buildExerciseCatalogSection(movements, allOwned);
+    const text = section!.lines.join("\n");
+    expect(text).toContain("Bench Press");
+    expect(text).not.toContain("Secret Move");
+  });
+
+  it("puts exercises without onMachineInfo in Bodyweight group", () => {
+    const movements = [makeMovement({ id: "1", name: "Pushup", onMachineInfo: undefined })];
+    const section = buildExerciseCatalogSection(movements, allOwned);
+    const text = section!.lines.join("\n");
+    expect(text).toContain("Bodyweight: Pushup");
+  });
+
+  it("returns null when no movements pass filters", () => {
+    const section = buildExerciseCatalogSection([], allOwned);
+    expect(section).toBeNull();
+  });
+
+  it("includes all accessories when owned is undefined", () => {
+    const movements = [
+      makeMovement({
+        id: "1",
+        name: "Face Pull",
+        onMachineInfo: {
+          accessory: "Rope",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+      makeMovement({
+        id: "2",
+        name: "Hip Abduction",
+        onMachineInfo: {
+          accessory: "AnkleStraps",
+          resistanceType: "cable",
+          spotterDisabled: false,
+          eccentricDisabled: false,
+          chainsDisabled: false,
+          burnoutDisabled: false,
+        },
+      }),
+    ];
+    const section = buildExerciseCatalogSection(movements, undefined);
+    expect(section).not.toBeNull();
+    const text = section!.lines.join("\n");
+    expect(text).toContain("Face Pull");
+    expect(text).toContain("Hip Abduction");
+  });
+
+  it("sets priority to 6.5", () => {
+    const movements = [makeMovement()];
+    const section = buildExerciseCatalogSection(movements, allOwned);
+    expect(section!.priority).toBe(6.5);
   });
 });

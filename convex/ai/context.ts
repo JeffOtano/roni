@@ -1,7 +1,13 @@
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { Activity, ExternalActivity, MuscleReadiness, StrengthScore } from "../tonal/types";
+import type {
+  Activity,
+  ExternalActivity,
+  Movement,
+  MuscleReadiness,
+  StrengthScore,
+} from "../tonal/types";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
@@ -9,6 +15,7 @@ import { ACCESSORY_MAP } from "../tonal/accessories";
 export { getRecencyLabel } from "./timeDecay";
 import { getRecencyLabel } from "./timeDecay";
 import {
+  buildExerciseCatalogSection,
   formatExternalActivityLine,
   getHrIntensityLabel,
   SNAPSHOT_MAX_CHARS,
@@ -17,7 +24,13 @@ import {
 } from "./snapshotHelpers";
 
 // Re-export for backward compatibility (tests, other consumers)
-export { type SnapshotSection, trimSnapshot, getHrIntensityLabel, formatExternalActivityLine };
+export {
+  type SnapshotSection,
+  trimSnapshot,
+  getHrIntensityLabel,
+  formatExternalActivityLine,
+  buildExerciseCatalogSection,
+};
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery" | "runAction">,
@@ -33,7 +46,7 @@ export async function buildTrainingSnapshot(
     return "No Tonal profile linked yet. Ask the user to connect their Tonal account.";
   }
 
-  // Parallel fetch: Tonal data + coaching data
+  // Parallel fetch: Tonal data + coaching data + movement catalog
   const [
     scores,
     readiness,
@@ -44,6 +57,7 @@ export async function buildTrainingSnapshot(
     activeInjuries,
     externalActivities,
     coachingNotes,
+    movementCatalog,
   ] = await Promise.all([
     ctx
       .runAction(internal.tonal.proxy.fetchStrengthScores, {
@@ -78,6 +92,7 @@ export async function buildTrainingSnapshot(
     ctx
       .runQuery(internal.ai.memory.getNotesForUser, { userId: convexUserId, limit: 10 })
       .catch(() => []),
+    ctx.runQuery(internal.tonal.movementSync.getAllMovements).catch(() => [] as Movement[]),
   ]);
 
   const pd = profile.profileData;
@@ -140,6 +155,10 @@ export async function buildTrainingSnapshot(
     equipmentLines.push(`Equipment: All accessories assumed available (no equipment profile set).`);
   }
   sections.push({ priority: 2, lines: equipmentLines });
+
+  // Priority 6.5: Exercise catalog grouped by accessory
+  const catalogSection = buildExerciseCatalogSection(movementCatalog, owned);
+  if (catalogSection) sections.push(catalogSection);
 
   // Priority 2.5: Coaching notes (procedural memory — learned preferences)
   const notes = coachingNotes as Doc<"coachingNotes">[];

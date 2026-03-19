@@ -90,4 +90,45 @@ describe("matchesNameSearch", () => {
   it("matches OHP ↔ Overhead Press alias", () => {
     expect(matchesNameSearch({ name: "OHP", shortName: "OHP" }, "overhead press")).toBe(true);
   });
+
+  // Gym name → Tonal name aliases
+  it("matches face pull → standing face pull", () => {
+    const standingFacePull = { name: "Standing Face Pull", shortName: "Standing Face Pull" };
+    expect(matchesNameSearch(standingFacePull, "face pull")).toBe(true);
+  });
+
+  it("matches rear delt fly → reverse fly via multi-word alias", () => {
+    const reverseFly = { name: "Reverse Fly", shortName: "Reverse Fly" };
+    expect(matchesNameSearch(reverseFly, "rear delt fly")).toBe(true);
+  });
+
+  it("matches french press → overhead triceps extension", () => {
+    const ohe = { name: "Overhead Triceps Extension", shortName: "Overhead Triceps Ext" };
+    expect(matchesNameSearch(ohe, "french press")).toBe(true);
+  });
+
+  it("matches lying tricep extension → skull crusher", () => {
+    const skullCrusher = { name: "Skull Crusher", shortName: "Skull Crusher" };
+    expect(matchesNameSearch(skullCrusher, "lying tricep extension")).toBe(true);
+  });
+
+  it("matches plank → pillar bridge via alias", () => {
+    const pillarBridge = { name: "Pillar Bridge", shortName: "Pillar Bridge" };
+    expect(matchesNameSearch(pillarBridge, "plank")).toBe(true);
+  });
+
+  it("matches shoulder press → standing overhead press", () => {
+    const sop = { name: "Standing Overhead Press", shortName: "Standing Overhead Press" };
+    expect(matchesNameSearch(sop, "shoulder press")).toBe(true);
+  });
+
+  it("matches lat raise → lateral raise", () => {
+    const lateralRaise = { name: "Lateral Raise", shortName: "Lateral Raise" };
+    expect(matchesNameSearch(lateralRaise, "lat raise")).toBe(true);
+  });
+
+  it("matches hamstring curl → prone bench hamstring curl", () => {
+    const pbhc = { name: "Prone Bench Hamstring Curl", shortName: "Prone Bench Hamstring Curl" };
+    expect(matchesNameSearch(pbhc, "hamstring curl")).toBe(true);
+  });
 });
