@@ -4,20 +4,33 @@ import Link from "next/link";
 import { useConvexAuth } from "convex/react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DISCORD_URL, useBetaFull } from "./BetaCounter";
 
 /**
  * Auth-aware CTA button. Shows "Get Started" / "Sign In" for guests,
- * "Go to Chat" for authenticated users.
+ * "Go to Chat" for authenticated users, or "Join Discord" when beta is full.
  *
  * Kept as a thin client island so the landing page can be a server component.
  */
 export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const betaFull = useBetaFull();
 
-  const href = isAuthenticated ? "/chat" : "/login";
+  const showDiscord = !isAuthenticated && betaFull === true;
+  const href = isAuthenticated ? "/chat" : showDiscord ? DISCORD_URL : "/login";
+  const isExternal = showDiscord;
 
   if (variant === "nav") {
-    return (
+    return isExternal ? (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground"
+      >
+        Join Discord
+      </a>
+    ) : (
       <Link
         href={href}
         className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground"
@@ -27,7 +40,15 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
     );
   }
 
-  const label = isAuthenticated ? "Go to Chat" : "Get Started";
+  const label = isAuthenticated
+    ? "Go to Chat"
+    : showDiscord
+      ? "Join Discord for Waitlist"
+      : "Get Started";
+  const linkProps = isExternal
+    ? { href, target: "_blank" as const, rel: "noopener noreferrer" }
+    : { href };
+  const renderEl = isExternal ? <a {...linkProps} /> : <Link href={href} />;
 
   if (variant === "hero") {
     return (
@@ -35,7 +56,7 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
         size="lg"
         className="h-12 px-8 text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
         nativeButton={false}
-        render={<Link href={href} />}
+        render={renderEl}
         disabled={isLoading}
       >
         {isLoading ? "Loading..." : label}
@@ -57,7 +78,7 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
         variant="ghost"
         className="h-12 rounded-[11px] bg-card px-8 text-base font-semibold text-foreground transition-all duration-300 hover:bg-card/80"
         nativeButton={false}
-        render={<Link href={href} />}
+        render={renderEl}
         disabled={isLoading}
       >
         {isLoading ? "Loading..." : label}
