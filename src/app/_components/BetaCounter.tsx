@@ -31,7 +31,7 @@ export function BetaCounter() {
           className="inline-block size-2 rounded-full"
           style={{ background: "oklch(0.65 0.2 25)" }}
         />
-        Beta is full &mdash; join Discord for waitlist
+        Beta is full &mdash; join the waitlist
       </span>
     );
   }

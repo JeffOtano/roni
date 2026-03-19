@@ -458,4 +458,10 @@ export default defineSchema({
   })
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId", ["userId"]),
+
+  /** Beta waitlist: email signups for when spots open. */
+  waitlist: defineTable({
+    email: v.string(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
 });

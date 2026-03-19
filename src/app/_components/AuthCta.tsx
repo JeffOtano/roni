@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useConvexAuth } from "convex/react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DISCORD_URL, useBetaFull } from "./BetaCounter";
+import { useBetaFull } from "./BetaCounter";
 
 /**
  * Auth-aware CTA button. Shows "Get Started" / "Sign In" for guests,
- * "Go to Chat" for authenticated users, or "Join Discord" when beta is full.
+ * "Go to Chat" for authenticated users, or "Join Waitlist" when beta is full.
  *
  * Kept as a thin client island so the landing page can be a server component.
  */
@@ -16,39 +16,21 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const betaFull = useBetaFull();
 
-  const showDiscord = !isAuthenticated && betaFull === true;
-  const href = isAuthenticated ? "/chat" : showDiscord ? DISCORD_URL : "/login";
-  const isExternal = showDiscord;
+  const showWaitlist = !isAuthenticated && betaFull === true;
+  const href = isAuthenticated ? "/chat" : showWaitlist ? "/waitlist" : "/login";
 
   if (variant === "nav") {
-    return isExternal ? (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground"
-      >
-        Join Discord
-      </a>
-    ) : (
+    return (
       <Link
         href={href}
         className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground"
       >
-        {isAuthenticated ? "Go to Chat" : "Sign In"}
+        {isAuthenticated ? "Go to Chat" : showWaitlist ? "Join Waitlist" : "Sign In"}
       </Link>
     );
   }
 
-  const label = isAuthenticated
-    ? "Go to Chat"
-    : showDiscord
-      ? "Join Discord for Waitlist"
-      : "Get Started";
-  const linkProps = isExternal
-    ? { href, target: "_blank" as const, rel: "noopener noreferrer" }
-    : { href };
-  const renderEl = isExternal ? <a {...linkProps} /> : <Link href={href} />;
+  const label = isAuthenticated ? "Go to Chat" : showWaitlist ? "Join Waitlist" : "Get Started";
 
   if (variant === "hero") {
     return (
@@ -56,7 +38,7 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
         size="lg"
         className="h-12 px-8 text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
         nativeButton={false}
-        render={renderEl}
+        render={<Link href={href} />}
         disabled={isLoading}
       >
         {isLoading ? "Loading..." : label}
@@ -78,7 +60,7 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
         variant="ghost"
         className="h-12 rounded-[11px] bg-card px-8 text-base font-semibold text-foreground transition-all duration-300 hover:bg-card/80"
         nativeButton={false}
-        render={renderEl}
+        render={<Link href={href} />}
         disabled={isLoading}
       >
         {isLoading ? "Loading..." : label}
