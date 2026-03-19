@@ -1,50 +1,20 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, Brain, Send, TrendingUp, Utensils } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { SiteNav } from "./_components/SiteNav";
+import { SiteFooter } from "./_components/SiteFooter";
 import { AuthCta } from "./_components/AuthCta";
+import { ProductMockup } from "./_components/ProductMockup";
+import {
+  FaqPreview,
+  FeatureDeepDives,
+  HowItWorksSection,
+  PricingTeaser,
+} from "./_components/HomeSections";
 
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
-
-interface Feature {
-  icon: typeof Brain;
-  title: string;
-  description: string;
-  badge?: string;
-}
-
-const FEATURES: Feature[] = [
-  {
-    icon: Brain,
-    title: "AI Coaching",
-    description: "Ask anything about your training. Get answers grounded in your real data.",
-  },
-  {
-    icon: Send,
-    title: "Push to Tonal",
-    description: "Your coach programs workouts and sends them straight to your machine.",
-  },
-  {
-    icon: BellRing,
-    title: "Proactive Check-ins",
-    description: "Get nudged when you're overtraining, slacking, or ready to level up.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Progress Tracking",
-    description: "Strength scores, muscle readiness, and progress photos over time.",
-    badge: "Body comp analysis coming soon",
-  },
-  {
-    icon: Utensils,
-    title: "Nutrition Intelligence",
-    description: "Meal tracking that knows your training load.",
-    badge: "Coming Soon",
-  },
-];
 
 const ANIM_STYLES = `
   @keyframes float-orb {
@@ -79,17 +49,11 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-background">
       <style dangerouslySetInnerHTML={{ __html: ANIM_STYLES }} />
 
-      {/* Nav */}
-      <nav
-        aria-label="Main"
-        className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12"
-      >
-        <span className="text-xl font-bold tracking-tight text-foreground">tonal.coach</span>
-        <AuthCta variant="nav" />
-      </nav>
+      {/* 1. Nav */}
+      <SiteNav />
 
       <main>
-        {/* Hero */}
+        {/* 2. Hero */}
         <section className="relative flex flex-1 flex-col items-center justify-center px-6 py-32 text-center sm:py-40">
           {/* Animated orb */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
@@ -104,8 +68,13 @@ export default function HomePage() {
           </div>
 
           <div className="relative z-10 mx-auto max-w-3xl">
+            {/* Social proof badge */}
+            <div className="anim-fade-up mb-6 inline-flex items-center rounded-full border border-border bg-card/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
+              Free while in beta
+            </div>
+
             <h1
-              className="anim-fade-up text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl"
+              className="anim-fade-up anim-delay-1 text-4xl font-bold tracking-tight sm:text-5xl lg:text-7xl"
               style={{
                 background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
                 WebkitBackgroundClip: "text",
@@ -113,174 +82,57 @@ export default function HomePage() {
                 backgroundClip: "text",
               }}
             >
-              The personal trainer your Tonal deserves
+              AI-powered custom workouts for your Tonal
             </h1>
-            <p className="anim-fade-up anim-delay-1 mx-auto mt-8 max-w-lg text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              AI coaching powered by your real training data. Get personalized advice, push custom
-              workouts, and track your progress.
+
+            <p className="anim-fade-up anim-delay-2 mx-auto mt-8 max-w-lg text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              Connect your Tonal account. Tell the AI your goals. Get a personalized program pushed
+              directly to your machine every week.
             </p>
-            <div className="anim-fade-up anim-delay-2 mt-10">
+
+            <div className="anim-fade-up anim-delay-3 mt-10 flex flex-wrap items-center justify-center gap-4">
               <AuthCta variant="hero" />
-            </div>
-          </div>
-        </section>
-
-        {/* Features */}
-        <section className="border-t border-border px-6 py-24 sm:px-8">
-          <div className="mx-auto max-w-5xl">
-            <p className="anim-fade-up mb-4 text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
-              Everything you need
-            </p>
-            <h2 className="anim-fade-up anim-delay-1 mx-auto mb-16 max-w-md text-center text-3xl font-bold tracking-tight text-foreground">
-              The missing piece for your Tonal
-            </h2>
-
-            {/* First row: 2 larger cards */}
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
-              {FEATURES.slice(0, 2).map(({ icon: Icon, title, description, badge }) => (
-                <FeatureCard
-                  key={title}
-                  Icon={Icon}
-                  title={title}
-                  description={description}
-                  badge={badge}
-                  large
-                />
-              ))}
-            </div>
-
-            {/* Second row: 3 smaller cards */}
-            <div className="mt-3 grid gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-              {FEATURES.slice(2).map(({ icon: Icon, title, description, badge }) => (
-                <FeatureCard
-                  key={title}
-                  Icon={Icon}
-                  title={title}
-                  description={description}
-                  badge={badge}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Social proof */}
-        <section className="border-t border-border px-6 py-20">
-          <div
-            className="mx-auto max-w-lg rounded-2xl p-px"
-            style={{
-              background:
-                "linear-gradient(135deg, oklch(0.78 0.154 195 / 40%), oklch(0.6 0.22 300 / 40%))",
-            }}
-          >
-            <blockquote className="rounded-2xl bg-card px-8 py-10 text-center">
-              <span
-                className="block text-5xl font-bold leading-none"
-                style={{ color: "oklch(0.78 0.154 195 / 30%)" }}
-                aria-hidden="true"
+              <Link
+                href="#how-it-works"
+                className="inline-flex h-12 items-center rounded-lg border border-border px-6 text-base font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
               >
-                &ldquo;
-              </span>
-              <p className="mt-2 text-xl font-medium text-foreground">
-                Built by a Tonal owner, for Tonal owners.
-              </p>
-              <span
-                className="mt-2 block text-5xl font-bold leading-none"
-                style={{ color: "oklch(0.78 0.154 195 / 30%)" }}
-                aria-hidden="true"
-              >
-                &rdquo;
-              </span>
-            </blockquote>
+                See How It Works
+              </Link>
+            </div>
           </div>
         </section>
 
-        {/* Bottom CTA */}
+        {/* 3. Product Mockup */}
+        <ProductMockup />
+
+        {/* 4. How It Works */}
+        <HowItWorksSection />
+
+        {/* 5. Feature Deep-Dives */}
+        <FeatureDeepDives />
+
+        {/* 6. FAQ Preview */}
+        <FaqPreview />
+
+        {/* 7. Pricing Teaser */}
+        <PricingTeaser />
+
+        {/* 8. Bottom CTA */}
         <section className="border-t border-border px-6 py-24 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
-            Ready to level up your training?
+            Start training smarter today
           </h2>
           <p className="mt-6 text-lg text-muted-foreground">
-            Connect your Tonal and start coaching in minutes.
+            Connect your Tonal. Get your first custom workout in minutes.
           </p>
           <div className="mt-10">
             <AuthCta variant="bottom" />
           </div>
         </section>
       </main>
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-10 text-center">
-        <p className="text-sm text-muted-foreground">
-          tonal.coach is an independent project. Not affiliated with or endorsed by Tonal.
-        </p>
-        <div className="mt-3 flex justify-center gap-4 text-xs text-muted-foreground/70">
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
-            Privacy Policy
-          </Link>
-          <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
-            Terms of Service
-          </Link>
-          <a
-            href="https://discord.gg/dShrKkwz"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            Discord
-          </a>
-        </div>
-      </footer>
-    </div>
-  );
-}
 
-function FeatureCard({
-  Icon,
-  title,
-  description,
-  badge,
-  large,
-}: {
-  Icon: typeof Brain;
-  title: string;
-  description: string;
-  badge?: string;
-  large?: boolean;
-}) {
-  return (
-    <div className="group relative overflow-hidden rounded-xl bg-card p-6 ring-1 ring-border transition-all duration-300 hover:ring-foreground/20">
-      <div className="relative z-10">
-        <div className="mb-4 flex items-center gap-3">
-          <div
-            className="flex items-center justify-center rounded-xl transition-shadow duration-300"
-            style={{
-              width: large ? 48 : 40,
-              height: large ? 48 : 40,
-              background: "oklch(0.78 0.154 195 / 12%)",
-              boxShadow: "0 0 20px oklch(0.78 0.154 195 / 8%)",
-            }}
-          >
-            <Icon
-              aria-hidden="true"
-              className="text-primary"
-              style={{ width: large ? 22 : 18, height: large ? 22 : 18 }}
-            />
-          </div>
-          {badge && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              {badge}
-            </Badge>
-          )}
-        </div>
-        <h3 className={`font-semibold text-foreground ${large ? "text-lg" : "text-sm"}`}>
-          {title}
-        </h3>
-        <p
-          className={`mt-2 leading-relaxed text-muted-foreground ${large ? "text-base" : "text-sm"}`}
-        >
-          {description}
-        </p>
-      </div>
+      {/* 9. Footer */}
+      <SiteFooter />
     </div>
   );
 }
