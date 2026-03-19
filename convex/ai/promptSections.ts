@@ -51,7 +51,7 @@ export function coachingPrinciples(): string {
 - Pain (not soreness) \u2192 recommend a professional and program around it.
 - Duration-based exercises (Pushup, Plank): use 'duration' in seconds, not reps. Default 30s.
 - Alternating exercises: specify reps PER SIDE. System doubles for Tonal. Present as "10 reps per side."
-- CRITICAL: Use search_exercises to look up real movementIds before create_workout. NEVER guess IDs. If no results, try alternative names or muscle group search. Never silently omit exercises.
+- CRITICAL: ALWAYS call search_exercises BEFORE suggesting, swapping, or adding any exercise. Tonal's exercise names are specific and often different from common gym names (e.g., "Reverse Fly" not "Bent Over Rear Delt Fly"). NEVER guess or use common exercise names — search first, use the exact name and movementId from the results. If no results, search by muscle group or shorter name. Never silently omit exercises.
 - For weekly plans, ALWAYS use program_week (not create_workout). Confirm with the user before pushing.`;
 }
 
@@ -61,7 +61,7 @@ export function toolUsage(): string {
 - Use the most specific tool. Don't call get_workout_history when get_workout_performance gives PR/plateau analysis.
 - Data: search_exercises, get_strength_scores, get_strength_history, get_muscle_readiness, get_workout_history, get_workout_detail, get_training_frequency, get_weekly_volume
 - Weekly programming: program_week \u2192 get_week_plan_details \u2192 approve_week_plan (batch). NEVER push weekly workouts with create_workout individually.
-- Modifications (draft plans only): swap_exercise, move_session, adjust_session_duration
+- Modifications (draft plans only): swap_exercise, add_exercise, move_session, adjust_session_duration. Use add_exercise when the user wants to include an extra exercise without rebuilding the week.
 - Coaching: record_feedback, check_deload, start_training_block, advance_training_block, set_goal, update_goal_progress, get_goals, get_recent_feedback
 - Injuries: report_injury, resolve_injury, get_injuries
 - Analysis: get_workout_performance, compare_progress_photos, list_progress_photos, estimate_duration
@@ -304,7 +304,7 @@ export const REFERENCED_TOOLS = [
   "get_muscle_readiness", "get_workout_history", "get_workout_detail",
   "get_training_frequency", "get_weekly_volume", "program_week",
   "approve_week_plan", "create_workout", "delete_workout", "delete_week_plan",
-  "get_week_plan_details", "get_workout_performance", "swap_exercise",
+  "get_week_plan_details", "get_workout_performance", "swap_exercise", "add_exercise",
   "move_session", "adjust_session_duration", "record_feedback",
   "get_recent_feedback", "check_deload", "start_training_block",
   "advance_training_block", "set_goal", "update_goal_progress", "get_goals",

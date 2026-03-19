@@ -21,6 +21,7 @@ import {
   searchExercisesTool,
 } from "./tools";
 import {
+  addExerciseTool,
   adjustSessionDurationTool,
   moveSessionTool,
   swapExerciseTool,
@@ -118,6 +119,7 @@ export const coachAgentConfig = {
     approve_week_plan: approveWeekPlanTool,
     get_workout_performance: getWorkoutPerformanceTool,
     swap_exercise: swapExerciseTool,
+    add_exercise: addExerciseTool,
     move_session: moveSessionTool,
     adjust_session_duration: adjustSessionDurationTool,
     // Coaching features
