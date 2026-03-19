@@ -18,6 +18,8 @@ export const weekPlanPresentationSchema = z.object({
           lastWeight: z.number().optional(),
           lastReps: z.number().optional(),
           note: z.string().optional(),
+          accessory: z.string().optional(),
+          block: z.number().optional(),
         }),
       ),
     }),

@@ -17,14 +17,28 @@ function formatTime(timestamp: number): string {
 }
 
 function extractWeekPlan(text: string) {
-  const match = text.match(/```week-plan\s*\n([\s\S]*?)\n```/);
-  if (!match) return null;
-  try {
-    const parsed = JSON.parse(match[1]);
-    return weekPlanPresentationSchema.parse(parsed);
-  } catch {
-    return null;
+  // Prefer the canonical ```week-plan fence tag
+  const weekPlanMatch = text.match(/```week-plan\s*\n([\s\S]*?)\n```/);
+  if (weekPlanMatch) {
+    try {
+      return weekPlanPresentationSchema.parse(JSON.parse(weekPlanMatch[1]));
+    } catch {
+      return null;
+    }
   }
+
+  // Fallback: AI sometimes uses ```json instead — validate against the schema
+  const jsonMatch = text.match(/```json\s*\n([\s\S]*?)\n```/);
+  if (jsonMatch) {
+    try {
+      return weekPlanPresentationSchema.parse(JSON.parse(jsonMatch[1]));
+    } catch {
+      // JSON block didn't match the week plan schema — not a week plan
+      return null;
+    }
+  }
+
+  return null;
 }
 
 function SmoothAssistantText({ text, isStreaming }: { text: string; isStreaming: boolean }) {
@@ -121,7 +135,9 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
             // Coach: check for structured week plan
             const plan = extractWeekPlan(text);
             if (plan && !isStreaming) {
-              const remainingText = text.replace(/```week-plan\s*\n[\s\S]*?\n```/, "").trim();
+              const remainingText = text
+                .replace(/```(?:week-plan|json)\s*\n[\s\S]*?\n```/, "")
+                .trim();
               return (
                 <div key={i}>
                   <WeekPlanCard plan={plan} />
