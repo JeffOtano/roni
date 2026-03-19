@@ -3,7 +3,15 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
-const TOTAL_BETA_SPOTS = 50;
+export const TOTAL_BETA_SPOTS = 50;
+export const DISCORD_URL = "https://discord.gg/dShrKkwz";
+
+/** Hook to check if beta is full. */
+export function useBetaFull(): boolean | undefined {
+  const userCount = useQuery(api.userProfiles.getBetaUserCount);
+  if (userCount === undefined) return undefined;
+  return userCount >= TOTAL_BETA_SPOTS;
+}
 
 /**
  * Live counter showing remaining free beta spots.
@@ -23,7 +31,7 @@ export function BetaCounter() {
           className="inline-block size-2 rounded-full"
           style={{ background: "oklch(0.65 0.2 25)" }}
         />
-        Beta is full
+        Beta is full &mdash; join Discord for waitlist
       </span>
     );
   }
