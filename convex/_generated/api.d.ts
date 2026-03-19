@@ -21,6 +21,7 @@ import type * as ai_coachingTools from "../ai/coachingTools.js";
 import type * as ai_context from "../ai/context.js";
 import type * as ai_helpers from "../ai/helpers.js";
 import type * as ai_memory from "../ai/memory.js";
+import type * as ai_promptSections from "../ai/promptSections.js";
 import type * as ai_resilience from "../ai/resilience.js";
 import type * as ai_router from "../ai/router.js";
 import type * as ai_schemas from "../ai/schemas.js";
@@ -135,6 +136,7 @@ declare const fullApi: ApiFromModules<{
   "ai/context": typeof ai_context;
   "ai/helpers": typeof ai_helpers;
   "ai/memory": typeof ai_memory;
+  "ai/promptSections": typeof ai_promptSections;
   "ai/resilience": typeof ai_resilience;
   "ai/router": typeof ai_router;
   "ai/schemas": typeof ai_schemas;
