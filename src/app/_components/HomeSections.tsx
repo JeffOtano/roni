@@ -74,7 +74,7 @@ interface FaqItem {
 const FAQ_ITEMS: FaqItem[] = [
   {
     q: "Is tonal.coach free?",
-    a: "Yes, tonal.coach is completely free during the beta period. No credit card required. After beta, it will be $10/month with all features included.",
+    a: "Yes, completely free during beta. No credit card required. After 50 users, it'll be $10/month — every workout uses AI that costs real money to run, and we'd rather charge a fair price than sell your data or show ads.",
   },
   {
     q: "Is it safe to connect my Tonal account?",
@@ -302,7 +302,10 @@ export function PricingTeaser() {
               $0
             </span>
             <p className="mt-2 text-muted-foreground">Free while in beta</p>
-            <p className="mt-1 text-sm text-muted-foreground/70">$10/mo after beta</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground/70">
+              AI coaching costs real money to run. $10/mo after beta to keep the lights on &mdash;
+              no ads, no data selling.
+            </p>
             <div className="mt-4 flex justify-center">
               <BetaCounter />
             </div>
