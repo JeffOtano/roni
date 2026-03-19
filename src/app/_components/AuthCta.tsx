@@ -34,6 +34,7 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
       <Button
         size="lg"
         className="h-12 px-8 text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
+        nativeButton={false}
         render={<Link href={href} />}
         disabled={isLoading}
       >
@@ -55,6 +56,7 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
         size="lg"
         variant="ghost"
         className="h-12 rounded-[11px] bg-card px-8 text-base font-semibold text-foreground transition-all duration-300 hover:bg-card/80"
+        nativeButton={false}
         render={<Link href={href} />}
         disabled={isLoading}
       >
