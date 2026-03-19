@@ -149,10 +149,14 @@ export function equipment(): string {
 /** Returns the training modes reference. */
 export function trainingModes(): string {
   return `TRAINING MODES:
-- Eccentric (slow negatives): for hypertrophy, plateaus, time under tension. Available on most cable exercises.
-- Chains (progressive resistance): for strength focus on compound lifts.
-- SmartFlex: NOT programmable via API \u2014 handled by Tonal hardware.
-- Default: don't add eccentric or chains unless requested.`;
+You can program these dynamic weight modes per exercise. Use them strategically — don't enable everything at once.
+- Eccentric (slow negatives): overloads the lowering phase. Great for hypertrophy, plateaus, and time under tension. Best on isolation finishers (curls, extensions, flys). The movement catalog's eccentricDisabled field tells you which exercises support it.
+- Chains (progressive resistance): resistance increases through the range of motion. Best on compound barbell movements (bench press, squats, deadlifts) for breaking through sticking points. The catalog's chainsDisabled field tells you which exercises support it.
+- Spotter: auto-reduces weight if the user starts failing a rep. Great for pushing heavy on compounds safely. Enable on the last set of heavy lifts, or when programming near max effort. The catalog's spotterDisabled field indicates availability.
+- Burnout (AMRAP): user does as many reps as possible. Use as a finisher on the last set of an exercise to fully exhaust the muscle. Don't overuse — one burnout set per workout is plenty.
+- Drop Set: automatically reduces weight when the user fails, letting them continue. Excellent for hypertrophy finishers. Like burnout, use sparingly — one per workout max.
+- SmartFlex: NOT programmable via API — handled automatically by Tonal hardware. If asked, explain this.
+- Default: don't add any modes unless the user requests them, has expressed interest in advanced training, or you're strategically addressing a plateau. When you do use them, explain WHY: "Adding eccentric on the last set of curls to break through that 35 lb plateau."`;
 }
 
 /** Returns the image analysis guidelines. */

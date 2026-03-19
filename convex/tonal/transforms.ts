@@ -8,6 +8,9 @@ export interface ExerciseInput {
   warmUp?: boolean;
   spotter?: boolean;
   eccentric?: boolean;
+  chains?: boolean;
+  burnout?: boolean;
+  dropSet?: boolean;
 }
 
 export interface BlockInput {
@@ -49,13 +52,13 @@ function buildSet({
     round,
     repetition: round,
     repetitionTotal: ex.sets,
-    burnout: false,
+    burnout: ex.burnout ?? false,
     spotter: ex.spotter ?? false,
     eccentric: ex.eccentric ?? false,
-    chains: false,
+    chains: ex.chains ?? false,
     flex: false,
     warmUp: ex.warmUp ?? false,
-    dropSet: false,
+    dropSet: ex.dropSet ?? false,
     weightPercentage: 100,
     description: "",
   };
