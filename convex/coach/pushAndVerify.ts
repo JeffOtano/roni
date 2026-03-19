@@ -66,20 +66,30 @@ type WeekPlanDay = {
 
 type WeekPlan = {
   _id: Id<"weekPlans">;
+  weekStartDate: string;
   days: WeekPlanDay[];
 };
+
+/** Compute ISO date string for a day in the week plan. */
+function dayDate(weekStartDate: string, dayIndex: number): string {
+  const d = new Date(`${weekStartDate}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + dayIndex);
+  return d.toISOString().slice(0, 10);
+}
 
 /** Push a single draft workout to Tonal, retrying once on failure. */
 async function pushOneWorkout(
   ctx: Pick<ActionCtx, "runAction">,
   userId: Id<"users">,
   wp: WorkoutPlan,
+  scheduledDate?: string,
 ): Promise<CreateWorkoutResult> {
   const push = () =>
     ctx.runAction(internal.tonal.mutations.createWorkout, {
       userId,
       title: wp.title,
       blocks: wp.blocks,
+      scheduledDate,
       estimatedDurationMinutes: wp.estimatedDuration,
     }) as Promise<CreateWorkoutResult>;
 
@@ -170,8 +180,9 @@ export const pushWeekPlanToTonal = internalAction({
         await new Promise((r) => setTimeout(r, 2000));
       }
 
-      // Push draft workout
-      const result = await pushOneWorkout(ctx, userId, wp);
+      // Push draft workout with correct scheduled date for calendar
+      const scheduled = dayDate(plan.weekStartDate, i);
+      const result = await pushOneWorkout(ctx, userId, wp, scheduled);
 
       if (result.success) {
         // Swap draft record with the new pushed record
