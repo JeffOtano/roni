@@ -31,6 +31,11 @@ export const refreshActiveUsers = internalAction({
           userId: profile.userId,
           limit: 20,
         });
+
+        // Persist new workout completions to permanent storage
+        await ctx.runAction(internal.tonal.historySync.syncUserHistory, {
+          userId: profile.userId,
+        });
       } catch (error) {
         console.error(`Failed to refresh cache for user ${profile.userId}:`, error);
       }

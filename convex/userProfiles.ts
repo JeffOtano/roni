@@ -263,6 +263,60 @@ export const saveTrainingPreferencesInternal = internalMutation({
   },
 });
 
+/** Get the high-water mark for incremental history sync. */
+export const getLastSyncedActivityDate = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return profile?.lastSyncedActivityDate ?? null;
+  },
+});
+
+/** Update the high-water mark after a successful history sync. */
+export const updateLastSyncedActivityDate = internalMutation({
+  args: { userId: v.id("users"), date: v.string() },
+  handler: async (ctx, { userId, date }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) throw new Error("User profile not found");
+    await ctx.db.patch(profile._id, { lastSyncedActivityDate: date });
+  },
+});
+
+/** Refresh cached profile data from Tonal API response. */
+export const updateProfileData = internalMutation({
+  args: {
+    userId: v.id("users"),
+    profileData: v.object({
+      firstName: v.string(),
+      lastName: v.string(),
+      heightInches: v.number(),
+      weightPounds: v.number(),
+      gender: v.string(),
+      level: v.string(),
+      workoutsPerWeek: v.number(),
+      workoutDurationMin: v.number(),
+      workoutDurationMax: v.number(),
+    }),
+  },
+  handler: async (ctx, { userId, profileData }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) throw new Error("User profile not found");
+    await ctx.db.patch(profile._id, {
+      profileData,
+      profileDataRefreshedAt: Date.now(),
+    });
+  },
+});
+
 /** Get thread staleness threshold for a user (server-only). */
 export const getThreadStaleHours = internalQuery({
   args: { userId: v.id("users") },
