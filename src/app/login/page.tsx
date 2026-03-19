@@ -53,8 +53,13 @@ export default function LoginPage() {
     try {
       await signIn("password", { email, password, flow });
       router.replace("/chat");
-    } catch {
-      if (flow === "signIn") {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("Beta is full")) {
+        setError(
+          "Beta is full! All 50 free spots have been claimed. Join our Discord for waitlist updates.",
+        );
+      } else if (flow === "signIn") {
         setError("Invalid email or password.");
       } else {
         setError("Could not create account. The email may already be in use.");
