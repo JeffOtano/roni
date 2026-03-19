@@ -9,6 +9,7 @@ import {
   HowItWorksSection,
   PricingTeaser,
 } from "./_components/HomeSections";
+import { Testimonials } from "./_components/Testimonials";
 
 import type { Metadata } from "next";
 
@@ -157,7 +158,10 @@ export default function HomePage() {
         {/* 5. Feature Deep-Dives */}
         <FeatureDeepDives />
 
-        {/* 6. FAQ Preview */}
+        {/* 6. Testimonials */}
+        <Testimonials />
+
+        {/* 7. FAQ Preview */}
         <FaqPreview />
 
         {/* 7. Pricing Teaser */}
