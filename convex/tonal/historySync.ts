@@ -221,11 +221,18 @@ export const syncUserHistory = internalAction({
       userId,
       limit: 20,
     });
-    if (activities.length === 0) return;
 
-    const synced = await syncActivitiesAndStrength(ctx, userId, activities);
+    let synced = 0;
+    if (activities.length > 0) {
+      synced = await syncActivitiesAndStrength(ctx, userId, activities);
+    }
+
+    // Always refresh profile (catches weight changes, etc.)
     await maybeRefreshProfile(ctx, userId);
-    console.log(`[historySync] Synced ${synced} new workouts for user ${userId}`);
+
+    if (synced > 0) {
+      console.log(`[historySync] Synced ${synced} new workouts for user ${userId}`);
+    }
   },
 });
 
@@ -237,9 +244,15 @@ export const backfillUserHistory = internalAction({
       userId,
       limit: 100,
     });
-    if (activities.length === 0) return;
 
-    const synced = await syncActivitiesAndStrength(ctx, userId, activities);
+    let synced = 0;
+    if (activities.length > 0) {
+      synced = await syncActivitiesAndStrength(ctx, userId, activities);
+    }
+
+    // Always refresh profile, even for new users with no workouts
+    await maybeRefreshProfile(ctx, userId);
+
     console.log(
       `[historySync] Backfilled ${synced}/${activities.length} workouts for user ${userId}`,
     );
