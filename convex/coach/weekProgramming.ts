@@ -33,7 +33,7 @@ import {
   parseUserLevel,
   SESSION_DURATION_TO_MAX_EXERCISES,
   SESSION_TYPE_MUSCLES,
-  sortForMinimalArmAdjustments,
+  sortForMinimalEquipmentSwitches,
   WARMUP_COOLDOWN_COUNTS,
   warmupBlockFromMovementIds,
 } from "./weekProgrammingHelpers";
@@ -179,8 +179,8 @@ export const generateDraftWeekPlan = internalAction({
       });
       if (rawMovementIds.length === 0) continue;
 
-      // Sort exercises to minimize Tonal arm adjustments within the block
-      const movementIds = sortForMinimalArmAdjustments(rawMovementIds, catalog);
+      // Sort exercises to minimize equipment switching and arm adjustments
+      const movementIds = sortForMinimalEquipmentSwitches(rawMovementIds, catalog);
 
       // Select warmup and cooldown exercises
       const accessoryConstraints = { excludeAccessories: data.constraints?.excludeAccessories };
@@ -242,16 +242,17 @@ export const generateDraftWeekPlan = internalAction({
       });
 
       // Build summary for agent display
+      const allMainExercises = mainBlocks.flatMap((b) => b.exercises);
       const exerciseSummaries = movementIds.map((mid) => {
         const movement = catalog.find((m) => m.id === mid);
         const suggestion = suggestions.find((s) => s.movementId === mid);
-        const block = blocks[0]?.exercises.find((e) => e.movementId === mid);
+        const exercise = allMainExercises.find((e) => e.movementId === mid);
         return {
           movementId: mid,
           name: movement?.name ?? mid,
           muscleGroups: movement?.muscleGroups ?? [],
-          sets: block?.sets ?? 3,
-          reps: block?.reps ?? 10,
+          sets: exercise?.sets ?? 3,
+          reps: exercise?.reps ?? 10,
           lastTime: suggestion?.lastTimeText,
           suggestedTarget: suggestion?.suggestedText,
         };

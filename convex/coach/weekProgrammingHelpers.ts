@@ -148,23 +148,35 @@ export function parseUserLevel(level: string | undefined): number {
 }
 
 /**
- * Build blocks for Tonal. Optional suggestions from getLastTimeAndSuggested (progressive overload)
- * set reps per movement (e.g. 8 when adding weight, last+1 when adding rep).
- * Tonal blocks accept only movementId, sets, reps (and optional duration/spotter/etc.); suggested
- * weight range (e.g. "72-75 lbs") is not sent to Tonal and is for display only in the app.
+ * Build blocks for Tonal, grouped by accessory type with 2-exercise superset blocks.
+ *
+ * Exercises are grouped by their onMachineInfo.accessory value so the user minimizes
+ * equipment switching. Within each accessory group, exercises are paired into 2-exercise
+ * superset blocks. An odd exercise in a group gets its own straight-set block.
+ * Accessory groups are ordered to match the input exercise order (which is already sorted
+ * by accessory via sortForMinimalEquipmentSwitches).
  */
 /** Default duration (seconds) for timed/isometric exercises. */
 const DEFAULT_DURATION_SECONDS = 30;
+
+/** Sentinel for exercises without onMachineInfo (bodyweight/off-machine). */
+const BODYWEIGHT_ACCESSORY = "__bodyweight__";
 
 export function blocksFromMovementIds(
   movementIds: string[],
   suggestions?: { movementId: string; suggestedReps?: number }[],
   options?: {
     isDeload?: boolean;
-    /** Catalog lookup for countReps — movements with countReps=false use duration instead of reps. */
-    catalog?: { id: string; countReps: boolean }[];
+    /** Catalog lookup — countReps for duration detection, onMachineInfo for accessory grouping. */
+    catalog?: {
+      id: string;
+      countReps: boolean;
+      onMachineInfo?: { accessory: string };
+    }[];
   },
 ): BlockInput[] {
+  if (movementIds.length === 0) return [];
+
   const repsByMovement = new Map<string, number>();
   for (const s of suggestions ?? []) {
     if (s.suggestedReps != null) {
@@ -174,23 +186,44 @@ export function blocksFromMovementIds(
   const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
   const normalSets = 3;
   const baseSets = options?.isDeload ? Math.round(normalSets * DELOAD_SET_MULTIPLIER) : normalSets;
-  return [
-    {
-      exercises: movementIds.map((movementId) => {
-        const movement = catalogMap.get(movementId);
-        const isDurationBased = movement ? !movement.countReps : false;
 
-        if (isDurationBased) {
-          return { movementId, sets: baseSets, duration: DEFAULT_DURATION_SECONDS };
-        }
-        return {
-          movementId,
-          sets: baseSets,
-          reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
-        };
-      }),
-    },
-  ];
+  // Group movement IDs by accessory, preserving input order for group ordering.
+  const groupOrder: string[] = [];
+  const groupedByAccessory = new Map<string, string[]>();
+  for (const movementId of movementIds) {
+    const movement = catalogMap.get(movementId);
+    const accessory = movement?.onMachineInfo?.accessory ?? BODYWEIGHT_ACCESSORY;
+    if (!groupedByAccessory.has(accessory)) {
+      groupOrder.push(accessory);
+      groupedByAccessory.set(accessory, []);
+    }
+    groupedByAccessory.get(accessory)!.push(movementId);
+  }
+
+  const buildExercise = (movementId: string) => {
+    const movement = catalogMap.get(movementId);
+    const isDurationBased = movement ? !movement.countReps : false;
+    if (isDurationBased) {
+      return { movementId, sets: baseSets, duration: DEFAULT_DURATION_SECONDS };
+    }
+    return {
+      movementId,
+      sets: baseSets,
+      reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
+    };
+  };
+
+  // Build 2-exercise superset blocks within each accessory group.
+  const blocks: BlockInput[] = [];
+  for (const accessory of groupOrder) {
+    const ids = groupedByAccessory.get(accessory)!;
+    for (let i = 0; i < ids.length; i += 2) {
+      const pair = ids.slice(i, i + 2);
+      blocks.push({ exercises: pair.map(buildExercise) });
+    }
+  }
+
+  return blocks;
 }
 
 /**
@@ -271,22 +304,66 @@ export function inferArmPosition(movement: { name: string; muscleGroups: string[
 }
 
 /**
- * Sort movement IDs to minimize Tonal arm adjustments.
- * Groups exercises by inferred arm position (low → mid → high),
- * preserving compound-before-isolation order within each group.
+ * Sort movement IDs to minimize Tonal equipment switching.
+ *
+ * Primary sort: accessory type — groups all exercises by onMachineInfo.accessory
+ * so the user changes equipment as few times as possible.
+ * Secondary sort: arm position (low → mid → high) within each accessory group
+ * to minimize arm height adjustments.
+ *
+ * Exercises without onMachineInfo (bodyweight) are grouped together at the end.
  */
-export function sortForMinimalArmAdjustments(
+export function sortForMinimalEquipmentSwitches(
   movementIds: string[],
-  catalog: { id: string; name: string; muscleGroups: string[] }[],
+  catalog: {
+    id: string;
+    name: string;
+    muscleGroups: string[];
+    onMachineInfo?: { accessory: string };
+  }[],
 ): string[] {
   const catalogMap = new Map(catalog.map((m) => [m.id, m]));
+
+  // Assign stable numeric indices to accessory types in first-seen order.
+  // This keeps the most common accessory (usually handles) first.
+  const accessoryOrder = new Map<string, number>();
+  for (const movementId of movementIds) {
+    const m = catalogMap.get(movementId);
+    const accessory = m?.onMachineInfo?.accessory ?? BODYWEIGHT_ACCESSORY;
+    if (!accessoryOrder.has(accessory)) {
+      accessoryOrder.set(accessory, accessoryOrder.size);
+    }
+  }
+
   return [...movementIds].sort((a, b) => {
     const ma = catalogMap.get(a);
     const mb = catalogMap.get(b);
+
+    // Primary: accessory type
+    const accA = accessoryOrder.get(ma?.onMachineInfo?.accessory ?? BODYWEIGHT_ACCESSORY) ?? 999;
+    const accB = accessoryOrder.get(mb?.onMachineInfo?.accessory ?? BODYWEIGHT_ACCESSORY) ?? 999;
+    if (accA !== accB) return accA - accB;
+
+    // Secondary: arm position within same accessory
     const posA = ma ? ARM_POSITION_ORDER[inferArmPosition(ma)] : 1;
     const posB = mb ? ARM_POSITION_ORDER[inferArmPosition(mb)] : 1;
     return posA - posB;
   });
+}
+
+/**
+ * @deprecated Use sortForMinimalEquipmentSwitches instead. Kept for backward compatibility.
+ */
+export function sortForMinimalArmAdjustments(
+  movementIds: string[],
+  catalog: {
+    id: string;
+    name: string;
+    muscleGroups: string[];
+    onMachineInfo?: { accessory: string };
+  }[],
+): string[] {
+  return sortForMinimalEquipmentSwitches(movementIds, catalog);
 }
 
 export function formatSessionTitle(
