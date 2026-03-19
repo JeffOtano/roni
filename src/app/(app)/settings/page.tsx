@@ -27,7 +27,8 @@ import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ProfileCard } from "@/components/settings/ProfileCard";
 import { ImpersonateUserPicker } from "@/components/admin/ImpersonateUserPicker";
-import { Link2, LogOut } from "lucide-react";
+import { Link2, LogOut, MessageSquare } from "lucide-react";
+import Link from "next/link";
 
 const SECTION_HEADING =
   "mb-3 border-l-2 border-primary/40 pl-3 text-sm font-semibold text-muted-foreground";
@@ -188,14 +189,37 @@ function SettingsPageInner() {
         <DataExport />
       </section>
 
-      {/* About */}
+      {/* About & Support */}
       <section className="mb-10">
-        <h2 className={SECTION_HEADING}>About</h2>
+        <h2 className={SECTION_HEADING}>About & Support</h2>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="space-y-3 p-4">
             <p className="text-sm text-muted-foreground">
               tonal.coach is an independent project, not affiliated with Tonal.
             </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                nativeButton={false}
+                render={<Link href="/contact" />}
+              >
+                <MessageSquare className="size-3.5" />
+                Contact Us
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                nativeButton={false}
+                render={
+                  <a href="https://discord.gg/dShrKkwz" target="_blank" rel="noopener noreferrer" />
+                }
+              >
+                Discord
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>
