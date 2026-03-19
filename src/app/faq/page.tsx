@@ -188,13 +188,14 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         q: "Will it always be free?",
         aText:
-          "No. Every workout your coach programs uses AI that costs real money to run. During beta, that's on us. After 50 users, we'll charge $10/month to keep things running — no investors, no ads, no data selling. Just a fair price for a tool built by a Tonal owner for Tonal owners.",
+          "Not forever. Every workout your coach programs uses AI that costs real money to run. During beta, that's on us. After beta, there will be a small monthly fee to help cover those costs — the goal is to keep it as affordable as possible. No investors, no ads, no data selling. Just a community tool built by a Tonal owner for Tonal owners.",
         a: (
           <>
-            No. Every workout your coach programs uses AI that costs real money to run. During beta,
-            that&apos;s on us. After 50 users, we&apos;ll charge $10/month to keep things running
-            &mdash; no investors, no ads, no data selling. Just a fair price for a tool built by a
-            Tonal owner for Tonal owners.{" "}
+            Not forever. Every workout your coach programs uses AI that costs real money to run.
+            During beta, that&apos;s on us. After beta, there will be a small monthly fee to help
+            cover those costs &mdash; the goal is to keep it as affordable as possible. No
+            investors, no ads, no data selling. Just a community tool built by a Tonal owner for
+            Tonal owners.{" "}
             <Link href="/pricing" className="text-primary underline underline-offset-2">
               The pricing page has more details
             </Link>
