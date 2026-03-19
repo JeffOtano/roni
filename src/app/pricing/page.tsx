@@ -37,7 +37,7 @@ const productJsonLd = {
     "@type": "Offer",
     price: "0",
     priceCurrency: "USD",
-    description: "Free during beta. $10/month after beta ends.",
+    description: "Free during beta. Small monthly fee after beta to cover AI costs.",
     availability: "https://schema.org/InStock",
   },
 };
@@ -128,12 +128,12 @@ export default function PricingPage() {
               <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                 After beta
               </p>
-              <p className="mt-3 text-3xl font-bold tracking-tight">$10 / month</p>
+              <p className="mt-3 text-2xl font-bold tracking-tight">Pricing TBD</p>
               <p className="mt-4 leading-relaxed text-muted-foreground">
                 Every workout your coach programs uses AI that costs real money to run. During beta,
-                that&apos;s on us. After 50 users, we charge $10/month to keep things running
-                &mdash; no investors, no ads, no data selling. Just a fair price for a tool built by
-                a Tonal owner for Tonal owners.
+                that&apos;s on us. After beta, there will be a small monthly fee to help cover those
+                costs &mdash; the goal is to keep it as low as possible. No investors, no ads, no
+                data selling. Just a community tool built by a Tonal owner for Tonal owners.
               </p>
               <p className="mt-3 text-sm text-muted-foreground/70">
                 Sign up now during beta &mdash; no commitment, no credit card.
