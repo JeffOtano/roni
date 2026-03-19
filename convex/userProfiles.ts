@@ -151,6 +151,15 @@ export const getActiveUsers = internalQuery({
   },
 });
 
+/** Public count of beta users (for landing page counter). */
+export const getBetaUserCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const profiles = await ctx.db.query("userProfiles").collect();
+    return profiles.length;
+  },
+});
+
 const trainingPreferencesArgs = {
   preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
   trainingDays: v.array(v.number()),

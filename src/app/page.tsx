@@ -10,6 +10,7 @@ import {
   PricingTeaser,
 } from "./_components/HomeSections";
 import { Testimonials } from "./_components/Testimonials";
+import { BetaCounter } from "./_components/BetaCounter";
 
 import type { Metadata } from "next";
 
@@ -115,9 +116,9 @@ export default function HomePage() {
           </div>
 
           <div className="relative z-10 mx-auto max-w-3xl">
-            {/* Social proof badge */}
-            <div className="anim-fade-up mb-6 inline-flex items-center rounded-full border border-border bg-card/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
-              Free while in beta
+            {/* Beta counter badge */}
+            <div className="anim-fade-up mb-6 inline-flex items-center rounded-full border border-border bg-card/80 px-4 py-1.5 backdrop-blur-sm">
+              <BetaCounter />
             </div>
 
             <h1

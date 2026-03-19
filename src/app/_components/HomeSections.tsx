@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AuthCta } from "./AuthCta";
+import { BetaCounter } from "./BetaCounter";
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                                */
@@ -302,6 +303,9 @@ export function PricingTeaser() {
             </span>
             <p className="mt-2 text-muted-foreground">Free while in beta</p>
             <p className="mt-1 text-sm text-muted-foreground/70">$10/mo after beta</p>
+            <div className="mt-4 flex justify-center">
+              <BetaCounter />
+            </div>
             <div className="mt-6">
               <AuthCta variant="hero" />
             </div>
