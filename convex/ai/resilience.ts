@@ -63,10 +63,6 @@ interface StreamWithRetryArgs {
   /** Text prompt or multimodal message array (text + images). */
   prompt?: string | Array<ModelMessage>;
   promptMessageId?: string;
-  /** Optional routed specialist agent (overrides primaryAgent for first attempt). */
-  routedPrimary?: Agent;
-  /** Optional routed specialist fallback (overrides fallbackAgent for routed attempts). */
-  routedFallback?: Agent;
 }
 
 type PromptArgs =
@@ -78,27 +74,19 @@ const STREAM_OPTIONS = {
 };
 
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
-  const { primaryAgent, fallbackAgent, threadId, userId, routedPrimary, routedFallback } = args;
+  const { primaryAgent, fallbackAgent, threadId, userId } = args;
   const promptArgs: PromptArgs =
     args.prompt !== undefined
       ? { prompt: args.prompt, maxOutputTokens: MAX_OUTPUT_TOKENS }
       : { promptMessageId: args.promptMessageId!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  const primary = routedPrimary ?? primaryAgent;
-  const fallback = routedFallback ?? fallbackAgent;
-  const isRouted = routedPrimary !== undefined;
-
-  // Attempt 1: primary (routed specialist or monolithic)
+  // Attempt 1: primary (Gemini Pro)
   try {
-    const result = await attemptStream(ctx, primary, threadId, userId, promptArgs);
-    await validateWeekPlanIfNeeded(ctx, primary, threadId, userId, result);
+    const result = await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
+    await validateWeekPlanIfNeeded(ctx, primaryAgent, threadId, userId, result);
     return;
   } catch (error) {
     if (!isTransientError(error)) {
-      // Non-transient error from routed specialist: fall back to monolithic
-      if (isRouted) {
-        return monolithicFallback(ctx, primaryAgent, fallbackAgent, threadId, userId, promptArgs);
-      }
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
     }
@@ -107,59 +95,22 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   // Attempt 2: retry primary after delay
   await delay(RETRY_DELAY_MS);
   try {
-    const result = await attemptStream(ctx, primary, threadId, userId, promptArgs);
-    await validateWeekPlanIfNeeded(ctx, primary, threadId, userId, result);
-    return;
-  } catch (error) {
-    if (!isTransientError(error)) {
-      if (isRouted) {
-        return monolithicFallback(ctx, primaryAgent, fallbackAgent, threadId, userId, promptArgs);
-      }
-      await saveErrorAndNotify(ctx, threadId, userId, error);
-      return;
-    }
-    // Transient error -- fall through to fallback
-  }
-
-  // Attempt 3: routed fallback (or monolithic fallback)
-  try {
-    const result = await attemptStream(ctx, fallback, threadId, userId, promptArgs);
-    await validateWeekPlanIfNeeded(ctx, fallback, threadId, userId, result);
-    return;
-  } catch (error) {
-    // Routed fallback failed: try monolithic as last resort
-    if (isRouted) {
-      return monolithicFallback(ctx, primaryAgent, fallbackAgent, threadId, userId, promptArgs);
-    }
-    await saveErrorAndNotify(ctx, threadId, userId, error);
-  }
-}
-
-/** Last-resort fallback: try the monolithic primary, then monolithic fallback. */
-async function monolithicFallback(
-  ctx: ActionCtx,
-  primaryAgent: Agent,
-  fallbackAgent: Agent,
-  threadId: string,
-  userId: string,
-  promptArgs: PromptArgs,
-): Promise<void> {
-  try {
     const result = await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
     await validateWeekPlanIfNeeded(ctx, primaryAgent, threadId, userId, result);
     return;
-  } catch (innerError) {
-    if (!isTransientError(innerError)) {
-      await saveErrorAndNotify(ctx, threadId, userId, innerError);
+  } catch (error) {
+    if (!isTransientError(error)) {
+      await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
     }
   }
 
+  // Attempt 3: fallback (Gemini Flash)
   try {
     const result = await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
     await validateWeekPlanIfNeeded(ctx, fallbackAgent, threadId, userId, result);
-  } catch (lastError) {
-    await saveErrorAndNotify(ctx, threadId, userId, lastError);
+  } catch (error) {
+    await saveErrorAndNotify(ctx, threadId, userId, error);
   }
 }
 

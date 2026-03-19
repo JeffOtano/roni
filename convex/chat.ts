@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import type { Agent } from "@convex-dev/agent";
 import {
   createThread as agentCreateThread,
   listUIMessages,
@@ -14,30 +13,10 @@ import type { ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { coachAgent, coachAgentFallback } from "./ai/coach";
-import { programmingAgent, programmingAgentFallback } from "./ai/agents/programming";
-import { recoveryAgent, recoveryAgentFallback } from "./ai/agents/recovery";
-import {
-  coachingAgent as coachingSpecialist,
-  coachingAgentFallback as coachingSpecialistFallback,
-} from "./ai/agents/coaching";
-import { classifyIntent, type Intent } from "./ai/router";
 import { streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 
 const MAX_IMAGES_PER_MESSAGE = 4;
-
-function getRoutedAgents(intent: Intent): { primary: Agent; fallback: Agent } | null {
-  switch (intent) {
-    case "programming":
-      return { primary: programmingAgent, fallback: programmingAgentFallback };
-    case "data":
-      return { primary: recoveryAgent, fallback: recoveryAgentFallback };
-    case "coaching":
-      return { primary: coachingSpecialist, fallback: coachingSpecialistFallback };
-    case "general":
-      return null;
-  }
-}
 
 /**
  * Resolves storage IDs to URLs and builds a multimodal ModelMessage array.
@@ -147,22 +126,12 @@ export const sendMessage = action({
 
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
-    const intent = classifyIntent(prompt);
-    const routed = getRoutedAgents(intent);
-    if (routed) {
-      await ctx.runMutation(internal.aiUsage.recordRouting, {
-        userId,
-        threadId: targetThreadId,
-        intent,
-      });
-    }
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
       threadId: targetThreadId,
       userId,
       prompt: resolvedPrompt,
-      ...(routed && { routedPrimary: routed.primary, routedFallback: routed.fallback }),
     });
 
     return { threadId: targetThreadId };
@@ -276,23 +245,12 @@ export const processMessage = internalAction({
   handler: async (ctx, { threadId, userId, prompt, imageStorageIds }) => {
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
-    // Intent classification uses text only (images require AI to classify)
-    const intent = classifyIntent(prompt);
-    const routed = getRoutedAgents(intent);
-    if (routed) {
-      await ctx.runMutation(internal.aiUsage.recordRouting, {
-        userId,
-        threadId,
-        intent,
-      });
-    }
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
       threadId,
       userId,
       prompt: resolvedPrompt,
-      ...(routed && { routedPrimary: routed.primary, routedFallback: routed.fallback }),
     });
   },
 });
