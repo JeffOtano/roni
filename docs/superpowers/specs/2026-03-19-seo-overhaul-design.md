@@ -124,7 +124,7 @@ The homepage expands from 4 sections to 10, roughly tripling indexable content. 
 
 **Hero (rewritten):**
 
-- Social proof badge above headline: "Free while in beta" + metric (e.g., "X workouts pushed")
+- Social proof badge above headline: "Free while in beta" + metric (e.g., "X workouts pushed" — hardcoded for now, updated manually as the product grows)
 - Headline rewritten to include primary keywords naturally (e.g., "AI-powered custom workouts for your Tonal")
 - Subhead: 1-2 sentences explaining the value prop with keywords
 - Dual CTA: primary "Start Free" + secondary "See How It Works" (anchor link)
@@ -371,7 +371,7 @@ Must include primary keyword cluster. Current "The personal trainer your Tonal d
 
 ### File Impact Estimate
 
-**New files (~12):**
+**New files (~13):**
 
 - `src/app/features/page.tsx`
 - `src/app/features/layout.tsx`
@@ -385,16 +385,16 @@ Must include primary keyword cluster. Current "The personal trainer your Tonal d
 - `src/app/pricing/page.tsx`
 - `src/app/pricing/layout.tsx`
 - `src/app/pricing/opengraph-image.tsx`
+- `public/llms-full.txt` (comprehensive AI agent doc)
 
-**Modified files (~8):**
+**Modified files (~7):**
 
-- `src/app/page.tsx` (landing page redesign)
+- `src/app/page.tsx` (landing page redesign — includes nav and footer, which are inline in this file)
 - `src/app/layout.tsx` (enhanced root metadata, Organization schema)
 - `src/app/JsonLd.tsx` (expanded schemas)
 - `src/app/sitemap.ts` (7 URLs)
 - `src/app/robots.ts` (AI bot directives)
 - `public/llms.txt` (expanded, spec-compliant)
-- `public/llms-full.txt` (new comprehensive doc)
 - `next.config.ts` (security headers)
 
 **Pricing model:** Free during beta, $10/month fixed cost after beta ends. Pricing page and copy should reflect this transition clearly with urgency to sign up during beta.
