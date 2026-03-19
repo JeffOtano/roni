@@ -46,6 +46,10 @@ export default defineSchema({
     lastActiveAt: v.number(),
     /** When the user first connected their Tonal account (signup for activation analytics). */
     tonalConnectedAt: v.optional(v.number()),
+    /** ISO date of the most recent synced activity (high-water mark for incremental sync). */
+    lastSyncedActivityDate: v.optional(v.string()),
+    /** Timestamp when profile data was last refreshed from Tonal API. */
+    profileDataRefreshedAt: v.optional(v.number()),
     /** When the user first completed an AI-programmed workout on Tonal (activation). */
     firstAiWorkoutCompletedAt: v.optional(v.number()),
     /** In-app check-in preferences. Omitted = enabled with default frequency. */
@@ -406,4 +410,52 @@ export default defineSchema({
     error: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_tool", ["toolName", "createdAt"]),
+
+  /** Permanent record of completed Tonal workouts (synced from activity history). */
+  completedWorkouts: defineTable({
+    userId: v.id("users"),
+    activityId: v.string(),
+    date: v.string(),
+    title: v.string(),
+    targetArea: v.string(),
+    totalVolume: v.number(),
+    totalDuration: v.number(),
+    totalWork: v.number(),
+    workoutType: v.string(),
+    tonalWorkoutId: v.optional(v.string()),
+    syncedAt: v.number(),
+  })
+    .index("by_userId_activityId", ["userId", "activityId"])
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId", ["userId"]),
+
+  /** Per-exercise performance snapshots from each completed workout. */
+  exercisePerformance: defineTable({
+    userId: v.id("users"),
+    activityId: v.string(),
+    movementId: v.string(),
+    date: v.string(),
+    sets: v.number(),
+    totalReps: v.number(),
+    avgWeightLbs: v.optional(v.number()),
+    totalVolume: v.optional(v.number()),
+    syncedAt: v.number(),
+  })
+    .index("by_userId_movementId", ["userId", "movementId"])
+    .index("by_userId_activityId", ["userId", "activityId"])
+    .index("by_userId_date", ["userId", "date"]),
+
+  /** Strength score snapshots over time (synced from Tonal history). */
+  strengthScoreSnapshots: defineTable({
+    userId: v.id("users"),
+    date: v.string(),
+    overall: v.number(),
+    upper: v.number(),
+    lower: v.number(),
+    core: v.number(),
+    workoutActivityId: v.optional(v.string()),
+    syncedAt: v.number(),
+  })
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId", ["userId"]),
 });
