@@ -1,6 +1,9 @@
-import { internalAction, internalMutation } from "../_generated/server";
+import { internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
+import { generateText, Output } from "ai";
+import { google } from "@ai-sdk/google";
+import { z } from "zod";
 import { buildLibraryWorkout, enumerateValidCombos } from "./libraryGeneration";
 
 export const upsertLibraryWorkout = internalMutation({
@@ -57,6 +60,99 @@ export const generateBatch = internalAction({
     }
 
     return { created, skipped, total: combos.length };
+  },
+});
+
+export const getWorkoutsNeedingDescriptions = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("libraryWorkouts").collect();
+    return all.filter((w) => !w.description || w.description === "");
+  },
+});
+
+export const updateDescription = internalMutation({
+  args: {
+    slug: v.string(),
+    description: v.string(),
+    metaDescription: v.string(),
+  },
+  handler: async (ctx, { slug, description, metaDescription }) => {
+    const workout = await ctx.db
+      .query("libraryWorkouts")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    if (workout) {
+      await ctx.db.patch(workout._id, { description, metaDescription });
+    }
+  },
+});
+
+const descriptionBatchSchema = z.object({
+  workouts: z.array(
+    z.object({
+      slug: z.string(),
+      description: z.string(),
+      metaDescription: z.string(),
+    }),
+  ),
+});
+
+export const generateDescriptions = internalAction({
+  args: { batchSize: v.optional(v.number()) },
+  handler: async (ctx, { batchSize = 20 }) => {
+    const allWorkouts: Array<{
+      slug: string;
+      title: string;
+      sessionType: string;
+      goal: string;
+      level: string;
+      durationMinutes: number;
+      exerciseCount: number;
+      targetMuscleGroups: string[];
+    }> = await ctx.runQuery(internal.coach.libraryGenerationActions.getWorkoutsNeedingDescriptions);
+
+    const batch = allWorkouts.slice(0, batchSize);
+    if (batch.length === 0) return { processed: 0, remaining: 0 };
+
+    const workoutSummaries = batch.map((w) => ({
+      slug: w.slug,
+      title: w.title,
+      sessionType: w.sessionType,
+      goal: w.goal,
+      level: w.level,
+      durationMinutes: w.durationMinutes,
+      exerciseCount: w.exerciseCount,
+      targetMuscleGroups: w.targetMuscleGroups,
+    }));
+
+    const { output } = await generateText({
+      model: google("gemini-2.5-flash"),
+      output: Output.object({ schema: descriptionBatchSchema }),
+      prompt: `Generate SEO-friendly descriptions for the following strength training workouts.
+
+For each workout, produce:
+- description: 2-3 sentences describing the workout, its goals, and what makes it effective. Write in second person ("you"). Be specific about muscle groups, goals, and training level.
+- metaDescription: A concise summary under 155 characters for use as an HTML meta description. Include key details like session type, goal, and level.
+
+Workouts:
+${JSON.stringify(workoutSummaries, null, 2)}
+
+Return an array of objects with slug, description, and metaDescription for each workout.`,
+    });
+
+    for (const item of output.workouts) {
+      await ctx.runMutation(internal.coach.libraryGenerationActions.updateDescription, {
+        slug: item.slug,
+        description: item.description,
+        metaDescription: item.metaDescription,
+      });
+    }
+
+    return {
+      processed: batch.length,
+      remaining: allWorkouts.length - batch.length,
+    };
   },
 });
 
