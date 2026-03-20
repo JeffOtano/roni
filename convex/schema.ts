@@ -466,4 +466,46 @@ export default defineSchema({
     lastName: v.string(),
     createdAt: v.number(),
   }).index("by_email", ["email"]),
+
+  /** Pre-generated workout library entries for SEO and inspiration. */
+  libraryWorkouts: defineTable({
+    slug: v.string(),
+    title: v.string(),
+    description: v.string(),
+    sessionType: v.string(),
+    goal: v.string(),
+    durationMinutes: v.number(),
+    level: v.string(),
+    equipmentConfig: v.string(),
+    blocks: blockInputValidator,
+    movementDetails: v.array(
+      v.object({
+        movementId: v.string(),
+        name: v.string(),
+        shortName: v.string(),
+        muscleGroups: v.array(v.string()),
+        sets: v.number(),
+        reps: v.optional(v.number()),
+        duration: v.optional(v.number()),
+        phase: v.union(v.literal("warmup"), v.literal("main"), v.literal("cooldown")),
+        thumbnailMediaUrl: v.optional(v.string()),
+        accessory: v.optional(v.string()),
+      }),
+    ),
+    targetMuscleGroups: v.array(v.string()),
+    exerciseCount: v.number(),
+    totalSets: v.number(),
+    equipmentNeeded: v.array(v.string()),
+    metaTitle: v.string(),
+    metaDescription: v.string(),
+    generationVersion: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_goal", ["goal"])
+    .index("by_sessionType", ["sessionType"])
+    .index("by_level", ["level"])
+    .index("by_durationMinutes", ["durationMinutes"])
+    .index("by_equipmentConfig", ["equipmentConfig"])
+    .index("by_generationVersion", ["generationVersion"]),
 });
