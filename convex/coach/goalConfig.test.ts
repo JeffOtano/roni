@@ -29,9 +29,12 @@ describe("getExcludedAccessoriesForConfig", () => {
   it("excludes bar, rope, roller for handles_only", () => {
     const excluded = getExcludedAccessoriesForConfig("handles_only");
     expect(excluded).toContain("Smart Bar");
+    expect(excluded).toContain("StraightBar");
+    expect(excluded).toContain("Bar");
     expect(excluded).toContain("Rope");
     expect(excluded).toContain("Roller");
     expect(excluded).toContain("Weight Bar");
+    expect(excluded).toContain("Barbell");
   });
 
   it("returns empty array for full_accessories", () => {
