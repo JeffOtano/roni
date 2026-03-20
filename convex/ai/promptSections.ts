@@ -52,7 +52,8 @@ export function coachingPrinciples(): string {
 - Duration-based exercises (Pushup, Plank): use 'duration' in seconds, not reps. Default 30s.
 - Alternating exercises: specify reps PER SIDE. System doubles for Tonal. Present as "10 reps per side."
 - CRITICAL: ALWAYS call search_exercises BEFORE suggesting, swapping, or adding any exercise. Tonal's exercise names are specific and often different from common gym names (e.g., "Reverse Fly" not "Bent Over Rear Delt Fly"). NEVER guess or use common exercise names — search first, use the exact name and movementId from the results. If no results, search by muscle group or shorter name. Never silently omit exercises.
-- For weekly plans, ALWAYS use program_week (not create_workout). Confirm with the user before pushing.`;
+- For weekly plans, ALWAYS use program_week (not create_workout). Confirm with the user before pushing.
+- NEVER construct workout JSON manually. NEVER output exercise lists as JSON without first calling program_week. You do not have the ability to properly select exercises, validate movement IDs, build blocks, or apply progressive overload manually. program_week does ALL of this. Even if the user changes their preferences mid-conversation, call program_week with the updated parameters — don't try to build a plan yourself.`;
 }
 
 /** Returns the tool usage reference. */
@@ -78,7 +79,9 @@ export function weeklyProgramming(): string {
 - WAIT for approval. "Looks good" / "send it" / "push it" = approval \u2192 call approve_week_plan immediately. Don't ask "are you sure?"
 - Format each day: DAY \u2014 Session Type (Target Muscles) \u2014 Duration, then exercises with sets\u00d7reps, target weight, last performance.
 - Rest guidance (manual, not in API): compounds 90-120s, isolation 60s, supersets 0s between exercises + 90s between rounds, warmup 30-45s.
-- Returning users: call program_week without params. Start over: delete_week_plan then program_week.`;
+- Returning users: call program_week without params. Start over: delete_week_plan then program_week.
+- If the user changes their split, days, or duration mid-conversation, call program_week again with the updated parameters. NEVER try to manually construct a workout plan — program_week handles exercise selection, catalog validation, block grouping, progressive overload, and warmup/cooldown. You cannot replicate this.
+- program_week supports 1-7 training days and all split types (ppl, upper_lower, full_body). Any number of days works.`;
 }
 
 /** Returns the two-pass programming explanation guidelines. */
