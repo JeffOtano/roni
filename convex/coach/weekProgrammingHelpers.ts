@@ -12,6 +12,7 @@ import { DELOAD_REPS, DELOAD_SET_MULTIPLIER } from "../coach/periodization";
 // ---------------------------------------------------------------------------
 
 export const SESSION_DURATION_TO_MAX_EXERCISES: Record<number, number> = {
+  20: 4,
   30: 6,
   45: 8,
   60: 10,
@@ -37,6 +38,15 @@ export const SESSION_TYPE_MUSCLES: Record<string, string[]> = {
     "Hamstrings",
     "Calves",
   ],
+  chest: ["Chest", "Triceps"],
+  back: ["Back", "Biceps"],
+  shoulders: ["Shoulders", "Triceps"],
+  arms: ["Biceps", "Triceps"],
+  core: ["Core", "Obliques"],
+  glutes_hamstrings: ["Glutes", "Hamstrings"],
+  chest_back: ["Chest", "Back"],
+  mobility: [],
+  recovery: [],
 };
 
 export const DEFAULT_REPS = 10;
