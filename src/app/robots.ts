@@ -15,7 +15,7 @@ const APP_ROUTES = [
   "/settings",
   "/stats",
   "/strength",
-  "/workouts",
+  "/activity",
 ];
 
 export default function robots(): MetadataRoute.Robots {

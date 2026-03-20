@@ -78,7 +78,7 @@ function WorkoutRow({ activity, index }: { activity: Activity; index: number }) 
 
   return (
     <Link
-      href={`/workouts/${activity.activityId}`}
+      href={`/activity/${activity.activityId}`}
       className={cn(
         "group flex flex-col gap-1.5 rounded-lg border border-border border-l-2 bg-muted/30 px-3 py-2.5 transition-all duration-200 hover:bg-muted/50",
         accentColor,
