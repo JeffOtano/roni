@@ -171,7 +171,7 @@ export const coachAgentConfig = {
 
 export const coachAgent = new Agent(components.agent, {
   name: "Tonal Coach",
-  languageModel: google("gemini-2.5-pro"),
+  languageModel: google("gemini-3-flash-preview"),
   ...coachAgentConfig,
 });
 
