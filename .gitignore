@@ -44,3 +44,11 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Agent directories
+.agent/*
+.claude/*
+.factory/*
+.junie/*
+.kiro/*
+.windsurf/*
