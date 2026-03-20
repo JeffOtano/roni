@@ -218,6 +218,10 @@ export function buildLibraryWorkout(input: BuildLibraryWorkoutInput): LibraryWor
 
   if (equipmentConfig === "bodyweight_only") {
     filteredCatalog = filteredCatalog.filter((m) => m.inFreeLift === true);
+  } else {
+    // For machine-based configs, only include on-machine exercises.
+    // Without this, bodyweight exercises leak into handles/bar workouts.
+    filteredCatalog = filteredCatalog.filter((m) => m.onMachine);
   }
 
   if (sessionType === "mobility") {

@@ -24,6 +24,20 @@ export const upsertLibraryWorkout = internalMutation({
   },
 });
 
+export const deleteByVersion = internalMutation({
+  args: { generationVersion: v.number() },
+  handler: async (ctx, { generationVersion }) => {
+    const workouts = await ctx.db
+      .query("libraryWorkouts")
+      .withIndex("by_generationVersion", (q) => q.eq("generationVersion", generationVersion))
+      .take(100);
+    for (const w of workouts) {
+      await ctx.db.delete(w._id);
+    }
+    return { deleted: workouts.length, hasMore: workouts.length === 100 };
+  },
+});
+
 export const generateBatch = internalAction({
   args: {
     sessionTypes: v.array(v.string()),

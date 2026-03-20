@@ -70,11 +70,30 @@ export function getMaxExercises(duration: LibraryDuration): number {
 }
 
 export function getExcludedAccessoriesForConfig(config: LibraryEquipmentConfig): string[] {
+  // Tonal API uses multiple names for the same equipment (see ACCESSORY_MAP in accessories.ts).
+  // All variant names must be listed to fully exclude an accessory type.
   switch (config) {
     case "handles_only":
-      return ["Smart Bar", "Rope", "Roller", "Weight Bar"];
+      return [
+        "Smart Bar",
+        "StraightBar",
+        "Bar", // bar variants
+        "Rope", // rope
+        "Roller", // roller
+        "Weight Bar",
+        "Barbell", // weight bar variants
+        "Pilates Loops",
+        "PilatesLoops", // pilates loops
+        "AnkleStraps", // ankle straps
+      ];
     case "handles_bar":
-      return ["Rope", "Roller"];
+      return [
+        "Rope", // rope
+        "Roller", // roller
+        "Pilates Loops",
+        "PilatesLoops", // pilates loops
+        "AnkleStraps", // ankle straps
+      ];
     case "full_accessories":
       return [];
     case "bodyweight_only":
