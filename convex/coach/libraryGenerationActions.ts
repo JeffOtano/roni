@@ -170,6 +170,92 @@ Return an array of objects with slug, description, and metaDescription for each 
   },
 });
 
+// ---------------------------------------------------------------------------
+// Push library workouts to Tonal via service account
+// ---------------------------------------------------------------------------
+
+export const getUnpushedWorkouts = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("libraryWorkouts").take(100);
+    return all.filter((w) => !w.tonalWorkoutId);
+  },
+});
+
+export const setTonalWorkoutId = internalMutation({
+  args: {
+    slug: v.string(),
+    tonalWorkoutId: v.string(),
+  },
+  handler: async (ctx, { slug, tonalWorkoutId }) => {
+    const workout = await ctx.db
+      .query("libraryWorkouts")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    if (workout) {
+      await ctx.db.patch(workout._id, { tonalWorkoutId });
+    }
+  },
+});
+
+export const pushToTonalBatch = internalAction({
+  args: { serviceAccountUserId: v.string() },
+  handler: async (
+    ctx,
+    { serviceAccountUserId },
+  ): Promise<{ pushed: number; failed: number; remaining: number }> => {
+    const unpushed: Array<{
+      slug: string;
+      title: string;
+      blocks: Array<{
+        exercises: Array<{
+          movementId: string;
+          sets: number;
+          reps?: number;
+          duration?: number;
+          warmUp?: boolean;
+          spotter?: boolean;
+          eccentric?: boolean;
+          chains?: boolean;
+          burnout?: boolean;
+          dropSet?: boolean;
+        }>;
+      }>;
+      tonalWorkoutId?: string;
+    }> = await ctx.runQuery(internal.coach.libraryGenerationActions.getUnpushedWorkouts);
+
+    if (unpushed.length === 0) return { pushed: 0, failed: 0, remaining: 0 };
+
+    let pushed = 0;
+    let failed = 0;
+
+    for (const workout of unpushed) {
+      try {
+        const result: { id: string } = await ctx.runAction(
+          internal.tonal.mutations.doTonalCreateWorkout,
+          {
+            userId: serviceAccountUserId as never,
+            title: workout.title,
+            blocks: workout.blocks,
+          },
+        );
+
+        await ctx.runMutation(internal.coach.libraryGenerationActions.setTonalWorkoutId, {
+          slug: workout.slug,
+          tonalWorkoutId: result.id,
+        });
+        pushed++;
+      } catch (e) {
+        console.error(`Failed to push ${workout.slug}:`, e);
+        failed++;
+        if (failed >= 3) break;
+      }
+    }
+
+    return { pushed, failed, remaining: unpushed.length - pushed - failed };
+  },
+});
+
 export const generateAll = internalAction({
   args: { generationVersion: v.number() },
   handler: async (
