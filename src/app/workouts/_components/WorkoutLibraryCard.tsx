@@ -56,20 +56,22 @@ export function WorkoutLibraryCard({ workout }: { workout: WorkoutCardData }) {
       </p>
 
       {/* Stats */}
-      <div className="flex items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
+          <Clock className="h-3 w-3 shrink-0" />
           {workout.durationMinutes}m
         </span>
         <span className={`capitalize ${levelColor}`}>{workout.level}</span>
         <span className="flex items-center gap-1">
-          <Dumbbell className="h-3 w-3" />
-          {workout.exerciseCount} exercises
+          <Dumbbell className="h-3 w-3 shrink-0" />
+          {workout.exerciseCount}
         </span>
-        <span className="flex items-center gap-1">
-          <BarChart3 className="h-3 w-3" />
-          {workout.totalSets} sets
-        </span>
+        {workout.totalSets > 0 && (
+          <span className="flex items-center gap-1">
+            <BarChart3 className="h-3 w-3 shrink-0" />
+            {workout.totalSets}
+          </span>
+        )}
       </div>
     </Link>
   );
