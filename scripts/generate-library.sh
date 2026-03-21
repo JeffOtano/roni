@@ -48,9 +48,14 @@ if [ "$PUSH_ONLY" = false ]; then
 
       created=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['created'])" 2>/dev/null || echo "?")
       skipped=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['skipped'])" 2>/dev/null || echo "?")
+      existing=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['existing'])" 2>/dev/null || echo "?")
       has_more=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['hasMore'])" 2>/dev/null || echo "false")
 
-      echo "  offset=$offset: created=$created skipped=$skipped"
+      echo "  offset=$offset: created=$created skipped=$skipped existing=$existing"
+
+      if [ "$created" = "?" ]; then
+        echo "  ERROR: $result"
+      fi
 
       if [ "$has_more" != "True" ] && [ "$has_more" != "true" ]; then
         break
