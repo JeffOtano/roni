@@ -77,37 +77,27 @@ export function WorkoutLibraryCard({ workout }: { readonly workout: WorkoutCardD
       <div className="flex-1" />
 
       {/* Stats footer */}
-      <div className="mt-3 flex items-center gap-4 border-t border-border pt-3">
-        {/* Duration */}
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="font-mono tabular-nums">{workout.durationMinutes}</span>
-          min
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Clock className="size-3 shrink-0" aria-hidden="true" />
+          {workout.durationMinutes}m
         </span>
-
-        {/* Exercises */}
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Dumbbell className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="font-mono tabular-nums">{workout.exerciseCount}</span>
-          exercises
+        <span className="flex items-center gap-1">
+          <Dumbbell className="size-3 shrink-0" aria-hidden="true" />
+          {workout.exerciseCount} ex
         </span>
-
-        {/* Sets (only when > 0) */}
         {workout.totalSets > 0 && (
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Layers className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="font-mono tabular-nums">{workout.totalSets}</span>
-            sets
+          <span className="flex items-center gap-1">
+            <Layers className="size-3 shrink-0" aria-hidden="true" />
+            {workout.totalSets} sets
           </span>
         )}
-
-        {/* Level - pushed to far right */}
-        <span className="ml-auto flex items-center gap-1.5 text-xs">
+        <span className={cn("flex items-center gap-1 capitalize", levelConfig.text)}>
           <span
             className={cn("inline-block size-1.5 rounded-full", levelConfig.dot)}
             aria-hidden="true"
           />
-          <span className={cn("capitalize", levelConfig.text)}>{workout.level}</span>
+          {workout.level}
         </span>
       </div>
 
