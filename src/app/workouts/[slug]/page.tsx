@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchQuery } from "convex/nextjs";
-import { BarChart3, Clock, Dumbbell, Layers } from "lucide-react";
+import { ArrowLeft, BarChart3, Clock, Dumbbell, Layers } from "lucide-react";
 import { api } from "../../../../convex/_generated/api";
 import {
   getGoalLabel,
@@ -70,29 +70,39 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-8">
-      <WorkoutJsonLd workout={workout} />
+      <WorkoutJsonLd workout={workout} sessionLabel={sessionLabel} goalLabel={goalLabel} />
 
-      {/* Breadcrumbs */}
-      <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-        <Link href="/workouts" className="hover:text-foreground">
-          Workouts
-        </Link>
-        <span>/</span>
+      {/* Back + Breadcrumbs */}
+      <div className="mb-6 flex items-center gap-3">
         <Link
-          href={`/workouts?sessionType=${workout.sessionType}`}
-          className="hover:text-foreground"
+          href="/workouts"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
-          {sessionLabel}
+          <ArrowLeft className="size-3.5" />
+          All Workouts
         </Link>
-        <span>/</span>
-        <Link href={`/workouts?goal=${workout.goal}`} className="hover:text-foreground">
-          {goalLabel}
-        </Link>
-        <span>/</span>
-        <span>
-          {workout.durationMinutes}min <span className="capitalize">{workout.level}</span>
-        </span>
-      </nav>
+        <span className="text-xs text-border">|</span>
+        <nav className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          <Link href="/workouts" className="hover:text-foreground">
+            Workouts
+          </Link>
+          <span>/</span>
+          <Link
+            href={`/workouts?sessionType=${workout.sessionType}`}
+            className="hover:text-foreground"
+          >
+            {sessionLabel}
+          </Link>
+          <span>/</span>
+          <Link href={`/workouts?goal=${workout.goal}`} className="hover:text-foreground">
+            {goalLabel}
+          </Link>
+          <span>/</span>
+          <span>
+            {workout.durationMinutes}min <span className="capitalize">{workout.level}</span>
+          </span>
+        </nav>
+      </div>
 
       {/* Title + description */}
       <h1 className="mb-3 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">

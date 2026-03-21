@@ -9,6 +9,7 @@ interface WorkoutJsonLdProps {
     title: string;
     description: string;
     sessionType: string;
+    goal: string;
     durationMinutes: number;
     level: string;
     totalSets: number;
@@ -17,9 +18,11 @@ interface WorkoutJsonLdProps {
     createdAt: number;
     faq?: FaqItem[];
   };
+  sessionLabel: string;
+  goalLabel: string;
 }
 
-export function WorkoutJsonLd({ workout }: WorkoutJsonLdProps) {
+export function WorkoutJsonLd({ workout, sessionLabel, goalLabel }: WorkoutJsonLdProps) {
   const schemas: object[] = [
     {
       "@context": "https://schema.org",
@@ -51,6 +54,36 @@ export function WorkoutJsonLd({ workout }: WorkoutJsonLdProps) {
       },
     },
   ];
+
+  schemas.push({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Workouts",
+        item: "https://tonal.coach/workouts",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: sessionLabel,
+        item: `https://tonal.coach/workouts?sessionType=${workout.sessionType}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: goalLabel,
+        item: `https://tonal.coach/workouts?goal=${workout.goal}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: workout.title,
+      },
+    ],
+  });
 
   if (workout.faq && workout.faq.length > 0) {
     schemas.push({
