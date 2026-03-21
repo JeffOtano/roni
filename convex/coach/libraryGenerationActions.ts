@@ -5,11 +5,47 @@ import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { buildLibraryWorkout, enumerateValidCombos } from "./libraryGeneration";
+import { blockInputValidator } from "../validators";
+
+const libraryWorkoutValidator = v.object({
+  slug: v.string(),
+  title: v.string(),
+  description: v.string(),
+  sessionType: v.string(),
+  goal: v.string(),
+  durationMinutes: v.number(),
+  level: v.string(),
+  equipmentConfig: v.string(),
+  blocks: blockInputValidator,
+  movementDetails: v.array(
+    v.object({
+      movementId: v.string(),
+      name: v.string(),
+      shortName: v.string(),
+      muscleGroups: v.array(v.string()),
+      sets: v.number(),
+      reps: v.optional(v.number()),
+      duration: v.optional(v.number()),
+      phase: v.union(v.literal("warmup"), v.literal("main"), v.literal("cooldown")),
+      thumbnailMediaUrl: v.optional(v.string()),
+      accessory: v.optional(v.string()),
+    }),
+  ),
+  targetMuscleGroups: v.array(v.string()),
+  exerciseCount: v.number(),
+  totalSets: v.number(),
+  equipmentNeeded: v.array(v.string()),
+  metaTitle: v.string(),
+  metaDescription: v.string(),
+  tonalWorkoutId: v.optional(v.string()),
+  generationVersion: v.number(),
+  createdAt: v.number(),
+});
 
 export const upsertLibraryWorkout = internalMutation({
   args: {
     slug: v.string(),
-    data: v.any(),
+    data: libraryWorkoutValidator,
   },
   handler: async (ctx, { slug, data }) => {
     const existing = await ctx.db
@@ -207,7 +243,7 @@ export const setTonalWorkoutId = internalMutation({
 });
 
 export const pushToTonalBatch = internalAction({
-  args: { serviceAccountUserId: v.string() },
+  args: { serviceAccountUserId: v.id("users") },
   handler: async (
     ctx,
     { serviceAccountUserId },
@@ -242,7 +278,7 @@ export const pushToTonalBatch = internalAction({
         const result: { id: string } = await ctx.runAction(
           internal.tonal.mutations.doTonalCreateWorkout,
           {
-            userId: serviceAccountUserId as never,
+            userId: serviceAccountUserId,
             title: workout.title,
             blocks: workout.blocks,
           },
