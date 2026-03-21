@@ -78,19 +78,20 @@ export const generateBatch = internalAction({
   args: {
     sessionTypes: v.array(v.string()),
     generationVersion: v.number(),
+    offset: v.optional(v.number()),
+    limit: v.optional(v.number()),
   },
-  handler: async (ctx, { sessionTypes, generationVersion }) => {
+  handler: async (ctx, { sessionTypes, generationVersion, offset = 0, limit = 25 }) => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
 
-    const combos = enumerateValidCombos().filter((c) => sessionTypes.includes(c.sessionType));
+    const allCombos = enumerateValidCombos().filter((c) => sessionTypes.includes(c.sessionType));
+    const combos = allCombos.slice(offset, offset + limit);
 
     let created = 0;
     let skipped = 0;
-    const recentBySession: Record<string, string[]> = {};
 
     for (const combo of combos) {
-      const recent = recentBySession[combo.sessionType] ?? [];
-      const workout = await buildLibraryWorkout({ combo, catalog, recentMovementIds: recent });
+      const workout = await buildLibraryWorkout({ combo, catalog, recentMovementIds: [] });
 
       if (!workout) {
         skipped++;
@@ -99,9 +100,6 @@ export const generateBatch = internalAction({
 
       workout.generationVersion = generationVersion;
 
-      const ids = workout.movementDetails.map((m) => m.movementId);
-      recentBySession[combo.sessionType] = [...recent, ...ids].slice(-30);
-
       await ctx.runMutation(internal.coach.libraryGenerationActions.upsertLibraryWorkout, {
         slug: workout.slug,
         data: workout,
@@ -109,7 +107,9 @@ export const generateBatch = internalAction({
       created++;
     }
 
-    return { created, skipped, total: combos.length };
+    const hasMore = offset + limit < allCombos.length;
+    const nextOffset = hasMore ? offset + limit : null;
+    return { created, skipped, batch: combos.length, total: allCombos.length, nextOffset, hasMore };
   },
 });
 
