@@ -13,6 +13,7 @@ interface MovementDetail {
   phase: "warmup" | "main" | "cooldown";
   thumbnailMediaUrl?: string;
   accessory?: string;
+  coachingCue?: string;
 }
 
 interface WorkoutBlockDisplayProps {
@@ -79,12 +80,17 @@ export function WorkoutBlockDisplay({ blocks, movementDetails }: WorkoutBlockDis
                       <div className="h-10 w-10 shrink-0 rounded bg-muted" aria-hidden />
                     )}
 
-                    {/* Name + muscles */}
+                    {/* Name + muscles + cue */}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{name}</p>
                       {muscles.length > 0 && (
                         <p className="truncate text-xs text-muted-foreground">
                           {muscles.join(", ")}
+                        </p>
+                      )}
+                      {detail?.coachingCue && (
+                        <p className="mt-0.5 text-[11px] italic text-primary/70">
+                          {detail.coachingCue}
                         </p>
                       )}
                     </div>
