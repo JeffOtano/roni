@@ -174,3 +174,44 @@ export function generateTitle(
 export function generateMetaTitle(title: string): string {
   return `${title} | Free Tonal Workout`;
 }
+
+const GOAL_DESCRIPTIONS: Record<LibraryGoal, string> = {
+  build_muscle: "maximize muscle growth with hypertrophy-focused rep ranges",
+  fat_loss: "burn calories and build lean muscle with high-rep supersets",
+  strength: "build raw strength with heavy, low-rep compound movements",
+  endurance: "improve muscular endurance with high-rep, low-rest training",
+  athletic: "develop balanced power and coordination for athletic performance",
+  general_fitness: "build a solid fitness foundation with balanced training",
+  power: "develop explosive force with max-effort, low-rep movements",
+  functional: "strengthen real-world movement patterns for daily life",
+  mobility_flexibility: "improve range of motion and joint health",
+  sport_complement: "reduce injury risk and improve performance for endurance athletes",
+};
+
+export function generateDescription(
+  combo: Pick<ComboInput, "sessionType" | "goal" | "durationMinutes" | "level">,
+  exerciseCount: number,
+  targetMuscleGroups: string[],
+): string {
+  const sessionLabel = getSessionTypeLabel(combo.sessionType).toLowerCase();
+  const muscles = targetMuscleGroups.slice(0, 3).join(", ").toLowerCase();
+  const goalDesc = GOAL_DESCRIPTIONS[combo.goal];
+
+  return (
+    `This ${combo.durationMinutes}-minute ${sessionLabel} workout targets ${muscles} ` +
+    `with ${exerciseCount} exercises designed to ${goalDesc}. ` +
+    `Built for ${combo.level} lifters using the Tonal home gym.`
+  );
+}
+
+export function generateMetaDescription(
+  combo: Pick<ComboInput, "sessionType" | "goal" | "durationMinutes" | "level">,
+  exerciseCount: number,
+): string {
+  const sessionLabel = getSessionTypeLabel(combo.sessionType);
+  const goalLabel = getGoalLabel(combo.goal);
+  return (
+    `Free ${combo.durationMinutes}min ${sessionLabel.toLowerCase()} ${goalLabel.toLowerCase()} ` +
+    `Tonal workout for ${combo.level} lifters. ${exerciseCount} exercises. Open directly in your Tonal app.`
+  );
+}

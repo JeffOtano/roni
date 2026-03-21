@@ -1,4 +1,6 @@
 import {
+  generateDescription,
+  generateMetaDescription,
   generateMetaTitle,
   generateSlug,
   generateTitle,
@@ -303,10 +305,13 @@ export function buildLibraryWorkout(input: BuildLibraryWorkoutInput): LibraryWor
   const title = generateTitle(combo);
   const metaTitle = generateMetaTitle(title);
 
+  const description = generateDescription(combo, exerciseCount, derivedTargetMuscleGroups);
+  const metaDescription = generateMetaDescription(combo, exerciseCount);
+
   return {
     slug,
     title,
-    description: "",
+    description,
     sessionType,
     goal,
     durationMinutes,
@@ -319,7 +324,7 @@ export function buildLibraryWorkout(input: BuildLibraryWorkoutInput): LibraryWor
     totalSets,
     equipmentNeeded,
     metaTitle,
-    metaDescription: "",
+    metaDescription,
     generationVersion: GENERATION_VERSION,
     createdAt: Date.now(),
   };
