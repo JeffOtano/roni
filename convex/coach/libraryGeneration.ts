@@ -1,12 +1,15 @@
+import { generateText, Output } from "ai";
+import { google } from "@ai-sdk/google";
+import { z } from "zod";
 import {
-  generateDescription,
-  generateMetaDescription,
   generateMetaTitle,
   generateSlug,
   generateTitle,
   getExcludedAccessoriesForConfig,
+  getGoalLabel,
   getMaxExercises,
   getRepSetScheme,
+  getSessionTypeLabel,
 } from "./goalConfig";
 import type {
   LibraryDuration,
@@ -15,7 +18,6 @@ import type {
   LibraryLevel,
   LibrarySessionType,
 } from "./goalConfig";
-import { selectExercises } from "./exerciseSelection";
 import {
   blocksFromMovementIds,
   SESSION_TYPE_MUSCLES,
@@ -74,7 +76,6 @@ const ALL_EQUIPMENT: LibraryEquipmentConfig[] = [
 export function isValidCombo(combo: LibraryCombo): boolean {
   const { sessionType, goal, durationMinutes, level, equipmentConfig } = combo;
 
-  // Rule 1: bodyweight_only only valid for certain sessions
   if (
     equipmentConfig === "bodyweight_only" &&
     !["full_body", "core", "legs", "glutes_hamstrings", "mobility", "recovery"].includes(
@@ -83,17 +84,9 @@ export function isValidCombo(combo: LibraryCombo): boolean {
   ) {
     return false;
   }
-
-  // Rule 2: endurance not valid for 60min
   if (goal === "endurance" && durationMinutes === 60) return false;
-
-  // Rule 3: strength and power not valid for beginner
   if ((goal === "strength" || goal === "power") && level === "beginner") return false;
-
-  // Rule 4: power not valid for 20min
   if (goal === "power" && durationMinutes === 20) return false;
-
-  // Rule 5: mobility/recovery sessions only with mobility_flexibility or functional goals
   if (
     (sessionType === "mobility" || sessionType === "recovery") &&
     goal !== "mobility_flexibility" &&
@@ -101,59 +94,43 @@ export function isValidCombo(combo: LibraryCombo): boolean {
   ) {
     return false;
   }
-
-  // Rule 6: sport_complement only with certain sessions
   if (
     goal === "sport_complement" &&
     !["full_body", "upper", "lower", "legs", "glutes_hamstrings", "core"].includes(sessionType)
   ) {
     return false;
   }
-
-  // Rule 7: mobility_flexibility only with certain sessions
   if (
     goal === "mobility_flexibility" &&
     !["full_body", "mobility", "recovery", "core"].includes(sessionType)
   ) {
     return false;
   }
-
-  // Rule 8: 20min full_body + strength not enough time
   if (durationMinutes === 20 && sessionType === "full_body" && goal === "strength") return false;
 
   return true;
 }
 
-function collectEquipmentVariants(
-  sessionType: LibrarySessionType,
-  goal: LibraryGoal,
-  durationMinutes: LibraryDuration,
-  level: LibraryLevel,
-): LibraryCombo[] {
-  return ALL_EQUIPMENT.flatMap((equipmentConfig) => {
-    const combo: LibraryCombo = { sessionType, goal, durationMinutes, level, equipmentConfig };
-    return isValidCombo(combo) ? [combo] : [];
-  });
-}
-
 export function enumerateValidCombos(): LibraryCombo[] {
-  const combos: LibraryCombo[] = [];
-
-  for (const sessionType of ALL_SESSION_TYPES) {
-    for (const goal of ALL_GOALS) {
-      for (const durationMinutes of ALL_DURATIONS) {
-        for (const level of ALL_LEVELS) {
-          combos.push(...collectEquipmentVariants(sessionType, goal, durationMinutes, level));
-        }
-      }
-    }
-  }
-
-  return combos;
+  return ALL_SESSION_TYPES.flatMap((sessionType) =>
+    ALL_GOALS.flatMap((goal) =>
+      ALL_DURATIONS.flatMap((durationMinutes) =>
+        ALL_LEVELS.flatMap((level) =>
+          ALL_EQUIPMENT.map((equipmentConfig) => ({
+            sessionType,
+            goal,
+            durationMinutes,
+            level,
+            equipmentConfig,
+          })),
+        ),
+      ),
+    ),
+  ).filter(isValidCombo);
 }
 
 // ---------------------------------------------------------------------------
-// Workout builder
+// LLM-driven workout builder
 // ---------------------------------------------------------------------------
 
 const MOBILITY_TRAINING_TYPES = ["Mobility", "Yoga"];
@@ -201,131 +178,187 @@ export interface BuildLibraryWorkoutInput {
 
 const GENERATION_VERSION = 1;
 
-function mapLevelToNumber(level: LibraryLevel): number {
-  if (level === "beginner") return 1;
-  if (level === "intermediate") return 2;
-  return 3;
+const llmWorkoutSchema = z.object({
+  movementIds: z.array(z.string()).describe("Ordered list of movement IDs from the catalog"),
+  exercises: z
+    .array(
+      z.object({
+        movementId: z.string(),
+        sets: z.number(),
+        reps: z.number().optional(),
+        duration: z.number().optional().describe("Seconds, for duration-based exercises"),
+      }),
+    )
+    .describe("Exercise prescriptions in workout order"),
+  description: z.string().describe("2-3 sentence workout description for the page"),
+  metaDescription: z.string().describe("SEO meta description under 155 characters"),
+});
+
+function preFilterCatalog(catalog: Movement[], combo: LibraryCombo): Movement[] {
+  let filtered = catalog;
+
+  if (combo.equipmentConfig === "bodyweight_only") {
+    filtered = filtered.filter((m) => m.inFreeLift === true);
+  } else {
+    filtered = filtered.filter((m) => m.onMachine);
+  }
+
+  if (combo.sessionType === "mobility") {
+    filtered = filtered.filter((m) =>
+      m.trainingTypes?.some((t) => MOBILITY_TRAINING_TYPES.includes(t)),
+    );
+  } else if (combo.sessionType === "recovery") {
+    filtered = filtered.filter((m) =>
+      m.trainingTypes?.some((t) => RECOVERY_TRAINING_TYPES.includes(t)),
+    );
+  }
+
+  const excludedAccessories = getExcludedAccessoriesForConfig(combo.equipmentConfig);
+  if (excludedAccessories.length > 0) {
+    const excludeSet = new Set(excludedAccessories);
+    filtered = filtered.filter(
+      (m) => !m.onMachineInfo?.accessory || !excludeSet.has(m.onMachineInfo.accessory),
+    );
+  }
+
+  return filtered;
+}
+
+function formatCatalogForPrompt(catalog: Movement[]): string {
+  return catalog
+    .map((m) => {
+      const accessory = m.onMachineInfo?.accessory ?? "bodyweight";
+      const type = m.countReps ? "reps" : "duration";
+      return `${m.id} | ${m.name} | ${m.muscleGroups.join(", ")} | ${accessory} | ${type} | skill:${m.skillLevel}`;
+    })
+    .join("\n");
 }
 
 /**
- * Pure function: given a combo + movement catalog, build a complete library workout.
- * Returns null if fewer than 3 exercises are available for the combo.
+ * LLM-driven workout builder. Asks Gemini to design the workout given the
+ * filtered movement catalog and combo parameters. Returns null if the LLM
+ * can't produce a valid workout or fewer than 3 exercises are available.
  */
-export function buildLibraryWorkout(input: BuildLibraryWorkoutInput): LibraryWorkoutData | null {
+export async function buildLibraryWorkout(
+  input: BuildLibraryWorkoutInput,
+): Promise<LibraryWorkoutData | null> {
   const { combo, catalog, recentMovementIds } = input;
   const { sessionType, goal, durationMinutes, level, equipmentConfig } = combo;
 
-  // Pre-filter catalog based on session and equipment constraints
-  let filteredCatalog = catalog;
+  const filteredCatalog = preFilterCatalog(catalog, combo);
+  if (filteredCatalog.length < 3) return null;
 
-  if (equipmentConfig === "bodyweight_only") {
-    filteredCatalog = filteredCatalog.filter((m) => m.inFreeLift === true);
-  } else {
-    // For machine-based configs, only include on-machine exercises.
-    // Without this, bodyweight exercises leak into handles/bar workouts.
-    filteredCatalog = filteredCatalog.filter((m) => m.onMachine);
-  }
-
-  if (sessionType === "mobility") {
-    const allowedTypes = new Set(MOBILITY_TRAINING_TYPES.map((t) => t.toLowerCase()));
-    filteredCatalog = filteredCatalog.filter((m) =>
-      m.trainingTypes?.some((t) => allowedTypes.has(t.toLowerCase())),
-    );
-  } else if (sessionType === "recovery") {
-    const allowedTypes = new Set(RECOVERY_TRAINING_TYPES.map((t) => t.toLowerCase()));
-    filteredCatalog = filteredCatalog.filter((m) =>
-      m.trainingTypes?.some((t) => allowedTypes.has(t.toLowerCase())),
-    );
-  }
-
-  const targetMuscleGroups = SESSION_TYPE_MUSCLES[sessionType] ?? [];
-  const userLevel = mapLevelToNumber(level);
+  const targetMuscles = SESSION_TYPE_MUSCLES[sessionType] ?? [];
   const maxExercises = getMaxExercises(durationMinutes);
-  const excludedAccessories = getExcludedAccessoriesForConfig(equipmentConfig);
-
-  const selectedIds = selectExercises({
-    catalog: filteredCatalog,
-    targetMuscleGroups,
-    userLevel,
-    maxExercises,
-    lastUsedMovementIds: [],
-    constraints: {
-      excludeAccessories: excludedAccessories,
-    },
-    recentWeeksMovementIds: recentMovementIds,
-  });
-
-  if (selectedIds.length < 3) return null;
-
-  const sortedIds = sortForMinimalEquipmentSwitches(selectedIds, filteredCatalog);
-  const blocks = blocksFromMovementIds(sortedIds, undefined, { catalog: filteredCatalog });
-
   const scheme = getRepSetScheme(goal);
-  const catalogById = new Map(catalog.map((m) => [m.id, m]));
+  const sessionLabel = getSessionTypeLabel(sessionType);
+  const goalLabel = getGoalLabel(goal);
 
-  const movementDetails: MovementDetail[] = sortedIds.map((id) => {
-    const movement = catalogById.get(id);
-    const detail: MovementDetail = {
-      movementId: id,
-      name: movement?.name ?? id,
-      shortName: movement?.shortName ?? id,
-      muscleGroups: movement?.muscleGroups ?? [],
-      sets: scheme.sets,
-      phase: "main",
-      thumbnailMediaUrl: movement?.thumbnailMediaUrl,
-      accessory: movement?.onMachineInfo?.accessory,
+  const recentNote =
+    recentMovementIds.length > 0
+      ? `\nAvoid these recently used movement IDs if possible (for variety): ${recentMovementIds.slice(0, 20).join(", ")}`
+      : "";
+
+  const prompt = `You are an expert strength coach designing a Tonal workout.
+
+WORKOUT PARAMETERS:
+- Session: ${sessionLabel} (target muscles: ${targetMuscles.join(", ")})
+- Goal: ${goalLabel}
+- Duration: ${durationMinutes} minutes (select ${maxExercises} exercises max)
+- Level: ${level}
+- Equipment: ${equipmentConfig.replace(/_/g, " ")}
+- Default scheme: ${scheme.sets} sets x ${scheme.reps ? `${scheme.reps} reps` : `${scheme.duration}s duration`}
+
+EXERCISE SELECTION RULES:
+- Pick ONLY from the movement catalog below. Use exact movement IDs.
+- Start with compound movements (multi-joint, multiple muscle groups), then isolation.
+- Group exercises that use the same accessory together to minimize equipment switches.
+- For supersets, pair exercises that work different movement patterns (e.g., push + pull, or agonist + antagonist).
+- Skill level 1 = beginner, 2 = intermediate, 3 = advanced. For ${level} lifters, use movements with skill level <= ${level === "beginner" ? 2 : 3}.
+- Duration-based exercises (type=duration) should use duration in seconds (30-45s), not reps.
+- You may adjust sets/reps per exercise if it makes the workout better (e.g., heavier compound = more sets, lighter isolation = fewer sets, finisher = higher reps).
+${recentNote}
+
+CONTENT RULES:
+- Write a description (2-3 sentences) that sells the workout. What it targets, why the exercise selection matters, who it's for. Write in second person ("you"). No em dashes.
+- Write a metaDescription under 155 characters for SEO. Include "Tonal workout" and the key attributes.
+
+AVAILABLE EXERCISES:
+id | name | muscles | accessory | type | skill
+${formatCatalogForPrompt(filteredCatalog)}`;
+
+  try {
+    const { output } = await generateText({
+      model: google("gemini-3-flash-preview"),
+      output: Output.object({ schema: llmWorkoutSchema }),
+      prompt,
+    });
+
+    if (!output || output.exercises.length < 3) return null;
+
+    // Validate all movement IDs exist in catalog
+    const catalogById = new Map(filteredCatalog.map((m) => [m.id, m]));
+    const validExercises = output.exercises.filter((e) => catalogById.has(e.movementId));
+    if (validExercises.length < 3) return null;
+
+    // Build movement details from LLM selections
+    const movementDetails: MovementDetail[] = validExercises.map((e) => {
+      const mov = catalogById.get(e.movementId)!;
+      return {
+        movementId: e.movementId,
+        name: mov.name,
+        shortName: mov.shortName,
+        muscleGroups: mov.muscleGroups,
+        sets: e.sets,
+        reps: e.reps,
+        duration: e.duration,
+        phase: "main" as const,
+        thumbnailMediaUrl: mov.thumbnailMediaUrl,
+        accessory: mov.onMachineInfo?.accessory,
+      };
+    });
+
+    // Build blocks from the LLM-ordered movement IDs
+    const orderedIds = validExercises.map((e) => e.movementId);
+    const sortedIds = sortForMinimalEquipmentSwitches(orderedIds, filteredCatalog);
+    const blocks = blocksFromMovementIds(sortedIds, undefined, { catalog: filteredCatalog });
+
+    // Derive metadata
+    const allMuscleGroups = [...new Set(movementDetails.flatMap((m) => m.muscleGroups))];
+    const totalSets = movementDetails.reduce((sum, m) => sum + m.sets, 0);
+    const equipmentNeeded = [
+      ...new Set(movementDetails.map((m) => m.accessory).filter((a): a is string => a != null)),
+    ];
+
+    const slug = generateSlug(combo);
+    const title = generateTitle(combo);
+    const metaTitle = generateMetaTitle(title);
+
+    return {
+      slug,
+      title,
+      description: output.description,
+      sessionType,
+      goal,
+      durationMinutes,
+      level,
+      equipmentConfig,
+      blocks,
+      movementDetails,
+      targetMuscleGroups: allMuscleGroups,
+      exerciseCount: movementDetails.length,
+      totalSets,
+      equipmentNeeded,
+      metaTitle,
+      metaDescription: output.metaDescription,
+      generationVersion: GENERATION_VERSION,
+      createdAt: Date.now(),
     };
-    if (scheme.duration !== undefined) {
-      detail.duration = scheme.duration;
-    } else {
-      detail.reps = scheme.reps;
-    }
-    return detail;
-  });
-
-  // Derived metadata
-  const muscleGroupSet = new Set<string>();
-  for (const detail of movementDetails) {
-    for (const g of detail.muscleGroups) {
-      muscleGroupSet.add(g);
-    }
+  } catch (e) {
+    console.error(
+      `LLM generation failed for ${sessionType}-${goal}-${durationMinutes}-${level}:`,
+      e,
+    );
+    return null;
   }
-  const derivedTargetMuscleGroups = Array.from(muscleGroupSet);
-
-  const exerciseCount = movementDetails.length;
-  const totalSets = movementDetails.reduce((sum, d) => sum + d.sets, 0);
-
-  const accessorySet = new Set<string>();
-  for (const detail of movementDetails) {
-    if (detail.accessory) accessorySet.add(detail.accessory);
-  }
-  const equipmentNeeded = Array.from(accessorySet);
-
-  const slug = generateSlug(combo);
-  const title = generateTitle(combo);
-  const metaTitle = generateMetaTitle(title);
-
-  const description = generateDescription(combo, exerciseCount, derivedTargetMuscleGroups);
-  const metaDescription = generateMetaDescription(combo, exerciseCount);
-
-  return {
-    slug,
-    title,
-    description,
-    sessionType,
-    goal,
-    durationMinutes,
-    level,
-    equipmentConfig,
-    blocks,
-    movementDetails,
-    targetMuscleGroups: derivedTargetMuscleGroups,
-    exerciseCount,
-    totalSets,
-    equipmentNeeded,
-    metaTitle,
-    metaDescription,
-    generationVersion: GENERATION_VERSION,
-    createdAt: Date.now(),
-  };
 }

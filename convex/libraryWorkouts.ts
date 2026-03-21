@@ -1,5 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 
 export const getBySlug = query({
   args: { slug: v.string() },
@@ -33,11 +34,15 @@ export const listAll = query({
   },
 });
 
-export const getSlugs = query({
-  args: {},
-  handler: async (ctx) => {
-    const workouts = await ctx.db.query("libraryWorkouts").collect();
-    return workouts.map((w) => w.slug);
+export const getSlugsPage = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const result = await ctx.db.query("libraryWorkouts").paginate(paginationOpts);
+    return {
+      slugs: result.page.map((w) => w.slug),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });
 
