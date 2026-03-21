@@ -498,6 +498,7 @@ export default defineSchema({
     equipmentNeeded: v.array(v.string()),
     metaTitle: v.string(),
     metaDescription: v.string(),
+    restGuidance: v.optional(v.string()),
     tonalWorkoutId: v.optional(v.string()),
     generationVersion: v.number(),
     createdAt: v.number(),

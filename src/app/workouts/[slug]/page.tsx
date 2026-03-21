@@ -146,6 +146,11 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       {/* Workout blocks */}
       <section>
         <h2 className="mb-4 text-lg font-semibold">Workout Plan</h2>
+        {workout.restGuidance && (
+          <p className="mb-4 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-xs text-muted-foreground">
+            {workout.restGuidance}
+          </p>
+        )}
         <WorkoutBlockDisplay blocks={workout.blocks} movementDetails={workout.movementDetails} />
       </section>
 

@@ -106,6 +106,9 @@ export const getSlugsPage = query({
   },
 });
 
+const LEVEL_ORDER = ["beginner", "intermediate", "advanced"];
+const DURATION_ORDER = [20, 30, 45, 60];
+
 export const getRelated = query({
   args: { slug: v.string(), limit: v.number() },
   handler: async (ctx, { slug, limit }) => {
@@ -120,25 +123,61 @@ export const getRelated = query({
       .withIndex("by_sessionType", (q) => q.eq("sessionType", current.sessionType))
       .collect();
 
-    const related = sameSession.filter((w) => w.slug !== slug).slice(0, limit);
+    const candidates = sameSession.filter((w) => w.slug !== slug);
+    const seen = new Set<string>([slug]);
+    const related: typeof candidates = [];
 
-    if (related.length < limit) {
-      const sameGoal = await ctx.db
-        .query("libraryWorkouts")
-        .withIndex("by_goal", (q) => q.eq("goal", current.goal))
-        .collect();
-      const existing = new Set(related.map((r) => r.slug));
-      existing.add(slug);
-      for (const w of sameGoal) {
-        if (related.length >= limit) break;
-        if (!existing.has(w.slug)) {
-          related.push(w);
-          existing.add(w.slug);
-        }
+    // Priority 1: Next level up (same session, goal, duration, equipment)
+    const nextLevelIdx = LEVEL_ORDER.indexOf(current.level) + 1;
+    if (nextLevelIdx < LEVEL_ORDER.length) {
+      const progression = candidates.find(
+        (w) =>
+          w.goal === current.goal &&
+          w.durationMinutes === current.durationMinutes &&
+          w.equipmentConfig === current.equipmentConfig &&
+          w.level === LEVEL_ORDER[nextLevelIdx],
+      );
+      if (progression && !seen.has(progression.slug)) {
+        related.push(progression);
+        seen.add(progression.slug);
       }
     }
 
-    return related.map((w) => ({
+    // Priority 2: Longer duration (same session, goal, level, equipment)
+    const nextDurIdx = DURATION_ORDER.indexOf(current.durationMinutes) + 1;
+    if (related.length < limit && nextDurIdx < DURATION_ORDER.length) {
+      const longer = candidates.find(
+        (w) =>
+          w.goal === current.goal &&
+          w.level === current.level &&
+          w.equipmentConfig === current.equipmentConfig &&
+          w.durationMinutes === DURATION_ORDER[nextDurIdx],
+      );
+      if (longer && !seen.has(longer.slug)) {
+        related.push(longer);
+        seen.add(longer.slug);
+      }
+    }
+
+    // Priority 3: Different goal, same session type and level
+    for (const w of candidates) {
+      if (related.length >= limit) break;
+      if (!seen.has(w.slug) && w.goal !== current.goal && w.level === current.level) {
+        related.push(w);
+        seen.add(w.slug);
+      }
+    }
+
+    // Priority 4: Fill remaining from same session type
+    for (const w of candidates) {
+      if (related.length >= limit) break;
+      if (!seen.has(w.slug)) {
+        related.push(w);
+        seen.add(w.slug);
+      }
+    }
+
+    return related.slice(0, limit).map((w) => ({
       slug: w.slug,
       title: w.title,
       sessionType: w.sessionType,

@@ -166,6 +166,7 @@ export interface LibraryWorkoutData {
   equipmentNeeded: string[];
   metaTitle: string;
   metaDescription: string;
+  restGuidance: string;
   generationVersion: number;
   createdAt: number;
 }
@@ -179,7 +180,6 @@ export interface BuildLibraryWorkoutInput {
 const GENERATION_VERSION = 1;
 
 const llmWorkoutSchema = z.object({
-  movementIds: z.array(z.string()).describe("Ordered list of movement IDs from the catalog"),
   exercises: z
     .array(
       z.object({
@@ -189,9 +189,14 @@ const llmWorkoutSchema = z.object({
         duration: z.number().optional().describe("Seconds, for duration-based exercises"),
       }),
     )
-    .describe("Exercise prescriptions in workout order"),
+    .describe("Exercise prescriptions in workout order with VARIED sets/reps"),
   description: z.string().describe("2-3 sentence workout description for the page"),
   metaDescription: z.string().describe("SEO meta description under 155 characters"),
+  restGuidance: z
+    .string()
+    .describe(
+      "Brief rest period guidance, e.g. 'Rest 90-120s between compound sets, 60s between isolation sets'",
+    ),
 });
 
 function preFilterCatalog(catalog: Movement[], combo: LibraryCombo): Movement[] {
@@ -259,7 +264,36 @@ export async function buildLibraryWorkout(
       ? `\nAvoid these recently used movement IDs if possible (for variety): ${recentMovementIds.slice(0, 20).join(", ")}`
       : "";
 
-  const prompt = `You are an expert strength coach designing a Tonal workout.
+  const levelGuidance = {
+    beginner:
+      "Use moderate reps (10-15) with controlled tempo. Prioritize simple compound movements. Avoid complex unilateral or stability-demanding exercises.",
+    intermediate:
+      "Mix rep ranges: compounds at 8-10 reps, accessories at 10-12, finishers at 12-15. Include some unilateral work.",
+    advanced:
+      "Vary rep ranges significantly: heavy compounds at 4-6 reps with more sets, moderate accessories at 8-10, burnout/isolation finishers at 12-15. Include advanced movements and challenging variations.",
+  }[level];
+
+  const goalRepGuidance = {
+    build_muscle:
+      "Hypertrophy focus: 3-4 sets on compounds (8-12 reps), 2-3 sets on isolations (10-15 reps). Total volume matters.",
+    fat_loss:
+      "Circuit-style: 3 sets, 12-15 reps, minimal rest. Pair exercises as supersets wherever possible.",
+    strength:
+      "Strength focus: 4-5 sets on main compounds (3-6 reps), 3 sets on accessories (8-10 reps). Heavy loads, full rest.",
+    endurance: "Endurance focus: 2-3 sets, 15-20 reps. Keep moving. Light resistance, high volume.",
+    athletic:
+      "Athletic focus: 3-4 sets, 6-8 reps on power movements, 3 sets of 10-12 on accessories.",
+    general_fitness: "Balanced: 3 sets, mix of 8-12 reps. Straightforward and accessible.",
+    power:
+      "Power focus: 4-5 sets of 2-4 reps on main lifts (explosive intent), 3 sets of 6-8 on supporting work.",
+    functional:
+      "Functional: 3 sets, 10-12 reps. Emphasize compound multi-joint movements and unilateral balance work.",
+    mobility_flexibility: "Mobility: 2 sets, 30-45 second holds. Slow, controlled movement.",
+    sport_complement:
+      "Sport complement: 3 sets, 8-10 reps. Focus on injury prevention areas and unilateral strength.",
+  }[goal];
+
+  const prompt = `You are an expert strength coach designing a Tonal workout for a real person. This must look like it was programmed by a knowledgeable coach, not auto-generated.
 
 WORKOUT PARAMETERS:
 - Session: ${sessionLabel} (target muscles: ${targetMuscles.join(", ")})
@@ -267,7 +301,16 @@ WORKOUT PARAMETERS:
 - Duration: ${durationMinutes} minutes (select ${maxExercises} exercises max)
 - Level: ${level}
 - Equipment: ${equipmentConfig.replace(/_/g, " ")}
-- Default scheme: ${scheme.sets} sets x ${scheme.reps ? `${scheme.reps} reps` : `${scheme.duration}s duration`}
+
+REP SCHEME GUIDANCE (CRITICAL - DO NOT USE IDENTICAL REPS ON EVERY EXERCISE):
+${goalRepGuidance}
+${levelGuidance}
+Every exercise MUST have its own sets/reps prescription based on its role in the workout:
+- Lead compound: more sets, moderate-to-low reps
+- Secondary compound: standard sets/reps
+- Isolation/accessory: fewer sets, higher reps
+- Finisher: high reps or burnout
+DO NOT assign the same sets x reps to every exercise. That looks auto-generated and kills credibility.
 
 EXERCISE SELECTION RULES:
 - Pick ONLY from the movement catalog below. Use exact movement IDs.
@@ -276,11 +319,14 @@ EXERCISE SELECTION RULES:
 - For supersets, pair exercises that work different movement patterns (e.g., push + pull, or agonist + antagonist).
 - Skill level 1 = beginner, 2 = intermediate, 3 = advanced. For ${level} lifters, use movements with skill level <= ${level === "beginner" ? 2 : 3}.
 - Duration-based exercises (type=duration) should use duration in seconds (30-45s), not reps.
-- You may adjust sets/reps per exercise if it makes the workout better (e.g., heavier compound = more sets, lighter isolation = fewer sets, finisher = higher reps).
 ${recentNote}
 
+REST GUIDANCE:
+- Include a brief rest recommendation in restGuidance (e.g., "Rest 90-120s between heavy compound sets, 60-90s between accessories, 30-45s during supersets").
+- Tailor rest periods to the goal: strength = longer rest (2-3 min), hypertrophy = moderate (60-90s), fat loss/endurance = minimal (30-45s).
+
 CONTENT RULES:
-- Write a description (2-3 sentences) that sells the workout. What it targets, why the exercise selection matters, who it's for. Write in second person ("you"). No em dashes.
+- Write a description (2-3 sentences) that sells the workout. What it targets, why the exercise selection matters, who it's for. Write in second person ("you"). No em dashes. Be specific about the training approach.
 - Write a metaDescription under 155 characters for SEO. Include "Tonal workout" and the key attributes.
 
 AVAILABLE EXERCISES:
@@ -345,12 +391,13 @@ ${formatCatalogForPrompt(filteredCatalog)}`;
       equipmentConfig,
       blocks,
       movementDetails,
-      targetMuscleGroups: allMuscleGroups,
+      targetMuscleGroups: targetMuscles.length > 0 ? targetMuscles : allMuscleGroups,
       exerciseCount: movementDetails.length,
       totalSets,
       equipmentNeeded,
       metaTitle,
       metaDescription: output.metaDescription,
+      restGuidance: output.restGuidance,
       generationVersion: GENERATION_VERSION,
       createdAt: Date.now(),
     };
