@@ -6,7 +6,7 @@
 #   --prod       Run against production Convex deployment
 #   --push-only  Skip generation, just push unpushed workouts to Tonal
 
-set -euo pipefail
+set -uo pipefail
 
 PROD_FLAG=""
 PUSH_ONLY=false
@@ -14,7 +14,7 @@ SERVICE_ACCOUNT_PROD="k57dnc1ebymcx2f8ntdpgyvmvx83bt9s"
 SERVICE_ACCOUNT_DEV="k57178c4hvaewjjh8a5kwtpjkx83axa1"
 SERVICE_ACCOUNT="$SERVICE_ACCOUNT_DEV"
 GENERATION_VERSION=1
-BATCH_SIZE=25
+BATCH_SIZE=5
 
 for arg in "$@"; do
   case $arg in
