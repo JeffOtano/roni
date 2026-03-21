@@ -177,8 +177,16 @@ Return an array of objects with slug, description, and metaDescription for each 
 export const getUnpushedWorkouts = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const all = await ctx.db.query("libraryWorkouts").take(100);
-    return all.filter((w) => !w.tonalWorkoutId);
+    const all = await ctx.db.query("libraryWorkouts").collect();
+    return all
+      .filter((w) => !w.tonalWorkoutId)
+      .slice(0, 50)
+      .map((w) => ({
+        slug: w.slug,
+        title: w.title,
+        blocks: w.blocks,
+        tonalWorkoutId: w.tonalWorkoutId,
+      }));
   },
 });
 
