@@ -1,15 +1,19 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { SearchX } from "lucide-react";
+import { usePaginatedQuery } from "convex/react";
+import { Loader2, SearchX } from "lucide-react";
+import { api } from "../../../../convex/_generated/api";
 import { WorkoutFilters } from "./WorkoutFilters";
 import { type WorkoutCardData, WorkoutLibraryCard } from "./WorkoutLibraryCard";
 
+const PAGE_SIZE = 24;
+
 interface Props {
-  workouts: WorkoutCardData[];
+  initialWorkouts: WorkoutCardData[];
 }
 
-export function WorkoutBrowseClient({ workouts }: Props) {
+export function WorkoutBrowseClient({ initialWorkouts }: Props) {
   const searchParams = useSearchParams();
 
   const goal = searchParams.get("goal");
@@ -19,13 +23,21 @@ export function WorkoutBrowseClient({ workouts }: Props) {
 
   const hasFilters = !!(goal || sessionType || duration || level);
 
-  const filtered = workouts.filter((w) => {
-    if (goal && w.goal !== goal) return false;
-    if (sessionType && w.sessionType !== sessionType) return false;
-    if (duration && String(w.durationMinutes) !== duration) return false;
-    if (level && w.level !== level) return false;
-    return true;
-  });
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.libraryWorkouts.listFiltered,
+    {
+      goal: goal ?? undefined,
+      sessionType: sessionType ?? undefined,
+      durationMinutes: duration ? Number(duration) : undefined,
+      level: level ?? undefined,
+    },
+    { initialNumItems: PAGE_SIZE },
+  );
+
+  // Use server-rendered data while the client query loads (preserves SEO).
+  // Once the client query has results, it takes over for interactivity.
+  const isClientReady = status !== "LoadingFirstPage";
+  const workouts = isClientReady ? results : initialWorkouts;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8 sm:py-14">
@@ -43,8 +55,8 @@ export function WorkoutBrowseClient({ workouts }: Props) {
           Workout Library
         </h1>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          {workouts.length.toLocaleString()}+ expert-designed workouts for every goal, muscle group,
-          and experience level. Open any workout directly in your Tonal app.
+          Expert-designed workouts for every goal, muscle group, and experience level. Open any
+          workout directly in your Tonal app.
         </p>
       </header>
 
@@ -55,20 +67,49 @@ export function WorkoutBrowseClient({ workouts }: Props) {
 
       {/* Results bar */}
       <div className="mb-6 flex items-center gap-3">
-        <span className="text-sm font-medium tabular-nums text-foreground">{filtered.length}</span>
+        <span className="text-sm font-medium tabular-nums text-foreground">{workouts.length}</span>
         <span className="text-sm text-muted-foreground">
-          workout{filtered.length !== 1 ? "s" : ""}
-          {hasFilters ? " matching filters" : " available"}
+          workout{workouts.length !== 1 ? "s" : ""}
+          {hasFilters ? " matching filters" : " loaded"}
+          {isClientReady && status === "CanLoadMore" ? " so far" : ""}
         </span>
       </div>
 
       {/* Grid */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((workout) => (
-            <WorkoutLibraryCard key={workout.slug} workout={workout} />
-          ))}
-        </div>
+      {workouts.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {workouts.map((workout) => (
+              <WorkoutLibraryCard key={workout.slug} workout={workout} />
+            ))}
+          </div>
+
+          {/* Pagination footer */}
+          {isClientReady && (
+            <div className="mt-10 flex justify-center">
+              {status === "CanLoadMore" && (
+                <button
+                  onClick={() => loadMore(PAGE_SIZE)}
+                  className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  Load more workouts
+                </button>
+              )}
+              {status === "LoadingMore" && (
+                <div
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                  role="status"
+                >
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  <span>Loading more workouts...</span>
+                </div>
+              )}
+              {status === "Exhausted" && results.length > PAGE_SIZE && (
+                <p className="text-sm text-muted-foreground">All workouts loaded</p>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div className="flex flex-col items-center py-24 text-center">
           <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted">
