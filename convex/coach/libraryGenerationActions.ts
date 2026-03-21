@@ -177,7 +177,7 @@ export const generateDescriptions = internalAction({
     }));
 
     const { output } = await generateText({
-      model: google("gemini-2.5-flash"),
+      model: google("gemini-3-flash-preview"),
       output: Output.object({ schema: descriptionBatchSchema }),
       prompt: `Generate SEO-friendly descriptions for the following strength training workouts.
 
