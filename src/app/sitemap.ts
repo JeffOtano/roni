@@ -56,27 +56,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const allSlugs: string[] = [];
-  let cursor: string | null = null;
-  let isDone = false;
-  while (!isDone) {
-    const result: { slugs: string[]; isDone: boolean; continueCursor: string } = await fetchQuery(
-      api.libraryWorkouts.getSlugsPage,
-      {
-        paginationOpts: { numItems: 100, cursor },
-      },
-    );
-    allSlugs.push(...result.slugs);
-    isDone = result.isDone;
-    cursor = result.continueCursor;
+  let workoutUrls: MetadataRoute.Sitemap = [];
+  try {
+    const allSlugs: string[] = [];
+    let cursor: string | null = null;
+    let isDone = false;
+    while (!isDone) {
+      const result: { slugs: string[]; isDone: boolean; continueCursor: string } = await fetchQuery(
+        api.libraryWorkouts.getSlugsPage,
+        {
+          paginationOpts: { numItems: 100, cursor },
+        },
+      );
+      allSlugs.push(...result.slugs);
+      isDone = result.isDone;
+      cursor = result.continueCursor;
+    }
+    workoutUrls = allSlugs.map((slug: string) => ({
+      url: `https://tonal.coach/workouts/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }));
+  } catch (error) {
+    console.error("sitemap: failed to fetch workout slugs, returning static URLs only", error);
   }
-
-  const workoutUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
-    url: `https://tonal.coach/workouts/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: 0.8,
-  }));
 
   return [...staticUrls, ...workoutUrls];
 }

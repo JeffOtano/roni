@@ -35,7 +35,11 @@ export async function generateStaticParams() {
       cursor = result.continueCursor;
     }
     return allSlugs.map((slug) => ({ slug }));
-  } catch {
+  } catch (error) {
+    console.error(
+      "generateStaticParams: failed to fetch slugs, falling back to on-demand ISR",
+      error,
+    );
     return [];
   }
 }

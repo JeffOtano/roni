@@ -4,6 +4,8 @@ import { fetchQuery } from "convex/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { WorkoutBrowseClient } from "./_components/WorkoutBrowseClient";
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: "Free Tonal Workouts | tonal.coach",
   description:
@@ -12,11 +14,13 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkoutsPage() {
-  const workouts = await fetchQuery(api.libraryWorkouts.listAll);
+  const initialPage = await fetchQuery(api.libraryWorkouts.listFiltered, {
+    paginationOpts: { numItems: 24, cursor: null },
+  });
 
   return (
     <Suspense>
-      <WorkoutBrowseClient workouts={workouts} />
+      <WorkoutBrowseClient initialWorkouts={initialPage.page} />
     </Suspense>
   );
 }
