@@ -143,6 +143,14 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
+      {/* Workout blocks */}
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">Workout Plan</h2>
+        <WorkoutBlockDisplay blocks={workout.blocks} movementDetails={workout.movementDetails} />
+      </section>
+
+      <WorkoutCtaBanner />
+
       {/* Open in Tonal button */}
       {workout.tonalWorkoutId && (
         <a
@@ -154,14 +162,6 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
           Open in Tonal
         </a>
       )}
-
-      {/* Workout blocks */}
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Workout Plan</h2>
-        <WorkoutBlockDisplay blocks={workout.blocks} movementDetails={workout.movementDetails} />
-      </section>
-
-      <WorkoutCtaBanner />
 
       <Suspense fallback={null}>
         <RelatedWorkouts slug={slug} />
