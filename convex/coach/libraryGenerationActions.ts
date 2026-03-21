@@ -246,7 +246,7 @@ export const getUnpushedWorkouts = internalQuery({
     const all = await ctx.db.query("libraryWorkouts").collect();
     return all
       .filter((w) => !w.tonalWorkoutId)
-      .slice(0, 50)
+      .slice(0, 10)
       .map((w) => ({
         slug: w.slug,
         title: w.title,
@@ -319,6 +319,9 @@ export const pushToTonalBatch = internalAction({
           tonalWorkoutId: result.id,
         });
         pushed++;
+
+        // Rate limit: 2 second delay between Tonal API calls
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (e) {
         console.error(`Failed to push ${workout.slug}:`, e);
         failed++;
