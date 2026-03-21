@@ -78,6 +78,9 @@ while true; do
   if [ "$pushed" = "0" ]; then
     break
   fi
+
+  echo "  waiting 5s before next batch..."
+  sleep 5
 done
 
 echo "=== Done ==="
