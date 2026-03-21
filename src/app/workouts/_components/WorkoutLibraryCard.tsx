@@ -4,10 +4,18 @@ import { cn } from "@/lib/utils";
 import {
   getGoalLabel,
   getSessionTypeLabel,
+  type LibraryEquipmentConfig,
   type LibraryGoal,
   type LibraryLevel,
   type LibrarySessionType,
 } from "../../../../convex/coach/goalConfig";
+
+const EQUIPMENT_LABELS: Record<LibraryEquipmentConfig, string> = {
+  handles_only: "Handles",
+  handles_bar: "Handles + Bar",
+  full_accessories: "Full Kit",
+  bodyweight_only: "Bodyweight",
+};
 
 export interface WorkoutCardData {
   slug: string;
@@ -19,6 +27,7 @@ export interface WorkoutCardData {
   level: string;
   exerciseCount: number;
   totalSets: number;
+  equipmentConfig?: string;
 }
 
 const LEVEL_CONFIG: Record<LibraryLevel, { dot: string; text: string }> = {
@@ -59,6 +68,12 @@ export function WorkoutLibraryCard({ workout }: { readonly workout: WorkoutCardD
         <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
           {getGoalLabel(workout.goal as LibraryGoal)}
         </span>
+        {workout.equipmentConfig && (
+          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {EQUIPMENT_LABELS[workout.equipmentConfig as LibraryEquipmentConfig] ??
+              workout.equipmentConfig}
+          </span>
+        )}
       </div>
 
       {/* Title */}
