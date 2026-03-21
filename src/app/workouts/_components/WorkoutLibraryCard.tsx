@@ -81,9 +81,9 @@ export function WorkoutLibraryCard({ workout }: { readonly workout: WorkoutCardD
         {workout.title}
       </h3>
 
-      {/* Description - only render when non-empty */}
+      {/* Description - single line on cards, full text lives on detail page */}
       {workout.description.trim() !== "" && (
-        <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="mb-3 line-clamp-1 text-xs leading-relaxed text-muted-foreground">
           {workout.description}
         </p>
       )}
