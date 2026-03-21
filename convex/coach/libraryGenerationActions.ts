@@ -93,7 +93,7 @@ export const generateBatch = internalAction({
     offset: v.optional(v.number()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { sessionTypes, generationVersion, offset = 0, limit = 25 }) => {
+  handler: async (ctx, { sessionTypes, generationVersion, offset = 0, limit = 5 }) => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
 
     const allCombos = enumerateValidCombos().filter((c) => sessionTypes.includes(c.sessionType));
