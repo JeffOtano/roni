@@ -166,15 +166,58 @@ export default function HomePage() {
         <FaqPreview />
 
         {/* 8. Browse Workouts */}
-        <section className="border-t border-border px-6 py-24 text-center">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="scroll-fade-up text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Browse Free Tonal Workouts
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Explore 800+ expert-designed workouts for every goal, muscle group, and experience
-              level -- no account required.
+        <section className="border-t border-border px-6 py-24">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="scroll-fade-up mb-3 text-sm font-medium uppercase tracking-wider text-primary">
+              Workout Library
             </p>
+            <h2 className="scroll-fade-up text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              See what Coach builds
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+              800+ AI-designed workouts covering every split, goal, and experience level. Each one
+              built with real exercise science and ready to open directly on your Tonal.
+            </p>
+
+            <div className="mt-10 grid gap-4 text-left sm:grid-cols-3">
+              <Link
+                href="/workouts?goal=build_muscle"
+                className="scroll-fade-up group rounded-xl border border-border bg-card p-6 transition-colors hover:border-foreground/20"
+              >
+                <p className="text-2xl font-bold text-foreground">Hypertrophy</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Chest, back, legs, arms - high-volume workouts designed to maximize growth.
+                </p>
+                <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-foreground">
+                  Browse workouts &rarr;
+                </p>
+              </Link>
+              <Link
+                href="/workouts?goal=strength"
+                className="scroll-fade-up scroll-stagger-1 group rounded-xl border border-border bg-card p-6 transition-colors hover:border-foreground/20"
+              >
+                <p className="text-2xl font-bold text-foreground">Strength</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Heavy compounds, low reps. Programs built for raw strength gains.
+                </p>
+                <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-foreground">
+                  Browse workouts &rarr;
+                </p>
+              </Link>
+              <Link
+                href="/workouts?goal=functional"
+                className="scroll-fade-up scroll-stagger-2 group rounded-xl border border-border bg-card p-6 transition-colors hover:border-foreground/20"
+              >
+                <p className="text-2xl font-bold text-foreground">Functional</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Real-world movement patterns for daily strength and injury prevention.
+                </p>
+                <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-foreground">
+                  Browse workouts &rarr;
+                </p>
+              </Link>
+            </div>
+
             <div className="mt-8">
               <Link
                 href="/workouts"
