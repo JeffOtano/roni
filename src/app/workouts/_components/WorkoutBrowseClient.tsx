@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePaginatedQuery } from "convex/react";
 import { Loader2, SearchX } from "lucide-react";
@@ -8,6 +9,15 @@ import { WorkoutFilters } from "./WorkoutFilters";
 import { type WorkoutCardData, WorkoutLibraryCard } from "./WorkoutLibraryCard";
 
 const PAGE_SIZE = 24;
+
+/** Deterministic shuffle based on slug to avoid layout shift between renders. */
+function shuffleBySlug(workouts: WorkoutCardData[]): WorkoutCardData[] {
+  return [...workouts].sort((a, b) => {
+    const hashA = a.slug.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+    const hashB = b.slug.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+    return hashA - hashB;
+  });
+}
 
 interface Props {
   initialWorkouts: WorkoutCardData[];
@@ -37,7 +47,14 @@ export function WorkoutBrowseClient({ initialWorkouts }: Props) {
   // Use server-rendered data while the client query loads (preserves SEO).
   // Once the client query has results, it takes over for interactivity.
   const isClientReady = status !== "LoadingFirstPage";
-  const workouts = isClientReady ? results : initialWorkouts;
+  const rawWorkouts = isClientReady ? results : initialWorkouts;
+
+  // Shuffle unfiltered results so the default view shows variety (not all Push first).
+  // Uses a deterministic hash so order is stable across re-renders.
+  const workouts = useMemo(
+    () => (hasFilters ? rawWorkouts : shuffleBySlug(rawWorkouts)),
+    [rawWorkouts, hasFilters],
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8 sm:py-14">
