@@ -98,7 +98,12 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       <h1 className="mb-3 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
         {workout.title}
       </h1>
-      <p className="mb-8 text-sm leading-relaxed text-muted-foreground">{workout.description}</p>
+      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{workout.description}</p>
+
+      {/* Who is this for */}
+      {workout.whoIsThisFor && (
+        <p className="mb-8 text-sm italic text-muted-foreground">{workout.whoIsThisFor}</p>
+      )}
 
       {/* Quick stats bar */}
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -154,7 +159,32 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
         <WorkoutBlockDisplay blocks={workout.blocks} movementDetails={workout.movementDetails} />
       </section>
 
+      {/* Workout rationale */}
+      {workout.workoutRationale && (
+        <div className="mt-6 rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-2 text-sm font-semibold text-foreground">Why this order</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {workout.workoutRationale}
+          </p>
+        </div>
+      )}
+
       <WorkoutCtaBanner />
+
+      {/* FAQ */}
+      {workout.faq && workout.faq.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-4 text-lg font-semibold">Frequently Asked Questions</h2>
+          <div className="space-y-4">
+            {workout.faq.map((item, i) => (
+              <div key={i} className="rounded-lg border border-border bg-card p-5">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">{item.question}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Open in Tonal button */}
       {workout.tonalWorkoutId && (
