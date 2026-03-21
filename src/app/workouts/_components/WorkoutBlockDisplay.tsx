@@ -55,7 +55,11 @@ export function WorkoutBlockDisplay({ blocks, movementDetails }: WorkoutBlockDis
                 const detail = detailMap.get(ex.movementId);
                 const name = detail?.name ?? ex.movementId;
                 const muscles = detail?.muscleGroups ?? [];
-                const setRepLabel = formatSetRep(ex.sets, ex.reps, ex.duration);
+                // Use movementDetails (LLM-prescribed) for sets/reps, not block defaults
+                const sets = detail?.sets ?? ex.sets;
+                const reps = detail?.reps ?? ex.reps;
+                const duration = detail?.duration ?? ex.duration;
+                const setRepLabel = formatSetRep(sets, reps, duration);
 
                 return (
                   <div
