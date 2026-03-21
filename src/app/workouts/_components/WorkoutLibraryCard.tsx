@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BarChart3, Clock, Dumbbell } from "lucide-react";
+import { ArrowRight, Clock, Dumbbell, Layers } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   getGoalLabel,
   getSessionTypeLabel,
@@ -20,59 +21,101 @@ export interface WorkoutCardData {
   totalSets: number;
 }
 
-const LEVEL_COLORS: Record<LibraryLevel, string> = {
-  beginner: "text-emerald-400",
-  intermediate: "text-amber-400",
-  advanced: "text-rose-400",
+const LEVEL_CONFIG: Record<LibraryLevel, { dot: string; text: string }> = {
+  beginner: {
+    dot: "bg-emerald-400",
+    text: "text-emerald-400",
+  },
+  intermediate: {
+    dot: "bg-amber-400",
+    text: "text-amber-400",
+  },
+  advanced: {
+    dot: "bg-rose-400",
+    text: "text-rose-400",
+  },
 };
 
-export function WorkoutLibraryCard({ workout }: { workout: WorkoutCardData }) {
-  const levelColor =
-    LEVEL_COLORS[(workout.level as LibraryLevel) ?? "intermediate"] ?? "text-muted-foreground";
+export function WorkoutLibraryCard({ workout }: { readonly workout: WorkoutCardData }) {
+  const levelConfig = LEVEL_CONFIG[workout.level as LibraryLevel] ?? LEVEL_CONFIG.intermediate;
 
   return (
     <Link
       href={`/workouts/${workout.slug}`}
-      className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-colors hover:border-foreground/20 hover:bg-card/80"
+      className={cn(
+        "group relative flex flex-col rounded-xl border border-border bg-card p-5",
+        "ring-1 ring-transparent transition-all duration-200",
+        "hover:border-foreground/15 hover:shadow-lg hover:shadow-black/5",
+        "hover:-translate-y-0.5",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        "motion-reduce:hover:translate-y-0 motion-reduce:transition-none",
+      )}
     >
-      {/* Tags */}
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+      {/* Tags row */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           {getSessionTypeLabel(workout.sessionType as LibrarySessionType)}
         </span>
-        <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
           {getGoalLabel(workout.goal as LibraryGoal)}
         </span>
       </div>
 
       {/* Title */}
-      <h3 className="mb-2 text-sm font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
+      <h3 className="mb-1 text-sm font-semibold leading-snug tracking-tight text-foreground transition-colors duration-150 group-hover:text-primary">
         {workout.title}
       </h3>
 
-      {/* Description */}
-      <p className="mb-4 line-clamp-2 flex-1 text-xs leading-relaxed text-muted-foreground">
-        {workout.description}
-      </p>
+      {/* Description - only render when non-empty */}
+      {workout.description.trim() !== "" && (
+        <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {workout.description}
+        </p>
+      )}
 
-      {/* Stats */}
-      <div className="flex items-center gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Clock className="h-3 w-3 shrink-0" />
-          {workout.durationMinutes}m
+      {/* Spacer to push stats to bottom */}
+      <div className="flex-1" />
+
+      {/* Stats footer */}
+      <div className="mt-3 flex items-center gap-4 border-t border-border pt-3">
+        {/* Duration */}
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="font-mono tabular-nums">{workout.durationMinutes}</span>
+          min
         </span>
-        <span className={`capitalize ${levelColor}`}>{workout.level}</span>
-        <span className="flex items-center gap-1">
-          <Dumbbell className="h-3 w-3 shrink-0" />
-          {workout.exerciseCount}
+
+        {/* Exercises */}
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Dumbbell className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="font-mono tabular-nums">{workout.exerciseCount}</span>
+          exercises
         </span>
+
+        {/* Sets (only when > 0) */}
         {workout.totalSets > 0 && (
-          <span className="flex items-center gap-1">
-            <BarChart3 className="h-3 w-3 shrink-0" />
-            {workout.totalSets}
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Layers className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="font-mono tabular-nums">{workout.totalSets}</span>
+            sets
           </span>
         )}
+
+        {/* Level - pushed to far right */}
+        <span className="ml-auto flex items-center gap-1.5 text-xs">
+          <span
+            className={cn("inline-block size-1.5 rounded-full", levelConfig.dot)}
+            aria-hidden="true"
+          />
+          <span className={cn("capitalize", levelConfig.text)}>{workout.level}</span>
+        </span>
       </div>
+
+      {/* Hover arrow indicator */}
+      <ArrowRight
+        className="absolute top-5 right-5 size-4 text-muted-foreground/0 transition-all duration-150 group-hover:text-muted-foreground motion-reduce:transition-none"
+        aria-hidden="true"
+      />
     </Link>
   );
 }
