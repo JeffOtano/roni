@@ -165,10 +165,31 @@ export default function HomePage() {
         {/* 7. FAQ Preview */}
         <FaqPreview />
 
-        {/* 7. Pricing Teaser */}
+        {/* 8. Browse Workouts */}
+        <section className="border-t border-border px-6 py-24 text-center">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="scroll-fade-up text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Browse Free Tonal Workouts
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Explore 800+ expert-designed workouts for every goal, muscle group, and experience
+              level -- no account required.
+            </p>
+            <div className="mt-8">
+              <Link
+                href="/workouts"
+                className="inline-flex h-12 items-center rounded-lg bg-foreground px-8 text-base font-medium text-background transition-opacity hover:opacity-90"
+              >
+                Browse All Workouts
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* 9. Pricing Teaser */}
         <PricingTeaser />
 
-        {/* 8. Bottom CTA */}
+        {/* 10. Bottom CTA */}
         <section className="border-t border-border px-6 py-24 text-center">
           <h2 className="scroll-fade-up text-3xl font-bold tracking-tight text-foreground sm:text-5xl">
             Start training smarter today

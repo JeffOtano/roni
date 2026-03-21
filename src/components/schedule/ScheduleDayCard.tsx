@@ -187,7 +187,7 @@ function TrainingDayCard({
             variant="ghost"
             size="xs"
             className="h-7 gap-1.5"
-            render={<Link href={`/workouts/${day.tonalWorkoutId}`} />}
+            render={<Link href={`/activity/${day.tonalWorkoutId}`} />}
           >
             <Eye className="size-3" aria-hidden="true" />
             View workout
