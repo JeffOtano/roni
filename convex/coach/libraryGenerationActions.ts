@@ -5,6 +5,7 @@ import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { buildLibraryWorkout, enumerateValidCombos } from "./libraryGeneration";
+import { generateSlug } from "./goalConfig";
 import { blockInputValidator } from "../validators";
 
 const libraryWorkoutValidator = v.object({
@@ -40,6 +41,17 @@ const libraryWorkoutValidator = v.object({
   tonalWorkoutId: v.optional(v.string()),
   generationVersion: v.number(),
   createdAt: v.number(),
+});
+
+export const slugExists = internalQuery({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const doc = await ctx.db
+      .query("libraryWorkouts")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    return doc !== null;
+  },
 });
 
 export const upsertLibraryWorkout = internalMutation({
@@ -89,8 +101,18 @@ export const generateBatch = internalAction({
 
     let created = 0;
     let skipped = 0;
+    let existing = 0;
 
     for (const combo of combos) {
+      const slug = generateSlug(combo);
+      const exists = await ctx.runQuery(internal.coach.libraryGenerationActions.slugExists, {
+        slug,
+      });
+      if (exists) {
+        existing++;
+        continue;
+      }
+
       const workout = await buildLibraryWorkout({ combo, catalog, recentMovementIds: [] });
 
       if (!workout) {
@@ -109,7 +131,15 @@ export const generateBatch = internalAction({
 
     const hasMore = offset + limit < allCombos.length;
     const nextOffset = hasMore ? offset + limit : null;
-    return { created, skipped, batch: combos.length, total: allCombos.length, nextOffset, hasMore };
+    return {
+      created,
+      skipped,
+      existing,
+      batch: combos.length,
+      total: allCombos.length,
+      nextOffset,
+      hasMore,
+    };
   },
 });
 
