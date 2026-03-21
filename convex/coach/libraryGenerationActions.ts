@@ -90,7 +90,7 @@ export const generateBatch = internalAction({
 
     for (const combo of combos) {
       const recent = recentBySession[combo.sessionType] ?? [];
-      const workout = buildLibraryWorkout({ combo, catalog, recentMovementIds: recent });
+      const workout = await buildLibraryWorkout({ combo, catalog, recentMovementIds: recent });
 
       if (!workout) {
         skipped++;

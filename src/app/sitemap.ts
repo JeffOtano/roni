@@ -56,8 +56,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const slugs = await fetchQuery(api.libraryWorkouts.getSlugs);
-  const workoutUrls: MetadataRoute.Sitemap = slugs.map((slug) => ({
+  const allSlugs: string[] = [];
+  let cursor: string | null = null;
+  let isDone = false;
+  while (!isDone) {
+    const result: { slugs: string[]; isDone: boolean; continueCursor: string } = await fetchQuery(
+      api.libraryWorkouts.getSlugsPage,
+      {
+        paginationOpts: { numItems: 100, cursor },
+      },
+    );
+    allSlugs.push(...result.slugs);
+    isDone = result.isDone;
+    cursor = result.continueCursor;
+  }
+
+  const workoutUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
     url: `https://tonal.coach/workouts/${slug}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,

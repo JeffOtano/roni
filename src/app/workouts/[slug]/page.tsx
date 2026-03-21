@@ -19,8 +19,25 @@ import { WorkoutJsonLd } from "../_components/WorkoutJsonLd";
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  const slugs = await fetchQuery(api.libraryWorkouts.getSlugs);
-  return slugs.map((slug) => ({ slug }));
+  try {
+    const allSlugs: string[] = [];
+    let cursor: string | null = null;
+    let isDone = false;
+    while (!isDone) {
+      const result: { slugs: string[]; isDone: boolean; continueCursor: string } = await fetchQuery(
+        api.libraryWorkouts.getSlugsPage,
+        {
+          paginationOpts: { numItems: 100, cursor },
+        },
+      );
+      allSlugs.push(...result.slugs);
+      isDone = result.isDone;
+      cursor = result.continueCursor;
+    }
+    return allSlugs.map((slug) => ({ slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({
