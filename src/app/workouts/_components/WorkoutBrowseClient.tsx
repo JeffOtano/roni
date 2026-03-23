@@ -175,17 +175,6 @@ export function WorkoutBrowseClient({ initialWorkouts }: Props) {
               />
             );
           })}
-
-          {isClientReady && status === "CanLoadMore" && (
-            <div className="mt-10 flex justify-center">
-              <button
-                onClick={() => loadMore(CURATED_PAGE_SIZE)}
-                className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                Load more workouts
-              </button>
-            </div>
-          )}
         </>
       )}
     </div>
