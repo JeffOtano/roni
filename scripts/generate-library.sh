@@ -119,7 +119,9 @@ START_TIME=$(date +%s)
 
 while true; do
   BATCH_NUM=$((BATCH_NUM + 1))
-  result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\", \"cursor\": $CURSOR}" 2>&1)
+  raw_result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\", \"cursor\": $CURSOR}" 2>&1)
+  # Strip Convex log lines to get clean JSON
+  result=$(echo "$raw_result" | grep -v '^\[CONVEX' | grep -v '^$')
 
   pushed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "?")
   failed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "?")
@@ -128,8 +130,7 @@ while true; do
 
   if [ "$pushed" = "?" ]; then
     echo "  [$(timestamp)] BATCH $BATCH_NUM: ERROR - could not parse response"
-    echo "    Raw: $(echo "$result" | head -1)"
-    # Don't break - try to continue with next cursor if available
+    echo "    Raw: $(echo "$raw_result" | head -3)"
     if [ "$next_cursor" = "null" ]; then
       echo "  [$(timestamp)] No cursor to continue with. Stopping."
       break
