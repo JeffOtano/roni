@@ -164,7 +164,18 @@ export function WorkoutBrowseClient({ initialWorkouts }: Props) {
         /* ---- CURATED VIEW ---- */
         <>
           {CURATED_SECTIONS.map((section) => {
-            const filtered = workouts.filter(section.filter).slice(0, 8);
+            // Diversify: max 2 per session type to avoid all-Push sections
+            const matched = workouts.filter(section.filter);
+            const counts = new Map<string, number>();
+            const filtered: WorkoutCardData[] = [];
+            for (const w of matched) {
+              const n = counts.get(w.sessionType) ?? 0;
+              if (n < 2) {
+                filtered.push(w);
+                counts.set(w.sessionType, n + 1);
+              }
+              if (filtered.length >= 8) break;
+            }
             return (
               <CuratedSection
                 key={section.title}
