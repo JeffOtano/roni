@@ -47,11 +47,16 @@ export const pushToTonalBatch = internalAction({
     let pushed = 0;
     let failed = 0;
 
+    const total = result.unpushed.length;
+    console.log(`[push] Starting batch: ${total} workouts to process, isDone=${result.isDone}`);
+
     for (const workout of result.unpushed) {
       try {
         let workoutId = workout.tonalWorkoutId;
+        const action = workoutId ? "share-only" : "create+share";
 
         if (!workoutId) {
+          console.log(`[push] ${pushed + 1}/${total} Creating: ${workout.slug}`);
           const createResult: { id: string } = await ctx.runAction(
             internal.tonal.mutations.doTonalCreateWorkout,
             {
@@ -61,10 +66,11 @@ export const pushToTonalBatch = internalAction({
             },
           );
           workoutId = createResult.id;
-          // Wait for Tonal to process the new workout
+          console.log(`[push] ${pushed + 1}/${total} Created: ${workout.slug} -> ${workoutId}`);
           await new Promise((resolve) => setTimeout(resolve, 3000));
         }
 
+        console.log(`[push] ${pushed + 1}/${total} Sharing: ${workout.slug} (${action})`);
         let deepLinkUrl: string | undefined;
         try {
           const shareResult: { deepLinkUrl: string } = await ctx.runAction(
@@ -73,7 +79,7 @@ export const pushToTonalBatch = internalAction({
           );
           deepLinkUrl = shareResult.deepLinkUrl;
         } catch {
-          // Retry once with delay
+          console.log(`[push] ${pushed + 1}/${total} Share failed, retrying in 3s...`);
           await new Promise((resolve) => setTimeout(resolve, 3000));
           try {
             const retry: { deepLinkUrl: string } = await ctx.runAction(
@@ -82,7 +88,7 @@ export const pushToTonalBatch = internalAction({
             );
             deepLinkUrl = retry.deepLinkUrl;
           } catch (retryErr) {
-            console.error(`Failed to share ${workout.slug}:`, retryErr);
+            console.error(`[push] FAILED to share ${workout.slug}:`, retryErr);
           }
         }
 
@@ -92,6 +98,9 @@ export const pushToTonalBatch = internalAction({
           tonalDeepLinkUrl: deepLinkUrl,
         });
         pushed++;
+
+        const status = deepLinkUrl ? "OK" : "NO LINK";
+        console.log(`[push] ${pushed}/${total} Done: ${workout.slug} [${status}]`);
 
         await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (e) {
