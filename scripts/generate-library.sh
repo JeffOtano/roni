@@ -34,15 +34,38 @@ run_convex() {
   npx convex run $PROD_FLAG --no-push "$@"
 }
 
+timestamp() {
+  date "+%H:%M:%S"
+}
+
+echo ""
+echo "============================================"
+echo "  Tonal Coach - Library Generation Script"
+echo "============================================"
+echo "  Started at: $(timestamp)"
+echo "  Deployment: ${PROD_FLAG:-dev}"
+echo "  Service account: ${SERVICE_ACCOUNT:0:12}..."
+echo "  Push only: $PUSH_ONLY"
+echo "============================================"
+echo ""
+
+# ---- GENERATION PHASE ----
 if [ "$PUSH_ONLY" = false ]; then
-  echo "=== Generating library workouts ==="
-  echo "Deployment: ${PROD_FLAG:-dev}"
-  echo "Batch size: $BATCH_SIZE"
+  echo "[$(timestamp)] PHASE 1: GENERATING WORKOUTS"
+  echo "  Batch size: $BATCH_SIZE workouts per LLM call"
+  echo "  Session types: ${#SESSION_TYPES[@]}"
   echo ""
 
+  TOTAL_CREATED=0
+  TOTAL_SKIPPED=0
+  TOTAL_EXISTING=0
+
   for st in "${SESSION_TYPES[@]}"; do
-    echo "--- Session type: $st ---"
+    echo "[$(timestamp)] --- Session type: $st ---"
     offset=0
+    st_created=0
+    st_skipped=0
+    st_existing=0
     while true; do
       result=$(run_convex coach/libraryGenerationActions:generateBatch "{\"sessionTypes\": [\"$st\"], \"generationVersion\": $GENERATION_VERSION, \"offset\": $offset, \"limit\": $BATCH_SIZE}" 2>&1)
 
@@ -51,10 +74,14 @@ if [ "$PUSH_ONLY" = false ]; then
       existing=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['existing'])" 2>/dev/null || echo "?")
       has_more=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['hasMore'])" 2>/dev/null || echo "false")
 
-      echo "  offset=$offset: created=$created skipped=$skipped existing=$existing"
-
       if [ "$created" = "?" ]; then
-        echo "  ERROR: $result"
+        echo "  [$(timestamp)] OFFSET $offset: ERROR - could not parse response"
+        echo "    Raw: $(echo "$result" | head -1)"
+      else
+        echo "  [$(timestamp)] offset=$offset: +$created created, $skipped skipped, $existing already exist"
+        st_created=$((st_created + created))
+        st_skipped=$((st_skipped + skipped))
+        st_existing=$((st_existing + existing))
       fi
 
       if [ "$has_more" != "True" ] && [ "$has_more" != "true" ]; then
@@ -62,32 +89,67 @@ if [ "$PUSH_ONLY" = false ]; then
       fi
       offset=$((offset + BATCH_SIZE))
     done
+    TOTAL_CREATED=$((TOTAL_CREATED + st_created))
+    TOTAL_SKIPPED=$((TOTAL_SKIPPED + st_skipped))
+    TOTAL_EXISTING=$((TOTAL_EXISTING + st_existing))
+    echo "[$(timestamp)] $st complete: $st_created new, $st_skipped skipped, $st_existing existing"
     echo ""
   done
 
-  echo "=== Generation complete ==="
+  echo "============================================"
+  echo "[$(timestamp)] GENERATION COMPLETE"
+  echo "  Total created: $TOTAL_CREATED"
+  echo "  Total skipped: $TOTAL_SKIPPED"
+  echo "  Total existing: $TOTAL_EXISTING"
+  echo "============================================"
   echo ""
 fi
 
-echo "=== Pushing to Tonal ==="
-echo "Service account: $SERVICE_ACCOUNT"
+# ---- PUSH PHASE ----
+echo "[$(timestamp)] PHASE 2: PUSHING TO TONAL + GETTING SHARE LINKS"
+echo "  Each workout: create on Tonal (if needed) -> share -> store deep link URL"
+echo "  Rate limit: 1.5s between workouts, 3s retry on share failure"
+echo ""
 
 CURSOR="null"
 TOTAL_PUSHED=0
+TOTAL_FAILED=0
+BATCH_NUM=0
+START_TIME=$(date +%s)
 
 while true; do
+  BATCH_NUM=$((BATCH_NUM + 1))
   result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\", \"cursor\": $CURSOR}" 2>&1)
 
-  pushed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "0")
-  failed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "0")
+  pushed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "?")
+  failed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "?")
   is_done=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['isDone'])" 2>/dev/null || echo "true")
   next_cursor=$(echo "$result" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['nextCursor']))" 2>/dev/null || echo "null")
 
-  TOTAL_PUSHED=$((TOTAL_PUSHED + pushed))
-  echo "  pushed=$pushed failed=$failed total=$TOTAL_PUSHED"
+  if [ "$pushed" = "?" ]; then
+    echo "  [$(timestamp)] BATCH $BATCH_NUM: ERROR - could not parse response"
+    echo "    Raw: $(echo "$result" | head -1)"
+    # Don't break - try to continue with next cursor if available
+    if [ "$next_cursor" = "null" ]; then
+      echo "  [$(timestamp)] No cursor to continue with. Stopping."
+      break
+    fi
+  else
+    TOTAL_PUSHED=$((TOTAL_PUSHED + pushed))
+    TOTAL_FAILED=$((TOTAL_FAILED + failed))
+
+    ELAPSED=$(( $(date +%s) - START_TIME ))
+    RATE=""
+    if [ $ELAPSED -gt 0 ] && [ $TOTAL_PUSHED -gt 0 ]; then
+      RATE=" ($(echo "scale=1; $TOTAL_PUSHED * 60 / $ELAPSED" | bc)/min)"
+    fi
+
+    echo "  [$(timestamp)] BATCH $BATCH_NUM: +$pushed pushed, $failed failed | Total: $TOTAL_PUSHED pushed, $TOTAL_FAILED failed$RATE"
+  fi
 
   if [ "$is_done" = "True" ] || [ "$is_done" = "true" ]; then
-    echo "  Reached end of table"
+    echo ""
+    echo "  [$(timestamp)] Reached end of table - all workouts processed"
     break
   fi
 
@@ -95,4 +157,17 @@ while true; do
   sleep 3
 done
 
-echo "=== Done ==="
+ELAPSED=$(( $(date +%s) - START_TIME ))
+MINUTES=$((ELAPSED / 60))
+SECONDS=$((ELAPSED % 60))
+
+echo ""
+echo "============================================"
+echo "[$(timestamp)] PUSH COMPLETE"
+echo "  Total pushed: $TOTAL_PUSHED"
+echo "  Total failed: $TOTAL_FAILED"
+echo "  Duration: ${MINUTES}m ${SECONDS}s"
+echo "  Batches: $BATCH_NUM"
+echo "============================================"
+echo ""
+echo "[$(timestamp)] All done!"
