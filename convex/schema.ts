@@ -504,6 +504,7 @@ export default defineSchema({
     whoIsThisFor: v.optional(v.string()),
     faq: v.optional(v.array(v.object({ question: v.string(), answer: v.string() }))),
     tonalWorkoutId: v.optional(v.string()),
+    tonalDeepLinkUrl: v.optional(v.string()),
     generationVersion: v.number(),
     createdAt: v.number(),
   })
