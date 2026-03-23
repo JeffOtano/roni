@@ -53,8 +53,24 @@ export const pushToTonalBatch = internalAction({
     for (const workout of result.unpushed) {
       try {
         let workoutId = workout.tonalWorkoutId;
-        const action = workoutId ? "share-only" : "create+share";
+        let deepLinkUrl: string | undefined;
 
+        // Try to share existing workout first
+        if (workoutId) {
+          console.log(`[push] ${pushed + 1}/${total} Sharing existing: ${workout.slug}`);
+          try {
+            const shareResult: { deepLinkUrl: string } = await ctx.runAction(
+              internal.tonal.mutations.shareWorkout,
+              { userId: serviceAccountUserId, workoutId },
+            );
+            deepLinkUrl = shareResult.deepLinkUrl;
+          } catch {
+            console.log(`[push] ${pushed + 1}/${total} Share failed (stale ID), recreating...`);
+            workoutId = undefined; // Fall through to create
+          }
+        }
+
+        // Create fresh if no ID or share failed (stale ID)
         if (!workoutId) {
           console.log(`[push] ${pushed + 1}/${total} Creating: ${workout.slug}`);
           const createResult: { id: string } = await ctx.runAction(
@@ -68,27 +84,17 @@ export const pushToTonalBatch = internalAction({
           workoutId = createResult.id;
           console.log(`[push] ${pushed + 1}/${total} Created: ${workout.slug} -> ${workoutId}`);
           await new Promise((resolve) => setTimeout(resolve, 3000));
-        }
 
-        console.log(`[push] ${pushed + 1}/${total} Sharing: ${workout.slug} (${action})`);
-        let deepLinkUrl: string | undefined;
-        try {
-          const shareResult: { deepLinkUrl: string } = await ctx.runAction(
-            internal.tonal.mutations.shareWorkout,
-            { userId: serviceAccountUserId, workoutId },
-          );
-          deepLinkUrl = shareResult.deepLinkUrl;
-        } catch {
-          console.log(`[push] ${pushed + 1}/${total} Share failed, retrying in 3s...`);
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          // Share the newly created workout
+          console.log(`[push] ${pushed + 1}/${total} Sharing new: ${workout.slug}`);
           try {
-            const retry: { deepLinkUrl: string } = await ctx.runAction(
+            const shareResult: { deepLinkUrl: string } = await ctx.runAction(
               internal.tonal.mutations.shareWorkout,
               { userId: serviceAccountUserId, workoutId },
             );
-            deepLinkUrl = retry.deepLinkUrl;
-          } catch (retryErr) {
-            console.error(`[push] FAILED to share ${workout.slug}:`, retryErr);
+            deepLinkUrl = shareResult.deepLinkUrl;
+          } catch (shareErr) {
+            console.error(`[push] FAILED to share ${workout.slug}:`, shareErr);
           }
         }
 
