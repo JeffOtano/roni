@@ -72,20 +72,27 @@ fi
 echo "=== Pushing to Tonal ==="
 echo "Service account: $SERVICE_ACCOUNT"
 
+CURSOR="null"
+TOTAL_PUSHED=0
+
 while true; do
-  result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\"}" 2>&1)
+  result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\", \"cursor\": $CURSOR}" 2>&1)
 
   pushed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "0")
   failed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "0")
+  is_done=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['isDone'])" 2>/dev/null || echo "true")
+  next_cursor=$(echo "$result" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['nextCursor']))" 2>/dev/null || echo "null")
 
-  echo "  pushed=$pushed failed=$failed"
+  TOTAL_PUSHED=$((TOTAL_PUSHED + pushed))
+  echo "  pushed=$pushed failed=$failed total=$TOTAL_PUSHED"
 
-  if [ "$pushed" = "0" ]; then
+  if [ "$is_done" = "True" ] || [ "$is_done" = "true" ]; then
+    echo "  Reached end of table"
     break
   fi
 
-  echo "  waiting 5s before next batch..."
-  sleep 5
+  CURSOR="$next_cursor"
+  sleep 3
 done
 
 echo "=== Done ==="

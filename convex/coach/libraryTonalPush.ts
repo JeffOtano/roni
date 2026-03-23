@@ -1,62 +1,58 @@
-import { internalAction, internalMutation } from "../_generated/server";
+import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 
-export const clearTonalFields = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const workouts = await ctx.db.query("libraryWorkouts").take(100);
-    let cleared = 0;
-    for (const w of workouts) {
-      if (w.tonalWorkoutId || w.tonalDeepLinkUrl) {
-        await ctx.db.patch(w._id, {
-          tonalWorkoutId: undefined,
-          tonalDeepLinkUrl: undefined,
-        });
-        cleared++;
-      }
-    }
-    return { cleared, hasMore: workouts.length === 100 };
-  },
-});
+type WorkoutToPush = {
+  slug: string;
+  title: string;
+  blocks: Array<{
+    exercises: Array<{
+      movementId: string;
+      sets: number;
+      reps?: number;
+      duration?: number;
+      warmUp?: boolean;
+      spotter?: boolean;
+      eccentric?: boolean;
+      chains?: boolean;
+      burnout?: boolean;
+      dropSet?: boolean;
+    }>;
+  }>;
+  tonalWorkoutId?: string;
+};
 
 export const pushToTonalBatch = internalAction({
-  args: { serviceAccountUserId: v.id("users") },
+  args: {
+    serviceAccountUserId: v.id("users"),
+    cursor: v.union(v.string(), v.null()),
+  },
   handler: async (
     ctx,
-    { serviceAccountUserId },
-  ): Promise<{ pushed: number; failed: number; remaining: number }> => {
-    const unpushed: Array<{
-      slug: string;
-      title: string;
-      blocks: Array<{
-        exercises: Array<{
-          movementId: string;
-          sets: number;
-          reps?: number;
-          duration?: number;
-          warmUp?: boolean;
-          spotter?: boolean;
-          eccentric?: boolean;
-          chains?: boolean;
-          burnout?: boolean;
-          dropSet?: boolean;
-        }>;
-      }>;
-      tonalWorkoutId?: string;
-    }> = await ctx.runQuery(internal.coach.libraryGenerationActions.getUnpushedWorkouts);
-
-    if (unpushed.length === 0) return { pushed: 0, failed: 0, remaining: 0 };
+    { serviceAccountUserId, cursor },
+  ): Promise<{
+    pushed: number;
+    failed: number;
+    nextCursor: string;
+    isDone: boolean;
+  }> => {
+    const result: {
+      unpushed: WorkoutToPush[];
+      isDone: boolean;
+      continueCursor: string;
+    } = await ctx.runQuery(internal.coach.libraryGenerationActions.getUnpushedWorkouts, {
+      paginationOpts: { numItems: 50, cursor },
+    });
 
     let pushed = 0;
     let failed = 0;
 
-    for (const workout of unpushed) {
+    for (const workout of result.unpushed) {
       try {
         let workoutId = workout.tonalWorkoutId;
 
         if (!workoutId) {
-          const result: { id: string } = await ctx.runAction(
+          const createResult: { id: string } = await ctx.runAction(
             internal.tonal.mutations.doTonalCreateWorkout,
             {
               userId: serviceAccountUserId,
@@ -64,11 +60,8 @@ export const pushToTonalBatch = internalAction({
               blocks: workout.blocks,
             },
           );
-          workoutId = result.id;
-        }
-
-        // Only delay after fresh creation (Tonal needs time to process)
-        if (!workout.tonalWorkoutId) {
+          workoutId = createResult.id;
+          // Wait for Tonal to process the new workout
           await new Promise((resolve) => setTimeout(resolve, 3000));
         }
 
@@ -108,6 +101,11 @@ export const pushToTonalBatch = internalAction({
       }
     }
 
-    return { pushed, failed, remaining: unpushed.length - pushed - failed };
+    return {
+      pushed,
+      failed,
+      nextCursor: result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
