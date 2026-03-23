@@ -108,7 +108,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       <h1 className="mb-3 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
         {workout.title}
       </h1>
-      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{workout.description}</p>
+      <p className="mb-4 text-base leading-relaxed text-muted-foreground">{workout.description}</p>
 
       {/* Who is this for */}
       {workout.whoIsThisFor && (
@@ -142,14 +142,14 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       {/* Equipment badges */}
       {workout.equipmentNeeded.length > 0 && (
         <div className="mb-8">
-          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <p className="mb-2 text-sm font-medium text-muted-foreground uppercase tracking-wide">
             Equipment
           </p>
           <div className="flex flex-wrap gap-1.5">
             {workout.equipmentNeeded.map((eq) => (
               <span
                 key={eq}
-                className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
+                className="rounded-full border border-border bg-muted px-3 py-1 text-sm text-muted-foreground"
               >
                 {eq}
               </span>
@@ -162,7 +162,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       <section>
         <h2 className="mb-4 text-lg font-semibold">Workout Plan</h2>
         {workout.restGuidance && (
-          <p className="mb-4 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-xs text-muted-foreground">
+          <p className="mb-4 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
             {workout.restGuidance}
           </p>
         )}
@@ -172,7 +172,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       {/* Workout rationale */}
       {workout.workoutRationale && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Why this order</h3>
+          <h3 className="mb-2 text-base font-semibold text-foreground">Why this order</h3>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {workout.workoutRationale}
           </p>
@@ -187,7 +187,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
           href={workout.tonalDeepLinkUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mb-8 flex items-center justify-center gap-2 rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+          className="mb-8 flex items-center justify-center gap-2 rounded-lg bg-foreground px-6 py-3.5 text-base font-semibold text-background transition-opacity hover:opacity-90"
         >
           Open in Tonal
         </a>
@@ -200,7 +200,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
           <div className="space-y-4">
             {workout.faq.map((item, i) => (
               <div key={i} className="rounded-lg border border-border bg-card p-5">
-                <h3 className="mb-2 text-sm font-semibold text-foreground">{item.question}</h3>
+                <h3 className="mb-2 text-base font-semibold text-foreground">{item.question}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
               </div>
             ))}
@@ -217,10 +217,10 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
 
 function StatPill({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-card p-3 text-center">
+    <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-4 text-center">
       <span className="text-muted-foreground">{icon}</span>
-      <span className="text-sm font-bold tabular-nums text-foreground">{value}</span>
-      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className="text-base font-bold tabular-nums text-foreground">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }
