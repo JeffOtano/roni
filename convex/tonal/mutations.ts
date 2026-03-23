@@ -83,6 +83,24 @@ export const doTonalCreateWorkout = internalAction({
   },
 });
 
+/** Share a custom workout to get a deep link URL. */
+export const shareWorkout = internalAction({
+  args: {
+    userId: v.id("users"),
+    workoutId: v.string(),
+  },
+  handler: async (ctx, { userId, workoutId }): Promise<{ deepLinkUrl: string }> => {
+    return withTokenRetry(ctx, userId, async (token, tonalUserId) => {
+      const result = await tonalFetch<{ deepLinkUrl: string }>(
+        token,
+        `/v6/users/${tonalUserId}/user-workouts/${workoutId}/share`,
+        { method: "POST" },
+      );
+      return { deepLinkUrl: result.deepLinkUrl };
+    });
+  },
+});
+
 /** Activities for activation eligibility check (separate cache key). */
 export const fetchWorkoutHistoryForEligibility = internalAction({
   args: { userId: v.id("users") },
