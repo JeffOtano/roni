@@ -250,16 +250,24 @@ Return an array of objects with slug, description, and metaDescription for each 
 export const getUnpushedWorkouts = internalQuery({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, { paginationOpts }) => {
-    const result = await ctx.db.query("libraryWorkouts").paginate(paginationOpts);
+    // Use .filter() before .paginate() so Convex only returns pages
+    // that actually have unpushed workouts (avoids scanning 200+ done docs)
+    const result = await ctx.db
+      .query("libraryWorkouts")
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("tonalWorkoutId"), undefined),
+          q.eq(q.field("tonalDeepLinkUrl"), undefined),
+        ),
+      )
+      .paginate(paginationOpts);
     return {
-      unpushed: result.page
-        .filter((w) => !w.tonalWorkoutId || !w.tonalDeepLinkUrl)
-        .map((w) => ({
-          slug: w.slug,
-          title: w.title,
-          blocks: w.blocks,
-          tonalWorkoutId: w.tonalWorkoutId,
-        })),
+      unpushed: result.page.map((w) => ({
+        slug: w.slug,
+        title: w.title,
+        blocks: w.blocks,
+        tonalWorkoutId: w.tonalWorkoutId,
+      })),
       isDone: result.isDone,
       continueCursor: result.continueCursor,
     };
