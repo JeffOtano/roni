@@ -44,6 +44,17 @@ export const swapExerciseInDraft = internalMutation({
       throw new Error("Can only swap exercises in draft workout plans");
     }
 
+    // Validate the new movement ID exists in the catalog
+    const movement = await ctx.db
+      .query("movements")
+      .withIndex("by_tonalId", (q) => q.eq("tonalId", newMovementId))
+      .first();
+    if (!movement) {
+      throw new Error(
+        `Invalid movementId: ${newMovementId}. Use search_exercises to get valid IDs from the catalog.`,
+      );
+    }
+
     const blocks = wp.blocks;
     const updatedBlocks = blocks.map((block) => ({
       ...block,
@@ -83,6 +94,17 @@ export const addExerciseToDraft = internalMutation({
     }
     if (wp.status !== "draft") {
       throw new Error("Can only add exercises to draft workout plans");
+    }
+
+    // Validate the movement ID exists in the catalog
+    const movement = await ctx.db
+      .query("movements")
+      .withIndex("by_tonalId", (q) => q.eq("tonalId", movementId))
+      .first();
+    if (!movement) {
+      throw new Error(
+        `Invalid movementId: ${movementId}. Use search_exercises to get valid IDs from the catalog.`,
+      );
     }
 
     const blocks = [...wp.blocks];
