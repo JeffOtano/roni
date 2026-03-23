@@ -73,7 +73,7 @@ echo "=== Pushing to Tonal ==="
 echo "Service account: $SERVICE_ACCOUNT"
 
 while true; do
-  result=$(run_convex coach/libraryGenerationActions:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\"}" 2>&1)
+  result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\"}" 2>&1)
 
   pushed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "0")
   failed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "0")

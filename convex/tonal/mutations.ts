@@ -101,6 +101,28 @@ export const shareWorkout = internalAction({
   },
 });
 
+/** Delete all custom workouts from a user's Tonal account. */
+export const deleteAllCustomWorkouts = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<{ deleted: number }> => {
+    return withTokenRetry(ctx, userId, async (token) => {
+      const workouts = await tonalFetch<Array<{ id: string }>>(token, "/v6/user-workouts");
+      let deleted = 0;
+      for (const w of workouts) {
+        try {
+          await tonalFetch(token, `/v6/user-workouts/${w.id}`, { method: "DELETE" });
+          deleted++;
+          // Rate limit
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        } catch (e) {
+          console.error(`Failed to delete workout ${w.id}:`, e);
+        }
+      }
+      return { deleted };
+    });
+  },
+});
+
 /** Activities for activation eligibility check (separate cache key). */
 export const fetchWorkoutHistoryForEligibility = internalAction({
   args: { userId: v.id("users") },
