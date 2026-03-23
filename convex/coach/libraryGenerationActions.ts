@@ -252,7 +252,7 @@ export const getUnpushedWorkouts = internalQuery({
     const all = await ctx.db.query("libraryWorkouts").collect();
     return all
       .filter((w) => !w.tonalWorkoutId || !w.tonalDeepLinkUrl)
-      .slice(0, 10)
+      .slice(0, 15)
       .map((w) => ({
         slug: w.slug,
         title: w.title,

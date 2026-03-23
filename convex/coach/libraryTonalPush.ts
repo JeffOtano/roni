@@ -67,26 +67,29 @@ export const pushToTonalBatch = internalAction({
           workoutId = result.id;
         }
 
-        // Wait for Tonal to finish processing the workout before sharing
+        // Only delay after fresh creation (Tonal needs time to process)
         if (!workout.tonalWorkoutId) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
 
         let deepLinkUrl: string | undefined;
-        for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const shareResult: { deepLinkUrl: string } = await ctx.runAction(
+            internal.tonal.mutations.shareWorkout,
+            { userId: serviceAccountUserId, workoutId },
+          );
+          deepLinkUrl = shareResult.deepLinkUrl;
+        } catch {
+          // Retry once with delay
+          await new Promise((resolve) => setTimeout(resolve, 3000));
           try {
-            const shareResult: { deepLinkUrl: string } = await ctx.runAction(
+            const retry: { deepLinkUrl: string } = await ctx.runAction(
               internal.tonal.mutations.shareWorkout,
               { userId: serviceAccountUserId, workoutId },
             );
-            deepLinkUrl = shareResult.deepLinkUrl;
-            break;
-          } catch (shareErr) {
-            if (attempt === 0) {
-              await new Promise((resolve) => setTimeout(resolve, 5000));
-            } else {
-              console.error(`Failed to share ${workout.slug}:`, shareErr);
-            }
+            deepLinkUrl = retry.deepLinkUrl;
+          } catch (retryErr) {
+            console.error(`Failed to share ${workout.slug}:`, retryErr);
           }
         }
 
@@ -97,7 +100,7 @@ export const pushToTonalBatch = internalAction({
         });
         pushed++;
 
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (e) {
         console.error(`Failed to push ${workout.slug}:`, e);
         failed++;
