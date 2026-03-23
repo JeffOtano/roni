@@ -44,6 +44,7 @@ const libraryWorkoutValidator = v.object({
   whoIsThisFor: v.optional(v.string()),
   faq: v.optional(v.array(v.object({ question: v.string(), answer: v.string() }))),
   tonalWorkoutId: v.optional(v.string()),
+  tonalDeepLinkUrl: v.optional(v.string()),
   generationVersion: v.number(),
   createdAt: v.number(),
 });
@@ -250,7 +251,7 @@ export const getUnpushedWorkouts = internalQuery({
   handler: async (ctx) => {
     const all = await ctx.db.query("libraryWorkouts").collect();
     return all
-      .filter((w) => !w.tonalWorkoutId)
+      .filter((w) => !w.tonalWorkoutId || !w.tonalDeepLinkUrl)
       .slice(0, 10)
       .map((w) => ({
         slug: w.slug,
@@ -265,14 +266,15 @@ export const setTonalWorkoutId = internalMutation({
   args: {
     slug: v.string(),
     tonalWorkoutId: v.string(),
+    tonalDeepLinkUrl: v.optional(v.string()),
   },
-  handler: async (ctx, { slug, tonalWorkoutId }) => {
+  handler: async (ctx, { slug, tonalWorkoutId, tonalDeepLinkUrl }) => {
     const workout = await ctx.db
       .query("libraryWorkouts")
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first();
     if (workout) {
-      await ctx.db.patch(workout._id, { tonalWorkoutId });
+      await ctx.db.patch(workout._id, { tonalWorkoutId, tonalDeepLinkUrl });
     }
   },
 });
@@ -310,22 +312,27 @@ export const pushToTonalBatch = internalAction({
 
     for (const workout of unpushed) {
       try {
-        // Step 1: Create the workout on Tonal
-        const result: { id: string } = await ctx.runAction(
-          internal.tonal.mutations.doTonalCreateWorkout,
-          {
-            userId: serviceAccountUserId,
-            title: workout.title,
-            blocks: workout.blocks,
-          },
-        );
+        let workoutId = workout.tonalWorkoutId;
+
+        // Step 1: Create the workout on Tonal (skip if already created)
+        if (!workoutId) {
+          const result: { id: string } = await ctx.runAction(
+            internal.tonal.mutations.doTonalCreateWorkout,
+            {
+              userId: serviceAccountUserId,
+              title: workout.title,
+              blocks: workout.blocks,
+            },
+          );
+          workoutId = result.id;
+        }
 
         // Step 2: Share it to get the deep link URL
         let deepLinkUrl: string | undefined;
         try {
           const shareResult: { deepLinkUrl: string } = await ctx.runAction(
             internal.tonal.mutations.shareWorkout,
-            { userId: serviceAccountUserId, workoutId: result.id },
+            { userId: serviceAccountUserId, workoutId },
           );
           deepLinkUrl = shareResult.deepLinkUrl;
         } catch (shareErr) {
@@ -334,11 +341,12 @@ export const pushToTonalBatch = internalAction({
 
         await ctx.runMutation(internal.coach.libraryGenerationActions.setTonalWorkoutId, {
           slug: workout.slug,
-          tonalWorkoutId: deepLinkUrl ?? result.id,
+          tonalWorkoutId: workoutId,
+          tonalDeepLinkUrl: deepLinkUrl,
         });
         pushed++;
 
-        // Rate limit: 3 second delay between Tonal API calls (2 calls per workout now)
+        // Rate limit: 3 second delay between Tonal API calls
         await new Promise((resolve) => setTimeout(resolve, 3000));
       } catch (e) {
         console.error(`Failed to push ${workout.slug}:`, e);

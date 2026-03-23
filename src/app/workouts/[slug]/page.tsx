@@ -197,12 +197,11 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
       )}
 
       {/* Open in Tonal button */}
-      {workout.tonalWorkoutId && (
+      {(workout.tonalDeepLinkUrl || workout.tonalWorkoutId) && (
         <a
           href={
-            workout.tonalWorkoutId?.startsWith("https://")
-              ? workout.tonalWorkoutId
-              : `https://link.tonal.com/custom-workout/${workout.tonalWorkoutId}`
+            workout.tonalDeepLinkUrl ??
+            `https://link.tonal.com/custom-workout/${workout.tonalWorkoutId}`
           }
           target="_blank"
           rel="noopener noreferrer"
