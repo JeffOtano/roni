@@ -67,15 +67,27 @@ export const pushToTonalBatch = internalAction({
           workoutId = result.id;
         }
 
+        // Wait for Tonal to finish processing the workout before sharing
+        if (!workout.tonalWorkoutId) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+
         let deepLinkUrl: string | undefined;
-        try {
-          const shareResult: { deepLinkUrl: string } = await ctx.runAction(
-            internal.tonal.mutations.shareWorkout,
-            { userId: serviceAccountUserId, workoutId },
-          );
-          deepLinkUrl = shareResult.deepLinkUrl;
-        } catch (shareErr) {
-          console.error(`Failed to share ${workout.slug}:`, shareErr);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const shareResult: { deepLinkUrl: string } = await ctx.runAction(
+              internal.tonal.mutations.shareWorkout,
+              { userId: serviceAccountUserId, workoutId },
+            );
+            deepLinkUrl = shareResult.deepLinkUrl;
+            break;
+          } catch (shareErr) {
+            if (attempt === 0) {
+              await new Promise((resolve) => setTimeout(resolve, 5000));
+            } else {
+              console.error(`Failed to share ${workout.slug}:`, shareErr);
+            }
+          }
         }
 
         await ctx.runMutation(internal.coach.libraryGenerationActions.setTonalWorkoutId, {
