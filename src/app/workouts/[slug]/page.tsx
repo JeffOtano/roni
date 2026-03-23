@@ -181,21 +181,6 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
 
       <WorkoutCtaBanner />
 
-      {/* FAQ */}
-      {workout.faq && workout.faq.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold">Frequently Asked Questions</h2>
-          <div className="space-y-4">
-            {workout.faq.map((item, i) => (
-              <div key={i} className="rounded-lg border border-border bg-card p-5">
-                <h3 className="mb-2 text-sm font-semibold text-foreground">{item.question}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Open in Tonal button */}
       {(workout.tonalDeepLinkUrl || workout.tonalWorkoutId) && (
         <a
@@ -209,6 +194,21 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
         >
           Open in Tonal
         </a>
+      )}
+
+      {/* FAQ */}
+      {workout.faq && workout.faq.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-4 text-lg font-semibold">Frequently Asked Questions</h2>
+          <div className="space-y-4">
+            {workout.faq.map((item, i) => (
+              <div key={i} className="rounded-lg border border-border bg-card p-5">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">{item.question}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <Suspense fallback={null}>
