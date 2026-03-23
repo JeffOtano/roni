@@ -204,7 +204,7 @@ export const getTrainingFrequencyTool = createTool({
 
 export const createWorkoutTool = createTool({
   description:
-    "Create a custom workout on Tonal. Confirm with the user first. Use movementIds from search_exercises. A date prefix is added automatically to the title on Tonal. For duration-based exercises (isDurationBased=true from search_exercises, e.g. Pushup), specify 'duration' in seconds instead of 'reps'. The system auto-corrects if you get this wrong, but specifying correctly avoids warnings.",
+    "Create a ONE-OFF custom workout on Tonal. ONLY for single standalone workouts, NEVER for weekly programming. For weekly plans (Push/Pull/Legs, Upper/Lower, etc.), use program_week instead. Every movementId MUST come from a prior search_exercises call. For duration-based exercises (isDurationBased=true from search_exercises), specify 'duration' in seconds instead of 'reps'.",
   inputSchema: z.object({
     title: z
       .string()
@@ -253,9 +253,13 @@ export const createWorkoutTool = createTool({
       const validIds = new Set(validatedMovements.map((m) => m.id));
       const invalidIds = allMovementIds.filter((id) => !validIds.has(id));
       if (invalidIds.length > 0) {
+        const pctInvalid = invalidIds.length / allMovementIds.length;
+        const isLikelyHallucination = pctInvalid > 0.3 || invalidIds.length >= 3;
         return {
           success: false,
-          error: `Invalid movementIds: ${invalidIds.join(", ")}. You MUST call search_exercises first to get valid IDs from Tonal's catalog. Do not guess or fabricate IDs.`,
+          error: isLikelyHallucination
+            ? `STOP: ${invalidIds.length} of ${allMovementIds.length} movement IDs are invalid. You are fabricating IDs. You MUST call search_exercises for EACH exercise to get real UUIDs from Tonal's catalog. If you are building a weekly plan, use program_week instead of create_workout.`
+            : `Invalid movementIds: ${invalidIds.join(", ")}. Call search_exercises to get valid IDs. Do not guess or reuse IDs from previous conversations.`,
         };
       }
 
