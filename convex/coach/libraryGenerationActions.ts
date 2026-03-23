@@ -310,6 +310,7 @@ export const pushToTonalBatch = internalAction({
 
     for (const workout of unpushed) {
       try {
+        // Step 1: Create the workout on Tonal
         const result: { id: string } = await ctx.runAction(
           internal.tonal.mutations.doTonalCreateWorkout,
           {
@@ -319,14 +320,26 @@ export const pushToTonalBatch = internalAction({
           },
         );
 
+        // Step 2: Share it to get the deep link URL
+        let deepLinkUrl: string | undefined;
+        try {
+          const shareResult: { deepLinkUrl: string } = await ctx.runAction(
+            internal.tonal.mutations.shareWorkout,
+            { userId: serviceAccountUserId, workoutId: result.id },
+          );
+          deepLinkUrl = shareResult.deepLinkUrl;
+        } catch (shareErr) {
+          console.error(`Failed to share ${workout.slug}:`, shareErr);
+        }
+
         await ctx.runMutation(internal.coach.libraryGenerationActions.setTonalWorkoutId, {
           slug: workout.slug,
-          tonalWorkoutId: result.id,
+          tonalWorkoutId: deepLinkUrl ?? result.id,
         });
         pushed++;
 
-        // Rate limit: 2 second delay between Tonal API calls
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Rate limit: 3 second delay between Tonal API calls (2 calls per workout now)
+        await new Promise((resolve) => setTimeout(resolve, 3000));
       } catch (e) {
         console.error(`Failed to push ${workout.slug}:`, e);
         failed++;
