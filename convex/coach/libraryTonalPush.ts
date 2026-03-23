@@ -41,7 +41,7 @@ export const pushToTonalBatch = internalAction({
       isDone: boolean;
       continueCursor: string;
     } = await ctx.runQuery(internal.coach.libraryGenerationActions.getUnpushedWorkouts, {
-      paginationOpts: { numItems: 50, cursor },
+      paginationOpts: { numItems: 10, cursor },
     });
 
     let pushed = 0;
@@ -102,7 +102,7 @@ export const pushToTonalBatch = internalAction({
         const status = deepLinkUrl ? "OK" : "NO LINK";
         console.log(`[push] ${pushed}/${total} Done: ${workout.slug} [${status}]`);
 
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (e) {
         console.error(`Failed to push ${workout.slug}:`, e);
         failed++;
