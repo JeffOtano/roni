@@ -1,6 +1,7 @@
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { generateText, Output } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
@@ -247,18 +248,21 @@ Return an array of objects with slug, description, and metaDescription for each 
 // ---------------------------------------------------------------------------
 
 export const getUnpushedWorkouts = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const all = await ctx.db.query("libraryWorkouts").collect();
-    return all
-      .filter((w) => !w.tonalWorkoutId || !w.tonalDeepLinkUrl)
-      .slice(0, 15)
-      .map((w) => ({
-        slug: w.slug,
-        title: w.title,
-        blocks: w.blocks,
-        tonalWorkoutId: w.tonalWorkoutId,
-      }));
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const result = await ctx.db.query("libraryWorkouts").paginate(paginationOpts);
+    return {
+      unpushed: result.page
+        .filter((w) => !w.tonalWorkoutId || !w.tonalDeepLinkUrl)
+        .map((w) => ({
+          slug: w.slug,
+          title: w.title,
+          blocks: w.blocks,
+          tonalWorkoutId: w.tonalWorkoutId,
+        })),
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });
 
