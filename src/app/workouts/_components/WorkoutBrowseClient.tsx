@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePaginatedQuery } from "convex/react";
 import { Loader2, SearchX } from "lucide-react";
 import { api } from "../../../../convex/_generated/api";
 import { WorkoutFilters } from "./WorkoutFilters";
 import { type WorkoutCardData, WorkoutLibraryCard } from "./WorkoutLibraryCard";
+import { SessionTypeChips } from "./SessionTypeChips";
+import { ActiveFilterPills } from "./ActiveFilterPills";
+import { CuratedSection } from "./CuratedSection";
 
 const PAGE_SIZE = 24;
+const CURATED_PAGE_SIZE = 48;
 
-/** Deterministic shuffle based on slug to avoid layout shift between renders. */
 function shuffleBySlug(workouts: WorkoutCardData[]): WorkoutCardData[] {
   return [...workouts].sort((a, b) => {
     const hashA = a.slug.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
@@ -19,12 +22,46 @@ function shuffleBySlug(workouts: WorkoutCardData[]): WorkoutCardData[] {
   });
 }
 
+const CURATED_SECTIONS = [
+  {
+    title: "Quick Workouts",
+    subtitle: "30 minutes or less",
+    seeAllHref: "/workouts?duration=30",
+    filter: (w: WorkoutCardData) => w.durationMinutes <= 30,
+  },
+  {
+    title: "Build Muscle",
+    subtitle: "Hypertrophy-focused training",
+    seeAllHref: "/workouts?goal=build_muscle",
+    filter: (w: WorkoutCardData) => w.goal === "build_muscle",
+  },
+  {
+    title: "Beginner Friendly",
+    subtitle: "Great starting points",
+    seeAllHref: "/workouts?level=beginner",
+    filter: (w: WorkoutCardData) => w.level === "beginner",
+  },
+  {
+    title: "Full Body Sessions",
+    subtitle: "Hit every muscle group",
+    seeAllHref: "/workouts?sessionType=full_body",
+    filter: (w: WorkoutCardData) => w.sessionType === "full_body",
+  },
+  {
+    title: "Get Stronger",
+    subtitle: "Heavy compounds, low reps",
+    seeAllHref: "/workouts?goal=strength",
+    filter: (w: WorkoutCardData) => w.goal === "strength",
+  },
+] as const;
+
 interface Props {
   initialWorkouts: WorkoutCardData[];
 }
 
 export function WorkoutBrowseClient({ initialWorkouts }: Props) {
   const searchParams = useSearchParams();
+  const hasAutoLoaded = useRef(false);
 
   const goal = searchParams.get("goal");
   const sessionType = searchParams.get("sessionType");
@@ -41,16 +78,20 @@ export function WorkoutBrowseClient({ initialWorkouts }: Props) {
       durationMinutes: duration ? Number(duration) : undefined,
       level: level ?? undefined,
     },
-    { initialNumItems: PAGE_SIZE },
+    { initialNumItems: hasFilters ? PAGE_SIZE : CURATED_PAGE_SIZE },
   );
 
-  // Use server-rendered data while the client query loads (preserves SEO).
-  // Once the client query has results, it takes over for interactivity.
+  // Auto-load more data for curated sections (once)
+  useEffect(() => {
+    if (!hasFilters && status === "CanLoadMore" && !hasAutoLoaded.current) {
+      hasAutoLoaded.current = true;
+      loadMore(CURATED_PAGE_SIZE);
+    }
+  }, [hasFilters, status, loadMore]);
+
   const isClientReady = status !== "LoadingFirstPage";
   const rawWorkouts = isClientReady ? results : initialWorkouts;
 
-  // Shuffle unfiltered results so the default view shows variety (not all Push first).
-  // Uses a deterministic hash so order is stable across re-renders.
   const workouts = useMemo(
     () => (hasFilters ? rawWorkouts : shuffleBySlug(rawWorkouts)),
     [rawWorkouts, hasFilters],
@@ -72,80 +113,138 @@ export function WorkoutBrowseClient({ initialWorkouts }: Props) {
           Workout Library
         </h1>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Expert-designed workouts for every goal, muscle group, and experience level. Open any
-          workout directly in your Tonal app.
+          {hasFilters
+            ? "Filtered results below. Use the chips and dropdowns to refine."
+            : "Expert-designed workouts for every goal, muscle group, and experience level. Open any workout directly in your Tonal app."}
         </p>
       </header>
 
-      {/* Filters */}
-      <div className="mb-8">
-        <WorkoutFilters />
+      {/* Body part chips (always visible) */}
+      <div className="mb-6">
+        <SessionTypeChips />
       </div>
 
-      {/* Results bar */}
-      <div className="mb-6 flex items-center gap-3">
-        <span className="text-sm font-medium tabular-nums text-foreground">{workouts.length}</span>
-        <span className="text-sm text-muted-foreground">
-          workout{workouts.length !== 1 ? "s" : ""}
-          {hasFilters ? " matching filters" : " loaded"}
-          {isClientReady && status === "CanLoadMore" ? " so far" : ""}
-        </span>
-      </div>
-
-      {/* Grid */}
-      {workouts.length > 0 ? (
+      {hasFilters ? (
+        /* ---- FILTERED VIEW ---- */
         <>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {workouts.map((workout) => (
-              <WorkoutLibraryCard key={workout.slug} workout={workout} />
-            ))}
+          <div className="mb-4">
+            <WorkoutFilters />
+          </div>
+          <ActiveFilterPills />
+
+          <div className="mb-6 mt-4 flex items-center gap-3">
+            <span className="text-sm font-medium tabular-nums text-foreground">
+              {workouts.length}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              workout{workouts.length !== 1 ? "s" : ""} matching filters
+              {isClientReady && status === "CanLoadMore" ? " so far" : ""}
+            </span>
           </div>
 
-          {/* Pagination footer */}
-          {isClientReady && (
-            <div className="mt-10 flex justify-center">
-              {status === "CanLoadMore" && (
-                <button
-                  onClick={() => loadMore(PAGE_SIZE)}
-                  className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                >
-                  Load more workouts
-                </button>
-              )}
-              {status === "LoadingMore" && (
-                <div
-                  className="flex items-center gap-2 text-sm text-muted-foreground"
-                  role="status"
-                >
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  <span>Loading more workouts...</span>
-                </div>
-              )}
-              {status === "Exhausted" && results.length > PAGE_SIZE && (
-                <p className="text-sm text-muted-foreground">All workouts loaded</p>
-              )}
-            </div>
+          {workouts.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {workouts.map((workout) => (
+                  <WorkoutLibraryCard key={workout.slug} workout={workout} />
+                ))}
+              </div>
+              <PaginationFooter
+                status={status}
+                isClientReady={isClientReady}
+                resultCount={results.length}
+                onLoadMore={() => loadMore(PAGE_SIZE)}
+              />
+            </>
+          ) : (
+            <EmptyState />
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center py-24 text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted">
-            <SearchX className="size-6 text-muted-foreground" aria-hidden="true" />
-          </div>
-          <p className="text-base font-medium text-foreground">No workouts match these filters</p>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Try broadening your search by removing a filter, or clear them all to see every workout.
-          </p>
-          <button
-            onClick={() => {
-              window.location.href = "/workouts";
-            }}
-            className="mt-6 inline-flex h-9 items-center rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            Clear all filters
-          </button>
+        /* ---- CURATED VIEW ---- */
+        <>
+          {CURATED_SECTIONS.map((section) => {
+            const filtered = workouts.filter(section.filter).slice(0, 8);
+            return (
+              <CuratedSection
+                key={section.title}
+                title={section.title}
+                subtitle={section.subtitle}
+                seeAllHref={section.seeAllHref}
+                workouts={filtered}
+              />
+            );
+          })}
+
+          {isClientReady && status === "CanLoadMore" && (
+            <div className="mt-10 flex justify-center">
+              <button
+                onClick={() => loadMore(CURATED_PAGE_SIZE)}
+                className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                Load more workouts
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function PaginationFooter({
+  status,
+  isClientReady,
+  resultCount,
+  onLoadMore,
+}: {
+  status: string;
+  isClientReady: boolean;
+  resultCount: number;
+  onLoadMore: () => void;
+}) {
+  if (!isClientReady) return null;
+  return (
+    <div className="mt-10 flex justify-center">
+      {status === "CanLoadMore" && (
+        <button
+          onClick={onLoadMore}
+          className="inline-flex h-10 items-center rounded-lg border border-border bg-card px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          Load more workouts
+        </button>
+      )}
+      {status === "LoadingMore" && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          <span>Loading more workouts...</span>
         </div>
       )}
+      {status === "Exhausted" && resultCount > PAGE_SIZE && (
+        <p className="text-sm text-muted-foreground">All workouts loaded</p>
+      )}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center py-24 text-center">
+      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted">
+        <SearchX className="size-6 text-muted-foreground" aria-hidden="true" />
+      </div>
+      <p className="text-base font-medium text-foreground">No workouts match these filters</p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        Try broadening your search by removing a filter, or clear them all to see every workout.
+      </p>
+      <button
+        onClick={() => {
+          window.location.href = "/workouts";
+        }}
+        className="mt-6 inline-flex h-9 items-center rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        Clear all filters
+      </button>
     </div>
   );
 }
