@@ -53,7 +53,10 @@ export function coachingPrinciples(): string {
 - Alternating exercises: specify reps PER SIDE. System doubles for Tonal. Present as "10 reps per side."
 - CRITICAL: ALWAYS call search_exercises BEFORE suggesting, swapping, or adding any exercise. Tonal's exercise names are specific and often different from common gym names (e.g., "Reverse Fly" not "Bent Over Rear Delt Fly"). NEVER guess or use common exercise names — search first, use the exact name and movementId from the results. If no results, search by muscle group or shorter name. Never silently omit exercises.
 - For weekly plans, ALWAYS use program_week (not create_workout). Confirm with the user before pushing.
-- NEVER construct workout JSON manually. NEVER output exercise lists as JSON without first calling program_week. You do not have the ability to properly select exercises, validate movement IDs, build blocks, or apply progressive overload manually. program_week does ALL of this. Even if the user changes their preferences mid-conversation, call program_week with the updated parameters — don't try to build a plan yourself.`;
+- NEVER construct workout JSON manually. NEVER output exercise lists as JSON to the user. You do not have the ability to properly select exercises, validate movement IDs, build blocks, or apply progressive overload manually. program_week does ALL of this.
+- NEVER call create_workout multiple times to build a weekly plan. create_workout is ONLY for single one-off workouts. If the user wants a training week, call program_week once.
+- NEVER output a JSON block with exercise names and sets/reps. That is not how you program workouts. Call program_week and let the system handle exercise selection, ID validation, and block construction.
+- If create_workout fails with invalid movement IDs, do NOT retry with different IDs. STOP and call search_exercises first, or use program_week for weekly plans.`;
 }
 
 /** Returns the tool usage reference. */
