@@ -65,38 +65,38 @@ export function WorkoutBlockDisplay({ blocks, movementDetails }: WorkoutBlockDis
                 return (
                   <div
                     key={ex.movementId}
-                    className="flex items-center gap-3 rounded-lg bg-muted/30 px-3 py-2"
+                    className="flex items-center gap-3 rounded-lg bg-muted/30 px-4 py-3"
                   >
                     {/* Thumbnail */}
                     {detail?.thumbnailMediaUrl ? (
                       <Image
                         src={detail.thumbnailMediaUrl}
                         alt={name}
-                        width={40}
-                        height={40}
-                        className="h-10 w-10 shrink-0 rounded bg-muted object-cover"
+                        width={48}
+                        height={48}
+                        className="h-12 w-12 shrink-0 rounded bg-muted object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 shrink-0 rounded bg-muted" aria-hidden />
+                      <div className="h-12 w-12 shrink-0 rounded bg-muted" aria-hidden />
                     )}
 
                     {/* Name + muscles + cue */}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                      <p className="truncate text-base font-medium text-foreground">{name}</p>
                       {muscles.length > 0 && (
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="truncate text-sm text-muted-foreground">
                           {muscles.join(", ")}
                         </p>
                       )}
                       {detail?.coachingCue && (
-                        <p className="mt-0.5 text-[11px] italic text-primary/70">
+                        <p className="mt-0.5 text-xs italic text-primary/70">
                           {detail.coachingCue}
                         </p>
                       )}
                     </div>
 
                     {/* Sets x reps */}
-                    <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                    <span className="shrink-0 text-base font-medium tabular-nums text-muted-foreground">
                       {setRepLabel}
                     </span>
                   </div>
