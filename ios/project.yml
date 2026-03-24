@@ -27,9 +27,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: coach.tonal.app
-        INFOPLIST_FILE: TonalCoach/Info.plist
         CODE_SIGN_ENTITLEMENTS: TonalCoach/TonalCoach.entitlements
-        GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
@@ -51,8 +49,19 @@ targets:
         embed: false
     entitlements:
       path: TonalCoach/TonalCoach.entitlements
+      properties:
+        com.apple.developer.associated-domains:
+          - applinks:link.tonal.com
+          - applinks:tonal.coach
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
+        aps-environment: development
     info:
       path: TonalCoach/Info.plist
+      properties:
+        CONVEX_URL: $(CONVEX_URL)
+        NSHealthShareUsageDescription: "TonalCoach reads your health data to show activity, workouts, heart rate, and weight trends alongside your Tonal training."
+        NSHealthUpdateUsageDescription: "TonalCoach does not write health data, but this permission is required by Apple."
 
 schemes:
   TonalCoach:
