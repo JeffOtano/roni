@@ -389,35 +389,7 @@ struct LoginView: View {
     }
 }
 
-// MARK: - Reset Password Placeholder
-
-/// Placeholder for the password reset flow. Will be replaced by a full implementation.
-struct ResetPasswordView: View {
-    let initialEmail: String
-
-    var body: some View {
-        ZStack {
-            Theme.Colors.background
-                .ignoresSafeArea()
-
-            VStack(spacing: Theme.Spacing.lg) {
-                Image(systemName: "envelope.badge")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Theme.Colors.primary)
-
-                Text("Reset Password")
-                    .font(Theme.Typography.title)
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                Text("Coming soon")
-                    .font(Theme.Typography.callout)
-                    .foregroundStyle(Theme.Colors.textTertiary)
-            }
-        }
-        .navigationTitle("Reset Password")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
+// ResetPasswordView is defined in ResetPasswordView.swift
 
 // MARK: - Preview
 

@@ -7,20 +7,35 @@ struct TonalCoachApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("isGuestMode") private var isGuestMode = false
     @State private var convexManager = ConvexManager()
+    @State private var authManager: AuthManager?
     @State private var notificationManager = NotificationManager()
     @State private var healthKitManager = HealthKitManager()
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if hasCompletedOnboarding {
-                    ContentView()
+                if let authManager {
+                    if authManager.isLoading {
+                        splashView
+                    } else if authManager.isAuthenticated || isGuestMode {
+                        if hasCompletedOnboarding {
+                            ContentView()
+                        } else {
+                            OnboardingView()
+                        }
+                    } else {
+                        NavigationStack {
+                            LoginView()
+                        }
+                    }
                 } else {
-                    OnboardingView()
+                    splashView
                 }
             }
             .environment(convexManager)
+            .environment(\.authManager, authManager ?? AuthManager(convexManager: convexManager))
             .environment(\.notificationManager, notificationManager)
             .environment(\.healthKitManager, healthKitManager)
             .preferredColorScheme(.dark)
@@ -28,13 +43,33 @@ struct TonalCoachApp: App {
                 handleDeepLink(url: url)
             }
             .task {
+                let manager = AuthManager(convexManager: convexManager)
+                authManager = manager
+
                 appDelegate.notificationManager = notificationManager
                 notificationManager.convexManager = convexManager
                 await notificationManager.checkAuthorizationStatus()
                 notificationManager.registerNotificationCategories()
+
+                await manager.restoreSession()
             }
         }
     }
+
+    // MARK: - Splash View
+
+    private var splashView: some View {
+        ZStack {
+            Theme.Colors.background
+                .ignoresSafeArea()
+
+            Text("tonal.coach")
+                .font(.system(size: 36, weight: .bold, design: .default))
+                .foregroundStyle(Theme.Colors.primary)
+        }
+    }
+
+    // MARK: - Deep Links
 
     private func handleDeepLink(url: URL) {
         let link = TonalDeepLink(url: url)
