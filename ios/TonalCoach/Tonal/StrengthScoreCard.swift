@@ -11,6 +11,7 @@ struct StrengthScoreCard: View {
             regionRings
             percentileBadge
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Overall Ring
