@@ -30,7 +30,7 @@ struct WorkoutDetailView: View {
             }
 
             // Floating sticky "Open in Tonal" CTA
-            if let workout, let url = workout.tonalDeepLinkUrl, !isLoading {
+            if let workout, let url = workout.tonalUrl, !isLoading {
                 FloatingTonalCTA(url: url)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }

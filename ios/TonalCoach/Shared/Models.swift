@@ -257,6 +257,14 @@ struct LibraryWorkout: Decodable {
     let whoIsThisFor: String?
     let faq: [FAQ]?
     let tonalDeepLinkUrl: String?
+    let tonalWorkoutId: String?
+
+    /// Resolved Tonal deep link - uses explicit URL if available, otherwise constructs from workout ID.
+    var tonalUrl: String? {
+        if let tonalDeepLinkUrl { return tonalDeepLinkUrl }
+        if let tonalWorkoutId { return "https://link.tonal.com/custom-workout/\(tonalWorkoutId)" }
+        return nil
+    }
 
     // Typed accessors
     var sessionTypeEnum: SessionType? { SessionType(rawValue: sessionType) }
