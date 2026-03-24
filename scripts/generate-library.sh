@@ -38,6 +38,29 @@ timestamp() {
   date "+%H:%M:%S"
 }
 
+# Extract JSON object from mixed Convex CLI output (log lines + multi-line JSON)
+extract_json() {
+  python3 -c "
+import sys, json
+buf = ''
+capturing = False
+for line in sys.stdin:
+    s = line.strip()
+    if not capturing and s.startswith('{'):
+        capturing = True
+        buf = s
+    elif capturing:
+        buf += s
+    if capturing:
+        try:
+            json.loads(buf)
+            print(buf)
+            break
+        except json.JSONDecodeError:
+            pass
+"
+}
+
 echo ""
 echo "============================================"
 echo "  Tonal Coach - Library Generation Script"
@@ -68,18 +91,7 @@ if [ "$PUSH_ONLY" = false ]; then
     st_existing=0
     while true; do
       raw_gen=$(run_convex coach/libraryGenerationActions:generateBatch "{\"sessionTypes\": [\"$st\"], \"generationVersion\": $GENERATION_VERSION, \"offset\": $offset, \"limit\": $BATCH_SIZE}" 2>&1)
-      result=$(echo "$raw_gen" | python3 -c "
-import sys, json
-for line in sys.stdin:
-    s = line.strip()
-    if s.startswith('{'):
-        try:
-            json.loads(s)
-            print(s)
-            break
-        except json.JSONDecodeError:
-            pass
-" 2>/dev/null)
+      result=$(echo "$raw_gen" | extract_json)
 
       created=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['created'])" 2>/dev/null || echo "?")
       skipped=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['skipped'])" 2>/dev/null || echo "?")
@@ -132,19 +144,7 @@ START_TIME=$(date +%s)
 while true; do
   BATCH_NUM=$((BATCH_NUM + 1))
   raw_result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\", \"cursor\": $CURSOR}" 2>&1)
-  # Extract the JSON return value from mixed Convex CLI output (logs + JSON)
-  json_data=$(echo "$raw_result" | python3 -c "
-import sys, json
-for line in sys.stdin:
-    s = line.strip()
-    if s.startswith('{'):
-        try:
-            json.loads(s)
-            print(s)
-            break
-        except json.JSONDecodeError:
-            pass
-" 2>/dev/null)
+  json_data=$(echo "$raw_result" | extract_json)
 
   pushed=$(echo "$json_data" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "?")
   failed=$(echo "$json_data" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "?")
