@@ -150,7 +150,25 @@ struct LibraryHomeView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xxl) {
             if viewModel.isLoadingInitial {
                 curatedSkeletonView
+            } else if viewModel.allWorkouts.isEmpty {
+                // No data yet - show a message
+                VStack(spacing: Theme.Spacing.md) {
+                    Spacer().frame(height: 60)
+                    ProgressView()
+                        .tint(Theme.Colors.primary)
+                    Text("Loading workouts...")
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    if let error = viewModel.errorMessage {
+                        Text(error)
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.error)
+                    }
+                    Spacer().frame(height: 60)
+                }
+                .frame(maxWidth: .infinity)
             } else {
+                // Show curated horizontal sections
                 ForEach(curatedSections, id: \.title) { section in
                     let workouts = diversifiedWorkouts(
                         from: viewModel.allWorkouts,
@@ -164,9 +182,38 @@ struct LibraryHomeView: View {
                         )
                     }
                 }
+
+                // Always show a "Browse All" grid below curated sections
+                browseAllGrid
             }
         }
         .padding(.bottom, Theme.Spacing.xl)
+    }
+
+    // MARK: - Browse All Grid
+
+    private var browseAllGrid: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Browse All")
+                .font(Theme.Typography.title2)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.horizontal, Theme.Spacing.lg)
+
+            let columns = [
+                GridItem(.flexible(), spacing: Theme.Spacing.md),
+                GridItem(.flexible(), spacing: Theme.Spacing.md),
+            ]
+
+            LazyVGrid(columns: columns, spacing: Theme.Spacing.md) {
+                ForEach(viewModel.allWorkouts) { workout in
+                    NavigationLink(value: workout) {
+                        WorkoutCardView(workout: workout)
+                    }
+                    .buttonStyle(CardButtonStyle())
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.lg)
+        }
     }
 
     // MARK: - Filtered View
@@ -494,13 +541,19 @@ final class LibraryViewModel {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
+                    if case .failure(let error) = completion {
+                        print("[LoadInit] ERROR: \(error)")
+                    } else {
+                        print("[LoadInit] completed normally")
+                    }
                     guard let self else { return }
-                    if case .failure = completion, !self.hasLoadedInitial {
+                    if !self.hasLoadedInitial {
                         self.isLoadingInitial = false
                         self.errorMessage = "Could not load workouts"
                     }
                 },
                 receiveValue: { [weak self] response in
+                    print("[LoadInit] GOT \(response.page.count) workouts")
                     guard let self else { return }
                     self.allWorkouts = response.page
                     self.continueCursor = response.continueCursor
