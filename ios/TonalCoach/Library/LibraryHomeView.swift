@@ -532,26 +532,30 @@ final class LibraryViewModel {
 
         let args = paginationArgs(numItems: pageSize, cursor: cursor)
 
-        for await response: PaginatedResponse<WorkoutCard> in manager.client
-            .subscribe(
-                to: "libraryWorkouts:listFiltered",
-                with: args,
-                yielding: PaginatedResponse<WorkoutCard>.self
-            )
-            .replaceError(with: PaginatedResponse(page: [], isDone: true, continueCursor: ""))
-            .values
-        {
-            await MainActor.run {
-                if self.filters.hasActiveFilters {
-                    self.filteredWorkouts.append(contentsOf: response.page)
-                } else {
-                    self.allWorkouts.append(contentsOf: response.page)
-                }
-                self.continueCursor = response.continueCursor
-                self.canLoadMore = response.hasMore
-                self.isLoadingMore = false
-            }
-            break
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var resumed = false
+            var moreCancellable: AnyCancellable?
+            moreCancellable = manager.client
+                .subscribe(to: "libraryWorkouts:listFiltered", with: args, yielding: PaginatedResponse<WorkoutCard>.self)
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { _ in
+                        if !resumed { resumed = true; continuation.resume() }
+                    },
+                    receiveValue: { [weak self] response in
+                        guard let self else { return }
+                        if self.filters.hasActiveFilters {
+                            self.filteredWorkouts.append(contentsOf: response.page)
+                        } else {
+                            self.allWorkouts.append(contentsOf: response.page)
+                        }
+                        self.continueCursor = response.continueCursor
+                        self.canLoadMore = response.hasMore
+                        self.isLoadingMore = false
+                        moreCancellable?.cancel()
+                        if !resumed { resumed = true; continuation.resume() }
+                    }
+                )
         }
 
         isLoadingMore = false
@@ -562,36 +566,36 @@ final class LibraryViewModel {
     func applyFilters(using manager: ConvexManager) async {
         continueCursor = nil
         canLoadMore = false
-        isLoadingInitial = true
         filteredWorkouts = []
 
         guard filters.hasActiveFilters else {
-            isLoadingInitial = false
-            if allWorkouts.isEmpty {
-                hasLoadedInitial = false
-                await loadInitial(using: manager)
-            }
+            // Returning to unfiltered view - curated sections use allWorkouts
             return
         }
 
+        isLoadingInitial = true
         let args = paginationArgs(numItems: pageSize)
 
-        for await response: PaginatedResponse<WorkoutCard> in manager.client
-            .subscribe(
-                to: "libraryWorkouts:listFiltered",
-                with: args,
-                yielding: PaginatedResponse<WorkoutCard>.self
-            )
-            .replaceError(with: PaginatedResponse(page: [], isDone: true, continueCursor: ""))
-            .values
-        {
-            await MainActor.run {
-                self.filteredWorkouts = response.page
-                self.continueCursor = response.continueCursor
-                self.canLoadMore = response.hasMore
-                self.isLoadingInitial = false
-            }
-            break
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var resumed = false
+            var filterCancellable: AnyCancellable?
+            filterCancellable = manager.client
+                .subscribe(to: "libraryWorkouts:listFiltered", with: args, yielding: PaginatedResponse<WorkoutCard>.self)
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { _ in
+                        if !resumed { resumed = true; continuation.resume() }
+                    },
+                    receiveValue: { [weak self] response in
+                        guard let self else { return }
+                        self.filteredWorkouts = response.page
+                        self.continueCursor = response.continueCursor
+                        self.canLoadMore = response.hasMore
+                        self.isLoadingInitial = false
+                        filterCancellable?.cancel()
+                        if !resumed { resumed = true; continuation.resume() }
+                    }
+                )
         }
 
         isLoadingInitial = false
