@@ -85,7 +85,7 @@ struct NotificationSettingsView: View {
 
                     Button("Enable") {
                         Task {
-                            try? await notificationManager.requestAuthorization()
+                            _ = try? await notificationManager.requestAuthorization()
                             if notificationManager.isAuthorized {
                                 await MainActor.run {
                                     notificationManager.registerForRemoteNotifications()
@@ -329,7 +329,10 @@ struct NotificationPreferences: Equatable {
             workoutRemindersEnabled: defaults.bool(forKey: Keys.workoutReminders),
             reminderTime: reminderDate,
             weeklyRecapEnabled: defaults.bool(forKey: Keys.weeklyRecap),
-            weeklyRecapDay: defaults.integer(forKey: Keys.weeklyRecapDay),
+            weeklyRecapDay: {
+                let day = defaults.integer(forKey: Keys.weeklyRecapDay)
+                return (1...7).contains(day) ? day : 1
+            }(),
             coachMessagesEnabled: defaults.bool(forKey: Keys.coachMessages),
             checkInsEnabled: defaults.bool(forKey: Keys.checkIns)
         )

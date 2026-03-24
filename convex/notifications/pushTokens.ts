@@ -1,29 +1,9 @@
-/**
- * Device push token registration for APNs.
- *
- * Stores one token per user+platform pair. The iOS app calls `registerToken`
- * after receiving a device token from APNs and authenticating.
- *
- * NOTE: This module requires a `pushTokens` table in the schema. Add the
- * following to convex/schema.ts:
- *
- * ```ts
- * pushTokens: defineTable({
- *   userId: v.id("users"),
- *   token: v.string(),
- *   platform: v.literal("ios"),
- *   deviceName: v.optional(v.string()),
- *   createdAt: v.number(),
- *   updatedAt: v.number(),
- * })
- *   .index("by_userId", ["userId"])
- *   .index("by_userId_and_platform", ["userId", "platform"]),
- * ```
- */
+/** Device push token registration for APNs (schema: pushTokens table). */
 
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { getEffectiveUserId } from "../lib/auth";
+import { rateLimiter } from "../rateLimits";
 
 /** Store or update a device push token for the authenticated user. */
 export const registerToken = mutation({
@@ -36,10 +16,14 @@ export const registerToken = mutation({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    await rateLimiter.limit(ctx, "registerPushToken", { key: userId });
+
     // Upsert: find existing token for this user+platform, update or create.
     const existing = await ctx.db
       .query("pushTokens")
-      .withIndex("by_userId_and_platform", (q) => q.eq("userId", userId).eq("platform", "ios"))
+      .withIndex("by_userId_and_platform", (q) =>
+        q.eq("userId", userId).eq("platform", args.platform),
+      )
       .first();
 
     const now = Date.now();

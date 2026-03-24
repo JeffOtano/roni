@@ -22,8 +22,9 @@ struct ConvexNumber: Decodable, Hashable {
         }
         // Try $integer base64 (Convex v.int64())
         if let keyed = try? decoder.container(keyedBy: CodingKeys.self),
-           let b64 = try? keyed.decode(String.self, forKey: .integer) {
-            let data = Data(base64Encoded: b64)!
+           let b64 = try? keyed.decode(String.self, forKey: .integer),
+           let data = Data(base64Encoded: b64),
+           data.count >= MemoryLayout<Int>.size {
             wrappedValue = data.withUnsafeBytes { $0.load(as: Int.self) }; return
         }
         throw DecodingError.typeMismatch(Int.self, .init(codingPath: decoder.codingPath, debugDescription: "Cannot decode number"))
@@ -44,8 +45,9 @@ struct OptionalConvexNumber: Decodable, Hashable {
         if let i = try? c.decode(Int.self) { wrappedValue = i; return }
         if let d = try? c.decode(Double.self) { wrappedValue = Int(d); return }
         if let keyed = try? decoder.container(keyedBy: CodingKeys.self),
-           let b64 = try? keyed.decode(String.self, forKey: .integer) {
-            let data = Data(base64Encoded: b64)!
+           let b64 = try? keyed.decode(String.self, forKey: .integer),
+           let data = Data(base64Encoded: b64),
+           data.count >= MemoryLayout<Int>.size {
             wrappedValue = data.withUnsafeBytes { $0.load(as: Int.self) }; return
         }
         wrappedValue = nil

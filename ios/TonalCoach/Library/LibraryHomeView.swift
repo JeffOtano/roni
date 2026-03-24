@@ -584,6 +584,8 @@ final class LibraryViewModel {
                         if !resumed { resumed = true; continuation.resume() }
                     },
                     receiveValue: { [weak self] response in
+                        moreCancellable?.cancel()
+                        if !resumed { resumed = true; continuation.resume() }
                         guard let self else { return }
                         if self.filters.hasActiveFilters {
                             self.filteredWorkouts.append(contentsOf: response.page)
@@ -593,8 +595,6 @@ final class LibraryViewModel {
                         self.continueCursor = response.continueCursor
                         self.canLoadMore = response.hasMore
                         self.isLoadingMore = false
-                        moreCancellable?.cancel()
-                        if !resumed { resumed = true; continuation.resume() }
                     }
                 )
         }
@@ -628,13 +628,13 @@ final class LibraryViewModel {
                         if !resumed { resumed = true; continuation.resume() }
                     },
                     receiveValue: { [weak self] response in
+                        filterCancellable?.cancel()
+                        if !resumed { resumed = true; continuation.resume() }
                         guard let self else { return }
                         self.filteredWorkouts = response.page
                         self.continueCursor = response.continueCursor
                         self.canLoadMore = response.hasMore
                         self.isLoadingInitial = false
-                        filterCancellable?.cancel()
-                        if !resumed { resumed = true; continuation.resume() }
                     }
                 )
         }

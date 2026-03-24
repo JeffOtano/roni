@@ -140,8 +140,10 @@ final class HealthKitManager {
         }
 
         try await healthStore.requestAuthorization(toShare: [], read: readTypes)
+        // Check actual status - requestAuthorization succeeds even if user denies
+        let workoutStatus = healthStore.authorizationStatus(for: HKWorkoutType.workoutType())
         await MainActor.run {
-            self.isAuthorized = true
+            self.isAuthorized = workoutStatus == .sharingAuthorized
             self.errorMessage = nil
         }
     }

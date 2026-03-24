@@ -85,7 +85,13 @@ async function sendAPNs(payload: APNsPayload): Promise<void> {
 
 async function sendToUserTokens(
   tokens: Array<{ token: string }>,
-  payload: { title: string; body: string; category?: string; data?: unknown; badge?: number },
+  payload: {
+    title: string;
+    body: string;
+    category?: string;
+    data?: Record<string, string>;
+    badge?: number;
+  },
 ): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
@@ -97,7 +103,7 @@ async function sendToUserTokens(
         title: payload.title,
         body: payload.body,
         category: payload.category,
-        data: payload.data as Record<string, unknown> | undefined,
+        data: payload.data,
         badge: payload.badge,
       });
       sent++;
@@ -118,7 +124,7 @@ export const sendToUser = internalAction({
     title: v.string(),
     body: v.string(),
     category: v.optional(v.string()),
-    data: v.optional(v.any()),
+    data: v.optional(v.record(v.string(), v.string())),
     badge: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -142,7 +148,7 @@ export const sendToUsers = internalAction({
     title: v.string(),
     body: v.string(),
     category: v.optional(v.string()),
-    data: v.optional(v.any()),
+    data: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx, args) => {
     let totalSent = 0;
