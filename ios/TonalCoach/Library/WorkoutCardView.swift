@@ -1,165 +1,64 @@
 import SwiftUI
 
-/// Reusable workout card matching the web WorkoutLibraryCard design.
-///
-/// Displays session type + goal tags, title, description snippet,
-/// and a stats footer with duration, exercise count, sets, and level.
+/// Compact workout card optimized for 2-column mobile grid.
 struct WorkoutCardView: View {
     let workout: WorkoutCard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            tagsRow
-            titleSection
-            Spacer(minLength: 0)
-            statsFooter
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.Colors.card)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
-                .stroke(Theme.Colors.border, lineWidth: 1)
-        )
-    }
-
-    // MARK: - Tags Row
-
-    private var tagsRow: some View {
-        HStack(spacing: 6) {
-            CardBadge(
-                text: WorkoutLabels.sessionTypeLabel(workout.sessionType),
-                style: .accent
-            )
-            CardBadge(
-                text: WorkoutLabels.goalLabel(workout.goal),
-                style: .muted
-            )
-            if !workout.equipmentConfig.isEmpty {
-                CardBadge(
-                    text: WorkoutLabels.equipmentLabel(workout.equipmentConfig),
-                    style: .muted
-                )
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            // Session type color bar
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Theme.Colors.sessionTypeColor(workout.sessionType))
+                    .frame(width: 3, height: 14)
+                Text(WorkoutLabels.sessionTypeLabel(workout.sessionType))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.sessionTypeColor(workout.sessionType))
+                Spacer()
+                Circle()
+                    .fill(Theme.Colors.levelColor(workout.level))
+                    .frame(width: 6, height: 6)
             }
-        }
-        .padding(.bottom, Theme.Spacing.md)
-    }
 
-    // MARK: - Title + Description
-
-    private var titleSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+            // Title
             Text(workout.title)
-                .font(Theme.Typography.cardTitle)
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if !workout.description.trimmingCharacters(in: .whitespaces).isEmpty {
-                Text(workout.description)
-                    .font(Theme.Typography.caption)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .lineLimit(1)
+            Spacer(minLength: 0)
+
+            // Compact stats row
+            HStack(spacing: 0) {
+                Text("\(workout.durationMinutes)min")
+                Text(" · ")
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                Text("\(workout.exerciseCount) ex")
+                if workout.totalSets > 0 {
+                    Text(" · ")
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                    Text("\(workout.totalSets) sets")
+                }
             }
-        }
-    }
-
-    // MARK: - Stats Footer
-
-    private var statsFooter: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            CardStatItem(icon: "clock", text: "\(workout.durationMinutes)m")
-            CardStatItem(icon: "dumbbell", text: "\(workout.exerciseCount) ex")
-
-            if workout.totalSets > 0 {
-                CardStatItem(icon: "square.stack.3d.up", text: "\(workout.totalSets) sets")
-            }
-
-            CardLevelIndicator(level: workout.level)
-        }
-        .padding(.top, Theme.Spacing.md)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.Colors.border)
-                .frame(height: 1)
-        }
-    }
-}
-
-// MARK: - Card Badge
-
-private struct CardBadge: View {
-    let text: String
-    let style: BadgeStyle
-
-    enum BadgeStyle {
-        case accent
-        case muted
-    }
-
-    var body: some View {
-        Text(text)
             .font(.system(size: 11, weight: .medium))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(backgroundColor)
-            .foregroundStyle(foregroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
-    }
-
-    private var backgroundColor: Color {
-        switch style {
-        case .accent: Theme.Colors.primary.opacity(0.15)
-        case .muted: Theme.Colors.border
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .lineLimit(1)
         }
-    }
-
-    private var foregroundColor: Color {
-        switch style {
-        case .accent: Theme.Colors.primary
-        case .muted: Theme.Colors.textSecondary
-        }
-    }
-}
-
-// MARK: - Stat Item
-
-private struct CardStatItem: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-            Text(text)
-                .font(Theme.Typography.caption)
-        }
-        .foregroundStyle(Theme.Colors.textSecondary)
-    }
-}
-
-// MARK: - Level Indicator
-
-private struct CardLevelIndicator: View {
-    let level: String
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(Theme.Colors.levelColor(level))
-                .frame(width: 6, height: 6)
-            Text(level.capitalized)
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.levelColor(level))
-        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+        .background(Theme.Colors.card)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
+                .stroke(Theme.Colors.border, lineWidth: 1)
+        )
     }
 }
 
 // MARK: - Labels
 
-/// Maps raw backend string values to user-facing labels, matching goalConfig.ts.
+/// Maps raw backend string values to user-facing labels.
 enum WorkoutLabels {
     static func sessionTypeLabel(_ type: String) -> String {
         let labels: [String: String] = [
@@ -167,7 +66,7 @@ enum WorkoutLabels {
             "upper": "Upper Body", "lower": "Lower Body", "full_body": "Full Body",
             "chest": "Chest", "back": "Back", "shoulders": "Shoulders",
             "arms": "Arms", "core": "Core",
-            "glutes_hamstrings": "Glutes & Hamstrings",
+            "glutes_hamstrings": "Glutes & Hams",
             "chest_back": "Chest & Back",
             "mobility": "Mobility", "recovery": "Recovery",
         ]
@@ -196,39 +95,25 @@ enum WorkoutLabels {
 
 // MARK: - Skeleton Card
 
-/// Placeholder card shown while data is loading.
 struct WorkoutCardSkeleton: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Tag placeholders
-            HStack(spacing: 6) {
-                skeletonRect(width: 60, height: 20)
-                skeletonRect(width: 50, height: 20)
-            }
-            .padding(.bottom, 12)
-
-            // Title placeholder
-            skeletonRect(width: .infinity, height: 16)
-                .padding(.bottom, 4)
-            skeletonRect(width: 140, height: 12)
-
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Theme.Colors.border)
+                .frame(width: 50, height: 14)
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Theme.Colors.border)
+                .frame(height: 14)
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Theme.Colors.border)
+                .frame(width: 100, height: 14)
             Spacer(minLength: 0)
-
-            // Stats footer placeholder
-            HStack(spacing: 12) {
-                skeletonRect(width: 40, height: 12)
-                skeletonRect(width: 40, height: 12)
-                skeletonRect(width: 50, height: 12)
-            }
-            .padding(.top, 12)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Theme.Colors.border)
-                    .frame(height: 1)
-            }
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Theme.Colors.border)
+                .frame(width: 80, height: 11)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 140, alignment: .leading)
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
         .background(Theme.Colors.card)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
         .overlay(
@@ -237,19 +122,9 @@ struct WorkoutCardSkeleton: View {
         )
         .cardShimmer()
     }
-
-    private func skeletonRect(width: CGFloat, height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(Theme.Colors.border)
-            .frame(
-                maxWidth: width == .infinity ? .infinity : width,
-                minHeight: height,
-                maxHeight: height
-            )
-    }
 }
 
-// MARK: - Shimmer Modifier
+// MARK: - Shimmer
 
 private struct CardShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = -1
@@ -258,11 +133,7 @@ private struct CardShimmerModifier: ViewModifier {
         content
             .overlay(
                 LinearGradient(
-                    colors: [
-                        .clear,
-                        Theme.Colors.textTertiary.opacity(0.08),
-                        .clear,
-                    ],
+                    colors: [.clear, Theme.Colors.textTertiary.opacity(0.08), .clear],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -285,7 +156,6 @@ extension View {
 
 // MARK: - Card Button Style
 
-/// Press effect for tappable cards: slight scale + brightness change.
 struct CardButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
