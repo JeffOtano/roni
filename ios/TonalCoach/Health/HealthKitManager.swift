@@ -197,7 +197,7 @@ final class HealthKitManager {
 
     /// Fetches recent workouts from HealthKit with optional heart rate enrichment.
     func fetchRecentWorkouts(limit: Int = 10) async throws {
-        guard let workoutType = HKObjectType.workoutType() as? HKWorkoutType else { return }
+        let workoutType = HKObjectType.workoutType()
 
         let sortDescriptor = NSSortDescriptor(
             key: HKSampleSortIdentifierStartDate,
@@ -221,7 +221,7 @@ final class HealthKitManager {
             healthStore.execute(query)
         }
 
-        var workouts: [HealthWorkout] = []
+        nonisolated(unsafe) var workouts: [HealthWorkout] = []
         for sample in samples {
             guard let workout = sample as? HKWorkout else { continue }
             let sourceName = workout.sourceRevision.source.name

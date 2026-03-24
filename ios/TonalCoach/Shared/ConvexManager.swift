@@ -3,7 +3,15 @@ import ConvexMobile
 import Foundation
 import SwiftUI
 
-/// Singleton manager wrapping the ConvexClient for use throughout the app.
+/// Global ConvexClient instance, matching the Convex Swift quickstart pattern.
+/// Created once at app launch and never deallocated, keeping the WebSocket alive.
+private let globalConvexClient: ConvexClient = {
+    let url = Bundle.main.infoDictionary?["CONVEX_URL"] as? String
+        ?? "https://gentle-macaw-501.convex.cloud"
+    return ConvexClient(deploymentUrl: url)
+}()
+
+/// Manager wrapping the global ConvexClient for use throughout the app.
 ///
 /// Uses `@Observable` (iOS 17+) so SwiftUI views automatically react to
 /// state changes. Inject via the `.convexManager` environment value.
@@ -11,8 +19,8 @@ import SwiftUI
 final class ConvexManager {
     // MARK: - Client
 
-    /// The underlying Convex client. Initialized with the deployment URL from build settings.
-    let client: ConvexClient
+    /// The underlying Convex client (global singleton, never deallocated).
+    let client = globalConvexClient
 
     // MARK: - Connection State
 
@@ -26,10 +34,6 @@ final class ConvexManager {
     // MARK: - Init
 
     init() {
-        let url = Bundle.main.infoDictionary?["CONVEX_URL"] as? String
-            ?? "https://gentle-macaw-501.convex.cloud"
-        client = ConvexClient(deploymentUrl: url)
-
         client.watchWebSocketState()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in

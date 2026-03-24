@@ -582,13 +582,13 @@ final class LibraryViewModel {
     ) -> [String: ConvexEncodable?] {
         var filterArgs = filters.toQueryArgs()
 
-        var paginationOpts: [String: ConvexEncodable?] = [
+        // Convex paginationOpts requires cursor to be present (null for first page).
+        // Using nil as ConvexEncodable? encodes to JSON null.
+        let paginationOpts: [String: ConvexEncodable?] = [
             "numItems": numItems,
+            "cursor": cursor,
         ]
-        if let cursor {
-            paginationOpts["cursor"] = cursor
-        }
-        filterArgs["paginationOpts"] = paginationOpts as ConvexEncodable?
+        filterArgs["paginationOpts"] = paginationOpts
 
         return filterArgs
     }
