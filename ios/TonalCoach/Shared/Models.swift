@@ -1,9 +1,63 @@
 import ConvexMobile
 import Foundation
 
-// NOTE: Convex schema uses v.number() (float64) for all numeric fields.
-// These arrive as plain JSON numbers, so use standard Int/Double - NOT @ConvexInt
-// (which only handles $integer base64 encoding for v.int64() fields).
+// MARK: - Flexible Number Decoding
+
+/// Decodes a Convex number that may arrive as Int, Double, or $integer/$float format.
+/// Use on all numeric fields from Convex since the wire encoding can vary.
+@propertyWrapper
+struct ConvexNumber: Decodable, Hashable {
+    var wrappedValue: Int
+
+    init(wrappedValue: Int) { self.wrappedValue = wrappedValue }
+
+    init(from decoder: Decoder) throws {
+        // Try plain Int
+        if let c = try? decoder.singleValueContainer(), let i = try? c.decode(Int.self) {
+            wrappedValue = i; return
+        }
+        // Try Double (Convex v.number() is float64)
+        if let c = try? decoder.singleValueContainer(), let d = try? c.decode(Double.self) {
+            wrappedValue = Int(d); return
+        }
+        // Try $integer base64 (Convex v.int64())
+        if let keyed = try? decoder.container(keyedBy: CodingKeys.self),
+           let b64 = try? keyed.decode(String.self, forKey: .integer) {
+            let data = Data(base64Encoded: b64)!
+            wrappedValue = data.withUnsafeBytes { $0.load(as: Int.self) }; return
+        }
+        throw DecodingError.typeMismatch(Int.self, .init(codingPath: decoder.codingPath, debugDescription: "Cannot decode number"))
+    }
+    enum CodingKeys: String, CodingKey { case integer = "$integer" }
+}
+
+/// Optional version of ConvexNumber.
+@propertyWrapper
+struct OptionalConvexNumber: Decodable, Hashable {
+    var wrappedValue: Int?
+
+    init(wrappedValue: Int?) { self.wrappedValue = wrappedValue }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { wrappedValue = nil; return }
+        if let i = try? c.decode(Int.self) { wrappedValue = i; return }
+        if let d = try? c.decode(Double.self) { wrappedValue = Int(d); return }
+        if let keyed = try? decoder.container(keyedBy: CodingKeys.self),
+           let b64 = try? keyed.decode(String.self, forKey: .integer) {
+            let data = Data(base64Encoded: b64)!
+            wrappedValue = data.withUnsafeBytes { $0.load(as: Int.self) }; return
+        }
+        wrappedValue = nil
+    }
+    enum CodingKeys: String, CodingKey { case integer = "$integer" }
+}
+
+extension KeyedDecodingContainer {
+    func decode(_ type: OptionalConvexNumber.Type, forKey key: Self.Key) throws -> OptionalConvexNumber {
+        try decodeIfPresent(type, forKey: key) ?? OptionalConvexNumber(wrappedValue: nil)
+    }
+}
 
 // MARK: - Library Workout Enums
 
@@ -153,10 +207,10 @@ struct WorkoutCard: Identifiable, Decodable, Hashable {
     let description: String
     let sessionType: String
     let goal: String
-    let durationMinutes: Int
+    @ConvexNumber var durationMinutes: Int
     let level: String
-    let exerciseCount: Int
-    let totalSets: Int
+    @ConvexNumber var exerciseCount: Int
+    @ConvexNumber var totalSets: Int
     let equipmentConfig: String
     let targetMuscleGroups: [String]
     let equipmentNeeded: [String]
@@ -189,14 +243,14 @@ struct LibraryWorkout: Decodable {
     let description: String
     let sessionType: String
     let goal: String
-    let durationMinutes: Int
+    @ConvexNumber var durationMinutes: Int
     let level: String
     let equipmentConfig: String
     let blocks: [WorkoutBlock]
     let movementDetails: [MovementDetail]
     let targetMuscleGroups: [String]
-    let exerciseCount: Int
-    let totalSets: Int
+    @ConvexNumber var exerciseCount: Int
+    @ConvexNumber var totalSets: Int
     let equipmentNeeded: [String]
     let restGuidance: String?
     let workoutRationale: String?
@@ -222,9 +276,9 @@ struct WorkoutBlock: Decodable {
 /// A single exercise entry within a workout block.
 struct BlockExercise: Decodable {
     let movementId: String
-    let sets: Int
-    let reps: Int?
-    let duration: Int?
+    @ConvexNumber var sets: Int
+    @OptionalConvexNumber var reps: Int?
+    @OptionalConvexNumber var duration: Int?
     let spotter: Bool?
     let eccentric: Bool?
     let chains: Bool?
@@ -240,9 +294,9 @@ struct MovementDetail: Decodable, Identifiable {
     let name: String
     let shortName: String
     let muscleGroups: [String]
-    let sets: Int
-    let reps: Int?
-    let duration: Int?
+    @ConvexNumber var sets: Int
+    @OptionalConvexNumber var reps: Int?
+    @OptionalConvexNumber var duration: Int?
     let phase: String
     let thumbnailMediaUrl: String?
     let accessory: String?
@@ -270,9 +324,9 @@ struct RelatedWorkoutCard: Decodable, Identifiable, Hashable {
     let title: String
     let sessionType: String
     let goal: String
-    let durationMinutes: Int
+    @ConvexNumber var durationMinutes: Int
     let level: String
-    let exerciseCount: Int
+    @ConvexNumber var exerciseCount: Int
 
     var id: String { slug }
 
