@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
-export const TOTAL_BETA_SPOTS = 50;
+const TOTAL_BETA_SPOTS = 50;
 export const DISCORD_URL = "https://discord.gg/dShrKkwz";
 
 /** Hook to check if beta is full. */
