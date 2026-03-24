@@ -34,11 +34,9 @@ final class ConvexManager {
     // MARK: - Init
 
     init() {
-        print("[ConvexManager] init - client URL: \(Bundle.main.infoDictionary?["CONVEX_URL"] as? String ?? "fallback")")
         client.watchWebSocketState()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                print("[ConvexManager] WebSocket state: \(state)")
                 self?.isConnected = state == .connected
             }
             .store(in: &cancellables)
@@ -114,7 +112,6 @@ final class ConvexManager {
         _ name: String,
         args: [String: ConvexEncodable?]? = nil
     ) async throws -> T {
-        print("[ConvexManager] query(\(name)) starting, connected=\(isConnected)")
 
         // Use the documented .values async sequence pattern from Convex Swift docs.
         let publisher = client.subscribe(to: name, with: args, yielding: T.self)
@@ -123,7 +120,6 @@ final class ConvexManager {
         return try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
                 for try await value in publisher.values {
-                    print("[ConvexManager] query(\(name)) received data")
                     return value
                 }
                 throw ClientError.InternalError(msg: "Query \(name) completed without emitting a value")

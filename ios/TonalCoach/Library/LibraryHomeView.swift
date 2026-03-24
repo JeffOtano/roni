@@ -484,14 +484,8 @@ final class LibraryViewModel {
         errorMessage = nil
 
         let args = paginationArgs(numItems: curatedPageSize)
-        print("[LibraryVM] subscribing with args: \(args)")
 
-        // Debug: print encoded args
-        if let encoded = try? (args as ConvexEncodable).convexEncode() {
-            print("[LibraryVM] encoded args JSON: \(encoded)")
-        }
-
-        // Use Combine sink directly (most reliable pattern, avoids async sequence issues)
+        // Use Combine sink (most reliable pattern with Convex Swift SDK)
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             var resumed = false
             self.cancellable = manager.client
@@ -502,22 +496,19 @@ final class LibraryViewModel {
                 )
                 .receive(on: DispatchQueue.main)
                 .sink(
-                    receiveCompletion: { completion in
-                        print("[LibraryVM] subscription completed: \(completion)")
+                    receiveCompletion: { _ in
                         if !resumed {
                             resumed = true
                             continuation.resume()
                         }
                     },
                     receiveValue: { [weak self] response in
-                        print("[LibraryVM] received \(response.page.count) workouts, isDone=\(response.isDone)")
                         guard let self else { return }
                         self.allWorkouts = response.page
                         self.continueCursor = response.continueCursor
                         self.canLoadMore = response.hasMore
                         self.hasLoadedInitial = true
                         self.isLoadingInitial = false
-                        // Cancel after first emission (one-shot for pagination)
                         self.cancellable?.cancel()
                         if !resumed {
                             resumed = true
@@ -525,15 +516,6 @@ final class LibraryViewModel {
                         }
                     }
                 )
-
-            // Timeout after 20s
-            DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
-                if !resumed {
-                    print("[LibraryVM] TIMEOUT - no data received after 20s")
-                    resumed = true
-                    continuation.resume()
-                }
-            }
         }
 
         if !hasLoadedInitial {
