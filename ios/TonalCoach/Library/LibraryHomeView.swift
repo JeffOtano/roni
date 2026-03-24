@@ -102,44 +102,6 @@ struct LibraryHomeView: View {
                 WorkoutDetailView(slug: workout.slug)
             }
             .task {
-                // DIAGNOSTIC: Test simplest possible subscription - raw JSON
-                print("[DIAG] Testing basic subscription with [String:Any] decode...")
-                var testCancellable: AnyCancellable?
-
-                // Test 1: Try with explicit empty args to see if server responds at all
-                struct RawResponse: Decodable {
-                    let page: [RawItem]?
-                    let isDone: Bool?
-                    let continueCursor: String?
-                }
-                struct RawItem: Decodable {
-                    let slug: String?
-                    let title: String?
-                }
-
-                testCancellable = convex.client
-                    .subscribe(
-                        to: "libraryWorkouts:listFiltered",
-                        with: ["paginationOpts": ["numItems": Double(2), "cursor": nil as String?] as [String: ConvexEncodable?]],
-                        yielding: RawResponse.self
-                    )
-                    .sink(
-                        receiveCompletion: { c in
-                            print("[DIAG] completion: \(c)")
-                        },
-                        receiveValue: { response in
-                            print("[DIAG] GOT DATA! page count: \(response.page?.count ?? -1), isDone: \(response.isDone ?? false)")
-                            if let first = response.page?.first {
-                                print("[DIAG] first item: slug=\(first.slug ?? "nil"), title=\(first.title ?? "nil")")
-                            }
-                            testCancellable?.cancel()
-                        }
-                    )
-
-                // Give test 10s
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
-                testCancellable?.cancel()
-                print("[DIAG] diagnostic done, starting real load...")
                 await viewModel.loadInitial(using: convex)
             }
             .onChange(of: viewModel.filters) { _, _ in

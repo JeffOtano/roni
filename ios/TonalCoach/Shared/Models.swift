@@ -1,9 +1,9 @@
 import ConvexMobile
 import Foundation
 
-// ConvexInt, OptionalConvexInt, ConvexFloat, OptionalConvexFloat are provided
-// by the ConvexMobile SDK (Decoding.swift). They decode Convex's base64-encoded
-// integer wire format correctly. Do NOT redefine them here.
+// NOTE: Convex schema uses v.number() (float64) for all numeric fields.
+// These arrive as plain JSON numbers, so use standard Int/Double - NOT @ConvexInt
+// (which only handles $integer base64 encoding for v.int64() fields).
 
 // MARK: - Library Workout Enums
 
@@ -153,17 +153,16 @@ struct WorkoutCard: Identifiable, Decodable, Hashable {
     let description: String
     let sessionType: String
     let goal: String
-    @ConvexInt var durationMinutes: Int
+    let durationMinutes: Int
     let level: String
-    @ConvexInt var exerciseCount: Int
-    @ConvexInt var totalSets: Int
+    let exerciseCount: Int
+    let totalSets: Int
     let equipmentConfig: String
     let targetMuscleGroups: [String]
     let equipmentNeeded: [String]
 
     var id: String { slug }
 
-    // Hashable conformance (ConvexInt doesn't auto-conform)
     static func == (lhs: WorkoutCard, rhs: WorkoutCard) -> Bool {
         lhs.slug == rhs.slug
     }
@@ -190,14 +189,14 @@ struct LibraryWorkout: Decodable {
     let description: String
     let sessionType: String
     let goal: String
-    @ConvexInt var durationMinutes: Int
+    let durationMinutes: Int
     let level: String
     let equipmentConfig: String
     let blocks: [WorkoutBlock]
     let movementDetails: [MovementDetail]
     let targetMuscleGroups: [String]
-    @ConvexInt var exerciseCount: Int
-    @ConvexInt var totalSets: Int
+    let exerciseCount: Int
+    let totalSets: Int
     let equipmentNeeded: [String]
     let restGuidance: String?
     let workoutRationale: String?
@@ -223,9 +222,9 @@ struct WorkoutBlock: Decodable {
 /// A single exercise entry within a workout block.
 struct BlockExercise: Decodable {
     let movementId: String
-    @ConvexInt var sets: Int
-    @OptionalConvexInt var reps: Int?
-    @OptionalConvexInt var duration: Int?
+    let sets: Int
+    let reps: Int?
+    let duration: Int?
     let spotter: Bool?
     let eccentric: Bool?
     let chains: Bool?
@@ -241,9 +240,9 @@ struct MovementDetail: Decodable, Identifiable {
     let name: String
     let shortName: String
     let muscleGroups: [String]
-    @ConvexInt var sets: Int
-    @OptionalConvexInt var reps: Int?
-    @OptionalConvexInt var duration: Int?
+    let sets: Int
+    let reps: Int?
+    let duration: Int?
     let phase: String
     let thumbnailMediaUrl: String?
     let accessory: String?
@@ -271,9 +270,9 @@ struct RelatedWorkoutCard: Decodable, Identifiable, Hashable {
     let title: String
     let sessionType: String
     let goal: String
-    @ConvexInt var durationMinutes: Int
+    let durationMinutes: Int
     let level: String
-    @ConvexInt var exerciseCount: Int
+    let exerciseCount: Int
 
     var id: String { slug }
 
