@@ -43,12 +43,14 @@ New component: `src/components/AppShell.tsx`
 A responsive layout wrapper used by all authenticated pages (chat, dashboard, settings). Replaces both `chat/layout.tsx` (chat only) and `dashboard/layout.tsx` (dashboard only, uses `sm` breakpoint). The new breakpoint is `lg` (1024px) — up from `sm` (640px) — so tablets get the mobile layout instead of a cramped sidebar.
 
 **Desktop (lg and above):**
+
 - Left sidebar (256px width), fixed height, flex column
 - Sidebar contains: logo ("tonal.coach"), nav links (Chat, Dashboard, Settings), divider, user name at bottom (from `tonalName`)
 - Main content fills remaining width
 - No thread list in sidebar (one-coach model)
 
 **Mobile (below lg):**
+
 - No sidebar
 - Bottom tab bar with 3 tabs: Chat, Dashboard, Settings
 - Each tab: Lucide icon + label text
@@ -57,6 +59,7 @@ A responsive layout wrapper used by all authenticated pages (chat, dashboard, se
 - Tab bar has subtle top border, semi-transparent background
 
 **Nav links:**
+
 - Chat: `MessageSquare` icon, routes to `/chat`
 - Dashboard: `LayoutDashboard` icon, routes to `/dashboard`
 - Settings: `Settings` icon, routes to `/settings`
@@ -66,12 +69,14 @@ A responsive layout wrapper used by all authenticated pages (chat, dashboard, se
 ### 1.2 Layout restructuring
 
 **Current structure:**
+
 - `src/app/chat/layout.tsx` — wraps chat pages with sidebar + auth guards
 - `src/app/dashboard/layout.tsx` — wraps dashboard with header nav (desktop) + bottom tabs (mobile) + auth guards, uses `sm` breakpoint
 - `src/app/dashboard/page.tsx` — dashboard page inside dashboard layout
 - `src/app/settings/page.tsx` — standalone page with back arrow, own auth guards
 
 **New structure:**
+
 - `src/app/(app)/layout.tsx` — `AppShell` wrapper with auth guards. Applies to all authenticated routes.
 - `src/app/(app)/chat/page.tsx` — chat (single route, thread managed as state)
 - `src/app/(app)/dashboard/page.tsx` — dashboard
@@ -86,6 +91,7 @@ A responsive layout wrapper used by all authenticated pages (chat, dashboard, se
 ### 1.3 Mobile chat header
 
 On mobile, the chat page gets a minimal header bar (below the status bar, above the message area):
+
 - Left: coach avatar/icon
 - Center: "Coach" or "tonal.coach"
 - Right: (reserved for future — notifications, etc.)
@@ -101,6 +107,7 @@ This replaces the current hamburger menu button since the sidebar no longer exis
 **User experience:** One continuous conversation. Open the app, your coach is there, scroll up to see history. No threads, no "New Chat" button.
 
 **Technical implementation:**
+
 - When user sends a message, check the last message timestamp in the most recent thread.
 - If >24 hours since last message: create a new thread automatically. User doesn't see this.
 - If ≤24 hours: append to existing thread.
@@ -108,11 +115,13 @@ This replaces the current hamburger menu button since the sidebar no longer exis
 - Date dividers ("Today", "Yesterday", "March 8") inserted between messages from different days.
 
 **Backend changes:**
+
 - New `internalQuery`: `getActiveThread` in `convex/threads.ts` — uses the agent component's `listThreadsByUserId` internal query (accepts `userId`, returns threads with `_creationTime`, `status`, `title`) to find the most recent active thread. Returns its ID and the timestamp of the last message in that thread (fetched separately via the agent's message listing, since the thread record itself doesn't store message timestamps). Must be `internalQuery` (not public query) so `sendMessage` action can call it via `ctx.runQuery`.
 - Modify `sendMessage` action in `convex/chat.ts`: staleness check happens inside the action (not client-side). Logic: if no `threadId` provided, call `getActiveThread` via `ctx.runQuery`. If no thread exists or last message is >24h old, create a new thread via the agent component's `createThread`. Then send the message to the resolved thread.
 - Also expose `getActiveThread` as a public query wrapper (or a separate `getCurrentThread` query) so the chat page can subscribe to the current thread ID on load.
 
 **Message loading — two data sources:**
+
 - **Current thread (streaming):** The chat page continues to use `useUIMessages` + `syncStreams` from `@convex-dev/agent/react`, bound to the active thread ID. This preserves real-time streaming for new messages.
 - **Previous threads (static, "Load earlier"):** New public query `listConversationHistory` in `convex/threads.ts` loads historical messages across older threads. Called from the client when user clicks "Load earlier". Paginated with cursor. Returns messages with thread boundary markers for date dividers. These are fully-formed historical messages — no streaming.
 - **Merge strategy:** The chat UI maintains two message arrays: `historicalMessages` (from `listConversationHistory`, prepended at top) and `currentMessages` (from `useUIMessages`, appended at bottom). A date divider component is inserted between messages from different days across both arrays.
@@ -120,6 +129,7 @@ This replaces the current hamburger menu button since the sidebar no longer exis
 **Chat routing:** `/chat` is the only user-facing route. The `[threadId]` route is removed. The chat page calls the public `getCurrentThread` query to subscribe to the active thread ID, then binds `useUIMessages` to it. Thread ID is reactive state from the query, not a URL param.
 
 **Chat home page (`/chat`) changes:**
+
 - No longer a "pick a suggestion to start" gate. The chat input is always active.
 - If no messages exist yet: show the welcome/personality state (section 2.4) above the input.
 - If messages exist: show the conversation immediately, scrolled to bottom.
@@ -130,21 +140,25 @@ This replaces the current hamburger menu button since the sidebar no longer exis
 **Replace `ChatMessage.tsx` entirely.**
 
 New message layout (both roles):
+
 - Header row: avatar (24px circle) + role name ("You" / "Coach") + timestamp
 - Content: indented 32px (aligned with role name), full width
 - Messages separated by subtle `border-border` divider (not inside a bubble)
 
 **User messages:**
+
 - Avatar: user's first initial in a teal (primary) circle
 - Role name: "You"
 - Content: plain text, no markdown processing
 
 **Coach messages:**
+
 - Avatar: sparkle/star icon in a muted circle
 - Role name: "Coach"
 - Content: rendered with `react-markdown` + `remark-gfm`
 
 **Markdown styling (dark theme):**
+
 - **Bold:** `font-semibold text-foreground` (brighter than surrounding text)
 - **Italic:** standard italic
 - **Inline code:** `rounded bg-muted px-1.5 py-0.5 font-mono text-sm`
@@ -156,18 +170,20 @@ New message layout (both roles):
 - **Links:** `text-primary underline underline-offset-2`
 - **Blockquotes:** `border-l-2 border-primary/30 pl-4 italic text-muted-foreground`
 
-**Streaming cursor:** Keep the existing blinking cursor at the end of streaming text. Append the cursor character (`▍`) to the raw markdown string *before* passing it to `react-markdown`, not after the rendered output — this ensures it appears inside the last rendered element (e.g., at the end of a list item) rather than floating outside.
+**Streaming cursor:** Keep the existing blinking cursor at the end of streaming text. Append the cursor character (`▍`) to the raw markdown string _before_ passing it to `react-markdown`, not after the rendered output — this ensures it appears inside the last rendered element (e.g., at the end of a list item) rather than floating outside.
 
 ### 2.3 Tool call indicators
 
 **Replace `ToolCallIndicator.tsx`.**
 
 **Running state (input-streaming / input-available):**
+
 - Inline chip: animated teal pulse dot + descriptive text
 - e.g., `● Checking muscle readiness...`
 - Rendered between user message and coach response
 
 **Completed state (output-available):**
+
 - Compact chip: teal checkmark + past-tense text
 - e.g., `✓ Checked muscle readiness`
 - Multiple completed calls render as a horizontal `flex-wrap` row of chips
@@ -194,6 +210,7 @@ This state disappears once there are messages — it's a welcome screen, not a p
 **When `create_workout` tool completes:**
 
 Render a dedicated `WorkoutCard` component inline in the chat:
+
 - Card with subtle primary border (teal accent)
 - Title: workout name (bold)
 - Exercise list: numbered, with exercise name + sets × reps
@@ -232,6 +249,7 @@ Each dashboard card gets an optional CTA that links to the chat with a pre-fille
 ## 4. Files Summary
 
 ### Created
+
 - `src/components/AppShell.tsx` — responsive navigation shell
 - `src/components/BottomTabs.tsx` — mobile tab bar (or inline in AppShell)
 - `src/components/Sidebar.tsx` — desktop sidebar (or inline in AppShell)
@@ -241,6 +259,7 @@ Each dashboard card gets an optional CTA that links to the chat with a pre-fille
 - `convex/threads.ts` — `getActiveThread` (internalQuery), `getCurrentThread` (public query wrapper), `listConversationHistory` (public query, paginated)
 
 ### Modified
+
 - `src/components/ChatMessage.tsx` — full rewrite (full-width, avatars, markdown)
 - `src/components/ToolCallIndicator.tsx` — rewrite (chip style)
 - `src/components/WorkoutCard.tsx` — add status badges, teal accent
@@ -257,12 +276,14 @@ Each dashboard card gets an optional CTA that links to the chat with a pre-fille
 - `src/components/StrengthScoreCard.tsx` — add static "Ask coach" CTA link
 
 ### Deleted
+
 - `src/app/chat/layout.tsx` — replaced by `(app)/layout.tsx`
 - `src/app/chat/[threadId]/page.tsx` — removed (thread managed as state in `/chat`, not as a route)
 - `src/app/dashboard/layout.tsx` — replaced by `(app)/layout.tsx` (had its own responsive nav at `sm` breakpoint + auth guards)
 - `src/components/ThreadSidebar.tsx` — replaced by Sidebar inside AppShell
 
 ### Not touched
+
 - All other Convex backend files (tonal/, dashboard actions, etc.) except `convex/dashboard.ts` (minor)
 - Landing page, login, connect-tonal (not inside `(app)` group)
 - Dashboard sub-components other than those listed above

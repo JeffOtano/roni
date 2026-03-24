@@ -15,39 +15,42 @@
 ## File Structure
 
 ### Created
-| File | Responsibility |
-|------|---------------|
-| `src/app/(app)/layout.tsx` | Authenticated route group layout — renders AppShell, auth guards |
-| `src/components/AppShell.tsx` | Responsive nav shell: sidebar (desktop lg+), bottom tabs (mobile) |
-| `src/components/MarkdownContent.tsx` | `react-markdown` wrapper with dark-theme styled components |
-| `src/components/DateDivider.tsx` | "Today", "Yesterday", "March 8" date separator |
-| `convex/threads.ts` | `getActiveThread` (internalQuery), `getCurrentThread` (public query), `listConversationHistory` (public query) |
+
+| File                                 | Responsibility                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `src/app/(app)/layout.tsx`           | Authenticated route group layout — renders AppShell, auth guards                                               |
+| `src/components/AppShell.tsx`        | Responsive nav shell: sidebar (desktop lg+), bottom tabs (mobile)                                              |
+| `src/components/MarkdownContent.tsx` | `react-markdown` wrapper with dark-theme styled components                                                     |
+| `src/components/DateDivider.tsx`     | "Today", "Yesterday", "March 8" date separator                                                                 |
+| `convex/threads.ts`                  | `getActiveThread` (internalQuery), `getCurrentThread` (public query), `listConversationHistory` (public query) |
 
 ### Modified
-| File | Changes |
-|------|---------|
-| `convex/chat.ts` | `sendMessage` auto-resolves active thread via `getActiveThread` |
-| `convex/dashboard.ts` | `getTrainingFrequency` adds `lastTrainedDate` per area |
-| `src/components/ChatMessage.tsx` | Full rewrite: full-width, avatars, timestamps, markdown for coach |
-| `src/components/ToolCallIndicator.tsx` | Rewrite: compact chips (animated running, checkmark done) |
-| `src/components/WorkoutCard.tsx` | Status badges for all 4 statuses, teal accent border |
-| `src/components/ChatThread.tsx` | Auto-session model, two data sources, date dividers |
-| `src/components/ChatInput.tsx` | Simplified: no threadId prop, always active |
-| `src/components/StatusBanner.tsx` | No changes to component itself, just moves into AppShell |
-| `src/app/(app)/chat/page.tsx` | Welcome state, auto-send from `?prompt=` param, no thread routing |
-| `src/app/(app)/dashboard/page.tsx` | Greeting header, CTAs on cards |
-| `src/app/(app)/settings/page.tsx` | Remove back arrow + standalone wrapper |
-| `src/components/MuscleReadinessMap.tsx` | Add CTA link when readiness >80% |
-| `src/components/TrainingFrequencyChart.tsx` | Add CTA link when area not trained >7 days |
-| `src/components/StrengthScoreCard.tsx` | Add static "Ask coach" CTA |
+
+| File                                        | Changes                                                           |
+| ------------------------------------------- | ----------------------------------------------------------------- |
+| `convex/chat.ts`                            | `sendMessage` auto-resolves active thread via `getActiveThread`   |
+| `convex/dashboard.ts`                       | `getTrainingFrequency` adds `lastTrainedDate` per area            |
+| `src/components/ChatMessage.tsx`            | Full rewrite: full-width, avatars, timestamps, markdown for coach |
+| `src/components/ToolCallIndicator.tsx`      | Rewrite: compact chips (animated running, checkmark done)         |
+| `src/components/WorkoutCard.tsx`            | Status badges for all 4 statuses, teal accent border              |
+| `src/components/ChatThread.tsx`             | Auto-session model, two data sources, date dividers               |
+| `src/components/ChatInput.tsx`              | Simplified: no threadId prop, always active                       |
+| `src/components/StatusBanner.tsx`           | No changes to component itself, just moves into AppShell          |
+| `src/app/(app)/chat/page.tsx`               | Welcome state, auto-send from `?prompt=` param, no thread routing |
+| `src/app/(app)/dashboard/page.tsx`          | Greeting header, CTAs on cards                                    |
+| `src/app/(app)/settings/page.tsx`           | Remove back arrow + standalone wrapper                            |
+| `src/components/MuscleReadinessMap.tsx`     | Add CTA link when readiness >80%                                  |
+| `src/components/TrainingFrequencyChart.tsx` | Add CTA link when area not trained >7 days                        |
+| `src/components/StrengthScoreCard.tsx`      | Add static "Ask coach" CTA                                        |
 
 ### Deleted
-| File | Reason |
-|------|--------|
-| `src/app/chat/layout.tsx` | Replaced by `(app)/layout.tsx` |
+
+| File                               | Reason                             |
+| ---------------------------------- | ---------------------------------- |
+| `src/app/chat/layout.tsx`          | Replaced by `(app)/layout.tsx`     |
 | `src/app/chat/[threadId]/page.tsx` | Thread managed as state, not route |
-| `src/app/dashboard/layout.tsx` | Replaced by `(app)/layout.tsx` |
-| `src/components/ThreadSidebar.tsx` | One-coach model, no thread list |
+| `src/app/dashboard/layout.tsx`     | Replaced by `(app)/layout.tsx`     |
+| `src/components/ThreadSidebar.tsx` | One-coach model, no thread list    |
 
 ---
 
@@ -56,6 +59,7 @@
 ### Task 1: Install dependencies and scaffold route group
 
 **Files:**
+
 - Modify: `package.json` (add deps)
 - Create: `src/app/(app)/layout.tsx` (placeholder)
 
@@ -94,11 +98,13 @@ git commit -m "chore: install react-markdown, scaffold (app) route group"
 ### Task 2: AppShell component
 
 **Files:**
+
 - Create: `src/components/AppShell.tsx`
 
 **Reference:** The existing `src/app/dashboard/layout.tsx` has a working responsive nav pattern with desktop header + mobile bottom tabs at `sm` breakpoint. The new AppShell uses a **sidebar** (not header) on desktop and changes the breakpoint to `lg` (1024px).
 
 **Context files to read first:**
+
 - `src/app/dashboard/layout.tsx` — existing nav pattern, auth guards, StatusBanner integration
 - `src/components/StatusBanner.tsx` — renders above main content
 - `src/lib/utils.ts` — `cn()` helper
@@ -109,6 +115,7 @@ git commit -m "chore: install react-markdown, scaffold (app) route group"
 Create `src/components/AppShell.tsx` with:
 
 **Layout structure:**
+
 ```
 Desktop (lg+):         Mobile (<lg):
 ┌──────┬─────────┐    ┌─────────────────┐
@@ -126,6 +133,7 @@ Desktop (lg+):         Mobile (<lg):
 **Props:** `{ children: React.ReactNode }`
 
 **Desktop sidebar (256px, hidden below lg):**
+
 - Logo: "tonal.coach" text, `text-sm font-bold`
 - Nav links: Chat (`MessageSquare`), Dashboard (`LayoutDashboard`), Settings (`Settings`)
 - Each link: `Link` from next/link, styled with `cn()`, active state uses `bg-primary/10 text-primary`
@@ -133,14 +141,17 @@ Desktop (lg+):         Mobile (<lg):
 - User name at bottom from `useQuery(api.users.getMe)` — display `tonalName`
 
 **Mobile bottom tabs (visible below lg):**
+
 - Fixed to bottom, `z-40`
 - 3 tabs with icon + label, active tab in `text-primary`
 - Bottom padding: `pb-[env(safe-area-inset-bottom)]` for notch devices
 
 **Mobile header (visible below lg):**
+
 - "tonal.coach" text centered
 
 **Auth guards:** Import and reuse the pattern from `dashboard/layout.tsx`:
+
 - `useConvexAuth()` for `isAuthenticated`, `isLoading`
 - `useQuery(api.users.getMe)` with skip when not authenticated
 - Loading: full-screen `Loader2` spinner
@@ -148,6 +159,7 @@ Desktop (lg+):         Mobile (<lg):
 - No Tonal profile: `router.replace("/connect-tonal")`
 
 **Important implementation details:**
+
 - Use `usePathname()` to determine active nav link
 - Match on `pathname.startsWith(href)` for nested routes (e.g., `/chat` matches `/chat`)
 - Import `StatusBanner` and render it above main content area
@@ -279,6 +291,7 @@ git commit -m "feat: add AppShell component with responsive sidebar/tabs navigat
 ### Task 3: Route restructuring — move pages into (app) group
 
 **Files:**
+
 - Modify: `src/app/(app)/layout.tsx` — wire up AppShell
 - Move: `src/app/chat/page.tsx` → `src/app/(app)/chat/page.tsx`
 - Move: `src/app/dashboard/page.tsx` → `src/app/(app)/dashboard/page.tsx`
@@ -289,6 +302,7 @@ git commit -m "feat: add AppShell component with responsive sidebar/tabs navigat
 - Delete: `src/components/ThreadSidebar.tsx`
 
 **Context files to read first:**
+
 - `src/app/chat/layout.tsx` — has auth guards (moving to AppShell), sidebar toggle, hamburger menu
 - `src/app/chat/page.tsx` — suggestion buttons, thread creation, navigation to `/chat/[threadId]`
 - `src/app/chat/[threadId]/page.tsx` — simple wrapper around ChatThread
@@ -316,6 +330,7 @@ cp src/app/chat/page.tsx src/app/\(app\)/chat/page.tsx
 ```
 
 Then edit `src/app/(app)/chat/page.tsx`:
+
 - Remove any auth guard logic (AppShell handles it)
 - Keep the existing functionality for now (will be rewritten in Task 13)
 
@@ -327,6 +342,7 @@ cp src/app/dashboard/page.tsx src/app/\(app\)/dashboard/page.tsx
 ```
 
 Edit `src/app/(app)/dashboard/page.tsx`:
+
 - Remove any standalone auth guards if present (the dashboard page itself doesn't have them — its layout did)
 - Keep existing card rendering
 
@@ -338,6 +354,7 @@ cp src/app/settings/page.tsx src/app/\(app\)/settings/page.tsx
 ```
 
 Edit `src/app/(app)/settings/page.tsx`:
+
 - Remove auth guard logic (lines checking `isAuthenticated`, `authLoading`, redirects)
 - Remove the back arrow button and `min-h-screen` wrapper
 - Remove `PageLoader` and `useConvexAuth` imports
@@ -355,6 +372,7 @@ rm src/components/ThreadSidebar.tsx
 ```
 
 Also delete the old route directories if they're now empty (after moving pages):
+
 ```bash
 # Remove old chat page (now in (app)/chat/)
 rm src/app/chat/page.tsx
@@ -365,6 +383,7 @@ rm src/app/settings/page.tsx
 ```
 
 Clean up empty directories:
+
 ```bash
 rmdir src/app/chat 2>/dev/null || true
 rmdir src/app/dashboard 2>/dev/null || true
@@ -374,10 +393,12 @@ rmdir src/app/settings 2>/dev/null || true
 - [ ] **Step 6: Fix imports**
 
 Check for any import path changes needed due to file moves. The `@/` alias resolves to `src/`, so component imports should work. But relative imports to `convex/_generated/api` may need updating since the files moved deeper:
+
 - Old: `../../../convex/_generated/api` (from `src/app/chat/page.tsx`)
 - New: `../../../../convex/_generated/api` (from `src/app/(app)/chat/page.tsx`)
 
 The `@/` alias maps to `./src/*` and does NOT cover `convex/`. Update relative imports in all moved files:
+
 - Old (from `src/app/chat/page.tsx`): `from "../../../convex/_generated/api"`
 - New (from `src/app/(app)/chat/page.tsx`): `from "../../../../convex/_generated/api"`
 
@@ -404,9 +425,11 @@ git commit -m "refactor: move authenticated pages into (app) route group with Ap
 ### Task 4: Backend — convex/threads.ts
 
 **Files:**
+
 - Create: `convex/threads.ts`
 
 **Context files to read first:**
+
 - `convex/chat.ts` — current thread/message handling, see how `listUIMessages` and `syncStreams` are used
 - `convex/ai/coach.ts` — agent component setup (`components.agent`)
 - `convex/_generated/api.d.ts` — check available component queries (search for `listThreadsByUserId`, `listMessagesByThreadId` or similar)
@@ -430,30 +453,23 @@ export const getActiveThread = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     // Use agent component to list threads for this user, most recent first
-    const threads = await ctx.runQuery(
-      components.agent.threads.listThreadsByUserId,
-      {
-        userId: userId as string,
-        paginationOpts: { cursor: null, numItems: 1 },
-        order: "desc",
-      },
-    );
+    const threads = await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
+      userId: userId as string,
+      paginationOpts: { cursor: null, numItems: 1 },
+      order: "desc",
+    });
 
     const thread = threads.page[0];
     if (!thread || thread.status !== "active") return null;
 
     // Get the last message to check staleness
-    const messages = await ctx.runQuery(
-      components.agent.messages.listMessagesByThreadId,
-      {
-        threadId: thread._id,
-        paginationOpts: { cursor: null, numItems: 1 },
-        order: "desc",
-      },
-    );
+    const messages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+      threadId: thread._id,
+      paginationOpts: { cursor: null, numItems: 1 },
+      order: "desc",
+    });
 
-    const lastMessageTime =
-      messages.page[0]?._creationTime ?? thread._creationTime;
+    const lastMessageTime = messages.page[0]?._creationTime ?? thread._creationTime;
 
     return { threadId: thread._id, lastMessageTime };
   },
@@ -502,14 +518,11 @@ export const listConversationHistory = query({
     if (!userId) return { messages: [], hasMore: false };
 
     // Get threads for this user, newest first (up to 50 — sufficient for most users)
-    const threads = await ctx.runQuery(
-      components.agent.threads.listThreadsByUserId,
-      {
-        userId: userId as string,
-        paginationOpts: { cursor: null, numItems: 50 },
-        order: "desc",
-      },
-    );
+    const threads = await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
+      userId: userId as string,
+      paginationOpts: { cursor: null, numItems: 50 },
+      order: "desc",
+    });
 
     // Find threads older than the current one
     let foundCurrent = !beforeThreadId;
@@ -528,14 +541,11 @@ export const listConversationHistory = query({
 
     // Load messages from the next older thread
     const targetThread = olderThreads[0];
-    const result = await ctx.runQuery(
-      components.agent.messages.listMessagesByThreadId,
-      {
-        threadId: targetThread._id,
-        paginationOpts: { cursor: null, numItems: limit },
-        order: "asc",
-      },
-    );
+    const result = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+      threadId: targetThread._id,
+      paginationOpts: { cursor: null, numItems: limit },
+      order: "asc",
+    });
 
     return {
       messages: result.page,
@@ -566,9 +576,11 @@ git commit -m "feat: add thread queries for auto-session model"
 ### Task 5: Backend — modify convex/chat.ts for auto-resolve
 
 **Files:**
+
 - Modify: `convex/chat.ts`
 
 **Context files to read first:**
+
 - `convex/chat.ts` — current sendMessage implementation
 - `convex/threads.ts` — the getActiveThread query just created
 - `convex/ai/coach.ts` — how agent threads are created and continued
@@ -578,41 +590,41 @@ git commit -m "feat: add thread queries for auto-session model"
 The current code (lines 48-57 of `convex/chat.ts`) has:
 
 ```typescript
-    let targetThreadId: string;
-    if (threadId) {
-      targetThreadId = threadId;
-    } else {
-      const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
-        userId,
-      });
-      targetThreadId = newThreadId;
-    }
+let targetThreadId: string;
+if (threadId) {
+  targetThreadId = threadId;
+} else {
+  const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
+    userId,
+  });
+  targetThreadId = newThreadId;
+}
 ```
 
 Replace that block with the auto-resolve logic:
 
 ```typescript
-    const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-    let targetThreadId: string;
-    if (threadId) {
-      targetThreadId = threadId;
-    } else {
-      // Auto-resolve to active thread if not stale
-      const active = await ctx.runQuery(internal.threads.getActiveThread, {
-        userId,
-      });
+let targetThreadId: string;
+if (threadId) {
+  targetThreadId = threadId;
+} else {
+  // Auto-resolve to active thread if not stale
+  const active = await ctx.runQuery(internal.threads.getActiveThread, {
+    userId,
+  });
 
-      if (active && Date.now() - active.lastMessageTime < STALE_THRESHOLD_MS) {
-        targetThreadId = active.threadId;
-      } else {
-        // Create new thread (stale or none exists)
-        const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
-          userId,
-        });
-        targetThreadId = newThreadId;
-      }
-    }
+  if (active && Date.now() - active.lastMessageTime < STALE_THRESHOLD_MS) {
+    targetThreadId = active.threadId;
+  } else {
+    // Create new thread (stale or none exists)
+    const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
+      userId,
+    });
+    targetThreadId = newThreadId;
+  }
+}
 ```
 
 The file already imports `internal` from `./_generated/api` (line 8), so no new import is needed. The `internal.threads.getActiveThread` reference will resolve after creating `convex/threads.ts` in Task 4.
@@ -637,9 +649,11 @@ git commit -m "feat: auto-resolve active thread in sendMessage with 24h stalenes
 ### Task 6: Backend — modify convex/dashboard.ts for lastTrainedDate
 
 **Files:**
+
 - Modify: `convex/dashboard.ts`
 
 **Context files to read first:**
+
 - `convex/dashboard.ts` — current `getTrainingFrequency` implementation
 
 - [ ] **Step 1: Add lastTrainedDate to getTrainingFrequency response**
@@ -677,6 +691,7 @@ return Object.entries(counts)
 ```
 
 Also update the `TrainingFrequencyEntry` interface:
+
 ```typescript
 interface TrainingFrequencyEntry {
   targetArea: string;
@@ -705,6 +720,7 @@ git commit -m "feat: add lastTrainedDate to training frequency response"
 ### Task 7: MarkdownContent component
 
 **Files:**
+
 - Create: `src/components/MarkdownContent.tsx`
 
 **Context:** This wraps `react-markdown` with dark-theme styled component overrides for the coach's messages.
@@ -718,9 +734,7 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
 const components: Components = {
-  strong: ({ children }) => (
-    <strong className="font-semibold text-foreground">{children}</strong>
-  ),
+  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
   em: ({ children }) => <em>{children}</em>,
   code: ({ className, children, ...props }) => {
     // Detect code blocks vs inline code
@@ -739,33 +753,23 @@ const components: Components = {
     );
   },
   pre: ({ children }) => (
-    <pre className="my-3 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-sm">
-      {children}
-    </pre>
+    <pre className="my-3 overflow-x-auto rounded-lg bg-muted p-4 font-mono text-sm">{children}</pre>
   ),
-  ul: ({ children }) => (
-    <ul className="my-2 list-disc pl-5 space-y-1">{children}</ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="my-2 list-decimal pl-5 space-y-1">{children}</ol>
-  ),
+  ul: ({ children }) => <ul className="my-2 list-disc pl-5 space-y-1">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2 list-decimal pl-5 space-y-1">{children}</ol>,
   li: ({ children }) => <li>{children}</li>,
   table: ({ children }) => (
     <div className="my-3 overflow-x-auto rounded-lg border border-border">
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   ),
-  thead: ({ children }) => (
-    <thead className="bg-muted/50">{children}</thead>
-  ),
+  thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
   th: ({ children }) => (
     <th className="border-b border-border px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </th>
   ),
-  td: ({ children }) => (
-    <td className="border-b border-border px-3 py-2">{children}</td>
-  ),
+  td: ({ children }) => <td className="border-b border-border px-3 py-2">{children}</td>,
   h1: ({ children }) => (
     <h1 className="mb-3 mt-4 text-xl font-semibold text-foreground">{children}</h1>
   ),
@@ -829,14 +833,17 @@ git commit -m "feat: add MarkdownContent component with dark-theme styled react-
 ### Task 8: ChatMessage rewrite
 
 **Files:**
+
 - Modify: `src/components/ChatMessage.tsx` (full rewrite)
 
 **Context files to read first:**
+
 - `src/components/ChatMessage.tsx` — current implementation (bubble-style, FormattedText)
 - `src/components/MarkdownContent.tsx` — just created
 - `src/components/ToolCallIndicator.tsx` — renders inside messages (will be rewritten in Task 9, but keep current interface for now)
 
 **Design:** Full-width messages, no bubbles. Each message has:
+
 - Header: avatar (24px circle) + role name + timestamp
 - Content: indented 32px, full width
 - Separated by subtle border divider
@@ -844,6 +851,7 @@ git commit -m "feat: add MarkdownContent component with dark-theme styled react-
 - [ ] **Step 1: Rewrite ChatMessage**
 
 Replace the entire file content. Key changes:
+
 - Remove `FormattedText` and `TextWithBreaks` helpers
 - Remove bubble styling (user right-aligned, assistant left-aligned)
 - Add avatar: user gets first initial in primary circle, coach gets sparkle icon in muted circle
@@ -906,7 +914,10 @@ export function ChatMessage({ message, userInitial = "U" }: ChatMessageProps) {
 
             if (isUser) {
               return (
-                <p key={i} className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                <p
+                  key={i}
+                  className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap"
+                >
                   {text}
                 </p>
               );
@@ -922,9 +933,7 @@ export function ChatMessage({ message, userInitial = "U" }: ChatMessageProps) {
 
         {/* Tool calls: completed ones wrap horizontally as chips per spec */}
         {(() => {
-          const toolParts = message.parts.filter(
-            (part) => part.type === "dynamic-tool",
-          );
+          const toolParts = message.parts.filter((part) => part.type === "dynamic-tool");
           if (toolParts.length === 0) return null;
 
           const hasRunning = toolParts.some(
@@ -972,13 +981,16 @@ git commit -m "feat: rewrite ChatMessage with full-width layout, avatars, and ma
 ### Task 9: ToolCallIndicator rewrite
 
 **Files:**
+
 - Modify: `src/components/ToolCallIndicator.tsx` (full rewrite)
 
 **Context files to read first:**
+
 - `src/components/ToolCallIndicator.tsx` — current implementation
 - `src/components/WorkoutCard.tsx` — special rendering for create_workout
 
 **Design:**
+
 - Running state: animated teal pulse dot + descriptive text (e.g., "Checking muscle readiness...")
 - Completed state: compact chip with teal checkmark + past-tense text
 - Multiple completed chips render as horizontal flex-wrap row
@@ -995,11 +1007,23 @@ import { WorkoutCard } from "./WorkoutCard";
 const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
   search_exercises: { running: "Searching exercises...", done: "Searched exercises" },
   get_strength_scores: { running: "Checking strength scores...", done: "Checked strength scores" },
-  get_strength_history: { running: "Reviewing strength history...", done: "Reviewed strength history" },
-  get_muscle_readiness: { running: "Checking muscle readiness...", done: "Checked muscle readiness" },
-  get_workout_history: { running: "Reviewing workout history...", done: "Reviewed workout history" },
+  get_strength_history: {
+    running: "Reviewing strength history...",
+    done: "Reviewed strength history",
+  },
+  get_muscle_readiness: {
+    running: "Checking muscle readiness...",
+    done: "Checked muscle readiness",
+  },
+  get_workout_history: {
+    running: "Reviewing workout history...",
+    done: "Reviewed workout history",
+  },
   get_workout_detail: { running: "Loading workout details...", done: "Loaded workout details" },
-  get_training_frequency: { running: "Analyzing training frequency...", done: "Analyzed training frequency" },
+  get_training_frequency: {
+    running: "Analyzing training frequency...",
+    done: "Analyzed training frequency",
+  },
   create_workout: { running: "Creating workout...", done: "Created workout" },
   delete_workout: { running: "Deleting workout...", done: "Deleted workout" },
   estimate_duration: { running: "Estimating duration...", done: "Estimated duration" },
@@ -1022,7 +1046,10 @@ export function ToolCallIndicator({ toolName, state, input }: ToolCallIndicatorP
 
   // Special case: create_workout shows WorkoutCard when done
   if (toolName === "create_workout" && isDone && input) {
-    const data = input as { name?: string; exercises?: Array<{ exerciseName?: string; name?: string; sets?: number; reps?: number }> };
+    const data = input as {
+      name?: string;
+      exercises?: Array<{ exerciseName?: string; name?: string; sets?: number; reps?: number }>;
+    };
     return <WorkoutCard title={data.name} exercises={data.exercises} />;
   }
 
@@ -1069,9 +1096,11 @@ git commit -m "feat: rewrite ToolCallIndicator with compact chip style"
 ### Task 10: WorkoutCard upgrade
 
 **Files:**
+
 - Modify: `src/components/WorkoutCard.tsx`
 
 **Context files to read first:**
+
 - `src/components/WorkoutCard.tsx` — current implementation
 - `convex/schema.ts` — `workoutPlans` table statuses: draft, pushed, completed, deleted
 
@@ -1145,9 +1174,7 @@ export function WorkoutCard({
   return (
     <div className="my-2 rounded-lg border border-primary/30 bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
-          {title ?? "Custom Workout"}
-        </h3>
+        <h3 className="text-sm font-semibold text-foreground">{title ?? "Custom Workout"}</h3>
         <StatusBadge status={status} />
       </div>
 
@@ -1155,9 +1182,7 @@ export function WorkoutCard({
         <ol className="mb-2 space-y-1 pl-5 text-sm">
           {exercises.map((ex, i) => (
             <li key={i} className="text-foreground/80">
-              <span className="font-medium">
-                {ex.exerciseName ?? ex.name ?? "Exercise"}
-              </span>
+              <span className="font-medium">{ex.exerciseName ?? ex.name ?? "Exercise"}</span>
               {ex.sets && ex.reps && (
                 <span className="ml-1.5 text-muted-foreground">
                   — {ex.sets}×{ex.reps}
@@ -1169,9 +1194,7 @@ export function WorkoutCard({
       )}
 
       {estimatedDuration && (
-        <p className="text-xs text-muted-foreground">
-          ~{Math.round(estimatedDuration / 60)} min
-        </p>
+        <p className="text-xs text-muted-foreground">~{Math.round(estimatedDuration / 60)} min</p>
       )}
     </div>
   );
@@ -1196,6 +1219,7 @@ git commit -m "feat: upgrade WorkoutCard with status badges and teal accent"
 ### Task 11: DateDivider component
 
 **Files:**
+
 - Create: `src/components/DateDivider.tsx`
 
 - [ ] **Step 1: Create DateDivider**
@@ -1207,9 +1231,7 @@ function formatDateLabel(date: Date): string {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diffDays = Math.round(
-    (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const diffDays = Math.round((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
@@ -1230,9 +1252,7 @@ export function DateDivider({ timestamp }: DateDividerProps) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 sm:px-6">
       <div className="h-px flex-1 bg-border" />
-      <span className="text-[11px] font-medium text-muted-foreground/60">
-        {label}
-      </span>
+      <span className="text-[11px] font-medium text-muted-foreground/60">{label}</span>
       <div className="h-px flex-1 bg-border" />
     </div>
   );
@@ -1257,16 +1277,19 @@ git commit -m "feat: add DateDivider component for chat history"
 ### Task 12: ChatThread rewrite
 
 **Files:**
+
 - Modify: `src/components/ChatThread.tsx` (full rewrite)
 - Modify: `src/components/ChatInput.tsx` (simplify props)
 
 **Context files to read first:**
+
 - `src/components/ChatThread.tsx` — current implementation (useUIMessages, pagination, auto-scroll)
 - `src/components/ChatInput.tsx` — current props: `{ threadId, onThreadCreated?, disabled? }`
 - `convex/threads.ts` — getCurrentThread, listConversationHistory
 - `convex/chat.ts` — sendMessage (now auto-resolves thread)
 
 **Design changes:**
+
 - ChatThread no longer receives `threadId` as a prop — it subscribes to `getCurrentThread` query
 - Uses `useUIMessages` for current thread (streaming) and `listConversationHistory` for older threads
 - Date dividers inserted between messages from different days
@@ -1309,9 +1332,11 @@ export function ChatInput({ disabled }: ChatInputProps) {
 Replace `src/components/ChatThread.tsx` entirely.
 
 **Critical API note:** The existing code calls `useUIMessages` with three arguments:
+
 ```tsx
-useUIMessages(api.chat.listMessages, { threadId }, { initialNumItems: 20, stream: true })
+useUIMessages(api.chat.listMessages, { threadId }, { initialNumItems: 20, stream: true });
 ```
+
 It returns `{ results, status, loadMore }` (NOT `{ messages, ... }`). The implementer MUST read the current `ChatThread.tsx` to confirm the exact call signature and return shape, then adapt the code below accordingly.
 
 ```tsx
@@ -1326,10 +1351,7 @@ import { ChatInput } from "./ChatInput";
 import { DateDivider } from "./DateDivider";
 import type { UIMessage } from "@convex-dev/agent/react";
 
-function shouldShowDateDivider(
-  currentTimestamp: number,
-  prevTimestamp: number | null,
-): boolean {
+function shouldShowDateDivider(currentTimestamp: number, prevTimestamp: number | null): boolean {
   if (!prevTimestamp) return true;
   const current = new Date(currentTimestamp);
   const prev = new Date(prevTimestamp);
@@ -1359,11 +1381,14 @@ export function ChatThread({ userInitial }: ChatThreadProps) {
   // Check the @convex-dev/agent/react source to confirm. If "skip" isn't supported,
   // use: `const uiMessages = threadId ? useUIMessages(...) : { results: [], status: "Exhausted", loadMore: () => {} };`
   // or gate the hook call behind a conditional component.
-  const { results: currentMessages, status, loadMore } = useUIMessages(
-    api.chat.listMessages,
-    threadId ? { threadId } : "skip",
-    { initialNumItems: 20, stream: true },
-  );
+  const {
+    results: currentMessages,
+    status,
+    loadMore,
+  } = useUIMessages(api.chat.listMessages, threadId ? { threadId } : "skip", {
+    initialNumItems: 20,
+    stream: true,
+  });
 
   // Historical messages from older threads (static, "Load earlier")
   // NOTE: listConversationHistory returns raw MessageDoc objects from the agent
@@ -1397,9 +1422,7 @@ export function ChatThread({ userInitial }: ChatThreadProps) {
   const allMessages = [...historicalMessages, ...(currentMessages ?? [])];
 
   // Auto-scroll to bottom on new messages
-  const isStreaming = (currentMessages ?? []).some(
-    (m) => m.status === "streaming",
-  );
+  const isStreaming = (currentMessages ?? []).some((m) => m.status === "streaming");
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -1440,18 +1463,12 @@ export function ChatThread({ userInitial }: ChatThreadProps) {
 
         {/* Messages with date dividers */}
         {allMessages.map((message, i) => {
-          const prevTimestamp =
-            i > 0 ? allMessages[i - 1]._creationTime : null;
-          const showDivider = shouldShowDateDivider(
-            message._creationTime,
-            prevTimestamp,
-          );
+          const prevTimestamp = i > 0 ? allMessages[i - 1]._creationTime : null;
+          const showDivider = shouldShowDateDivider(message._creationTime, prevTimestamp);
 
           return (
             <div key={message.key}>
-              {showDivider && (
-                <DateDivider timestamp={message._creationTime} />
-              )}
+              {showDivider && <DateDivider timestamp={message._creationTime} />}
               <ChatMessage message={message} userInitial={userInitial} />
             </div>
           );
@@ -1488,13 +1505,16 @@ git commit -m "feat: rewrite ChatThread with auto-session model and date divider
 ### Task 13: Chat page rewrite
 
 **Files:**
+
 - Modify: `src/app/(app)/chat/page.tsx` (full rewrite)
 
 **Context files to read first:**
+
 - `src/app/(app)/chat/page.tsx` — current: suggestion buttons, thread creation, navigation
 - `src/components/ChatThread.tsx` — just rewritten, handles message loading
 
 **Design:**
+
 - Single route `/chat`, no `[threadId]` subroute
 - If no messages: show welcome state (avatar, greeting, 4 suggestion cards)
 - If messages: show ChatThread immediately
@@ -1567,8 +1587,7 @@ function ChatPageInner() {
             What are we working on today?
           </h2>
           <p className="mb-6 max-w-sm text-center text-sm text-muted-foreground">
-            I can check your readiness, program workouts, analyze trends, or
-            just talk training.
+            I can check your readiness, program workouts, analyze trends, or just talk training.
           </p>
           <div className="grid w-full max-w-md grid-cols-2 gap-3">
             {suggestions.map(({ icon: Icon, text }) => (
@@ -1608,6 +1627,7 @@ npx tsc --noEmit
 - [ ] **Step 3: Manual test**
 
 Start the dev server (`npm run dev`) and verify:
+
 1. `/chat` shows welcome state with 4 suggestions when no messages exist
 2. Clicking a suggestion sends a message and transitions to ChatThread
 3. Navigating to `/chat?prompt=test` auto-sends and shows conversation
@@ -1624,12 +1644,14 @@ git commit -m "feat: rewrite chat page with welcome state and auto-send from que
 ### Task 14: Dashboard CTAs + greeting
 
 **Files:**
+
 - Modify: `src/app/(app)/dashboard/page.tsx` — greeting header
 - Modify: `src/components/MuscleReadinessMap.tsx` — CTA
 - Modify: `src/components/TrainingFrequencyChart.tsx` — CTA
 - Modify: `src/components/StrengthScoreCard.tsx` — static CTA
 
 **Context files to read first:**
+
 - `src/app/(app)/dashboard/page.tsx` — current dashboard layout and card rendering
 - `src/components/MuscleReadinessMap.tsx` — readiness values, readinessColor/readinessLabel helpers
 - `src/components/TrainingFrequencyChart.tsx` — frequency data with `targetArea` and `count`
@@ -1652,19 +1674,19 @@ const today = new Date().toLocaleDateString(undefined, {
 
 // In JSX, replace <h1>Training Dashboard</h1> with:
 <div className="mb-6">
-  <h1 className="text-xl font-semibold text-foreground">
-    Hey {firstName}
-  </h1>
+  <h1 className="text-xl font-semibold text-foreground">Hey {firstName}</h1>
   <p className="text-sm text-muted-foreground">{today}</p>
-</div>
+</div>;
 ```
 
 Also add the `useQuery` import if not already present, and import `api`:
+
 ```tsx
 import { useQuery } from "convex/react";
 ```
 
 Also update the local `FrequencyEntry` interface in `dashboard/page.tsx` (around line 116) to include the new field from Task 6:
+
 ```tsx
 interface FrequencyEntry {
   targetArea: string;
@@ -1686,21 +1708,23 @@ import Link from "next/link";
 After the grid of muscle entries, before the closing `</div>`:
 
 ```tsx
-{(() => {
-  const fresh = entries.find((e) => e.value > 80);
-  if (!fresh) return null;
-  const prompt = encodeURIComponent(
-    `My ${fresh.muscle.toLowerCase()} is at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()} workout?`,
-  );
-  return (
-    <Link
-      href={`/chat?prompt=${prompt}`}
-      className="mt-3 block text-xs text-primary hover:underline"
-    >
-      {fresh.muscle} is fresh — ask coach for a workout →
-    </Link>
-  );
-})()}
+{
+  (() => {
+    const fresh = entries.find((e) => e.value > 80);
+    if (!fresh) return null;
+    const prompt = encodeURIComponent(
+      `My ${fresh.muscle.toLowerCase()} is at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()} workout?`,
+    );
+    return (
+      <Link
+        href={`/chat?prompt=${prompt}`}
+        className="mt-3 block text-xs text-primary hover:underline"
+      >
+        {fresh.muscle} is fresh — ask coach for a workout →
+      </Link>
+    );
+  })();
+}
 ```
 
 - [ ] **Step 3: Add CTA to TrainingFrequencyChart**
@@ -1708,6 +1732,7 @@ After the grid of muscle entries, before the closing `</div>`:
 In `src/components/TrainingFrequencyChart.tsx`, accept the new `lastTrainedDate` field and show a CTA when any area hasn't been trained in >7 days:
 
 Update the `FrequencyEntry` interface:
+
 ```tsx
 interface FrequencyEntry {
   targetArea: string;
@@ -1722,27 +1747,29 @@ Add `Link` import and after the frequency bars, before closing `</div>`:
 import Link from "next/link";
 
 // After the bars, add:
-{(() => {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const stale = data.find(
-    (d) => d.lastTrainedDate && new Date(d.lastTrainedDate).getTime() < sevenDaysAgo,
-  );
-  if (!stale) return null;
-  const days = Math.round(
-    (Date.now() - new Date(stale.lastTrainedDate!).getTime()) / (1000 * 60 * 60 * 24),
-  );
-  const prompt = encodeURIComponent(
-    `I haven't trained ${stale.targetArea.toLowerCase()} in ${days} days. Can you suggest a workout?`,
-  );
-  return (
-    <Link
-      href={`/chat?prompt=${prompt}`}
-      className="mt-3 block text-xs text-primary hover:underline"
-    >
-      You haven&apos;t hit {stale.targetArea.toLowerCase()} in {days} days — ask coach →
-    </Link>
-  );
-})()}
+{
+  (() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const stale = data.find(
+      (d) => d.lastTrainedDate && new Date(d.lastTrainedDate).getTime() < sevenDaysAgo,
+    );
+    if (!stale) return null;
+    const days = Math.round(
+      (Date.now() - new Date(stale.lastTrainedDate!).getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const prompt = encodeURIComponent(
+      `I haven't trained ${stale.targetArea.toLowerCase()} in ${days} days. Can you suggest a workout?`,
+    );
+    return (
+      <Link
+        href={`/chat?prompt=${prompt}`}
+        className="mt-3 block text-xs text-primary hover:underline"
+      >
+        You haven&apos;t hit {stale.targetArea.toLowerCase()} in {days} days — ask coach →
+      </Link>
+    );
+  })();
+}
 ```
 
 - [ ] **Step 4: Add static CTA to StrengthScoreCard**
@@ -1758,7 +1785,7 @@ import Link from "next/link";
   className="mt-3 block text-xs text-primary hover:underline"
 >
   Ask coach about your strength trends →
-</Link>
+</Link>;
 ```
 
 - [ ] **Step 5: Add hover elevation to dashboard cards**
@@ -1766,7 +1793,8 @@ import Link from "next/link";
 In `src/app/(app)/dashboard/page.tsx`, the cards are rendered by sub-components. Each sub-component uses a `<div className="rounded-lg border border-border bg-card p-4">` wrapper. Adding hover elevation requires modifying each card component's root div:
 
 ```tsx
-className="rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10"
+className =
+  "rounded-lg border border-border bg-card p-4 transition-shadow hover:shadow-md hover:shadow-black/10";
 ```
 
 Do this for: `MuscleReadinessMap`, `TrainingFrequencyChart`, `StrengthScoreCard`, `RecentWorkoutsList`. Each component has a root `<div className="rounded-lg border border-border bg-card p-4">` — add `transition-shadow hover:shadow-md hover:shadow-black/10` to that className. Note: `RecentWorkoutsList` has two such divs (empty state and content state) — update both.
