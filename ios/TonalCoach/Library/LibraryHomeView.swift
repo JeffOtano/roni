@@ -1,3 +1,4 @@
+import Combine
 import ConvexMobile
 import SwiftUI
 
@@ -455,7 +456,10 @@ private struct CuratedSectionRow: View {
 
 // MARK: - View Model
 
-/// Manages data loading and pagination for the library browse screen.
+/// Manages data loading for the library browse screen.
+///
+/// Uses the Convex subscribe pattern (matching the official quickstart)
+/// instead of one-shot queries to ensure data flows after WebSocket connects.
 @Observable
 final class LibraryViewModel {
     var allWorkouts: [WorkoutCard] = []
@@ -464,40 +468,50 @@ final class LibraryViewModel {
     var isLoadingInitial = false
     var isLoadingMore = false
     var canLoadMore = false
+    var errorMessage: String?
 
     private var continueCursor: String?
     private var hasLoadedInitial = false
+    private var cancellable: AnyCancellable?
 
-    // MARK: - Load Initial
+    // MARK: - Load via Subscription (matching Convex quickstart pattern)
 
+    /// Subscribes to the Convex query using the documented Combine pattern.
+    /// The subscription stays alive and re-emits when backend data changes.
     func loadInitial(using manager: ConvexManager) async {
         guard !hasLoadedInitial else { return }
         isLoadingInitial = true
+        errorMessage = nil
 
-        do {
-            let response: PaginatedResponse<WorkoutCard> = try await manager.query(
-                "libraryWorkouts:listFiltered",
-                args: paginationArgs(numItems: curatedPageSize)
+        let args = paginationArgs(numItems: curatedPageSize)
+        print("[LibraryVM] subscribing with args: \(args)")
+
+        // Use the exact Convex quickstart pattern: subscribe -> replaceError -> values
+        for await response: PaginatedResponse<WorkoutCard> in manager.client
+            .subscribe(
+                to: "libraryWorkouts:listFiltered",
+                with: args,
+                yielding: PaginatedResponse<WorkoutCard>.self
             )
-            allWorkouts = response.page
-            continueCursor = response.continueCursor
-            canLoadMore = response.hasMore
-            hasLoadedInitial = true
-
-            // Auto-load a second page for curated sections (matching web behavior)
-            if canLoadMore, !filters.hasActiveFilters {
-                await loadMore(using: manager)
+            .replaceError(with: PaginatedResponse(page: [], isDone: true, continueCursor: ""))
+            .values
+        {
+            print("[LibraryVM] received \(response.page.count) workouts")
+            await MainActor.run {
+                self.allWorkouts = response.page
+                self.continueCursor = response.continueCursor
+                self.canLoadMore = response.hasMore
+                self.hasLoadedInitial = true
+                self.isLoadingInitial = false
             }
-        } catch {
-            print("⚠️ Failed to load workouts: \(error)")
-            // Surface the error to the user in debug builds
-            #if DEBUG
-            allWorkouts = []
-            print("⚠️ Query args were: \(paginationArgs(numItems: curatedPageSize))")
-            #endif
+            // Take first emission only (one-shot for paginated data)
+            break
         }
 
-        isLoadingInitial = false
+        if !hasLoadedInitial {
+            isLoadingInitial = false
+            errorMessage = "Could not load workouts"
+        }
     }
 
     // MARK: - Load More
@@ -506,21 +520,28 @@ final class LibraryViewModel {
         guard canLoadMore, !isLoadingMore, let cursor = continueCursor else { return }
         isLoadingMore = true
 
-        do {
-            let response: PaginatedResponse<WorkoutCard> = try await manager.query(
-                "libraryWorkouts:listFiltered",
-                args: paginationArgs(numItems: pageSize, cursor: cursor)
-            )
+        let args = paginationArgs(numItems: pageSize, cursor: cursor)
 
-            if filters.hasActiveFilters {
-                filteredWorkouts.append(contentsOf: response.page)
-            } else {
-                allWorkouts.append(contentsOf: response.page)
+        for await response: PaginatedResponse<WorkoutCard> in manager.client
+            .subscribe(
+                to: "libraryWorkouts:listFiltered",
+                with: args,
+                yielding: PaginatedResponse<WorkoutCard>.self
+            )
+            .replaceError(with: PaginatedResponse(page: [], isDone: true, continueCursor: ""))
+            .values
+        {
+            await MainActor.run {
+                if self.filters.hasActiveFilters {
+                    self.filteredWorkouts.append(contentsOf: response.page)
+                } else {
+                    self.allWorkouts.append(contentsOf: response.page)
+                }
+                self.continueCursor = response.continueCursor
+                self.canLoadMore = response.hasMore
+                self.isLoadingMore = false
             }
-            continueCursor = response.continueCursor
-            canLoadMore = response.hasMore
-        } catch {
-            print("Failed to load more workouts: \(error)")
+            break
         }
 
         isLoadingMore = false
@@ -543,16 +564,24 @@ final class LibraryViewModel {
             return
         }
 
-        do {
-            let response: PaginatedResponse<WorkoutCard> = try await manager.query(
-                "libraryWorkouts:listFiltered",
-                args: paginationArgs(numItems: pageSize)
+        let args = paginationArgs(numItems: pageSize)
+
+        for await response: PaginatedResponse<WorkoutCard> in manager.client
+            .subscribe(
+                to: "libraryWorkouts:listFiltered",
+                with: args,
+                yielding: PaginatedResponse<WorkoutCard>.self
             )
-            filteredWorkouts = response.page
-            continueCursor = response.continueCursor
-            canLoadMore = response.hasMore
-        } catch {
-            print("Failed to filter workouts: \(error)")
+            .replaceError(with: PaginatedResponse(page: [], isDone: true, continueCursor: ""))
+            .values
+        {
+            await MainActor.run {
+                self.filteredWorkouts = response.page
+                self.continueCursor = response.continueCursor
+                self.canLoadMore = response.hasMore
+                self.isLoadingInitial = false
+            }
+            break
         }
 
         isLoadingInitial = false
@@ -582,8 +611,6 @@ final class LibraryViewModel {
     ) -> [String: ConvexEncodable?] {
         var filterArgs = filters.toQueryArgs()
 
-        // Convex paginationOpts requires cursor to be present (null for first page).
-        // Using nil as ConvexEncodable? encodes to JSON null.
         let paginationOpts: [String: ConvexEncodable?] = [
             "numItems": numItems,
             "cursor": cursor,
