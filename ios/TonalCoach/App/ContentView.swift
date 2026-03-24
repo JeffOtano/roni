@@ -32,7 +32,7 @@ struct ContentView: View {
                 }
                 .tag(AppTab.library)
 
-            ComingSoonView(title: AppTab.schedule.rawValue, icon: AppTab.schedule.icon)
+            ScheduleView()
                 .tabItem {
                     Label(AppTab.schedule.rawValue, systemImage: AppTab.schedule.icon)
                 }
