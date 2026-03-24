@@ -217,41 +217,64 @@ extension Theme {
 
 extension Theme {
 
-    /// SF Pro type scale. DM Sans (web) maps well to SF Pro (iOS) at these sizes.
+    /// Typography using DM Sans (body) and Geist Mono (code/numbers),
+    /// matching the web app's font stack exactly.
+    ///
+    /// Fonts are bundled as variable TTFs and registered via Info.plist UIAppFonts.
+    /// Falls back to SF Pro if custom fonts fail to load.
     enum Typography {
 
-        /// Large titles (e.g. page headers) -- 28pt bold
-        static let largeTitle = Font.system(size: 28, weight: .bold, design: .default)
+        // MARK: Font Families
 
-        /// Section titles -- 22pt semibold
-        static let title = Font.system(size: 22, weight: .semibold, design: .default)
+        /// DM Sans family name as registered by iOS from the variable font.
+        private static let sansFamily = "DM Sans"
+        /// Geist Mono family name.
+        private static let monoFamily = "GeistMono"
 
-        /// Sub-section titles -- 18pt semibold
-        static let title2 = Font.system(size: 18, weight: .semibold, design: .default)
+        // MARK: Helpers
 
-        /// Headlines / card titles -- 16pt semibold
-        static let headline = Font.system(size: 16, weight: .semibold, design: .default)
+        private static func sans(size: CGFloat, weight: Font.Weight) -> Font {
+            .custom(sansFamily, size: size).weight(weight)
+        }
 
-        /// Body text -- 16pt regular
-        static let body = Font.system(size: 16, weight: .regular, design: .default)
+        private static func mono(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+            .custom(monoFamily, size: size).weight(weight)
+        }
 
-        /// Secondary body / callout -- 14pt regular
-        static let callout = Font.system(size: 14, weight: .regular, design: .default)
+        // MARK: Type Scale
 
-        /// Small labels, badges -- 12pt regular
-        static let caption = Font.system(size: 12, weight: .regular, design: .default)
+        /// Large titles (e.g. page headers) -- 28pt bold DM Sans
+        static let largeTitle = sans(size: 28, weight: .bold)
 
-        /// Extra small (stat labels, timestamps) -- 10pt regular
-        static let caption2 = Font.system(size: 10, weight: .regular, design: .default)
+        /// Section titles -- 22pt semibold DM Sans
+        static let title = sans(size: 22, weight: .semibold)
 
-        /// Monospaced (durations, counts) -- 14pt mono, matches Geist Mono on web
-        static let mono = Font.system(size: 14, weight: .regular, design: .monospaced)
+        /// Sub-section titles -- 18pt semibold DM Sans
+        static let title2 = sans(size: 18, weight: .semibold)
 
-        /// Semibold callout (chip text, badges) -- 14pt medium
-        static let calloutMedium = Font.system(size: 14, weight: .medium, design: .default)
+        /// Headlines / card titles -- 16pt semibold DM Sans
+        static let headline = sans(size: 16, weight: .semibold)
 
-        /// Card title with tight tracking -- 14pt semibold
-        static let cardTitle = Font.system(size: 14, weight: .semibold, design: .default)
+        /// Body text -- 16pt regular DM Sans (matches web --font-dm-sans 400)
+        static let body = sans(size: 16, weight: .regular)
+
+        /// Secondary body / callout -- 14pt regular DM Sans
+        static let callout = sans(size: 14, weight: .regular)
+
+        /// Small labels, badges -- 12pt regular DM Sans
+        static let caption = sans(size: 12, weight: .regular)
+
+        /// Extra small (stat labels, timestamps) -- 10pt regular DM Sans
+        static let caption2 = sans(size: 10, weight: .regular)
+
+        /// Monospaced (durations, counts, IDs) -- 14pt Geist Mono
+        static let monoText = mono(size: 14)
+
+        /// Semibold callout (chip text, badges) -- 14pt medium DM Sans
+        static let calloutMedium = sans(size: 14, weight: .medium)
+
+        /// Card title with tight tracking -- 14pt semibold DM Sans
+        static let cardTitle = sans(size: 14, weight: .semibold)
     }
 }
 

@@ -225,7 +225,7 @@ struct NotificationSettingsView: View {
                         .foregroundStyle(Theme.Colors.mutedForeground)
 
                     Text(token)
-                        .font(Theme.Typography.mono)
+                        .font(Theme.Typography.monoText)
                         .foregroundStyle(Theme.Colors.tertiaryForeground)
                         .lineLimit(2)
                         .truncationMode(.middle)

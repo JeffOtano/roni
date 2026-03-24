@@ -64,7 +64,7 @@ struct ProfileView: View {
                         .foregroundStyle(Theme.Colors.textPrimary)
                     Spacer()
                     Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                        .font(Theme.Typography.mono)
+                        .font(Theme.Typography.monoText)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
                 .listRowBackground(Theme.Colors.card)
