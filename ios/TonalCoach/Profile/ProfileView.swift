@@ -3,10 +3,63 @@ import SwiftUI
 /// Profile/settings tab with notification preferences, health connection, and app info.
 struct ProfileView: View {
     @Environment(\.healthKitManager) private var healthManager
+    @Environment(\.authManager) private var authManager
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
+    @AppStorage("isGuestMode") private var isGuestMode = false
 
     var body: some View {
         List {
+            // MARK: - Account Section
+            Section {
+                if authManager.isAuthenticated {
+                    HStack {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundStyle(Theme.Colors.primary)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Signed in as")
+                                .font(Theme.Typography.caption)
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                            Text(authManager.currentEmail ?? "Unknown")
+                                .font(Theme.Typography.body)
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                        }
+                    }
+                    .listRowBackground(Theme.Colors.card)
+
+                    Button {
+                        Task { await authManager.signOut() }
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.right.square")
+                                .foregroundStyle(Theme.Colors.destructive)
+                                .frame(width: 28)
+                            Text("Sign Out")
+                                .font(Theme.Typography.body)
+                                .foregroundStyle(Theme.Colors.destructive)
+                        }
+                    }
+                    .listRowBackground(Theme.Colors.card)
+                } else {
+                    Button {
+                        isGuestMode = false
+                    } label: {
+                        HStack {
+                            Image(systemName: "person.badge.plus")
+                                .foregroundStyle(Theme.Colors.primary)
+                                .frame(width: 28)
+                            Text("Sign In")
+                                .font(Theme.Typography.body)
+                                .foregroundStyle(Theme.Colors.primary)
+                        }
+                    }
+                    .listRowBackground(Theme.Colors.card)
+                }
+            } header: {
+                Text("Account")
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+
             // MARK: - Health Section
             Section {
                 HStack {

@@ -7,20 +7,32 @@ struct TonalCoachApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("isGuestMode") private var isGuestMode = false
     @State private var convexManager = ConvexManager()
     @State private var notificationManager = NotificationManager()
     @State private var healthKitManager = HealthKitManager()
 
+    private var authManager: AuthManager { AuthManager.shared }
+
     var body: some Scene {
         WindowGroup {
             Group {
-                if hasCompletedOnboarding {
-                    ContentView()
+                if authManager.isLoading {
+                    splashView
+                } else if authManager.isAuthenticated || isGuestMode {
+                    if hasCompletedOnboarding {
+                        ContentView()
+                    } else {
+                        OnboardingView()
+                    }
                 } else {
-                    OnboardingView()
+                    NavigationStack {
+                        LoginView()
+                    }
                 }
             }
             .environment(convexManager)
+            .environment(\.authManager, authManager)
             .environment(\.notificationManager, notificationManager)
             .environment(\.healthKitManager, healthKitManager)
             .preferredColorScheme(.dark)
@@ -28,6 +40,11 @@ struct TonalCoachApp: App {
                 handleDeepLink(url: url)
             }
             .task {
+                // Init auth manager with convex reference and restore session first
+                authManager.setConvexManager(convexManager)
+                await authManager.restoreSession()
+
+                // Notification setup (non-blocking for auth)
                 appDelegate.notificationManager = notificationManager
                 notificationManager.convexManager = convexManager
                 await notificationManager.checkAuthorizationStatus()
@@ -35,6 +52,21 @@ struct TonalCoachApp: App {
             }
         }
     }
+
+    // MARK: - Splash View
+
+    private var splashView: some View {
+        ZStack {
+            Theme.Colors.background
+                .ignoresSafeArea()
+
+            Text("tonal.coach")
+                .font(.system(size: 36, weight: .bold, design: .default))
+                .foregroundStyle(Theme.Colors.primary)
+        }
+    }
+
+    // MARK: - Deep Links
 
     private func handleDeepLink(url: URL) {
         let link = TonalDeepLink(url: url)

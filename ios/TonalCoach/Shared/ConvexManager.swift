@@ -3,15 +3,25 @@ import ConvexMobile
 import Foundation
 import SwiftUI
 
-/// Global ConvexClient instance, matching the Convex Swift quickstart pattern.
-/// Created once at app launch and never deallocated, keeping the WebSocket alive.
-private let globalConvexClient: ConvexClient = {
+/// Global ConvexClientWithAuth instance, created once at app launch.
+///
+/// Uses `PasswordAuthProvider` so the Convex client can authenticate
+/// via email/password JWTs stored in the Keychain.
+private let sharedAuthProvider = PasswordAuthProvider()
+
+private let globalConvexClient: ConvexClientWithAuth<String> = {
     let url = Bundle.main.infoDictionary?["CONVEX_URL"] as? String
         ?? "https://quaint-bulldog-653.convex.cloud"
-    return ConvexClient(deploymentUrl: url)
+    let client = ConvexClientWithAuth(
+        deploymentUrl: url,
+        authProvider: sharedAuthProvider
+    )
+    // The auth provider needs a reference back to the client for token refresh.
+    sharedAuthProvider.client = client
+    return client
 }()
 
-/// Manager wrapping the global ConvexClient for use throughout the app.
+/// Manager wrapping the global ConvexClientWithAuth for use throughout the app.
 ///
 /// Uses `@Observable` (iOS 17+) so SwiftUI views automatically react to
 /// state changes. Inject via the `.convexManager` environment value.
@@ -26,6 +36,37 @@ final class ConvexManager {
 
     /// Whether the WebSocket connection to Convex is currently active.
     private(set) var isConnected = false
+
+    // MARK: - Auth
+
+    /// Publisher that emits the current authentication state.
+    var authState: AnyPublisher<AuthState<String>, Never> {
+        client.authState
+    }
+
+    /// Trigger a login flow using credentials already stored in the Keychain.
+    ///
+    /// Call this after saving a JWT via `KeychainHelper` (e.g. after a
+    /// successful sign-in API call). Sets `authState` to `.loading`,
+    /// then `.authenticated` or `.unauthenticated`.
+    @discardableResult
+    func login() async -> Result<String, Error> {
+        await client.login()
+    }
+
+    /// Attempt a silent re-authentication using a stored refresh token.
+    ///
+    /// Typically called at app launch. If no valid refresh token exists,
+    /// the result is `.unauthenticated` without user-visible error.
+    @discardableResult
+    func loginFromCache() async -> Result<String, Error> {
+        await client.loginFromCache()
+    }
+
+    /// Log out, clearing Keychain credentials and resetting auth state.
+    func logout() async {
+        await client.logout()
+    }
 
     // MARK: - Private
 
