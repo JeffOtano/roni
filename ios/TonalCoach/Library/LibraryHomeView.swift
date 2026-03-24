@@ -102,6 +102,44 @@ struct LibraryHomeView: View {
                 WorkoutDetailView(slug: workout.slug)
             }
             .task {
+                // DIAGNOSTIC: Test simplest possible subscription - raw JSON
+                print("[DIAG] Testing basic subscription with [String:Any] decode...")
+                var testCancellable: AnyCancellable?
+
+                // Test 1: Try with explicit empty args to see if server responds at all
+                struct RawResponse: Decodable {
+                    let page: [RawItem]?
+                    let isDone: Bool?
+                    let continueCursor: String?
+                }
+                struct RawItem: Decodable {
+                    let slug: String?
+                    let title: String?
+                }
+
+                testCancellable = convex.client
+                    .subscribe(
+                        to: "libraryWorkouts:listFiltered",
+                        with: ["paginationOpts": ["numItems": Double(2), "cursor": nil as String?] as [String: ConvexEncodable?]],
+                        yielding: RawResponse.self
+                    )
+                    .sink(
+                        receiveCompletion: { c in
+                            print("[DIAG] completion: \(c)")
+                        },
+                        receiveValue: { response in
+                            print("[DIAG] GOT DATA! page count: \(response.page?.count ?? -1), isDone: \(response.isDone ?? false)")
+                            if let first = response.page?.first {
+                                print("[DIAG] first item: slug=\(first.slug ?? "nil"), title=\(first.title ?? "nil")")
+                            }
+                            testCancellable?.cancel()
+                        }
+                    )
+
+                // Give test 10s
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                testCancellable?.cancel()
+                print("[DIAG] diagnostic done, starting real load...")
                 await viewModel.loadInitial(using: convex)
             }
             .onChange(of: viewModel.filters) { _, _ in
@@ -486,26 +524,54 @@ final class LibraryViewModel {
         let args = paginationArgs(numItems: curatedPageSize)
         print("[LibraryVM] subscribing with args: \(args)")
 
-        // Use the exact Convex quickstart pattern: subscribe -> replaceError -> values
-        for await response: PaginatedResponse<WorkoutCard> in manager.client
-            .subscribe(
-                to: "libraryWorkouts:listFiltered",
-                with: args,
-                yielding: PaginatedResponse<WorkoutCard>.self
-            )
-            .replaceError(with: PaginatedResponse(page: [], isDone: true, continueCursor: ""))
-            .values
-        {
-            print("[LibraryVM] received \(response.page.count) workouts")
-            await MainActor.run {
-                self.allWorkouts = response.page
-                self.continueCursor = response.continueCursor
-                self.canLoadMore = response.hasMore
-                self.hasLoadedInitial = true
-                self.isLoadingInitial = false
+        // Debug: print encoded args
+        if let encoded = try? (args as ConvexEncodable).convexEncode() {
+            print("[LibraryVM] encoded args JSON: \(encoded)")
+        }
+
+        // Use Combine sink directly (most reliable pattern, avoids async sequence issues)
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var resumed = false
+            self.cancellable = manager.client
+                .subscribe(
+                    to: "libraryWorkouts:listFiltered",
+                    with: args,
+                    yielding: PaginatedResponse<WorkoutCard>.self
+                )
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { completion in
+                        print("[LibraryVM] subscription completed: \(completion)")
+                        if !resumed {
+                            resumed = true
+                            continuation.resume()
+                        }
+                    },
+                    receiveValue: { [weak self] response in
+                        print("[LibraryVM] received \(response.page.count) workouts, isDone=\(response.isDone)")
+                        guard let self else { return }
+                        self.allWorkouts = response.page
+                        self.continueCursor = response.continueCursor
+                        self.canLoadMore = response.hasMore
+                        self.hasLoadedInitial = true
+                        self.isLoadingInitial = false
+                        // Cancel after first emission (one-shot for pagination)
+                        self.cancellable?.cancel()
+                        if !resumed {
+                            resumed = true
+                            continuation.resume()
+                        }
+                    }
+                )
+
+            // Timeout after 20s
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+                if !resumed {
+                    print("[LibraryVM] TIMEOUT - no data received after 20s")
+                    resumed = true
+                    continuation.resume()
+                }
             }
-            // Take first emission only (one-shot for paginated data)
-            break
         }
 
         if !hasLoadedInitial {
@@ -611,8 +677,12 @@ final class LibraryViewModel {
     ) -> [String: ConvexEncodable?] {
         var filterArgs = filters.toQueryArgs()
 
+        // IMPORTANT: numItems must be Double, not Int.
+        // Convex paginationOptsValidator uses v.float64() for numItems.
+        // Swift Int encodes as $integer (base64) which Convex rejects.
+        // Double encodes as a plain JSON number which matches float64.
         let paginationOpts: [String: ConvexEncodable?] = [
-            "numItems": numItems,
+            "numItems": Double(numItems),
             "cursor": cursor,
         ]
         filterArgs["paginationOpts"] = paginationOpts

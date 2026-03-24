@@ -391,7 +391,7 @@ struct WorkoutFilters: Equatable {
             args["level"] = level
         }
         if let duration = durationMinutes {
-            args["durationMinutes"] = duration
+            args["durationMinutes"] = Double(duration)
         }
         return args
     }

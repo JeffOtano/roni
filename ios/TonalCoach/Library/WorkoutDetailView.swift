@@ -79,7 +79,7 @@ struct WorkoutDetailView: View {
 
             let related: [WorkoutCard] = try await convex.query(
                 "libraryWorkouts:getRelated",
-                args: ["slug": slug, "limit": 4]
+                args: ["slug": slug, "limit": Double(4)]
             )
             relatedWorkouts = related
         } catch {
