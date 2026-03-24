@@ -80,7 +80,7 @@ struct LibraryHomeView: View {
                     }
                 }
                 .refreshable {
-                    await viewModel.refresh(using: convex)
+                    viewModel.refresh(using: convex)
                 }
             }
             .searchable(text: $searchText, prompt: "Search workouts")
@@ -101,8 +101,8 @@ struct LibraryHomeView: View {
             .navigationDestination(for: WorkoutCard.self) { workout in
                 WorkoutDetailView(slug: workout.slug)
             }
-            .task {
-                await viewModel.loadInitial(using: convex)
+            .onAppear {
+                viewModel.loadInitial(using: convex)
             }
             .onChange(of: viewModel.filters) { _, _ in
                 Task {
@@ -476,52 +476,40 @@ final class LibraryViewModel {
 
     // MARK: - Load via Subscription (matching Convex quickstart pattern)
 
-    /// Subscribes to the Convex query using the documented Combine pattern.
-    /// The subscription stays alive and re-emits when backend data changes.
-    func loadInitial(using manager: ConvexManager) async {
+    /// Subscribes to the Convex query using Combine. No continuation wrapper -
+    /// @Observable properties update the UI directly when data arrives.
+    func loadInitial(using manager: ConvexManager) {
         guard !hasLoadedInitial else { return }
         isLoadingInitial = true
         errorMessage = nil
 
         let args = paginationArgs(numItems: curatedPageSize)
 
-        // Use Combine sink (most reliable pattern with Convex Swift SDK)
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            var resumed = false
-            self.cancellable = manager.client
-                .subscribe(
-                    to: "libraryWorkouts:listFiltered",
-                    with: args,
-                    yielding: PaginatedResponse<WorkoutCard>.self
-                )
-                .receive(on: DispatchQueue.main)
-                .sink(
-                    receiveCompletion: { _ in
-                        if !resumed {
-                            resumed = true
-                            continuation.resume()
-                        }
-                    },
-                    receiveValue: { [weak self] response in
-                        guard let self else { return }
-                        self.allWorkouts = response.page
-                        self.continueCursor = response.continueCursor
-                        self.canLoadMore = response.hasMore
-                        self.hasLoadedInitial = true
+        cancellable = manager.client
+            .subscribe(
+                to: "libraryWorkouts:listFiltered",
+                with: args,
+                yielding: PaginatedResponse<WorkoutCard>.self
+            )
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    guard let self else { return }
+                    if case .failure = completion, !self.hasLoadedInitial {
                         self.isLoadingInitial = false
-                        self.cancellable?.cancel()
-                        if !resumed {
-                            resumed = true
-                            continuation.resume()
-                        }
+                        self.errorMessage = "Could not load workouts"
                     }
-                )
-        }
-
-        if !hasLoadedInitial {
-            isLoadingInitial = false
-            errorMessage = "Could not load workouts"
-        }
+                },
+                receiveValue: { [weak self] response in
+                    guard let self else { return }
+                    self.allWorkouts = response.page
+                    self.continueCursor = response.continueCursor
+                    self.canLoadMore = response.hasMore
+                    self.hasLoadedInitial = true
+                    self.isLoadingInitial = false
+                    self.cancellable?.cancel()
+                }
+            )
     }
 
     // MARK: - Load More
@@ -603,18 +591,13 @@ final class LibraryViewModel {
 
     // MARK: - Refresh
 
-    func refresh(using manager: ConvexManager) async {
+    func refresh(using manager: ConvexManager) {
         hasLoadedInitial = false
         allWorkouts = []
         filteredWorkouts = []
         continueCursor = nil
         canLoadMore = false
-
-        if filters.hasActiveFilters {
-            await applyFilters(using: manager)
-        } else {
-            await loadInitial(using: manager)
-        }
+        loadInitial(using: manager)
     }
 
     // MARK: - Query Args Builder
