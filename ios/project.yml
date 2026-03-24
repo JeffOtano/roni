@@ -59,6 +59,9 @@ targets:
     info:
       path: TonalCoach/Info.plist
       properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
         CONVEX_URL: $(CONVEX_URL)
         NSHealthShareUsageDescription: "TonalCoach reads your health data to show activity, workouts, heart rate, and weight trends alongside your Tonal training."
         NSHealthUpdateUsageDescription: "TonalCoach does not write health data, but this permission is required by Apple."
