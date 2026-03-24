@@ -9,33 +9,30 @@ struct TonalCoachApp: App {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("isGuestMode") private var isGuestMode = false
     @State private var convexManager = ConvexManager()
-    @State private var authManager: AuthManager?
     @State private var notificationManager = NotificationManager()
     @State private var healthKitManager = HealthKitManager()
+
+    private var authManager: AuthManager { AuthManager.shared }
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if let authManager {
-                    if authManager.isLoading {
-                        splashView
-                    } else if authManager.isAuthenticated || isGuestMode {
-                        if hasCompletedOnboarding {
-                            ContentView()
-                        } else {
-                            OnboardingView()
-                        }
+                if authManager.isLoading {
+                    splashView
+                } else if authManager.isAuthenticated || isGuestMode {
+                    if hasCompletedOnboarding {
+                        ContentView()
                     } else {
-                        NavigationStack {
-                            LoginView()
-                        }
+                        OnboardingView()
                     }
                 } else {
-                    splashView
+                    NavigationStack {
+                        LoginView()
+                    }
                 }
             }
             .environment(convexManager)
-            .environment(\.authManager, authManager ?? AuthManager(convexManager: convexManager))
+            .environment(\.authManager, authManager)
             .environment(\.notificationManager, notificationManager)
             .environment(\.healthKitManager, healthKitManager)
             .preferredColorScheme(.dark)
@@ -43,15 +40,15 @@ struct TonalCoachApp: App {
                 handleDeepLink(url: url)
             }
             .task {
-                let manager = AuthManager(convexManager: convexManager)
-                authManager = manager
+                // Init auth manager with convex reference and restore session first
+                authManager.setConvexManager(convexManager)
+                await authManager.restoreSession()
 
+                // Notification setup (non-blocking for auth)
                 appDelegate.notificationManager = notificationManager
                 notificationManager.convexManager = convexManager
                 await notificationManager.checkAuthorizationStatus()
                 notificationManager.registerNotificationCategories()
-
-                await manager.restoreSession()
             }
         }
     }

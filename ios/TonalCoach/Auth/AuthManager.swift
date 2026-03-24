@@ -24,9 +24,13 @@ final class AuthManager {
     /// User-facing error message. Auto-clears on next auth operation.
     var error: String?
 
+    // MARK: - Singleton
+
+    static let shared = AuthManager()
+
     // MARK: - Dependencies
 
-    private let convexManager: ConvexManager
+    private var convexManager: ConvexManager?
 
     // MARK: - Private
 
@@ -34,10 +38,17 @@ final class AuthManager {
 
     // MARK: - Init
 
-    init(convexManager: ConvexManager = ConvexManager()) {
-        self.convexManager = convexManager
+    init() {}
 
-        convexManager.authState
+    init(convexManager: ConvexManager) {
+        setConvexManager(convexManager)
+    }
+
+    func setConvexManager(_ manager: ConvexManager) {
+        self.convexManager = manager
+        cancellables.removeAll()
+
+        manager.authState
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 guard let self else { return }
@@ -53,6 +64,13 @@ final class AuthManager {
             .store(in: &cancellables)
     }
 
+    private func requireConvex() throws -> ConvexManager {
+        guard let convexManager else {
+            throw AuthError.clientNotConfigured
+        }
+        return convexManager
+    }
+
     // MARK: - Sign In
 
     /// Authenticate with email and password.
@@ -62,7 +80,7 @@ final class AuthManager {
         defer { isLoading = false }
 
         do {
-            let result: SignInResult = try await convexManager.action(
+            let result: SignInResult = try await requireConvex().action(
                 "auth:signIn",
                 with: [
                     "provider": "password",
@@ -88,7 +106,7 @@ final class AuthManager {
         defer { isLoading = false }
 
         do {
-            let result: SignInResult = try await convexManager.action(
+            let result: SignInResult = try await requireConvex().action(
                 "auth:signIn",
                 with: [
                     "provider": "password",
@@ -113,12 +131,12 @@ final class AuthManager {
 
         // Best-effort server-side sign out
         do {
-            try await convexManager.action("auth:signOut", with: [:])
+            try await requireConvex().action("auth:signOut", with: [:])
         } catch {
             // Intentionally ignored -- local cleanup proceeds regardless.
         }
 
-        await convexManager.logout()
+        await convexManager?.logout()
         KeychainHelper.deleteAll()
         isAuthenticated = false
         currentEmail = nil
@@ -133,7 +151,7 @@ final class AuthManager {
         defer { isLoading = false }
 
         do {
-            let _: SignInResult = try await convexManager.action(
+            let _: SignInResult = try await requireConvex().action(
                 "auth:signIn",
                 with: [
                     "provider": "password",
@@ -155,7 +173,7 @@ final class AuthManager {
         defer { isLoading = false }
 
         do {
-            let result: SignInResult = try await convexManager.action(
+            let result: SignInResult = try await requireConvex().action(
                 "auth:signIn",
                 with: [
                     "provider": "password",
@@ -189,6 +207,7 @@ final class AuthManager {
 
         currentEmail = KeychainHelper.read(key: KeychainHelper.Keys.email)
 
+        guard let convexManager else { isLoading = false; return }
         let result = await convexManager.loginFromCache()
         switch result {
         case .success:
@@ -211,7 +230,7 @@ final class AuthManager {
         KeychainHelper.save(key: KeychainHelper.Keys.refreshToken, value: tokens.refreshToken)
         KeychainHelper.save(key: KeychainHelper.Keys.email, value: email)
 
-        await convexManager.login()
+        await convexManager?.login()
         isAuthenticated = true
         currentEmail = email
     }
@@ -236,7 +255,7 @@ final class AuthManager {
 // MARK: - SwiftUI Environment
 
 private struct AuthManagerKey: EnvironmentKey {
-    static let defaultValue = AuthManager()
+    static let defaultValue = AuthManager.shared
 }
 
 extension EnvironmentValues {

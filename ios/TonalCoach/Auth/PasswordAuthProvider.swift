@@ -62,6 +62,7 @@ final class PasswordAuthProvider: AuthProvider {
 enum AuthError: LocalizedError {
     case noStoredCredentials
     case clientNotSet
+    case clientNotConfigured
     case refreshFailed
 
     var errorDescription: String? {
@@ -70,6 +71,8 @@ enum AuthError: LocalizedError {
             "No stored credentials found"
         case .clientNotSet:
             "ConvexClient reference not set on auth provider"
+        case .clientNotConfigured:
+            "AuthManager not configured with ConvexManager"
         case .refreshFailed:
             "Token refresh failed"
         }
