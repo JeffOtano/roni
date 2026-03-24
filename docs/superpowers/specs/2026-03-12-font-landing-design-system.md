@@ -29,11 +29,13 @@ No backend changes. No new dependencies beyond what `next/font/google` and shadc
 **Mono font:** Keep Geist Mono for code contexts (tool call indicators, inline code in chat).
 
 **Weight usage:**
+
 - 700 (bold): page headings, hero headline
 - 500 (medium): subheadings, form labels, button text
 - 400 (regular): body text, descriptions
 
 **Files changed:**
+
 - `src/app/layout.tsx` — swap `Geist` import for `DM_Sans`, set variable to `--font-dm-sans`, update body className
 - `src/app/globals.css` — update `--font-sans: var(--font-dm-sans)` in `@theme inline` block
 
@@ -48,6 +50,7 @@ All pages inherit automatically. No per-page font changes needed.
 **New brand accent:** Vibrant teal/cyan in the `oklch(0.75 0.15 195)` range. Energetic, fitness-appropriate, pops on dark backgrounds.
 
 **Applied to:**
+
 - `--primary` CSS variable (dark theme) — buttons, focus rings, links
 - Hero headline accent word
 - Hero glow gradient
@@ -55,6 +58,7 @@ All pages inherit automatically. No per-page font changes needed.
 - "Coming soon" badge borders (muted version)
 
 **Not changed:**
+
 - Chart colors (`chart-1` through `chart-5`) stay as-is for data visualization
 - Neutrals (background, card, border, muted) stay as-is
 
@@ -63,6 +67,7 @@ All pages inherit automatically. No per-page font changes needed.
 **Light mode:** The app hardcodes `className="dark"` on `<html>`. Light mode is out of scope. No `:root` primary changes needed.
 
 **Files changed:**
+
 - `src/app/globals.css` — update `--primary` and `--primary-foreground` in `.dark` block
 
 ---
@@ -72,35 +77,42 @@ All pages inherit automatically. No per-page font changes needed.
 Full rewrite of `src/app/page.tsx`. Five sections:
 
 ### 3.1 Nav bar
+
 - Logo ("tonal.coach") top-left
 - "Sign In" link top-right (or "Go to Chat" if authenticated)
 - Transparent, minimal
 
 ### 3.2 Hero (full viewport)
+
 - Headline: punchy, sells "the missing piece for your Tonal" angle
 - Subtitle: 1-2 sentences positioning it as a coaching layer
 - Single CTA button (accent-colored, prominent)
 - Radial gradient glow behind headline (accent color at ~10-15% opacity)
 
 ### 3.3 Feature sections
+
 Five features in a staggered or asymmetric grid layout:
+
 - **AI Coaching** — "Ask anything about your training. Get answers grounded in your real data."
 - **Push to Tonal** — "Your coach programs workouts and sends them straight to your machine."
-- **Proactive Check-ins** — "Get nudged when you're overtraining, slacking, or ready to level up." *(coming soon badge)*
-- **Progress Tracking** — "Strength scores, muscle readiness, and body composition over time." *(coming soon badge for body comp)*
-- **Nutrition Intelligence** — "Meal tracking that knows your training load." *(coming soon badge)*
+- **Proactive Check-ins** — "Get nudged when you're overtraining, slacking, or ready to level up." _(coming soon badge)_
+- **Progress Tracking** — "Strength scores, muscle readiness, and body composition over time." _(coming soon badge for body comp)_
+- **Nutrition Intelligence** — "Meal tracking that knows your training load." _(coming soon badge)_
 
 Each feature: Lucide icon + headline + 1-2 line description. Uses shadcn Card.
 
 Icons: Brain (coaching), Send (push), BellRing (proactive), TrendingUp (progress), Utensils (nutrition).
 
 ### 3.4 Social proof placeholder
+
 Quote-style block: "Built by a Tonal owner, for Tonal owners." Keeps it authentic, no fake testimonials.
 
 ### 3.5 Bottom CTA
+
 Repeat headline + CTA button. Standard conversion doubling pattern.
 
 ### 3.6 Footer
+
 - "Not affiliated with or endorsed by Tonal." disclaimer
 - Minimal, no link soup
 
@@ -111,6 +123,7 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 ## 4. Design System Components
 
 ### 4.1 Install shadcn components
+
 - `Card` (CardHeader, CardTitle, CardDescription, CardContent)
 - `Label`
 - `Separator`
@@ -120,16 +133,19 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 ### 4.2 New shared components
 
 **`src/components/PageLoader.tsx`**
+
 - Centered full-screen spinner with optional message text
 - Replaces 4 copy-pasted spinner patterns in login, connect-tonal, settings, chat
 - Props: `message?: string`
 
 **`src/components/ErrorAlert.tsx`**
+
 - Uses shadcn Alert with destructive variant
 - Props: `message: string`, `onRetry?: () => void`
 - Replaces inconsistent inline error `<p>` tags
 
 **`src/components/EmptyState.tsx`**
+
 - Centered icon + message + optional CTA button
 - Props: `icon: LucideIcon`, `title: string`, `description?: string`, `action?: { label: string, onClick: () => void }`
 - For empty thread lists, empty chat, etc.
@@ -137,33 +153,40 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 ### 4.3 Refactor existing pages
 
 **Login (`src/app/login/page.tsx`):**
+
 - Replace spinner with `PageLoader`
 - Replace `<label>` with shadcn `Label`
 - Replace error `<p>` with `ErrorAlert`
 - Wrap form in shadcn `Card`
 
 **Connect Tonal (`src/app/connect-tonal/page.tsx`):**
+
 - Same treatment as Login: `PageLoader`, `Label`, `ErrorAlert`, `Card`
 
 **Settings (`src/app/settings/page.tsx`):**
+
 - Replace spinner with `PageLoader`
 - Replace hand-rolled card divs with shadcn `Card`
 - Add error state if `getMe` query returns `null` unexpectedly (instead of infinite spinner)
 - Use `Separator` between sections
 
 **Dashboard (`src/app/dashboard/page.tsx`):**
+
 - Replace custom `CardSkeleton` with shadcn `Skeleton` inside shadcn `Card`
 - Replace custom `CardError` with `ErrorAlert` inside shadcn `Card`
 - Keep the per-card loading/error pattern (it's good)
 
 **Chat home (`src/app/chat/page.tsx`):**
+
 - Add a subtle loading overlay or spinner when a suggestion is being sent (currently just disables buttons)
 
 **Chat thread (`src/components/ChatThread.tsx`):**
+
 - Add `EmptyState` for threads with no messages yet
 - Existing "Load more" and streaming states are fine
 
 **Chat layout (`src/app/chat/layout.tsx`):**
+
 - No changes needed
 
 ---
@@ -171,12 +194,14 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 ## 5. Files Summary
 
 ### Created
+
 - `src/components/PageLoader.tsx`
 - `src/components/ErrorAlert.tsx`
 - `src/components/EmptyState.tsx`
 - shadcn component files (Card, Label, Separator, Skeleton, Alert) via `npx shadcn@latest add`
 
 ### Modified
+
 - `src/app/layout.tsx` — font swap
 - `src/app/globals.css` — accent color
 - `src/app/page.tsx` — full rewrite
@@ -188,6 +213,7 @@ Repeat headline + CTA button. Standard conversion doubling pattern.
 - `src/components/ChatThread.tsx` — empty state
 
 ### Not touched
+
 - All Convex backend files
 - Chat message rendering, tool indicators, workout cards
 - Thread sidebar
