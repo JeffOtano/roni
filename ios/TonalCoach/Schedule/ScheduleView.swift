@@ -216,11 +216,11 @@ final class ScheduleViewModel {
         errorMessage = nil
 
         do {
-            let data: ScheduleData = try await manager.action(
+            let data: ScheduleData? = try await manager.action(
                 "schedule:getScheduleData", with: [:]
             )
-            days = data.days
-            weekStartDate = data.weekStartDate
+            days = data?.days ?? []
+            weekStartDate = data?.weekStartDate ?? ""
             hasLoaded = true
             errorMessage = nil
         } catch {
