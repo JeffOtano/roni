@@ -67,7 +67,19 @@ if [ "$PUSH_ONLY" = false ]; then
     st_skipped=0
     st_existing=0
     while true; do
-      result=$(run_convex coach/libraryGenerationActions:generateBatch "{\"sessionTypes\": [\"$st\"], \"generationVersion\": $GENERATION_VERSION, \"offset\": $offset, \"limit\": $BATCH_SIZE}" 2>&1)
+      raw_gen=$(run_convex coach/libraryGenerationActions:generateBatch "{\"sessionTypes\": [\"$st\"], \"generationVersion\": $GENERATION_VERSION, \"offset\": $offset, \"limit\": $BATCH_SIZE}" 2>&1)
+      result=$(echo "$raw_gen" | python3 -c "
+import sys, json
+for line in sys.stdin:
+    s = line.strip()
+    if s.startswith('{'):
+        try:
+            json.loads(s)
+            print(s)
+            break
+        except json.JSONDecodeError:
+            pass
+" 2>/dev/null)
 
       created=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['created'])" 2>/dev/null || echo "?")
       skipped=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['skipped'])" 2>/dev/null || echo "?")
@@ -76,7 +88,7 @@ if [ "$PUSH_ONLY" = false ]; then
 
       if [ "$created" = "?" ]; then
         echo "  [$(timestamp)] OFFSET $offset: ERROR - could not parse response"
-        echo "    Raw: $(echo "$result" | head -1)"
+        echo "    Raw: $(echo "$raw_gen" | head -1)"
       else
         echo "  [$(timestamp)] offset=$offset: +$created created, $skipped skipped, $existing already exist"
         st_created=$((st_created + created))
@@ -120,13 +132,24 @@ START_TIME=$(date +%s)
 while true; do
   BATCH_NUM=$((BATCH_NUM + 1))
   raw_result=$(run_convex coach/libraryTonalPush:pushToTonalBatch "{\"serviceAccountUserId\": \"$SERVICE_ACCOUNT\", \"cursor\": $CURSOR}" 2>&1)
-  # Strip Convex log lines to get clean JSON
-  result=$(echo "$raw_result" | grep -v '^\[CONVEX' | grep -v '^$')
+  # Extract the JSON return value from mixed Convex CLI output (logs + JSON)
+  json_data=$(echo "$raw_result" | python3 -c "
+import sys, json
+for line in sys.stdin:
+    s = line.strip()
+    if s.startswith('{'):
+        try:
+            json.loads(s)
+            print(s)
+            break
+        except json.JSONDecodeError:
+            pass
+" 2>/dev/null)
 
-  pushed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "?")
-  failed=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "?")
-  is_done=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin)['isDone'])" 2>/dev/null || echo "true")
-  next_cursor=$(echo "$result" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['nextCursor']))" 2>/dev/null || echo "null")
+  pushed=$(echo "$json_data" | python3 -c "import sys,json; print(json.load(sys.stdin)['pushed'])" 2>/dev/null || echo "?")
+  failed=$(echo "$json_data" | python3 -c "import sys,json; print(json.load(sys.stdin)['failed'])" 2>/dev/null || echo "?")
+  is_done=$(echo "$json_data" | python3 -c "import sys,json; print(json.load(sys.stdin)['isDone'])" 2>/dev/null || echo "true")
+  next_cursor=$(echo "$json_data" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['nextCursor']))" 2>/dev/null || echo "null")
 
   if [ "$pushed" = "?" ]; then
     echo "  [$(timestamp)] BATCH $BATCH_NUM: ERROR - could not parse response"
