@@ -7,7 +7,7 @@ import SwiftUI
 /// Created once at app launch and never deallocated, keeping the WebSocket alive.
 private let globalConvexClient: ConvexClient = {
     let url = Bundle.main.infoDictionary?["CONVEX_URL"] as? String
-        ?? "https://gentle-macaw-501.convex.cloud"
+        ?? "https://quaint-bulldog-653.convex.cloud"
     return ConvexClient(deploymentUrl: url)
 }()
 
@@ -34,9 +34,11 @@ final class ConvexManager {
     // MARK: - Init
 
     init() {
+        print("[ConvexManager] init - client URL: \(Bundle.main.infoDictionary?["CONVEX_URL"] as? String ?? "fallback")")
         client.watchWebSocketState()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
+                print("[ConvexManager] WebSocket state: \(state)")
                 self?.isConnected = state == .connected
             }
             .store(in: &cancellables)
@@ -112,15 +114,31 @@ final class ConvexManager {
         _ name: String,
         args: [String: ConvexEncodable?]? = nil
     ) async throws -> T {
+        print("[ConvexManager] query(\(name)) starting, connected=\(isConnected)")
+
         // Use the documented .values async sequence pattern from Convex Swift docs.
-        // Subscribe, take the first emitted value, then the subscription auto-cancels
-        // when the for-await loop breaks.
-        let values = client.subscribe(to: name, with: args, yielding: T.self)
-            .values
-        for try await value in values {
-            return value
+        let publisher = client.subscribe(to: name, with: args, yielding: T.self)
+
+        // Race the subscription against a timeout
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                for try await value in publisher.values {
+                    print("[ConvexManager] query(\(name)) received data")
+                    return value
+                }
+                throw ClientError.InternalError(msg: "Query \(name) completed without emitting a value")
+            }
+
+            group.addTask {
+                try await Task.sleep(nanoseconds: 15_000_000_000) // 15 second timeout
+                throw ClientError.InternalError(msg: "Query \(name) timed out after 15s - check WebSocket connection")
+            }
+
+            // Return whichever finishes first
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
         }
-        throw ClientError.InternalError(msg: "Query \(name) completed without emitting a value")
     }
 
     // MARK: - Mutations

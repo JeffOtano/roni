@@ -32,9 +32,9 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
         Debug:
-          CONVEX_URL: https://gentle-macaw-501.convex.cloud
+          CONVEX_URL: https://quaint-bulldog-653.convex.cloud
         Release:
-          CONVEX_URL: https://gentle-macaw-501.convex.cloud
+          CONVEX_URL: https://quaint-bulldog-653.convex.cloud
     capabilities:
       HealthKit:
         clinical: false
