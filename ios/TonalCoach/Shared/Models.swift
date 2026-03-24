@@ -1,66 +1,9 @@
 import ConvexMobile
 import Foundation
 
-// MARK: - Convex Integer Property Wrappers
-
-/// Decodes Convex integer wire format `{ "$integer": "123" }` into a Swift `Int`.
-/// Use as `@ConvexInt var count: Int` on Decodable properties.
-@propertyWrapper
-struct ConvexInt: Decodable, Hashable {
-    var wrappedValue: Int
-
-    init(wrappedValue: Int) {
-        self.wrappedValue = wrappedValue
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        // Try plain integer first
-        if let value = try? container.decode(Int.self) {
-            wrappedValue = value
-            return
-        }
-        // Try Convex $integer format: { "$integer": "123" }
-        let nested = try decoder.container(keyedBy: ConvexIntegerKey.self)
-        let stringValue = try nested.decode(String.self, forKey: .integer)
-        guard let value = Int(stringValue) else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .integer, in: nested,
-                debugDescription: "Cannot convert \(stringValue) to Int"
-            )
-        }
-        wrappedValue = value
-    }
-}
-
-/// Decodes an optional Convex integer wire format into `Int?`.
-@propertyWrapper
-struct OptionalConvexInt: Decodable, Hashable {
-    var wrappedValue: Int?
-
-    init(wrappedValue: Int?) {
-        self.wrappedValue = wrappedValue
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            wrappedValue = nil
-            return
-        }
-        if let value = try? container.decode(Int.self) {
-            wrappedValue = value
-            return
-        }
-        let nested = try decoder.container(keyedBy: ConvexIntegerKey.self)
-        let stringValue = try nested.decode(String.self, forKey: .integer)
-        wrappedValue = Int(stringValue)
-    }
-}
-
-private enum ConvexIntegerKey: String, CodingKey {
-    case integer = "$integer"
-}
+// ConvexInt, OptionalConvexInt, ConvexFloat, OptionalConvexFloat are provided
+// by the ConvexMobile SDK (Decoding.swift). They decode Convex's base64-encoded
+// integer wire format correctly. Do NOT redefine them here.
 
 // MARK: - Library Workout Enums
 
