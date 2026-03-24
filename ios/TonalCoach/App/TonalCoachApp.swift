@@ -21,7 +21,7 @@ struct TonalCoachApp: App {
                 }
             }
             .environment(convexManager)
-            .environment(notificationManager)
+            .environment(\.notificationManager, notificationManager)
             .environment(\.healthKitManager, healthKitManager)
             .preferredColorScheme(.dark)
             .onOpenURL { url in

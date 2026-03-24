@@ -15,7 +15,7 @@ settings:
 
 packages:
   convex-swift:
-    url: https://github.com/nicholasgasior/convex-swift.git
+    url: https://github.com/get-convex/convex-swift.git
     branch: main
 
 targets:
@@ -46,6 +46,7 @@ targets:
           - remote-notification
     dependencies:
       - package: convex-swift
+        product: ConvexMobile
       - framework: HealthKit.framework
         embed: false
     entitlements:
