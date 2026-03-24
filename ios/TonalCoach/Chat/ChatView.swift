@@ -133,8 +133,17 @@ struct ChatView: View {
                             dateDivider(group.label)
 
                             ForEach(group.messages) { message in
-                                messageBubble(for: message)
-                                    .id(message.id)
+                                MessageBubble(message: message) { approvalId, approved in
+                                    Task {
+                                        await viewModel.respondToApproval(
+                                            approvalId: approvalId,
+                                            approved: approved,
+                                            using: convex
+                                        )
+                                    }
+                                }
+                                .padding(.vertical, Theme.Spacing.xs)
+                                .id(message.id)
                             }
                         }
 
@@ -177,53 +186,6 @@ struct ChatView: View {
         }
     }
 
-    // MARK: - Message Bubble
-
-    @ViewBuilder
-    private func messageBubble(for message: ChatMessage) -> some View {
-        VStack(
-            alignment: message.isUser ? .trailing : .leading,
-            spacing: Theme.Spacing.xs
-        ) {
-            // Text content
-            if !message.displayText.isEmpty {
-                if message.isUser {
-                    UserBubble(text: message.displayText)
-                } else {
-                    CoachBubble(
-                        text: message.displayText,
-                        isStreaming: message.isStreaming
-                    )
-                }
-            }
-
-            // Image attachments
-            if !message.imageUrls.isEmpty {
-                ImageAttachmentRow(urls: message.imageUrls)
-            }
-
-            // Tool calls
-            ForEach(message.toolCalls) { part in
-                if part.isApprovalRequested {
-                    ToolApprovalCard(part: part) { approved in
-                        guard let approvalId = part.approval?.id else { return }
-                        Task {
-                            await viewModel.respondToApproval(
-                                approvalId: approvalId,
-                                approved: approved,
-                                using: convex
-                            )
-                        }
-                    }
-                } else {
-                    ToolCallChip(part: part)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
-        .padding(.vertical, Theme.Spacing.xs)
-    }
-
     // MARK: - Date Divider
 
     private func dateDivider(_ label: String) -> some View {
@@ -260,6 +222,26 @@ struct ChatView: View {
         .background(Theme.Colors.destructive.opacity(0.1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Error: \(message)")
+    }
+
+    // MARK: - Coach Avatar
+
+    private func coachAvatar(size: CGFloat, iconSize: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Theme.Colors.primary, Color(hex: "9754ed")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size, height: size)
+            Image(systemName: "sparkles")
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Thinking Indicator State
@@ -315,26 +297,6 @@ struct ChatView: View {
         }
     }
 
-    // MARK: - Coach Avatar
-
-    private func coachAvatar(size: CGFloat, iconSize: CGFloat) -> some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Theme.Colors.primary, Color(hex: "9754ed")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: size, height: size)
-            Image(systemName: "sparkles")
-                .font(.system(size: iconSize, weight: .semibold))
-                .foregroundStyle(.white)
-        }
-        .accessibilityHidden(true)
-    }
-
     // MARK: - Actions
 
     private func sendSuggestion(_ text: String) {
@@ -343,147 +305,3 @@ struct ChatView: View {
         }
     }
 }
-
-// MARK: - User Bubble
-
-/// Right-aligned bubble for user messages with a chat-tail shape.
-private struct UserBubble: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(Theme.Typography.body)
-            .foregroundStyle(Theme.Colors.primaryForeground)
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
-            .background(Theme.Colors.primary)
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 16,
-                    bottomLeadingRadius: 16,
-                    bottomTrailingRadius: 8,
-                    topTrailingRadius: 16,
-                    style: .continuous
-                )
-            )
-            .accessibilityLabel("You said: \(text)")
-    }
-}
-
-// MARK: - Coach Bubble
-
-/// Left-aligned bubble for assistant messages with markdown rendering and avatar.
-private struct CoachBubble: View {
-    let text: String
-    var isStreaming: Bool = false
-
-    var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            // Coach avatar matching ThinkingIndicator style
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.Colors.primary, Color(hex: "9754ed")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 28, height: 28)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 0) {
-                MarkdownText(content: text)
-                    .textSelection(.enabled)
-
-                if isStreaming {
-                    streamingDots
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
-            .background(Theme.Colors.card)
-            .clipShape(bubbleShape)
-            .overlay(bubbleShape.stroke(Theme.Colors.border, lineWidth: 1))
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Coach said: \(text)")
-    }
-
-    private var streamingDots: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<3, id: \.self) { _ in
-                Circle()
-                    .fill(Theme.Colors.textTertiary)
-                    .frame(width: 3, height: 3)
-                    .opacity(0.6)
-            }
-        }
-        .padding(.top, Theme.Spacing.xs)
-        .accessibilityLabel("Still typing")
-    }
-
-    private var bubbleShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: 16,
-            bottomLeadingRadius: 8,
-            bottomTrailingRadius: 16,
-            topTrailingRadius: 16,
-            style: .continuous
-        )
-    }
-}
-
-// MARK: - Image Attachment Row
-
-/// Displays image attachments from a message as async-loaded thumbnails.
-private struct ImageAttachmentRow: View {
-    let urls: [String]
-
-    var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            ForEach(urls, id: \.self) { urlString in
-                if let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 120, height: 120)
-                                .clipShape(
-                                    RoundedRectangle(
-                                        cornerRadius: Theme.CornerRadius.md,
-                                        style: .continuous
-                                    )
-                                )
-                        case .failure:
-                            imagePlaceholder(icon: "photo.badge.exclamationmark")
-                        case .empty:
-                            imagePlaceholder(icon: "photo")
-                                .overlay(ProgressView().tint(Theme.Colors.textTertiary))
-                        @unknown default:
-                            imagePlaceholder(icon: "photo")
-                        }
-                    }
-                    .accessibilityLabel("Attached image")
-                }
-            }
-        }
-    }
-
-    private func imagePlaceholder(icon: String) -> some View {
-        RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-            .fill(Theme.Colors.muted)
-            .frame(width: 120, height: 120)
-            .overlay(
-                Image(systemName: icon)
-                    .foregroundStyle(Theme.Colors.textTertiary)
-            )
-    }
-}
-
