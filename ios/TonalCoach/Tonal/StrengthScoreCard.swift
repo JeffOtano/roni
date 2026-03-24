@@ -35,15 +35,22 @@ struct StrengthScoreCard: View {
         }
     }
 
+    /// Fuzzy-match a region score by checking strengthBodyRegion and bodyRegionDisplay.
+    /// Matches the web's `findScore` logic: key === r || key.startsWith(r) || key.includes(r)
+    private func findScore(_ region: String) -> Double {
+        let r = region.lowercased()
+        let match = data.scores.first { s in
+            let key = (s.strengthBodyRegion.isEmpty ? s.bodyRegionDisplay : s.strengthBodyRegion).lowercased()
+            return key == r || key.hasPrefix(r) || key.contains(r)
+        }
+        return match?.score ?? 0
+    }
+
     private var regionScores: [(label: String, score: Double)] {
-        let current = data.scores.filter(\.current)
-        let upper = current.first { $0.strengthBodyRegion == "upper_body" }?.score ?? 0
-        let lower = current.first { $0.strengthBodyRegion == "lower_body" }?.score ?? 0
-        let core = current.first { $0.strengthBodyRegion == "core" }?.score ?? 0
-        return [
-            (label: "Upper", score: upper),
-            (label: "Lower", score: lower),
-            (label: "Core", score: core),
+        [
+            (label: "Upper", score: findScore("upper")),
+            (label: "Lower", score: findScore("lower")),
+            (label: "Core", score: findScore("core")),
         ]
     }
 
@@ -66,16 +73,25 @@ struct StrengthScoreCard: View {
 /// Circular progress ring with a centered score label.
 private struct ScoreRing: View {
     let score: Double
+    let maxScore: Double
     let size: CGFloat
     let lineWidth: CGFloat
 
+    init(score: Double, size: CGFloat, lineWidth: CGFloat, maxScore: Double = 500) {
+        self.score = score
+        self.maxScore = maxScore
+        self.size = size
+        self.lineWidth = lineWidth
+    }
+
     var body: some View {
+        let progress = min(score / maxScore, 1.0)
         ZStack {
             Circle()
                 .stroke(Theme.Colors.border, lineWidth: lineWidth)
 
             Circle()
-                .trim(from: 0, to: CGFloat(min(score / 100, 1.0)))
+                .trim(from: 0, to: CGFloat(progress))
                 .stroke(
                     Theme.Colors.primary,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
@@ -89,6 +105,6 @@ private struct ScoreRing: View {
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Score \(Int(score)) out of 100")
+        .accessibilityLabel("Score \(Int(score)) out of \(Int(maxScore))")
     }
 }
