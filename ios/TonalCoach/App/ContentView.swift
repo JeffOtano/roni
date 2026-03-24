@@ -48,7 +48,7 @@ struct ContentView: View {
             }
             .tag(AppTab.dashboard)
 
-            ComingSoonView(title: AppTab.chat.rawValue, icon: AppTab.chat.icon)
+            ChatView()
                 .tabItem {
                     Label(AppTab.chat.rawValue, systemImage: AppTab.chat.icon)
                 }
