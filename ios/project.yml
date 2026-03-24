@@ -1,0 +1,68 @@
+name: TonalCoach
+
+options:
+  bundleIdPrefix: coach.tonal
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  convex-swift:
+    url: https://github.com/nicholasgasior/convex-swift.git
+    branch: main
+
+targets:
+  TonalCoach:
+    type: application
+    platform: iOS
+    sources:
+      - path: TonalCoach
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: coach.tonal.app
+        INFOPLIST_FILE: TonalCoach/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TonalCoach/TonalCoach.entitlements
+        GENERATE_INFOPLIST_FILE: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      configs:
+        Debug:
+          CONVEX_URL: https://gentle-macaw-501.convex.cloud
+        Release:
+          CONVEX_URL: https://gentle-macaw-501.convex.cloud
+    capabilities:
+      HealthKit:
+        clinical: false
+      Push Notifications: {}
+      Background Modes:
+        modes:
+          - remote-notification
+    dependencies:
+      - package: convex-swift
+      - framework: HealthKit.framework
+        embed: false
+    entitlements:
+      path: TonalCoach/TonalCoach.entitlements
+    info:
+      path: TonalCoach/Info.plist
+
+schemes:
+  TonalCoach:
+    build:
+      targets:
+        TonalCoach: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
