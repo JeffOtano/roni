@@ -32,11 +32,12 @@ struct ScheduleDay: Decodable, Identifiable, Hashable {
     // MARK: Hashable (for NavigationLink value-based navigation)
 
     static func == (lhs: ScheduleDay, rhs: ScheduleDay) -> Bool {
-        lhs.dayIndex == rhs.dayIndex
+        lhs.dayIndex == rhs.dayIndex && lhs.date == rhs.date
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(dayIndex)
+        hasher.combine(date)
     }
 }
 
@@ -47,16 +48,12 @@ struct ScheduleExercise: Decodable, Identifiable {
     let name: String
     let sets: Int
     let reps: Int?
-    let duration: Int?
 
-    var id: String { name }
+    var id: String { "\(name)-\(sets)-\(reps ?? 0)" }
 
-    /// Human-readable volume text: "3 x 10" or "3 x 30s".
     var volumeText: String {
         if let reps {
             return "\(sets) x \(reps)"
-        } else if let duration {
-            return "\(sets) x \(duration)s"
         }
         return "\(sets) sets"
     }
