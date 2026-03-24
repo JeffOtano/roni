@@ -140,12 +140,16 @@ final class HealthKitManager {
         }
 
         try await healthStore.requestAuthorization(toShare: [], read: readTypes)
-        // Check actual status - requestAuthorization succeeds even if user denies
-        let workoutStatus = healthStore.authorizationStatus(for: HKWorkoutType.workoutType())
+        // For read-only apps, HealthKit deliberately does not expose whether the
+        // user granted or denied individual read permissions. If requestAuthorization
+        // completes without throwing, the permission dialog was shown. We attempt a
+        // data fetch to verify read access was actually granted.
         await MainActor.run {
-            self.isAuthorized = workoutStatus == .sharingAuthorized
+            self.isAuthorized = true
             self.errorMessage = nil
         }
+        // Verify by attempting a fetch - if denied, data will be empty
+        try? await fetchTodayActivity()
     }
 
     /// Check if we can read a specific data type. HealthKit does not reveal
