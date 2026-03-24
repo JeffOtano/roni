@@ -39,7 +39,7 @@ struct ChatInputBar: View {
                 }
 
                 // Input row
-                HStack(alignment: .bottom, spacing: Theme.Spacing.sm) {
+                HStack(alignment: .bottom, spacing: 4) {
                     // Attachment button
                     PhotosPicker(
                         selection: $selectedPhotos,
@@ -54,7 +54,7 @@ struct ChatInputBar: View {
                                     ? Theme.Colors.textTertiary
                                     : Theme.Colors.textSecondary
                             )
-                            .frame(width: 44, height: 44)
+                            .frame(width: 36, height: 36)
                             .contentShape(Rectangle())
                     }
                     .disabled(viewModel.isSending || viewModel.pendingImages.count >= 4)
@@ -65,7 +65,7 @@ struct ChatInputBar: View {
                             : "Opens photo picker"
                     )
 
-                    // Text field
+                    // Text field with background
                     TextField("Message your coach...", text: $text, axis: .vertical)
                         .font(Theme.Typography.body)
                         .foregroundStyle(Theme.Colors.textPrimary)
@@ -74,6 +74,14 @@ struct ChatInputBar: View {
                         .disabled(viewModel.isSending)
                         .submitLabel(.send)
                         .onSubmit { send() }
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(Theme.Colors.background)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Theme.Colors.border, lineWidth: 1)
+                        )
                         .accessibilityLabel("Message input")
 
                     // Send button
@@ -85,7 +93,7 @@ struct ChatInputBar: View {
                                     .tint(Theme.Colors.primary)
                             } else {
                                 Image(systemName: "arrow.up.circle.fill")
-                                    .font(.system(size: 28))
+                                    .font(.system(size: 30))
                                     .foregroundStyle(
                                         canSend
                                             ? Theme.Colors.primary
@@ -93,7 +101,7 @@ struct ChatInputBar: View {
                                     )
                             }
                         }
-                        .frame(width: 44, height: 44)
+                        .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                     }
                     .disabled(!canSend)
@@ -104,10 +112,11 @@ struct ChatInputBar: View {
                     )
                 }
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
-            .background(Theme.Colors.card)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.top, Theme.Spacing.sm)
+            .padding(.bottom, Theme.Spacing.xs)
         }
+        .background(Theme.Colors.card)
         .onChange(of: selectedPhotos) { _, newItems in
             handlePhotoSelection(newItems)
         }
