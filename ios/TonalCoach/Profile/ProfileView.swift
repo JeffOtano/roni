@@ -1,3 +1,5 @@
+import Combine
+import ConvexMobile
 import SwiftUI
 
 /// Profile/settings tab with notification preferences, health connection, and app info.
@@ -10,6 +12,7 @@ struct ProfileView: View {
 
     @State private var userInfo: UserInfo?
     @State private var showConnectSheet = false
+    @State private var cancellable: AnyCancellable?
 
     var body: some View {
         List {
@@ -183,7 +186,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showConnectSheet) {
             ConnectTonalView()
         }
-        .task { await loadUser() }
+        .onAppear { subscribeToUser() }
     }
 
     // MARK: - Tonal Rows
@@ -246,12 +249,16 @@ struct ProfileView: View {
 
     // MARK: - Data Loading
 
-    private func loadUser() async {
-        do {
-            let info: UserInfo? = try await convex.query("users:getMe")
-            userInfo = info
-        } catch {
-            userInfo = nil
-        }
+    private func subscribeToUser() {
+        guard cancellable == nil else { return }
+        cancellable = convex.client
+            .subscribe(to: "users:getMe", yielding: UserInfo.self)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { _ in },
+                receiveValue: { info in
+                    userInfo = info
+                }
+            )
     }
 }

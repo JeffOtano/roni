@@ -4,6 +4,7 @@ import SwiftUI
 /// Uses `AsyncCard` wrappers so sections appear as they load without blocking each other.
 struct TonalDashboardView: View {
     @Environment(ConvexManager.self) private var convex
+    @State private var refreshID = UUID()
 
     var body: some View {
         ScrollView {
@@ -51,6 +52,10 @@ struct TonalDashboardView: View {
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.vertical, Theme.Spacing.md)
         }
+        .id(refreshID)
         .background(Theme.Colors.background)
+        .refreshable {
+            refreshID = UUID()
+        }
     }
 }

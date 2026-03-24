@@ -1,3 +1,5 @@
+import Combine
+import ConvexMobile
 import SwiftUI
 
 enum AppTab: String, CaseIterable {
@@ -75,6 +77,7 @@ private struct DashboardRouter: View {
     @State private var userInfo: UserInfo?
     @State private var isLoaded = false
     @State private var showConnectSheet = false
+    @State private var cancellable: AnyCancellable?
 
     var body: some View {
         Group {
@@ -98,7 +101,24 @@ private struct DashboardRouter: View {
         .sheet(isPresented: $showConnectSheet) {
             ConnectTonalView()
         }
-        .task { await loadUser() }
+        .onAppear { subscribeToUser() }
+    }
+
+    /// Subscribe to users:getMe so dashboard auto-updates after Tonal connection.
+    private func subscribeToUser() {
+        guard cancellable == nil else { return }
+        cancellable = convex.client
+            .subscribe(to: "users:getMe", yielding: UserInfo.self)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { _ in
+                    isLoaded = true
+                },
+                receiveValue: { info in
+                    userInfo = info
+                    isLoaded = true
+                }
+            )
     }
 
     private var connectPromptCard: some View {
@@ -134,15 +154,6 @@ private struct DashboardRouter: View {
         )
     }
 
-    private func loadUser() async {
-        do {
-            let info: UserInfo? = try await convex.query("users:getMe")
-            userInfo = info
-        } catch {
-            userInfo = nil
-        }
-        isLoaded = true
-    }
 }
 
 /// Placeholder view for tabs not yet implemented.

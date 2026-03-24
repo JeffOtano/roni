@@ -47,10 +47,6 @@ struct AsyncCard<T, Content: View>: View {
         isLoading = false
     }
 
-    func reload() async {
-        await loadData()
-    }
-
     private var loadingView: some View {
         VStack(spacing: Theme.Spacing.md) {
             ForEach(0..<3, id: \.self) { _ in

@@ -327,7 +327,7 @@ struct ConnectTonalView: View {
         {
             return "Connection error. Check your internet and try again."
         }
-        return "Invalid email or password for your Tonal account"
+        return "Something went wrong. Please try again."
     }
 
     private func showError(_ message: String) {
