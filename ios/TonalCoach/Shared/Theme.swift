@@ -229,7 +229,7 @@ extension Theme {
         /// DM Sans family name as registered by iOS from the variable font.
         private static let sansFamily = "DM Sans"
         /// Geist Mono family name.
-        private static let monoFamily = "GeistMono"
+        private static let monoFamily = "Geist Mono"
 
         // MARK: Helpers
 

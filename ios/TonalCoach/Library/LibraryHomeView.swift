@@ -489,7 +489,12 @@ final class LibraryViewModel {
                 await loadMore(using: manager)
             }
         } catch {
-            print("Failed to load workouts: \(error)")
+            print("⚠️ Failed to load workouts: \(error)")
+            // Surface the error to the user in debug builds
+            #if DEBUG
+            allWorkouts = []
+            print("⚠️ Query args were: \(paginationArgs(numItems: curatedPageSize))")
+            #endif
         }
 
         isLoadingInitial = false

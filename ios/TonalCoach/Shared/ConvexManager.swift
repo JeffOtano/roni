@@ -108,28 +108,15 @@ final class ConvexManager {
         _ name: String,
         args: [String: ConvexEncodable?]? = nil
     ) async throws -> T {
-        let publisher: AnyPublisher<T, ClientError> = client.subscribe(
-            to: name, with: args, yielding: T.self
-        )
-        return try await withCheckedThrowingContinuation { continuation in
-            var cancellable: AnyCancellable?
-            cancellable = publisher
-                .first()
-                .sink(
-                    receiveCompletion: { completion in
-                        switch completion {
-                        case .finished:
-                            break
-                        case .failure(let error):
-                            continuation.resume(throwing: error)
-                        }
-                        cancellable?.cancel()
-                    },
-                    receiveValue: { value in
-                        continuation.resume(returning: value)
-                    }
-                )
+        // Use the documented .values async sequence pattern from Convex Swift docs.
+        // Subscribe, take the first emitted value, then the subscription auto-cancels
+        // when the for-await loop breaks.
+        let values = client.subscribe(to: name, with: args, yielding: T.self)
+            .values
+        for try await value in values {
+            return value
         }
+        throw ClientError.InternalError(msg: "Query \(name) completed without emitting a value")
     }
 
     // MARK: - Mutations
