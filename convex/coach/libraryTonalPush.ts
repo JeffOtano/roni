@@ -1,4 +1,6 @@
 import { internalAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 
@@ -21,6 +23,40 @@ type WorkoutToPush = {
   }>;
   tonalWorkoutId?: string;
 };
+
+async function createLibraryWorkoutWithRetries(
+  ctx: Pick<ActionCtx, "runAction">,
+  args: {
+    userId: Id<"users">;
+    title: string;
+    blocks: WorkoutToPush["blocks"];
+    slug: string;
+    logPrefix: string;
+  },
+): Promise<{ id: string }> {
+  let createResult: { id: string } | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      createResult = await ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
+        userId: args.userId,
+        title: args.title,
+        blocks: args.blocks,
+      });
+      break;
+    } catch (createErr) {
+      const msg = String(createErr);
+      const isServerError = /5\d{2}/.test(msg);
+      if (!isServerError || attempt >= 2) throw createErr;
+      const delay = 5000 * (attempt + 1);
+      console.log(
+        `${args.logPrefix} Server error (attempt ${attempt + 1}/3), retrying in ${delay / 1000}s: ${args.slug}`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  if (!createResult) throw new Error(`Create failed after retries: ${args.slug}`);
+  return createResult;
+}
 
 export const pushToTonalBatch = internalAction({
   args: {
@@ -73,14 +109,14 @@ export const pushToTonalBatch = internalAction({
         // Create fresh if no ID or share failed (stale ID)
         if (!workoutId) {
           console.log(`[push] ${pushed + 1}/${total} Creating: ${workout.slug}`);
-          const createResult: { id: string } = await ctx.runAction(
-            internal.tonal.mutations.doTonalCreateWorkout,
-            {
-              userId: serviceAccountUserId,
-              title: workout.title,
-              blocks: workout.blocks,
-            },
-          );
+          const logPrefix = `[push] ${pushed + 1}/${total}`;
+          const createResult = await createLibraryWorkoutWithRetries(ctx, {
+            userId: serviceAccountUserId,
+            title: workout.title,
+            blocks: workout.blocks,
+            slug: workout.slug,
+            logPrefix,
+          });
           workoutId = createResult.id;
           console.log(`[push] ${pushed + 1}/${total} Created: ${workout.slug} -> ${workoutId}`);
           await new Promise((resolve) => setTimeout(resolve, 3000));
