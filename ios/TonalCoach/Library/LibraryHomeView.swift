@@ -542,9 +542,7 @@ final class LibraryViewModel {
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
-                        print("[LoadInit] ERROR: \(error)")
                     } else {
-                        print("[LoadInit] completed normally")
                     }
                     guard let self else { return }
                     if !self.hasLoadedInitial {
@@ -553,7 +551,6 @@ final class LibraryViewModel {
                     }
                 },
                 receiveValue: { [weak self] response in
-                    print("[LoadInit] GOT \(response.page.count) workouts")
                     guard let self else { return }
                     self.allWorkouts = response.page
                     self.continueCursor = response.continueCursor

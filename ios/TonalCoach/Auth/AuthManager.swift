@@ -93,6 +93,7 @@ final class AuthManager {
             )
             try await handleTokenResult(result, email: email)
         } catch {
+
             self.error = parseError(error)
         }
     }
@@ -222,6 +223,7 @@ final class AuthManager {
     // MARK: - Private Helpers
 
     private func handleTokenResult(_ result: SignInResult, email: String) async throws {
+
         guard let tokens = result.tokens else {
             throw AuthError.noStoredCredentials
         }
