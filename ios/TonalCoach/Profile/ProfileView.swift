@@ -4,8 +4,12 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(\.healthKitManager) private var healthManager
     @Environment(\.authManager) private var authManager
+    @Environment(ConvexManager.self) private var convex
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @AppStorage("isGuestMode") private var isGuestMode = false
+
+    @State private var userInfo: UserInfo?
+    @State private var showConnectSheet = false
 
     var body: some View {
         List {
@@ -57,6 +61,22 @@ struct ProfileView: View {
                 }
             } header: {
                 Text("Account")
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+
+            // MARK: - Tonal Section
+            Section {
+                if let info = userInfo, info.hasTonalProfile {
+                    if info.tonalTokenExpired {
+                        tonalExpiredRow(name: info.tonalName)
+                    } else {
+                        tonalConnectedRow(name: info.tonalName)
+                    }
+                } else {
+                    tonalConnectRow
+                }
+            } header: {
+                Text("Tonal")
                     .foregroundStyle(Theme.Colors.textTertiary)
             }
 
@@ -160,5 +180,78 @@ struct ProfileView: View {
         .background(Theme.Colors.background)
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.large)
+        .sheet(isPresented: $showConnectSheet) {
+            ConnectTonalView()
+        }
+        .task { await loadUser() }
+    }
+
+    // MARK: - Tonal Rows
+
+    private func tonalConnectedRow(name: String?) -> some View {
+        HStack {
+            Image(systemName: "dumbbell.fill")
+                .foregroundStyle(Theme.Colors.primary)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name ?? "Tonal")
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Connected")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.success)
+            }
+        }
+        .listRowBackground(Theme.Colors.card)
+    }
+
+    private func tonalExpiredRow(name: String?) -> some View {
+        HStack {
+            Image(systemName: "dumbbell.fill")
+                .foregroundStyle(Theme.Colors.warning)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name ?? "Tonal")
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Text("Session expired")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.warning)
+            }
+            Spacer()
+            Button("Reconnect") {
+                showConnectSheet = true
+            }
+            .font(Theme.Typography.calloutMedium)
+            .foregroundStyle(Theme.Colors.warning)
+        }
+        .listRowBackground(Theme.Colors.card)
+    }
+
+    private var tonalConnectRow: some View {
+        Button {
+            showConnectSheet = true
+        } label: {
+            HStack {
+                Image(systemName: "dumbbell")
+                    .foregroundStyle(Theme.Colors.primary)
+                    .frame(width: 28)
+                Text("Connect Tonal")
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(Theme.Colors.primary)
+            }
+        }
+        .listRowBackground(Theme.Colors.card)
+    }
+
+    // MARK: - Data Loading
+
+    private func loadUser() async {
+        do {
+            let info: UserInfo? = try await convex.query("users:getMe")
+            userInfo = info
+        } catch {
+            userInfo = nil
+        }
     }
 }
