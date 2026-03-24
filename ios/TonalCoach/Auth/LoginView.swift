@@ -59,23 +59,22 @@ struct LoginView: View {
                 .ignoresSafeArea()
                 .onTapGesture { focusedField = nil }
 
-            ScrollView {
-                VStack(spacing: Theme.Spacing.xl) {
-                    Spacer(minLength: Theme.Spacing.xxxl)
+            VStack(spacing: Theme.Spacing.xl) {
+                Spacer()
 
-                    logo
-                    segmentedControl
-                    formFields
-                    errorBanner
-                    ctaButton
-                    bottomLinks
-                    guestButton
+                logo
+                segmentedControl
+                formFields
+                errorBanner
+                ctaButton
+                bottomLinks
 
-                    Spacer(minLength: Theme.Spacing.xl)
-                }
-                .padding(.horizontal, Theme.Spacing.lg)
+                Spacer()
+
+                guestButton
+                    .padding(.bottom, Theme.Spacing.lg)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .padding(.horizontal, Theme.Spacing.lg)
         }
         .onChange(of: authManager.error) { _, newError in
             if let newError {
