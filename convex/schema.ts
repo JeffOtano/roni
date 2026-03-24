@@ -515,4 +515,16 @@ export default defineSchema({
     .index("by_durationMinutes", ["durationMinutes"])
     .index("by_equipmentConfig", ["equipmentConfig"])
     .index("by_generationVersion", ["generationVersion"]),
+
+  /** Device push tokens for APNs (iOS app). */
+  pushTokens: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    platform: v.literal("ios"),
+    deviceName: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_platform", ["userId", "platform"]),
 });
