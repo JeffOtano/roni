@@ -24,5 +24,17 @@
 	<string>TonalCoach reads your health data to show activity, workouts, heart rate, and weight trends alongside your Tonal training.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>TonalCoach does not write health data, but this permission is required by Apple.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>DMSans-Variable.ttf</string>
+		<string>DMSans-Italic-Variable.ttf</string>
+		<string>GeistMono-Variable.ttf</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>
