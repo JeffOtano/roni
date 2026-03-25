@@ -12,6 +12,7 @@
 		027E4B892D6B4D73D106535E /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE38C8177CDD4487B4DF6F3 /* KeychainHelper.swift */; };
 		02C6AE86E0A5049514C0BD15 /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA6E804A7A741F57B6077E9 /* NotificationDelegate.swift */; };
 		06ACBA3BE13DE7B09F9BD4A6 /* TonalDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998344A11A738B6D7F8AC725 /* TonalDashboardView.swift */; };
+		081CDA05771DA44877C93096 /* OnboardingReadyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E65EDC9CE4ECDBBA50629D0 /* OnboardingReadyView.swift */; };
 		084B400E6EBE58218C786A4E /* ExternalActivitiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4572CB37A53DA8BBDDF982 /* ExternalActivitiesCard.swift */; };
 		157388BF966DD54EB48000C0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4702C26F8C2C224E144F379C /* ContentView.swift */; };
 		16DA28B597192FE4302CF41A /* TonalDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7B058508882C8DA068C32A /* TonalDeepLink.swift */; };
@@ -47,12 +48,14 @@
 		BA93EA39F519BF35C654B5FB /* ScheduleDayCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41DB605D1270553152731F1B /* ScheduleDayCard.swift */; };
 		C3A21FFB22CEAF5650584D91 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5104B6101FB951CE50BD1CA /* ProfileView.swift */; };
 		C73C20B5427061040052FD8F /* HealthDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CC410DF7DC8875908F1D45 /* HealthDashboardView.swift */; };
+		C9FC3E5F39C9A66B5EA7DBAA /* TrainingPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA8501E440013785AD6CAC5 /* TrainingPreferencesView.swift */; };
 		D29C91F4BDC6346C0FC65B84 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0788CC33759688FF4ED6239 /* ChatModels.swift */; };
 		D8A2C98185E1428310C81C34 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 549248671EC5F4CFA5B8ED68 /* HealthKit.framework */; };
 		DB9815B3009CB457E20E0BD2 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4336D243540557F7FD94EFEE /* MessageBubble.swift */; };
 		DE60307AB01F06852935A97F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 757D4EAE09E4618432610A41 /* Assets.xcassets */; };
 		DF7142365C1B6E5170EDDA63 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B95E8720EB1B2578A1B92E /* AuthManager.swift */; };
 		DFA4928A094ADC84B922B68D /* ToolCallChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E348442ED2A315C10B73F250 /* ToolCallChip.swift */; };
+		E1D06E646AF6FCE53ACBEEAD /* TrainingOnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98904234D6E9A6E5F90A790B /* TrainingOnboardingFlow.swift */; };
 		E2A755589CA29DC1C4ECBC81 /* ScheduleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C89295B1569D8B220000BC /* ScheduleModels.swift */; };
 		ED21BA22192AB410A33C1619 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1527475BBBF38809CF28E56E /* ScheduleView.swift */; };
 		F13FD79B53AB9432B6A6E286 /* LibraryHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB955CD4C7D0F3EB4EA7D93 /* LibraryHomeView.swift */; };
@@ -65,8 +68,9 @@
 		03CC410DF7DC8875908F1D45 /* HealthDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDashboardView.swift; sourceTree = "<group>"; };
 		043752E84535B7A45A93EFE6 /* TonalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalModels.swift; sourceTree = "<group>"; };
 		060DC542CFA2F111BF034A25 /* DayDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDetailView.swift; sourceTree = "<group>"; };
-		12B3B26921CB3B7086A8E0CC /* TonalCoach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TonalCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		12B3B26921CB3B7086A8E0CC /* TonalCoach.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TonalCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1527475BBBF38809CF28E56E /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
+		1E65EDC9CE4ECDBBA50629D0 /* OnboardingReadyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingReadyView.swift; sourceTree = "<group>"; };
 		1F14CF7C37C679739B9844FE /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
 		1FCD2578D91FB3B551BAB790 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		23FA42FD4599C5013850591B /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -98,6 +102,7 @@
 		88B2D7EB5E260FA3DB9FC5F9 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		8A4A08A3512144A4D62AA6BB /* TonalCoach.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TonalCoach.entitlements; sourceTree = "<group>"; };
 		8C7486A4B75AF5EE7EB0A043 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		98904234D6E9A6E5F90A790B /* TrainingOnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingOnboardingFlow.swift; sourceTree = "<group>"; };
 		998344A11A738B6D7F8AC725 /* TonalDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalDashboardView.swift; sourceTree = "<group>"; };
 		A1B2311B4105E72BB6B11A97 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		A5104B6101FB951CE50BD1CA /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -114,6 +119,7 @@
 		E348442ED2A315C10B73F250 /* ToolCallChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallChip.swift; sourceTree = "<group>"; };
 		E411ECDAAA0F827C3296CC5E /* GeistMono-Variable.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GeistMono-Variable.ttf"; sourceTree = "<group>"; };
 		EEFD4014FB66E4D01C1BF563 /* TonalCoachApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalCoachApp.swift; sourceTree = "<group>"; };
+		EFA8501E440013785AD6CAC5 /* TrainingPreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingPreferencesView.swift; sourceTree = "<group>"; };
 		F0788CC33759688FF4ED6239 /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
 		F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -139,6 +145,16 @@
 				E411ECDAAA0F827C3296CC5E /* GeistMono-Variable.ttf */,
 			);
 			path = Fonts;
+			sourceTree = "<group>";
+		};
+		0C91713BB44F6EB8A625A658 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				1E65EDC9CE4ECDBBA50629D0 /* OnboardingReadyView.swift */,
+				98904234D6E9A6E5F90A790B /* TrainingOnboardingFlow.swift */,
+				EFA8501E440013785AD6CAC5 /* TrainingPreferencesView.swift */,
+			);
+			path = Onboarding;
 			sourceTree = "<group>";
 		};
 		1F8E7501B2739A356DF8AE6B /* Profile */ = {
@@ -205,6 +221,7 @@
 				ED1687A7A45A32E295C43240 /* Health */,
 				FC8AB388B417908817753115 /* Library */,
 				9B62DDE2042C414A12A4CDBB /* Notifications */,
+				0C91713BB44F6EB8A625A658 /* Onboarding */,
 				1F8E7501B2739A356DF8AE6B /* Profile */,
 				30725B035DDB4404FBBAEB40 /* Resources */,
 				F1C0ABA49EB98D378BBC1E34 /* Schedule */,
@@ -341,7 +358,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 9627E7AA46A01D1107E05391 /* Build configuration list for PBXProject "TonalCoach" */;
 			developmentRegion = en;
@@ -409,6 +428,7 @@
 				81C3CD4D0DFFDD2CE38D5709 /* NotificationManager.swift in Sources */,
 				A2220BC2C12BB5F24E646C90 /* NotificationPermissionView.swift in Sources */,
 				21B90923519D89F563710CBD /* NotificationSettingsView.swift in Sources */,
+				081CDA05771DA44877C93096 /* OnboardingReadyView.swift in Sources */,
 				867DF588806D7C0A04D5DDC8 /* OnboardingView.swift in Sources */,
 				3C43C100345389B3ED170B71 /* PasswordAuthProvider.swift in Sources */,
 				C3A21FFB22CEAF5650584D91 /* ProfileView.swift in Sources */,
@@ -427,6 +447,8 @@
 				B28FDFEC19F76F878630B018 /* ToolApprovalCard.swift in Sources */,
 				DFA4928A094ADC84B922B68D /* ToolCallChip.swift in Sources */,
 				42BEFE7F07591913ED3B8DA0 /* TrainingFrequencyCard.swift in Sources */,
+				E1D06E646AF6FCE53ACBEEAD /* TrainingOnboardingFlow.swift in Sources */,
+				C9FC3E5F39C9A66B5EA7DBAA /* TrainingPreferencesView.swift in Sources */,
 				FD6D5CD51F2316868B127C64 /* WorkoutCardView.swift in Sources */,
 				A255A48EA8912657C87AB312 /* WorkoutDetailView.swift in Sources */,
 				1D17B014F694E6A55C7975E3 /* WorkoutFiltersView.swift in Sources */,
@@ -440,7 +462,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -473,10 +494,8 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 2Q8WQD22DF;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -498,7 +517,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -509,7 +527,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -542,10 +559,8 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 2Q8WQD22DF;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -560,7 +575,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;

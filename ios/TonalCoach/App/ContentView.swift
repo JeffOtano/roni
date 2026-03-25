@@ -22,7 +22,14 @@ enum AppTab: String, CaseIterable {
 
 /// Root view with tab-based navigation.
 struct ContentView: View {
+    var initialTab: AppTab = .chat
+
     @State private var selectedTab: AppTab = .chat
+
+    init(initialTab: AppTab = .chat) {
+        self.initialTab = initialTab
+        _selectedTab = State(initialValue: initialTab)
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {

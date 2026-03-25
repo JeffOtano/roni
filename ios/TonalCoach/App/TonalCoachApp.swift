@@ -1,3 +1,5 @@
+import Combine
+import ConvexMobile
 import HealthKit
 import SwiftUI
 import UserNotifications
@@ -6,11 +8,17 @@ import UserNotifications
 struct TonalCoachApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("isGuestMode") private var isGuestMode = false
     @State private var convexManager = ConvexManager()
     @State private var notificationManager = NotificationManager()
     @State private var healthKitManager = HealthKitManager()
+
+    /// Tracks onboarding status reactively from the `users:getMe` query.
+    @State private var onboardingCompleted: Bool?
+    @State private var userInfoCancellable: AnyCancellable?
+
+    /// Tab to navigate to after onboarding completes.
+    @State private var initialTab: AppTab = .chat
 
     private var authManager: AuthManager { AuthManager.shared }
 
@@ -20,10 +28,17 @@ struct TonalCoachApp: App {
                 if authManager.isLoading {
                     splashView
                 } else if authManager.isAuthenticated || isGuestMode {
-                    if hasCompletedOnboarding {
-                        ContentView()
+                    if onboardingCompleted == true {
+                        ContentView(initialTab: initialTab)
+                    } else if onboardingCompleted == false {
+                        TrainingOnboardingFlow(onComplete: { tab in
+                            initialTab = tab
+                            // onboardingCompleted will flip to true reactively
+                            // via the users:getMe subscription after the mutation
+                        })
                     } else {
-                        OnboardingView()
+                        // Still loading user info
+                        splashView
                     }
                 } else {
                     NavigationStack {
@@ -43,6 +58,9 @@ struct TonalCoachApp: App {
                 // Init auth manager with convex reference and restore session first
                 authManager.setConvexManager(convexManager)
                 await authManager.restoreSession()
+
+                // Subscribe to user info for reactive onboarding status
+                subscribeToUserInfo()
 
                 // Notification setup (non-blocking for auth)
                 appDelegate.notificationManager = notificationManager
@@ -64,6 +82,26 @@ struct TonalCoachApp: App {
                 .font(.system(size: 36, weight: .bold, design: .default))
                 .foregroundStyle(Theme.Colors.primary)
         }
+    }
+
+    // MARK: - User Info Subscription
+
+    private func subscribeToUserInfo() {
+        guard userInfoCancellable == nil else { return }
+        userInfoCancellable = convexManager.client
+            .subscribe(to: "users:getMe", yielding: UserInfo.self)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { _ in
+                    // If query fails (e.g. unauthenticated), treat as not completed
+                    if onboardingCompleted == nil {
+                        onboardingCompleted = false
+                    }
+                },
+                receiveValue: { info in
+                    onboardingCompleted = info.onboardingCompleted
+                }
+            )
     }
 
     // MARK: - Deep Links
