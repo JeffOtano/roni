@@ -119,6 +119,7 @@ private struct WorkoutDetailContent: View {
 
 private struct HeaderSection: View {
     let workout: LibraryWorkout
+    @State private var imageSettled = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -133,6 +134,13 @@ private struct HeaderSection: View {
                 )
                 BadgePill(text: WorkoutLabels.goalLabel(workout.goal), color: Theme.Colors.primary)
                 BadgePill(text: workout.level.capitalized, color: Theme.Colors.textTertiary)
+            }
+        }
+        .scaleEffect(imageSettled ? 1.0 : 1.02)
+        .opacity(imageSettled ? 1.0 : 0.8)
+        .onAppear {
+            withAnimation(Animate.gentle) {
+                imageSettled = true
             }
         }
     }
