@@ -35,13 +35,23 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             ChatView()
                 .tabItem {
-                    Label(AppTab.chat.rawValue, systemImage: AppTab.chat.icon)
+                    Label {
+                        Text(AppTab.chat.rawValue)
+                    } icon: {
+                        Image(systemName: AppTab.chat.icon)
+                            .symbolEffect(.bounce, value: selectedTab)
+                    }
                 }
                 .tag(AppTab.chat)
 
             ScheduleView()
                 .tabItem {
-                    Label(AppTab.schedule.rawValue, systemImage: AppTab.schedule.icon)
+                    Label {
+                        Text(AppTab.schedule.rawValue)
+                    } icon: {
+                        Image(systemName: AppTab.schedule.icon)
+                            .symbolEffect(.bounce, value: selectedTab)
+                    }
                 }
                 .tag(AppTab.schedule)
 
@@ -51,13 +61,23 @@ struct ContentView: View {
                     .navigationBarTitleDisplayMode(.large)
             }
             .tabItem {
-                Label(AppTab.dashboard.rawValue, systemImage: AppTab.dashboard.icon)
+                Label {
+                    Text(AppTab.dashboard.rawValue)
+                } icon: {
+                    Image(systemName: AppTab.dashboard.icon)
+                        .symbolEffect(.bounce, value: selectedTab)
+                }
             }
             .tag(AppTab.dashboard)
 
             LibraryHomeView()
                 .tabItem {
-                    Label(AppTab.library.rawValue, systemImage: AppTab.library.icon)
+                    Label {
+                        Text(AppTab.library.rawValue)
+                    } icon: {
+                        Image(systemName: AppTab.library.icon)
+                            .symbolEffect(.bounce, value: selectedTab)
+                    }
                 }
                 .tag(AppTab.library)
 
@@ -65,7 +85,12 @@ struct ContentView: View {
                 ProfileView()
             }
             .tabItem {
-                Label(AppTab.profile.rawValue, systemImage: AppTab.profile.icon)
+                Label {
+                    Text(AppTab.profile.rawValue)
+                } icon: {
+                    Image(systemName: AppTab.profile.icon)
+                        .symbolEffect(.bounce, value: selectedTab)
+                }
             }
             .tag(AppTab.profile)
         }

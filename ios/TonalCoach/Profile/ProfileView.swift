@@ -12,6 +12,7 @@ struct ProfileView: View {
 
     @State private var userInfo: UserInfo?
     @State private var showConnectSheet = false
+    @State private var showSignOutConfirmation = false
     @State private var cancellable: AnyCancellable?
 
     var body: some View {
@@ -34,19 +35,10 @@ struct ProfileView: View {
                     }
                     .listRowBackground(Theme.Colors.card)
 
-                    Button {
-                        Task { await authManager.signOut() }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.right.square")
-                                .foregroundStyle(Theme.Colors.destructive)
-                                .frame(width: 28)
-                            Text("Sign Out")
-                                .font(Theme.Typography.body)
-                                .foregroundStyle(Theme.Colors.destructive)
-                        }
-                    }
-                    .listRowBackground(Theme.Colors.card)
+                    Button("Sign Out") { showSignOutConfirmation = true }
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.destructive)
+                        .listRowBackground(Theme.Colors.card)
                 } else {
                     Button {
                         isGuestMode = false
@@ -185,6 +177,15 @@ struct ProfileView: View {
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showConnectSheet) {
             ConnectTonalView()
+        }
+        .confirmationDialog("Sign Out", isPresented: $showSignOutConfirmation) {
+            Button("Sign Out", role: .destructive) {
+                HapticEngine.error()
+                Task { await authManager.signOut() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to sign out?")
         }
         .onAppear { subscribeToUser() }
     }

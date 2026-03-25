@@ -36,7 +36,7 @@ struct TrainingOnboardingFlow: View {
                     ))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: step)
+        .animation(Animate.smooth, value: step)
         .onAppear { subscribeToUser() }
     }
 
