@@ -10,6 +10,9 @@ import SwiftUI
 struct MessageBubble: View {
     let message: ChatMessage
     let onApprovalResponse: (String, Bool) -> Void
+    var isGroupedWithPrevious: Bool = false
+
+    @State private var hasAppeared = false
 
     var body: some View {
         if message.isUser {
@@ -46,6 +49,12 @@ struct MessageBubble: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("You said: \(message.displayText)")
+        .opacity(hasAppeared ? 1 : 0)
+        .offset(x: hasAppeared ? 0 : 12)
+        .onAppear {
+            guard !hasAppeared else { return }
+            withAnimation(Animate.snappy) { hasAppeared = true }
+        }
     }
 
     // MARK: - Coach Bubble
@@ -72,6 +81,12 @@ struct MessageBubble: View {
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .contain)
+        .opacity(hasAppeared ? 1 : 0)
+        .offset(y: hasAppeared ? 0 : 6)
+        .onAppear {
+            guard !hasAppeared else { return }
+            withAnimation(Animate.smooth) { hasAppeared = true }
+        }
     }
 
     // MARK: - Coach Text Bubble
@@ -187,42 +202,47 @@ struct MessageBubble: View {
 
     // MARK: - Coach Avatar
 
+    @ViewBuilder
     private var coachAvatar: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Theme.Colors.primary, Color(hex: "9754ed")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        if isGroupedWithPrevious {
+            Color.clear.frame(width: 28, height: 28)
+        } else {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.Colors.primary, Color(hex: "9754ed")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .frame(width: 28, height: 28)
-            Image(systemName: "sparkles")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .accessibilityHidden(true)
         }
-        .accessibilityHidden(true)
     }
 
     // MARK: - Bubble Shapes
 
     private var userBubbleShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(
-            topLeadingRadius: 16,
-            bottomLeadingRadius: 16,
-            bottomTrailingRadius: 8,
-            topTrailingRadius: 16,
+            topLeadingRadius: 24,
+            bottomLeadingRadius: 24,
+            bottomTrailingRadius: 24,
+            topTrailingRadius: 6,
             style: .continuous
         )
     }
 
     private var coachBubbleShape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(
-            topLeadingRadius: 16,
-            bottomLeadingRadius: 8,
-            bottomTrailingRadius: 16,
-            topTrailingRadius: 16,
+            topLeadingRadius: 6,
+            bottomLeadingRadius: 24,
+            bottomTrailingRadius: 24,
+            topTrailingRadius: 24,
             style: .continuous
         )
     }
