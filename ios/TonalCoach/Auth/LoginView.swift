@@ -27,6 +27,14 @@ struct LoginView: View {
     @State private var password = ""
     @State private var errorMessage: String?
     @State private var errorDismissTask: Task<Void, Never>?
+    @State private var taglineIndex = 0
+
+    private let taglines = [
+        "AI-powered strength coaching",
+        "Custom workouts for your Tonal",
+        "Personalized to your goals",
+        "Smarter training, better results",
+    ]
 
     @FocusState private var focusedField: Field?
 
@@ -84,16 +92,32 @@ struct LoginView: View {
         .onChange(of: mode) { _, _ in
             dismissError()
         }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    taglineIndex = (taglineIndex + 1) % taglines.count
+                }
+            }
+        }
     }
 
     // MARK: - Logo
 
     private var logo: some View {
-        Text("tonal.coach")
-            .font(.system(size: 36, weight: .bold, design: .default))
-            .foregroundStyle(Theme.Colors.primary)
-            .padding(.bottom, Theme.Spacing.sm)
-            .accessibilityAddTraits(.isHeader)
+        VStack(spacing: Theme.Spacing.sm) {
+            Text("tonal.coach")
+                .font(.system(size: 36, weight: .bold, design: .default))
+                .foregroundStyle(Theme.Colors.primary)
+                .accessibilityAddTraits(.isHeader)
+
+            Text(taglines[taglineIndex])
+                .font(Theme.Typography.callout)
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .id(taglineIndex)
+                .transition(.opacity)
+                .accessibilityLabel("Tagline: \(taglines[taglineIndex])")
+        }
+        .padding(.bottom, Theme.Spacing.sm)
     }
 
     // MARK: - Segmented Control

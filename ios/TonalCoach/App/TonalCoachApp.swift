@@ -9,6 +9,7 @@ struct TonalCoachApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     @AppStorage("isGuestMode") private var isGuestMode = false
+    @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
     @State private var convexManager = ConvexManager()
     @State private var notificationManager = NotificationManager()
     @State private var healthKitManager = HealthKitManager()
@@ -25,7 +26,9 @@ struct TonalCoachApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if authManager.isLoading {
+                if !hasSeenWelcome {
+                    WelcomeCarouselView()
+                } else if authManager.isLoading {
                     splashView
                 } else if isGuestMode {
                     ContentView(initialTab: .library)
