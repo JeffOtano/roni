@@ -30,6 +30,8 @@
 		<string>DMSans-Italic-Variable.ttf</string>
 		<string>GeistMono-Variable.ttf</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
