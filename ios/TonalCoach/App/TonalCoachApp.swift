@@ -27,7 +27,9 @@ struct TonalCoachApp: App {
             Group {
                 if authManager.isLoading {
                     splashView
-                } else if authManager.isAuthenticated || isGuestMode {
+                } else if isGuestMode {
+                    ContentView(initialTab: .library)
+                } else if authManager.isAuthenticated {
                     if onboardingCompleted == true {
                         ContentView(initialTab: initialTab)
                     } else if onboardingCompleted == false {
