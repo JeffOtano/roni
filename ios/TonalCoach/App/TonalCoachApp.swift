@@ -157,4 +157,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         notificationManager?.handleRegistrationError(error)
     }
+
+    func application(
+        _: UIApplication,
+        supportedInterfaceOrientationsFor _: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return .all
+        }
+        return .portrait
+    }
 }
