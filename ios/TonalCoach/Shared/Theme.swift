@@ -324,16 +324,30 @@ extension Theme {
 
 extension Theme {
 
-    /// Applies the standard card style: dark card background, subtle border, rounded corners.
+    /// Applies the standard card style: dark card background, subtle border, rounded corners, and a drop shadow.
     struct CardModifier: ViewModifier {
         func body(content: Content) -> some View {
             content
                 .background(Colors.card)
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: CornerRadius.lg, style: .continuous)
-                        .stroke(Colors.border, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: CornerRadius.lg)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.lg))
+                .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+        }
+    }
+
+    /// Highlights the "today" schedule card with a primary-colored glow and a subtle scale-up.
+    struct TodayGlowModifier: ViewModifier {
+        func body(content: Content) -> some View {
+            content
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.lg)
+                        .stroke(Colors.primary.opacity(0.3), lineWidth: 1.5)
+                )
+                .shadow(color: Colors.primary.opacity(0.15), radius: 10, y: 0)
+                .scaleEffect(1.01)
         }
     }
 
@@ -438,6 +452,11 @@ extension View {
     /// Applies the session type badge style.
     func sessionBadgeStyle(for sessionType: String) -> some View {
         modifier(Theme.SessionBadgeModifier(sessionType: sessionType))
+    }
+
+    /// Applies the "today" schedule card glow effect.
+    func todayGlow() -> some View {
+        modifier(Theme.TodayGlowModifier())
     }
 }
 
