@@ -22,15 +22,15 @@ enum AppTab: String, CaseIterable {
 
 /// Root view with tab-based navigation.
 struct ContentView: View {
-    @State private var selectedTab: AppTab = .library
+    @State private var selectedTab: AppTab = .chat
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            LibraryHomeView()
+            ChatView()
                 .tabItem {
-                    Label(AppTab.library.rawValue, systemImage: AppTab.library.icon)
+                    Label(AppTab.chat.rawValue, systemImage: AppTab.chat.icon)
                 }
-                .tag(AppTab.library)
+                .tag(AppTab.chat)
 
             ScheduleView()
                 .tabItem {
@@ -48,11 +48,11 @@ struct ContentView: View {
             }
             .tag(AppTab.dashboard)
 
-            ComingSoonView(title: AppTab.chat.rawValue, icon: AppTab.chat.icon)
+            LibraryHomeView()
                 .tabItem {
-                    Label(AppTab.chat.rawValue, systemImage: AppTab.chat.icon)
+                    Label(AppTab.library.rawValue, systemImage: AppTab.library.icon)
                 }
-                .tag(AppTab.chat)
+                .tag(AppTab.library)
 
             NavigationStack {
                 ProfileView()
