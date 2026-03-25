@@ -46,7 +46,7 @@ struct ContentView: View {
                 .tag(AppTab.schedule)
 
             NavigationStack {
-                DashboardRouter()
+                DashboardRouter(selectedTab: $selectedTab)
                     .navigationTitle("Dashboard")
                     .navigationBarTitleDisplayMode(.large)
             }
@@ -81,6 +81,7 @@ struct ContentView: View {
 /// Routes between the Tonal dashboard and a connect prompt based on user profile state.
 private struct DashboardRouter: View {
     @Environment(ConvexManager.self) private var convex
+    @Binding var selectedTab: AppTab
     @State private var userInfo: UserInfo?
     @State private var isLoaded = false
     @State private var showConnectSheet = false
@@ -92,7 +93,7 @@ private struct DashboardRouter: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let info = userInfo, info.hasTonalProfile, !info.tonalTokenExpired {
-                TonalDashboardView()
+                TonalDashboardView(selectedTab: $selectedTab)
             } else {
                 ScrollView {
                     VStack(spacing: Theme.Spacing.lg) {
