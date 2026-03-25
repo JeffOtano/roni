@@ -18,7 +18,7 @@ struct StrengthScoreCard: View {
 
     private var overallRing: some View {
         let score = data.distribution.overallScore
-        return ScoreRing(score: score, size: 120, lineWidth: 10)
+        return ScoreRing(score: score, size: 96, lineWidth: 10)
     }
 
     // MARK: - Region Rings
@@ -27,7 +27,7 @@ struct StrengthScoreCard: View {
         HStack(spacing: Theme.Spacing.xl) {
             ForEach(regionScores, id: \.label) { region in
                 VStack(spacing: Theme.Spacing.sm) {
-                    ScoreRing(score: region.score, size: 60, lineWidth: 6)
+                    ScoreRing(score: region.score, size: 64, lineWidth: 6)
                     Text(region.label)
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
@@ -78,6 +78,8 @@ private struct ScoreRing: View {
     let size: CGFloat
     let lineWidth: CGFloat
 
+    @State private var animatedProgress: Double = 0
+
     init(score: Double, size: CGFloat, lineWidth: CGFloat, maxScore: Double = 500) {
         self.score = score
         self.maxScore = maxScore
@@ -85,27 +87,39 @@ private struct ScoreRing: View {
         self.lineWidth = lineWidth
     }
 
+    private var ringColor: Color {
+        let pct = score / maxScore
+        if pct >= 0.7 { return Theme.Colors.primary }
+        if pct >= 0.4 { return Theme.Colors.chart5 }
+        return Theme.Colors.chart4
+    }
+
     var body: some View {
-        let progress = min(score / maxScore, 1.0)
         ZStack {
             Circle()
                 .stroke(Theme.Colors.border, lineWidth: lineWidth)
 
             Circle()
-                .trim(from: 0, to: CGFloat(progress))
+                .trim(from: 0, to: animatedProgress)
                 .stroke(
-                    Theme.Colors.primary,
+                    ringColor,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                .shadow(color: ringColor.opacity(0.3), radius: 10)
 
-            Text("\(Int(score))")
-                .font(size >= 100 ? Theme.Typography.title : Theme.Typography.calloutMedium)
+            CountingText(target: score, format: "%.0f")
+                .font(Theme.Typography.monoText)
                 .fontWeight(.bold)
-                .foregroundStyle(Theme.Colors.textPrimary)
+                .foregroundColor(Theme.Colors.foreground)
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Score \(Int(score)) out of \(Int(maxScore))")
+        .onAppear {
+            withAnimation(Animate.gentle) {
+                animatedProgress = min(score / maxScore, 1.0)
+            }
+        }
     }
 }
