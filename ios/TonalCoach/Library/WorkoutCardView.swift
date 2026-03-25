@@ -154,16 +154,3 @@ extension View {
     }
 }
 
-// MARK: - Card Button Style
-
-struct CardButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .brightness(configuration.isPressed ? -0.03 : 0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { _, pressed in
-                if pressed { Theme.Haptics.light() }
-            }
-    }
-}

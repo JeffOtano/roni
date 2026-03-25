@@ -635,7 +635,7 @@ private struct RelatedWorkoutsSection: View {
                             NavigationLink(value: workout) {
                                 WorkoutCardView(workout: workout)
                             }
-                            .buttonStyle(CardButtonStyle())
+                            .pressableCard()
                             .frame(width: 260)
                         }
                     }

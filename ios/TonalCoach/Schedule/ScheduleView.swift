@@ -69,7 +69,7 @@ struct ScheduleView: View {
                         NavigationLink(value: day) {
                             ScheduleDayCard(day: day)
                         }
-                        .buttonStyle(CardButtonStyle())
+                        .pressableCard()
                     } else {
                         ScheduleDayCard(day: day)
                     }

@@ -18,6 +18,7 @@
 		16DA28B597192FE4302CF41A /* TonalDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7B058508882C8DA068C32A /* TonalDeepLink.swift */; };
 		6643720F8D0C49FC91308BCD /* AnimationConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B534F70E433E45DC84D2D983 /* AnimationConstants.swift */; };
 		C06DAAD551A04064BEDBEBCF /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A9DFCB1A654550BA19E813 /* HapticEngine.swift */; };
+		D1E4F2A3B7C8904F5E3A1D62 /* PressableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */; };
 		1D17B014F694E6A55C7975E3 /* WorkoutFiltersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D6E147E28AD90E816EF993 /* WorkoutFiltersView.swift */; };
 		1F69D85F0F93AB34FD84C89F /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EE6475D29CECCEDAC0653EA /* ResetPasswordView.swift */; };
 		20793F8A10949B7240A93963 /* ConnectTonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263DBEE6AFD50C23CD03E67B /* ConnectTonalView.swift */; };
@@ -120,6 +121,7 @@
 		DB4E85E4BCB6785EFB82E7BA /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		B534F70E433E45DC84D2D983 /* AnimationConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationConstants.swift; sourceTree = "<group>"; };
 		55A9DFCB1A654550BA19E813 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
+		A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressableCard.swift; sourceTree = "<group>"; };
 		DC7B058508882C8DA068C32A /* TonalDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalDeepLink.swift; sourceTree = "<group>"; };
 		DE03FBD05A69014939259C3D /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		E348442ED2A315C10B73F250 /* ToolCallChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallChip.swift; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 				7355A2969D916D85BC65E9AF /* ConvexManager.swift */,
 				55A9DFCB1A654550BA19E813 /* HapticEngine.swift */,
 				8C7486A4B75AF5EE7EB0A043 /* Models.swift */,
+				A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */,
 				2D4460B6F5D6ECAB5000D077 /* Theme.swift */,
 				DC7B058508882C8DA068C32A /* TonalDeepLink.swift */,
 			);
@@ -413,6 +416,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6643720F8D0C49FC91308BCD /* AnimationConstants.swift in Sources */,
+				D1E4F2A3B7C8904F5E3A1D62 /* PressableCard.swift in Sources */,
 				C06DAAD551A04064BEDBEBCF /* HapticEngine.swift in Sources */,
 				A180D2267F45D4EEE14A52BE /* AsyncCard.swift in Sources */,
 				DF7142365C1B6E5170EDDA63 /* AuthManager.swift in Sources */,

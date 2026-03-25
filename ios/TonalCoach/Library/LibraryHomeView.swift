@@ -209,7 +209,7 @@ struct LibraryHomeView: View {
                     NavigationLink(value: workout) {
                         WorkoutCardView(workout: workout)
                     }
-                    .buttonStyle(CardButtonStyle())
+                    .pressableCard()
                 }
             }
             .padding(.horizontal, Theme.Spacing.lg)
@@ -315,7 +315,7 @@ struct LibraryHomeView: View {
                     NavigationLink(value: workout) {
                         WorkoutCardView(workout: workout)
                     }
-                    .buttonStyle(CardButtonStyle())
+                    .pressableCard()
                     .onAppear {
                         if workout == viewModel.filteredWorkouts.last {
                             Task { await viewModel.loadMore(using: convex) }
@@ -492,7 +492,7 @@ private struct CuratedSectionRow: View {
                             WorkoutCardView(workout: workout)
                                 .frame(width: 240)
                         }
-                        .buttonStyle(CardButtonStyle())
+                        .pressableCard()
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.lg)
