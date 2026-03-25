@@ -112,6 +112,7 @@ struct DayDetailView: View {
             if let exercises = day.exercises, !exercises.isEmpty {
                 ForEach(Array(exercises.enumerated()), id: \.offset) { index, exercise in
                     exerciseRow(index: index + 1, exercise: exercise)
+                        .staggeredAppear(index: index, interval: Animate.cellStagger)
                 }
             } else {
                 Text("No exercises listed for this day.")

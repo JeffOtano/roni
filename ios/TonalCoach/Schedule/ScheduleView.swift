@@ -51,6 +51,27 @@ struct ScheduleView: View {
         }
     }
 
+    // MARK: - Date Helpers
+
+    /// Returns true if the ISO date string represents today.
+    private func isToday(_ isoDate: String) -> Bool {
+        guard let date = parsedDate(isoDate) else { return false }
+        return Calendar.current.isDateInToday(date)
+    }
+
+    /// Returns true if the ISO date string represents a day strictly before today.
+    private func isPastDay(_ isoDate: String) -> Bool {
+        guard let date = parsedDate(isoDate) else { return false }
+        return date < Calendar.current.startOfDay(for: Date())
+    }
+
+    private func parsedDate(_ isoDate: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.date(from: isoDate)
+    }
+
     // MARK: - Day List
 
     private var dayListView: some View {
@@ -64,14 +85,20 @@ struct ScheduleView: View {
                         .padding(.horizontal, Theme.Spacing.lg)
                 }
 
-                ForEach(viewModel.days) { day in
+                ForEach(Array(viewModel.days.enumerated()), id: \.element.id) { index, day in
                     if day.isTraining {
                         NavigationLink(value: day) {
                             ScheduleDayCard(day: day)
                         }
                         .pressableCard()
+                        .todayGlowIfToday(day.date)
+                        .opacity(isPastDay(day.date) ? 0.6 : 1.0)
+                        .staggeredAppear(index: index)
                     } else {
                         ScheduleDayCard(day: day)
+                            .todayGlowIfToday(day.date)
+                            .opacity(isPastDay(day.date) ? 0.6 : 1.0)
+                            .staggeredAppear(index: index)
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.lg)
@@ -246,5 +273,26 @@ final class ScheduleViewModel {
         let display = DateFormatter()
         display.dateFormat = "MMM d"
         return "\(display.string(from: start)) - \(display.string(from: end))"
+    }
+}
+
+// MARK: - Conditional Today Glow
+
+private extension View {
+    /// Applies `.todayGlow()` only when the ISO date string matches today.
+    func todayGlowIfToday(_ isoDate: String) -> some View {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        let isToday = formatter.date(from: isoDate).map {
+            Calendar.current.isDateInToday($0)
+        } ?? false
+        return Group {
+            if isToday {
+                self.todayGlow()
+            } else {
+                self
+            }
+        }
     }
 }
