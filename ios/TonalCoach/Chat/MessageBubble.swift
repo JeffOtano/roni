@@ -252,18 +252,20 @@ struct MessageBubble: View {
 
 /// Blinking cursor appended to streaming coach messages.
 private struct StreamingCursor: View {
-    @State private var visible = true
+    @State private var opacity: Double = 1.0
 
     var body: some View {
         Text("|")
-            .font(Theme.Typography.body)
-            .foregroundStyle(Theme.Colors.primary)
-            .opacity(visible ? 1.0 : 0.0)
-            .animation(
-                .easeInOut(duration: 0.5).repeatForever(autoreverses: true),
-                value: visible
-            )
-            .onAppear { visible = false }
+            .foregroundColor(Theme.Colors.primary)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(
+                    .easeInOut(duration: 0.5)
+                    .repeatForever(autoreverses: true)
+                ) {
+                    opacity = 0.4
+                }
+            }
             .accessibilityHidden(true)
     }
 }
