@@ -10,6 +10,7 @@ struct AsyncCard<T, Content: View>: View {
     @State private var data: T?
     @State private var isLoading = true
     @State private var error: String?
+    @State private var isRevealed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -19,11 +20,21 @@ struct AsyncCard<T, Content: View>: View {
 
             if isLoading {
                 loadingView
+                    .transition(.opacity)
             } else if let error {
                 errorView(error)
             } else if let data {
                 content(data)
+                    .opacity(isRevealed ? 1 : 0)
+                    .offset(y: isRevealed ? 0 : 8)
+                    .onAppear {
+                        withAnimation(Animate.smooth) {
+                            isRevealed = true
+                        }
+                    }
+                    .transition(.opacity)
             }
+
         }
         .padding(Theme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,6 +44,7 @@ struct AsyncCard<T, Content: View>: View {
             RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
                 .stroke(Theme.Colors.border, lineWidth: 1)
         )
+        .animation(.easeOut(duration: 0.2), value: isLoading)
         .task { await loadData() }
     }
 
@@ -48,14 +60,12 @@ struct AsyncCard<T, Content: View>: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            ForEach(0..<3, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Theme.Colors.border)
-                    .frame(height: 16)
-            }
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            ShimmerView(height: 16, width: 120)
+            ShimmerView(height: 12)
+            ShimmerView(height: 12, width: 200)
         }
-        .frame(minHeight: 80)
+        .frame(minHeight: 80, alignment: .topLeading)
     }
 
     private func errorView(_ message: String) -> some View {
