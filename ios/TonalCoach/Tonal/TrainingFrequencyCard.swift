@@ -20,33 +20,14 @@ struct TrainingFrequencyCard: View {
         } else {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                    frequencyRow(entry: entry, index: index)
+                    FrequencyRow(
+                        entry: entry,
+                        color: chartPalette[index % chartPalette.count],
+                        maxCount: entries.map(\.count).max() ?? 1,
+                        index: index
+                    )
                 }
             }
-        }
-    }
-
-    private func frequencyRow(entry: TrainingFrequencyEntry, index: Int) -> some View {
-        let color = chartPalette[index % chartPalette.count]
-        let maxCount = entries.map(\.count).max() ?? 1
-
-        return HStack(spacing: Theme.Spacing.md) {
-            Text(entry.targetArea.displayLabel)
-                .font(Theme.Typography.callout)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .frame(width: 90, alignment: .leading)
-
-            GeometryReader { geo in
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(color)
-                    .frame(width: max(4, geo.size.width * CGFloat(entry.count) / CGFloat(maxCount)))
-            }
-            .frame(height: 20)
-
-            Text("\(entry.count)")
-                .font(Theme.Typography.monoText)
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .frame(width: 24, alignment: .trailing)
         }
     }
 
@@ -55,6 +36,51 @@ struct TrainingFrequencyCard: View {
             .font(Theme.Typography.callout)
             .foregroundStyle(Theme.Colors.textTertiary)
             .frame(maxWidth: .infinity, minHeight: 60)
+    }
+}
+
+private struct FrequencyRow: View {
+    let entry: TrainingFrequencyEntry
+    let color: Color
+    let maxCount: Int
+    let index: Int
+
+    @State private var animatedWidth: CGFloat = 0
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Text(entry.targetArea.displayLabel)
+                .font(Theme.Typography.callout)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .frame(width: 90, alignment: .leading)
+
+            GeometryReader { geo in
+                let targetWidth = max(4, geo.size.width * CGFloat(entry.count) / CGFloat(maxCount))
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Theme.Colors.muted.opacity(0.5))
+                        .frame(height: 8)
+
+                    Capsule()
+                        .fill(color)
+                        .frame(width: animatedWidth, height: 8)
+                }
+                .onAppear {
+                    let delay = Animate.staggerDelay(index: index, interval: Animate.barStagger)
+                    withAnimation(Animate.gentle.delay(delay)) {
+                        animatedWidth = targetWidth
+                    }
+                }
+            }
+            .frame(height: 8)
+
+            Text("\(entry.count)")
+                .font(Theme.Typography.monoText)
+                .monospacedDigit()
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .frame(width: 24, alignment: .trailing)
+        }
     }
 }
 
