@@ -173,7 +173,7 @@ private struct ScheduleDayCardSkeleton: View {
         .padding(Theme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
-        .cardShimmer()
+        .shimmer()
     }
 }
 

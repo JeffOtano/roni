@@ -120,37 +120,7 @@ struct WorkoutCardSkeleton: View {
             RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
                 .stroke(Theme.Colors.border, lineWidth: 1)
         )
-        .cardShimmer()
-    }
-}
-
-// MARK: - Shimmer
-
-private struct CardShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = -1
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                LinearGradient(
-                    colors: [.clear, Theme.Colors.textTertiary.opacity(0.08), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .offset(x: phase * 300)
-            )
-            .clipped()
-            .onAppear {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
-            }
-    }
-}
-
-extension View {
-    func cardShimmer() -> some View {
-        modifier(CardShimmerModifier())
+        .shimmer()
     }
 }
 

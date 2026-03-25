@@ -387,7 +387,7 @@ struct LibraryHomeView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Theme.Colors.border)
                         .frame(width: 160, height: 20)
-                        .cardShimmer()
+                        .shimmer()
                         .padding(.horizontal, Theme.Spacing.lg)
 
                     ScrollView(.horizontal, showsIndicators: false) {

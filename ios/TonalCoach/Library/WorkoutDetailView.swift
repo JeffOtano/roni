@@ -710,35 +710,6 @@ private struct SkeletonRect: View {
     }
 }
 
-/// Shimmer animation modifier for skeleton loading states.
-private struct ShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = -1
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                LinearGradient(
-                    colors: [.clear, Theme.Colors.border.opacity(0.3), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .offset(x: phase * 300)
-                .mask(content)
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
-            }
-    }
-}
-
-private extension View {
-    func shimmer() -> some View {
-        modifier(ShimmerModifier())
-    }
-}
-
 // MARK: - Error State
 
 private struct WorkoutDetailError: View {
