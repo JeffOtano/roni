@@ -34,7 +34,7 @@ targets:
         Debug:
           CONVEX_URL: https://quaint-bulldog-653.convex.cloud
         Release:
-          CONVEX_URL: https://quaint-bulldog-653.convex.cloud
+          CONVEX_URL: https://chatty-hawk-29.convex.cloud
     capabilities:
       HealthKit:
         clinical: false

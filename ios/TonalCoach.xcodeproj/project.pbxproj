@@ -592,7 +592,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TonalCoach/TonalCoach.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CONVEX_URL = "https://quaint-bulldog-653.convex.cloud";
+				CONVEX_URL = "https://chatty-hawk-29.convex.cloud";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\".\"",
