@@ -175,6 +175,7 @@ struct ChatView: View {
                 .onAppear {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
 
             // Error banner
