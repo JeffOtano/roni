@@ -13,8 +13,9 @@ struct MuscleReadinessCard: View {
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: Theme.Spacing.sm) {
-            ForEach(data.sorted, id: \.name) { muscle in
+            ForEach(Array(data.sorted.enumerated()), id: \.element.name) { index, muscle in
                 MuscleCell(name: muscle.name, value: muscle.value)
+                    .staggeredAppear(index: index, interval: Animate.cellStagger)
             }
         }
     }
@@ -43,17 +44,19 @@ private struct MuscleCell: View {
                 .font(Theme.Typography.monoText)
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
+        .padding(Theme.Spacing.sm)
+        .background(statusColor.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(Int(value)) percent readiness")
     }
 
     private var statusColor: Color {
-        if value > 80 {
-            return Theme.Colors.success
-        } else if value > 60 {
-            return Theme.Colors.warning
+        if value > 60 {
+            return Color(hex: "#34d399") // Ready - emerald
+        } else if value > 30 {
+            return Color(hex: "#fbbf24") // Recovering - amber
         } else {
-            return Theme.Colors.error
+            return Color(hex: "#f87171") // Fatigued - rose
         }
     }
 }
