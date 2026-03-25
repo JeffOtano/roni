@@ -60,6 +60,9 @@ struct TonalCoachApp: App {
                 handleDeepLink(url: url)
             }
             .task {
+                // Pre-initialize haptic generators to reduce first-tap latency
+                HapticEngine.warmUp()
+
                 // Init auth manager with convex reference and restore session first
                 authManager.setConvexManager(convexManager)
                 await authManager.restoreSession()
