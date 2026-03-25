@@ -1,6 +1,6 @@
 import { createTool, type ToolCtx } from "@convex-dev/agent";
 import { z } from "zod";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type {
   Activity,
@@ -10,6 +10,7 @@ import type {
   StrengthScoreHistoryEntry,
   WorkoutActivityDetail,
 } from "../tonal/types";
+import type { EnrichedWorkoutDetail } from "../workoutDetail";
 import { requireUserId, withToolTracking } from "./helpers";
 import { matchesNameSearch } from "../tonal/movementSearch";
 
@@ -152,19 +153,18 @@ export const getWorkoutHistoryTool = createTool({
 });
 
 export const getWorkoutDetailTool = createTool({
-  description: "Get full workout detail (exercises, sets, reps, volume).",
+  description:
+    "Get full workout detail with exercise names, sets, reps, volume, and per-movement summaries. Returns enriched data with movementName and muscleGroups resolved from the movement catalog.",
   inputSchema: z.object({
     activityId: z.string().describe("Activity ID from workout history"),
   }),
   execute: withToolTracking(
     "get_workout_detail",
-    async (ctx, input, _options): Promise<WorkoutActivityDetail> => {
-      const userId = requireUserId(ctx);
-      const detail = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
-        userId,
+    async (ctx, input, _options): Promise<EnrichedWorkoutDetail> => {
+      // Use the enriched action that joins movement IDs with names from the catalog
+      const detail = (await ctx.runAction(api.workoutDetail.getWorkoutDetail, {
         activityId: input.activityId,
-      })) as WorkoutActivityDetail | null;
-      if (!detail) throw new Error("Workout activity not found");
+      })) as EnrichedWorkoutDetail;
       return detail;
     },
   ),
