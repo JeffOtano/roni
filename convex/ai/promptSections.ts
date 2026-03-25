@@ -63,6 +63,7 @@ export function coachingPrinciples(): string {
 export function toolUsage(): string {
   return `TOOL USAGE:
 - Use the most specific tool. Don't call get_workout_history when get_workout_performance gives PR/plateau analysis.
+- CRITICAL: When asked about specific exercises in a workout, ALWAYS call get_workout_detail with the activityId. It returns enriched data with exercise names, muscle groups, and per-movement summaries. NEVER guess exercise names from workout titles or target areas - the detail tool has the actual data.
 - Data: search_exercises, get_strength_scores, get_strength_history, get_muscle_readiness, get_workout_history, get_workout_detail, get_training_frequency, get_weekly_volume
 - Weekly programming: program_week \u2192 get_week_plan_details \u2192 approve_week_plan (batch). NEVER push weekly workouts with create_workout individually.
 - Modifications (draft plans only): swap_exercise, add_exercise, move_session, adjust_session_duration. Use add_exercise when the user wants to include an extra exercise without rebuilding the week.
