@@ -12,6 +12,14 @@
 
 **Web Parity Constraint:** All visual treatments must match the web app's existing design language - OKLch color tokens, card chrome, session type colors, ring color thresholds, readiness semantic colors, typography (DM Sans + Geist Mono with tabular-nums). This spec translates web CSS patterns to SwiftUI equivalents, not reinventing them.
 
+**Minimum Deployment Target:** iOS 17.0 (already set in the project). All APIs used in this spec are available on iOS 17+ unless noted otherwise.
+
+**Existing Component Policy:** This spec upgrades existing components rather than creating parallel duplicates. Specifically:
+
+- The existing `CardModifier` / `.cardStyle()` in `Theme.swift` will be upgraded with shadow and refined chrome (not replaced by a new `PremiumCard`)
+- The existing `CardShimmerModifier` / `.cardShimmer()` will be upgraded with new timing (1.2s sweep, 0.4s pause) and moved to a shared `ShimmerView.swift`
+- The existing `CardButtonStyle` in `WorkoutCardView.swift` will be promoted to a shared `PressableCard.swift` and upgraded with the `snappy` spring
+
 ---
 
 ## 1. Motion & Animation System
@@ -32,7 +40,7 @@ These live in `AnimationConstants.swift` as static `Animation` properties.
 
 A `StaggeredAppear` view modifier. Each item receives an index; the modifier computes delay as `index * staggerInterval` (default 60ms). Items start at opacity 0 + 12pt vertical offset, then animate to final position with the `smooth` spring.
 
-Usage: Apply to each card in a `VStack`/`LazyVStack` with its position index.
+Usage: Apply to each card in a `VStack`/`LazyVStack` with its position index. The modifier tracks whether it has already animated via an internal `@State` flag, so it does not replay when views are recycled inside `Lazy*` containers.
 
 Respects `UIAccessibility.isReduceMotionEnabled` - delays become 0, animations become instant.
 
@@ -42,14 +50,19 @@ A `CountingText` view. Takes a target `Double`, optional format string, and dura
 
 Respects reduce motion - shows final value immediately.
 
-### Matched Geometry Transitions
+### Navigation Transitions
 
-For card-to-detail navigation:
+Standard `NavigationStack` push transitions are used for all drill-in navigation (schedule day -> detail, library card -> detail, etc.). SwiftUI's `matchedGeometryEffect` across `NavigationStack` destinations is unreliable in practice due to namespace sharing constraints.
 
-- Schedule day card -> DayDetailView: matched geometry on card frame + session color accent
-- Library workout card -> WorkoutDetailView: matched geometry on thumbnail image
+Instead, the premium feel comes from:
 
-Uses `@Namespace` in the parent view and `matchedGeometryEffect(id:in:)` on source/destination elements. Navigation uses `.navigationTransition(.zoom)` or custom `NavigationTransition` where matched geometry is applied.
+- Card press states (scale 0.97 on touch) providing tactile feedback before navigation
+- Content animations firing on the destination view's `onAppear` (staggered reveals, ring fills)
+- Standard iOS push animation, which users expect and is already polished
+
+**iOS 18+ optional enhancement:** If the deployment target is raised to iOS 18 in the future, `NavigationTransition.zoom(sourceID:in:)` can be adopted for card-to-detail hero transitions. This is deferred, not blocked on.
+
+**Image fullscreen (Chat):** For image thumbnail -> fullscreen expansion, use `.fullScreenCover` with `matchedGeometryEffect`. This works reliably because both source and destination are in the same view hierarchy (no NavigationStack boundary). Define `@Namespace` in `MessageBubble` and share with the fullscreen overlay.
 
 ---
 
@@ -89,13 +102,13 @@ A `PressableCard` view modifier (or `ButtonStyle`):
 
 ### Card Chrome (matching web)
 
-Unified card style applied via a `PremiumCard` view modifier or container:
+Upgrade the existing `CardModifier` / `.cardStyle()` in `Theme.swift` to include shadow:
 
 ```
-Background: Theme.card (oklch 0.155 0.012 265)
+Background: Theme.Colors.card (oklch 0.155 0.012 265)
 Border: RoundedRectangle overlay, Color.white.opacity(0.08), 1pt stroke
-Shadow: .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-Corner radius: Theme.radiusLg (12pt)
+Shadow: .shadow(color: .black.opacity(0.1), radius: 8, y: 4)  // NEW
+Corner radius: Theme.CornerRadius.lg (12pt)
 ```
 
 Verify the iOS `Theme` color values match the web's dark mode OKLch tokens exactly:
@@ -128,19 +141,20 @@ Circle()
 ```
 
 - Background track: `Color.white.opacity(0.08)`
-- Active arc colors (matching web thresholds):
-  - Score >= 70%: `Theme.primary` (cyan)
-  - Score 40-70%: `Theme.chart5` (amber)
-  - Score < 40%: `Theme.chart4` (rose)
+- Active arc colors (matching web's `scoreColor()` thresholds):
+  - Score >= 70%: `Theme.Colors.primary` (cyan)
+  - Score 40-70%: `Theme.Colors.chart5` (amber)
+  - Score < 40%: `Theme.Colors.chart4` (rose)
+- Existing `ScoreRing` must be modified to add a `ringColor` computed property based on these thresholds (currently always uses `Theme.Colors.primary`)
 - Sizes: 96pt (overall), 64pt (region rings)
-- Inner glow: overlay shadow `Color.primary.opacity(0.3)` with blur radius 10
+- Inner glow: overlay shadow `Theme.Colors.primary.opacity(0.3)` with blur radius 10
 - Center score: `CountingText` in Geist Mono, bold
 
 ### Training Frequency Bars
 
 Matching web's `TrainingFrequencyChart.tsx`:
 
-- Container: `Capsule().fill(Theme.muted.opacity(0.5))`, height 8pt, full width
+- Container: `Capsule().fill(Theme.Colors.muted.opacity(0.5))`, height 8pt, full width
 - Bar fill: `Capsule().fill(chartColor)`, animated width from 0 to target
 - Animation: `gentle` spring, staggered 80ms per bar
 - 5-color rotation: chart1 (cyan), chart2 (blue), chart3 (purple), chart4 (rose), chart5 (amber)
@@ -152,9 +166,10 @@ Matching web's `MuscleReadinessMap.tsx`:
 
 - 2-column `LazyVGrid`
 - Each cell: rounded rectangle with semantic background tint
-  - Ready (80%+): emerald at 10% opacity, emerald-400 text
-  - Recovering (31-79%): amber at 10% opacity, amber-400 text
-  - Fatigued (0-30%): rose at 10% opacity, rose-400 text
+  - Ready (>60): emerald at 10% opacity, emerald-400 text
+  - Recovering (31-60): amber at 10% opacity, amber-400 text
+  - Fatigued (<=30): rose at 10% opacity, rose-400 text
+- These thresholds match the web's `MuscleReadinessMap.tsx` exactly. The existing iOS `MuscleCell` uses different thresholds (>80/60-80/<60) and must be updated to match.
 - Cell content: muscle name (semibold, xs), readiness score right-aligned
 - Staggered appear: 40ms per cell
 
@@ -210,6 +225,7 @@ Implemented as an `AsyncDataCard` wrapper that manages the loading -> loaded sta
 - As each card's data arrives independently, it reveals with the 3-phase sequence
 - Natural stagger emerges from varying backend response times
 - No artificial delay - faster data appears faster
+- **Performance note:** If profiling reveals frame drops when multiple cards animate simultaneously, add a 100ms artificial stagger between card content-reveal phases to spread animation load across frames
 
 ### Tab Transitions
 
@@ -218,20 +234,17 @@ Implemented as an `AsyncDataCard` wrapper that manages the loading -> loaded sta
 - Active tab icon briefly scales to 1.15 then settles to 1.0 (`snappy` spring)
 - `.light` haptic on tab selection
 
-### Navigation Transitions
+### Drill-In Transitions
 
-- Schedule card -> Day detail: matched geometry on card frame
-- Library card -> Workout detail: matched geometry on thumbnail image
-- All other navigation: default iOS push (consistent with platform expectations)
+- All drill-in navigation (schedule -> detail, library -> detail, etc.) uses standard iOS push transition
+- Premium feel comes from: press state on the source card + content animations on the destination view
+- See Section 1 (Navigation Transitions) for rationale on deferring matched geometry across NavigationStack
 
 ### Pull-to-Refresh
 
-Custom refresh indicator:
+Keep the standard `.refreshable` modifier and system refresh indicator. A custom pull-to-refresh (ring that fills as you pull) would require dropping `.refreshable` and implementing custom scroll offset tracking via `GeometryReader` or `UIScrollView` bridging - significant scope increase for marginal UX gain.
 
-- Small ring (24pt) that fills proportionally as user pulls
-- At threshold: ring completes + `.medium` haptic
-- On release: ring spins until data arrives
-- Replaces default `ProgressView` spinner
+Enhancement: add `.medium` haptic when refresh triggers (via `.sensoryFeedback(.impact(flexibility: .solid, intensity: 0.6), trigger: isRefreshing)` on iOS 17+).
 
 ---
 
@@ -330,6 +343,7 @@ Each card applies `StaggeredAppear` with its position index (60ms stagger).
 - Same sender within 2 minutes: 4pt gap (instead of 12pt), avatar hidden, timestamp hidden
 - Timestamp shown on tap for grouped messages
 - Ungrouped messages: 12pt gap, avatar visible, timestamp visible
+- This sender-proximity grouping is a new layer that operates within the existing date-based `MessageGroup` in `ChatView.swift`. Date dividers stay; sender grouping controls visual spacing/avatar visibility within each date group. Add an `isGroupedWithPrevious` computed property per message.
 
 ### Streaming Text
 
@@ -348,7 +362,7 @@ Each card applies `StaggeredAppear` with its position index (60ms stagger).
 ### Tool Approval Cards
 
 - Slide in with `smooth` spring (not instant appear)
-- Approve button: `primary` background, `shadow-md shadow-primary/20` equivalent, white text
+- Approve button: keep existing `Theme.Colors.success` (green) background, add `shadow-md shadow-success/20` equivalent, white text
 - Deny button: ghost style (transparent background, `muted-foreground` text)
 - After resolution: card compresses vertically (200ms) to a single-line summary
   - Approved: checkmark icon + "Approved: [action name]" in muted text
@@ -382,11 +396,11 @@ Each card applies `StaggeredAppear` with its position index (60ms stagger).
 
 ### Schedule
 
-- All day cards: `PremiumCard` chrome + `PressableCard` modifier (automatic from foundation)
+- All day cards: upgraded `.cardStyle()` chrome + `PressableCard` modifier (automatic from foundation)
 - Today card: glow effect from Section 3
 - Past/missed days: 60% opacity
 - Day cards stagger-appear 60ms left-to-right
-- Day card -> Day detail: matched geometry transition
+- Day card -> Day detail: standard push transition (press state on card provides tactile feedback)
 - Day detail exercise rows: stagger-appear 40ms
 - Session type 3pt leading accent
 
@@ -407,7 +421,7 @@ Each card applies `StaggeredAppear` with its position index (60ms stagger).
 
 ### Profile
 
-- Section cards: `PremiumCard` chrome
+- Section cards: upgraded `.cardStyle()` chrome
 - Toggles: `.selection` haptic
 - Sign out: `.warning` haptic + destructive confirmation dialog
 
@@ -446,16 +460,20 @@ All existing accessibility labels and traits remain. New interactive elements (c
 
 ### Session 1: Foundation (~5-6 new files)
 
-| File                       | Purpose                                               |
-| -------------------------- | ----------------------------------------------------- |
-| `AnimationConstants.swift` | Spring presets, duration constants, stagger intervals |
-| `HapticEngine.swift`       | Haptic vocabulary with pre-initialized generators     |
-| `PressableCard.swift`      | `ButtonStyle` with scale + haptic on press            |
-| `StaggeredAppear.swift`    | View modifier for cascading reveal animations         |
-| `CountingText.swift`       | Animated number display with TimelineView             |
-| `ShimmerView.swift`        | Skeleton shimmer component                            |
+| File                       | Purpose                                                        |
+| -------------------------- | -------------------------------------------------------------- |
+| `AnimationConstants.swift` | Spring presets, duration constants, stagger intervals          |
+| `HapticEngine.swift`       | Haptic vocabulary with pre-initialized generators              |
+| `PressableCard.swift`      | Promoted from `CardButtonStyle`, upgraded with `snappy` spring |
+| `StaggeredAppear.swift`    | View modifier for cascading reveal animations                  |
+| `CountingText.swift`       | Animated number display with TimelineView                      |
+| `ShimmerView.swift`        | Upgraded from `CardShimmerModifier`, new timing                |
 
-Also: audit `Theme.swift` to verify all color tokens match web OKLch values exactly.
+Also:
+
+- Audit `Theme.swift` to verify all color tokens match web OKLch values exactly
+- Upgrade `CardModifier` / `.cardStyle()` in `Theme.swift` with shadow
+- Remove old `CardButtonStyle` and `CardShimmerModifier` from `WorkoutCardView.swift` after promoting to shared files
 
 ### Session 2: Dashboard Transformation
 
@@ -483,7 +501,7 @@ Modify existing files:
 
 Modify existing files:
 
-- `ScheduleView.swift` - Today glow, stagger, matched geometry
+- `ScheduleView.swift` - Today glow, stagger, press states
 - `DayDetailView.swift` - Exercise row stagger
 - `LibraryHomeView.swift` - Parallax, press states
 - `WorkoutDetailView.swift` - Hero image settle
