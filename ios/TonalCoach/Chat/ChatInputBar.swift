@@ -79,8 +79,12 @@ struct ChatInputBar: View {
                         .background(Theme.Colors.background)
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Theme.Colors.border, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(
+                                    isTextFieldFocused ? Theme.Colors.primary.opacity(0.3) : Color.white.opacity(0.08),
+                                    lineWidth: 1
+                                )
+                                .animation(.easeInOut(duration: 0.2), value: isTextFieldFocused)
                         )
                         .accessibilityLabel("Message input")
 
@@ -104,6 +108,8 @@ struct ChatInputBar: View {
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                     }
+                    .scaleEffect(canSend ? 1.0 : 0.9)
+                    .animation(Animate.snappy, value: canSend)
                     .disabled(!canSend)
                     .accessibilityLabel(
                         viewModel.isSending
