@@ -65,6 +65,17 @@ struct WeightEntry: Identifiable {
     var weightLbs: Double { weight * 2.20462 }
 }
 
+/// Sleep analysis data derived from HealthKit sleep stage samples.
+struct SleepData {
+    let durationMinutes: Double
+    let deepMinutes: Double?
+    let remMinutes: Double?
+    let coreMinutes: Double?
+    let awakeMinutes: Double?
+    let startTime: String?
+    let endTime: String?
+}
+
 // MARK: - HealthKitManager
 
 /// Manages all HealthKit interactions for the app.
@@ -126,6 +137,27 @@ final class HealthKitManager {
         }
         types.insert(HKWorkoutType.workoutType())
         types.insert(HKActivitySummaryType.activitySummaryType())
+        if let sleep = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
+        if let hrv = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) { types.insert(hrv) }
+        if let vo2 = HKQuantityType.quantityType(forIdentifier: .vo2Max) { types.insert(vo2) }
+        if let hrRecovery = HKQuantityType.quantityType(forIdentifier: .heartRateRecoveryOneMinute) {
+            types.insert(hrRecovery)
+        }
+        if let steps = HKQuantityType.quantityType(forIdentifier: .stepCount) { types.insert(steps) }
+        if let flights = HKQuantityType.quantityType(forIdentifier: .flightsClimbed) { types.insert(flights) }
+        if let bodyFat = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) { types.insert(bodyFat) }
+        if let leanMass = HKQuantityType.quantityType(forIdentifier: .leanBodyMass) { types.insert(leanMass) }
+        if let calories = HKQuantityType.quantityType(forIdentifier: .dietaryEnergyConsumed) {
+            types.insert(calories)
+        }
+        if let protein = HKQuantityType.quantityType(forIdentifier: .dietaryProtein) { types.insert(protein) }
+        if #available(iOS 18.0, *) {
+            if let effort = HKQuantityType.quantityType(forIdentifier: .workoutEffortScore) {
+                types.insert(effort)
+            }
+        }
+        if let respRate = HKQuantityType.quantityType(forIdentifier: .respiratoryRate) { types.insert(respRate) }
+        if let spo2 = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation) { types.insert(spo2) }
         return types
     }
 
@@ -467,7 +499,7 @@ final class HealthKitManager {
     // MARK: - Private Helpers
 
     /// Fetches today's cumulative sum for a quantity type.
-    private func fetchTodayCumulativeSum(
+    func fetchTodayCumulativeSum(
         for identifier: HKQuantityTypeIdentifier,
         unit: HKUnit
     ) async throws -> Double {
@@ -498,6 +530,132 @@ final class HealthKitManager {
             }
             healthStore.execute(query)
         }
+    }
+
+    /// Fetches last night's sleep data by querying yesterday 6 pm to today noon.
+    ///
+    /// Groups samples by sleep stage and returns total duration along with per-stage
+    /// breakdowns and formatted bed/wake times.
+    func fetchLastNightSleep() async throws -> SleepData? {
+        guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else {
+            return nil
+        }
+
+        let calendar = Calendar.current
+        let now = Date()
+        // Window: yesterday at 18:00 to today at 12:00
+        guard
+            let todayNoon = calendar.date(
+                bySettingHour: 12, minute: 0, second: 0, of: now
+            ),
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+            let yesterdayEvening = calendar.date(
+                bySettingHour: 18, minute: 0, second: 0, of: yesterday
+            )
+        else { return nil }
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: yesterdayEvening,
+            end: todayNoon,
+            options: .strictStartDate
+        )
+
+        let sortDescriptor = NSSortDescriptor(
+            key: HKSampleSortIdentifierStartDate,
+            ascending: true
+        )
+
+        let samples = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<[HKSample], Error>) in
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: samples ?? [])
+            }
+            healthStore.execute(query)
+        }
+
+        let categorySamples = samples.compactMap { $0 as? HKCategorySample }
+        guard !categorySamples.isEmpty else { return nil }
+
+        var deepSeconds: Double = 0
+        var remSeconds: Double = 0
+        var coreSeconds: Double = 0
+        var awakeSeconds: Double = 0
+        var unspecifiedSeconds: Double = 0
+
+        for sample in categorySamples {
+            let duration = sample.endDate.timeIntervalSince(sample.startDate)
+            guard let stage = HKCategoryValueSleepAnalysis(rawValue: sample.value) else { continue }
+            switch stage {
+            case .asleepDeep:
+                deepSeconds += duration
+            case .asleepREM:
+                remSeconds += duration
+            case .asleepCore:
+                coreSeconds += duration
+            case .awake:
+                awakeSeconds += duration
+            case .asleepUnspecified, .inBed:
+                unspecifiedSeconds += duration
+            @unknown default:
+                break
+            }
+        }
+
+        let totalAsleepSeconds = deepSeconds + remSeconds + coreSeconds + unspecifiedSeconds
+        let totalDurationMinutes = totalAsleepSeconds / 60
+
+        let bedTime = categorySamples.first.map { formatTime($0.startDate) }
+        let wakeTime = categorySamples.last.map { formatTime($0.endDate) }
+
+        return SleepData(
+            durationMinutes: totalDurationMinutes,
+            deepMinutes: deepSeconds > 0 ? deepSeconds / 60 : nil,
+            remMinutes: remSeconds > 0 ? remSeconds / 60 : nil,
+            coreMinutes: coreSeconds > 0 ? coreSeconds / 60 : nil,
+            awakeMinutes: awakeSeconds > 0 ? awakeSeconds / 60 : nil,
+            startTime: bedTime,
+            endTime: wakeTime
+        )
+    }
+
+    /// Fetches the most recent sample value for a given quantity type identifier.
+    func fetchLatestQuantity(
+        for identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit
+    ) async throws -> Double? {
+        guard let quantityType = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            return nil
+        }
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: quantityType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error { continuation.resume(throwing: error); return }
+                let value = (samples?.first as? HKQuantitySample)?.quantity.doubleValue(for: unit)
+                continuation.resume(returning: value)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// Formats a Date as "HH:mm" in the current locale's timezone.
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
     /// Fetches today's stand hours from the stand hour category type.
