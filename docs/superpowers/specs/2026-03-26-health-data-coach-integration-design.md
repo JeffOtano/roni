@@ -24,21 +24,21 @@
 
 Added to the existing `HealthKitManager.readTypes` set:
 
-| Category    | HKIdentifier                 | What It Provides                                       | Source                         |
-| ----------- | ---------------------------- | ------------------------------------------------------ | ------------------------------ |
-| Sleep       | `sleepAnalysis`              | Duration, stages (deep/REM/core/awake), bed/wake times | Apple Watch                    |
-| Heart       | `heartRateVariabilitySDNN`   | Daily readiness signal (ms)                            | Apple Watch                    |
-| Heart       | `vo2Max`                     | Cardio fitness (mL/kg/min)                             | Apple Watch (outdoor workouts) |
-| Heart       | `heartRateRecoveryOneMinute` | Post-workout HR drop (BPM)                             | Apple Watch                    |
-| Activity    | `stepCount`                  | Daily activity baseline                                | iPhone (passive)               |
-| Activity    | `flightsClimbed`             | Extra activity context                                 | iPhone (barometer)             |
-| Body        | `bodyFatPercentage`          | Body composition (0-1)                                 | Smart scale sync               |
-| Body        | `leanBodyMass`               | Fat-free mass (kg)                                     | Smart scale sync               |
-| Nutrition   | `dietaryEnergyConsumed`      | Calorie intake (kcal)                                  | MFP/Noom sync                  |
-| Nutrition   | `dietaryProtein`             | Protein intake (g)                                     | MFP/Noom sync                  |
-| Effort      | `workoutEffortScore`         | Self-rated RPE (0-10)                                  | Apple Watch (watchOS 10+)      |
-| Respiratory | `respiratoryRate`            | Breaths/min (sleep)                                    | Apple Watch                    |
-| Respiratory | `oxygenSaturation`           | SpO2 (0-1)                                             | Apple Watch Series 6+          |
+| Category    | HKIdentifier                 | What It Provides                                                                   | Source                         |
+| ----------- | ---------------------------- | ---------------------------------------------------------------------------------- | ------------------------------ |
+| Sleep       | `sleepAnalysis`              | Duration, stages (deep/REM/core/awake), bed/wake times                             | Apple Watch                    |
+| Heart       | `heartRateVariabilitySDNN`   | Daily readiness signal (ms)                                                        | Apple Watch                    |
+| Heart       | `vo2Max`                     | Cardio fitness (mL/kg/min)                                                         | Apple Watch (outdoor workouts) |
+| Heart       | `heartRateRecoveryOneMinute` | Post-workout HR drop (BPM)                                                         | Apple Watch                    |
+| Activity    | `stepCount`                  | Daily activity baseline                                                            | iPhone (passive)               |
+| Activity    | `flightsClimbed`             | Extra activity context                                                             | iPhone (barometer)             |
+| Body        | `bodyFatPercentage`          | Body composition (0-1)                                                             | Smart scale sync               |
+| Body        | `leanBodyMass`               | Fat-free mass (kg)                                                                 | Smart scale sync               |
+| Nutrition   | `dietaryEnergyConsumed`      | Calorie intake (kcal)                                                              | MFP/Noom sync                  |
+| Nutrition   | `dietaryProtein`             | Protein intake (g)                                                                 | MFP/Noom sync                  |
+| Effort      | `workoutEffortScore`         | Self-rated RPE (0-10), user-initiated (manual post-workout rating, frequently nil) | Apple Watch (watchOS 10+)      |
+| Respiratory | `respiratoryRate`            | Breaths/min (sleep)                                                                | Apple Watch                    |
+| Respiratory | `oxygenSaturation`           | SpO2 (0-1)                                                                         | Apple Watch Series 6+          |
 
 Already reading: `activeEnergyBurned`, `appleExerciseTime`, `appleStandHour`, `heartRate`, `restingHeartRate`, `bodyMass`, `HKWorkoutType`, `HKActivitySummaryType`.
 
@@ -47,7 +47,7 @@ Already reading: `activeEnergyBurned`, `appleExerciseTime`, `appleStandHour`, `h
 Separate from `HealthKitManager` (which owns raw queries and Health Dashboard UI state). `HealthSyncManager` owns:
 
 - Building a structured `HealthSnapshot` from the latest HealthKit data
-- Syncing to Convex via `health:syncSnapshot` and `health:syncWorkouts` mutations
+- Syncing to Convex via `health:syncSnapshot` mutation
 - Managing all 4 sync triggers
 - Expanding `HKObserverQuery` registrations for background delivery
 
@@ -122,34 +122,15 @@ healthSnapshots {
 
 Index: `by_user_date` on `(userId, date)`.
 
-### healthWorkouts table
+### Non-Tonal Workouts: NOT stored here
 
-Individual non-Tonal workouts synced from HealthKit.
-
-```
-healthWorkouts {
-  userId: v.id("users"),
-  healthKitUUID: v.string(),     // dedup key - prevents duplicate syncs
-  activityType: v.string(),      // "running", "cycling", "yoga", etc.
-  startTime: v.number(),         // ms timestamp
-  endTime: v.number(),
-  durationMinutes: v.number(),
-  caloriesBurned: v.optional(v.number()),
-  averageHeartRate: v.optional(v.number()),
-  source: v.string(),            // "Strava", "Apple Watch", etc.
-}
-```
-
-Index: `by_user_time` on `(userId, startTime)`.
-Index: `by_uuid` on `(userId, healthKitUUID)` for dedup lookups.
+The Tonal API already syncs non-Tonal workouts (running, cycling, yoga, etc.) via `GET /v6/users/{userId}/external-activities`. The AI context builder already includes these at priority 6. A separate `healthWorkouts` table would duplicate this data and create dedup complexity. The existing pipeline is sufficient.
 
 ### Design choices
 
 - One snapshot per day, upserted. Latest sync wins. No append-only history.
 - All health fields optional - not every user has Apple Watch, smart scale, or nutrition tracking.
-- Non-Tonal workouts stored separately because the coach needs per-workout detail.
-- Tonal workouts already tracked via the Tonal API - `healthWorkouts` only stores non-Tonal sources.
-- Workouts deduped by `healthKitUUID` so repeated syncs are idempotent.
+- Non-Tonal workouts already handled by the existing Tonal external activities pipeline. No new table needed.
 
 ---
 
@@ -191,10 +172,7 @@ New `@Observable` class at `ios/TonalCoach/Health/HealthSyncManager.swift`.
    - Workout effort: latest
 4. Build HealthSnapshot struct from results
 5. Call Convex mutation "health:syncSnapshot" with snapshot
-6. Pull non-Tonal workouts from last 7 days (HKWorkout samples)
-7. Filter out Tonal-sourced workouts (source name contains "tonal")
-8. Call Convex mutation "health:syncWorkouts" with workout array
-9. Update lastSyncTime, set isSyncing = false
+6. Update lastSyncTime, set isSyncing = false
 ```
 
 ### Lightweight sync (periodic 15-min timer)
@@ -207,8 +185,7 @@ When `HKObserverQuery` fires for a specific type:
 
 1. Pull only the triggered data type
 2. Upsert into today's snapshot (merge with existing fields, don't overwrite nulls)
-3. If triggered by workout completion, also sync the new workout to `healthWorkouts`
-4. Call `completionHandler()` within the ~30s budget
+3. Call `completionHandler()` within the ~30s budget. No retry on failure - fire once, done.
 
 ### Convex mutations
 
@@ -217,13 +194,6 @@ When `HKObserverQuery` fires for a specific type:
 - Auth: requires authenticated user
 - Upserts by `(userId, date)` - if row exists for today, merges non-null fields
 - Validates field ranges (e.g., steps >= 0, SpO2 0-1)
-
-**`health:syncWorkouts`** (mutation):
-
-- Auth: requires authenticated user
-- Takes array of workouts
-- For each: check if `healthKitUUID` exists, skip if so, insert if not
-- Only processes last 7 days of workouts
 
 ### Error handling
 
@@ -253,13 +223,15 @@ In `convex/ai/context.ts`, add a new parallel data source alongside the existing
 async function fetchHealthContext(userId: Id<"users">): Promise<string> {
   // Get today's snapshot + last 7 days for trends
   const snapshots = await getHealthSnapshots(userId, 7);
-  // Get non-Tonal workouts from last 7 days
-  const workouts = await getHealthWorkouts(userId, 7);
 
   if (snapshots.length === 0) return ""; // No health data - omit section entirely
 
-  return buildHealthSummary(snapshots, workouts);
+  return buildHealthSummary(snapshots);
 }
+```
+
+Non-Tonal workouts are already included via the existing "External Activities" section at priority 6. The health section only adds sleep, recovery, body comp, and activity metrics.
+
 ```
 
 ### Summary format
@@ -267,6 +239,7 @@ async function fetchHealthContext(userId: Id<"users">): Promise<string> {
 The health context section injected into the agent's training snapshot:
 
 ```
+
 HEALTH & RECOVERY (from Apple Health):
 Today: 7,842 steps | 423 kcal active | 38 min exercise
 Last night: 6h 52m sleep (1h 12m deep, 1h 34m REM, 3h 28m core, 38m awake) | Bed 23:15 -> 06:07
@@ -275,10 +248,12 @@ Body: 82.1 kg (7-day trend: -0.3 kg)
 Nutrition: 2,150 kcal | 142g protein (if tracked)
 
 Non-Tonal workouts (last 7 days):
+
 - Mon 8:15am: Running 5.2 mi, 42 min, 156 avg HR (Strava)
 - Wed 6:30pm: Yoga 45 min (Apple Watch)
 
 Recovery signals: HRV declining 3 days (48->45->42ms), sleep below 7h target 2 of last 3 nights.
+
 ```
 
 ### Trend computation
@@ -294,7 +269,9 @@ Computed at query time from the 7-day snapshot history:
 
 ### Context priority
 
-Health section gets **medium priority** in the context builder - above external activities but below strength scores and current schedule. If the 8000 char context budget is tight, historical detail trims first (remove individual workout entries, then trend details), keeping today's snapshot last.
+Health section gets **priority 8.5** in the context builder (between muscle readiness at 8 and recent workouts at 9). Recovery signals inform workout programming but are less important than the user's actual Tonal performance data.
+
+If the 8000 char context budget is tight, the health section trims to a compact single line: `"Sleep 6h52m | HRV 42ms (down) | RHR 58 | 7842 steps"`. Consider bumping `SNAPSHOT_MAX_CHARS` to 9000 to accommodate the new section without trimming existing ones.
 
 ### Graceful degradation
 
@@ -307,14 +284,17 @@ Health section gets **medium priority** in the context builder - above external 
 Add to `convex/ai/promptSections.ts`:
 
 ```
+
 When health data is available, factor it into your recommendations:
+
 - Low HRV or declining trend: suggest reducing volume or intensity, prioritize recovery
 - Poor sleep (<6h or low deep sleep): reduce session difficulty, avoid heavy compounds
 - High step count + workout day: account for accumulated fatigue
 - Non-Tonal workouts: adjust programming to avoid overloading the same muscle groups
 - Weight trending down + high training volume: watch for overreaching, consider deload
 - Good recovery signals (high HRV, good sleep, stable RHR): green light for high intensity
-Do not lecture about health metrics unless the user asks. Use the data silently to inform better programming.
+  Do not lecture about health metrics unless the user asks. Use the data silently to inform better programming.
+
 ```
 
 ---
@@ -358,13 +338,18 @@ The Health Dashboard already shows health data. The chat just gets smarter. No n
 
 ### Convex (4 files)
 
-| File                          | What                                                                  |
-| ----------------------------- | --------------------------------------------------------------------- |
-| `convex/schema.ts`            | Modify - add healthSnapshots and healthWorkouts tables                |
-| `convex/health.ts`            | New - syncSnapshot mutation, syncWorkouts mutation, query helpers     |
+| File                          | What                                                              |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `convex/schema.ts`            | Modify - add healthSnapshots table                                |
+| `convex/health.ts`            | New - syncSnapshot mutation, query helpers for context builder     |
 | `convex/ai/context.ts`        | Modify - add health data source to parallel fetch, buildHealthSummary |
-| `convex/ai/promptSections.ts` | Modify - add health coaching guidelines section                       |
+| `convex/ai/promptSections.ts` | Modify - add health coaching guidelines section                    |
 
-### Info.plist
+### Entitlements & Config
 
-Update `NSHealthShareUsageDescription` text.
+| File | What |
+|------|------|
+| `ios/TonalCoach/TonalCoach.entitlements` | Add HealthKit background delivery to access array |
+| `ios/project.yml` (or project.pbxproj) | Add `background-fetch` to Background Modes (alongside existing `remote-notification`) |
+| `ios/TonalCoach/Info.plist` | Update `NSHealthShareUsageDescription` text |
+```
