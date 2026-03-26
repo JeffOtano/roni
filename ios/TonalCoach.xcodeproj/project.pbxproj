@@ -15,6 +15,7 @@
 		06ACBA3BE13DE7B09F9BD4A6 /* TonalDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998344A11A738B6D7F8AC725 /* TonalDashboardView.swift */; };
 		081CDA05771DA44877C93096 /* OnboardingReadyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E65EDC9CE4ECDBBA50629D0 /* OnboardingReadyView.swift */; };
 		084B400E6EBE58218C786A4E /* ExternalActivitiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4572CB37A53DA8BBDDF982 /* ExternalActivitiesCard.swift */; };
+		0A1B2C3D4E5F6A7B8C9D0E1F /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F /* ImageViewer.swift */; };
 		157388BF966DD54EB48000C0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4702C26F8C2C224E144F379C /* ContentView.swift */; };
 		16DA28B597192FE4302CF41A /* TonalDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7B058508882C8DA068C32A /* TonalDeepLink.swift */; };
 		1D17B014F694E6A55C7975E3 /* WorkoutFiltersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D6E147E28AD90E816EF993 /* WorkoutFiltersView.swift */; };
@@ -77,6 +78,7 @@
 		043752E84535B7A45A93EFE6 /* TonalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalModels.swift; sourceTree = "<group>"; };
 		060DC542CFA2F111BF034A25 /* DayDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDetailView.swift; sourceTree = "<group>"; };
 		1295AE565C2349AA9F25F6A3 /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
 		12B3B26921CB3B7086A8E0CC /* TonalCoach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TonalCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1527475BBBF38809CF28E56E /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		1E65EDC9CE4ECDBBA50629D0 /* OnboardingReadyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingReadyView.swift; sourceTree = "<group>"; };
@@ -205,6 +207,7 @@
 				F0788CC33759688FF4ED6239 /* ChatModels.swift */,
 				DB4E85E4BCB6785EFB82E7BA /* ChatView.swift */,
 				23FA42FD4599C5013850591B /* ChatViewModel.swift */,
+				A1B2C3D4E5F6A7B8C9D0E1F /* ImageViewer.swift */,
 				51510A5E87E4621AB14BFE79 /* MarkdownText.swift */,
 				4336D243540557F7FD94EFEE /* MessageBubble.swift */,
 				68F48901D6FC6CA9CFDE14C8 /* ThinkingIndicator.swift */,
@@ -429,6 +432,7 @@
 				C3EDE8764BB34335A49F124D /* CountingText.swift in Sources */,
 				D1E4F2A3B7C8904F5E3A1D62 /* PressableCard.swift in Sources */,
 				C06DAAD551A04064BEDBEBCF /* HapticEngine.swift in Sources */,
+				0A1B2C3D4E5F6A7B8C9D0E1F /* ImageViewer.swift in Sources */,
 				A180D2267F45D4EEE14A52BE /* AsyncCard.swift in Sources */,
 				DF7142365C1B6E5170EDDA63 /* AuthManager.swift in Sources */,
 				7F7792192E65DDD4CD8BD776 /* ChatInputBar.swift in Sources */,

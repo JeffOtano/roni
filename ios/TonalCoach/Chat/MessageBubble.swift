@@ -13,6 +13,8 @@ struct MessageBubble: View {
     var isGroupedWithPrevious: Bool = false
 
     @State private var hasAppeared = false
+    @State private var selectedImageURL: URL?
+    @Namespace private var imageNamespace
 
     var body: some View {
         if message.isUser {
@@ -54,6 +56,18 @@ struct MessageBubble: View {
         .onAppear {
             guard !hasAppeared else { return }
             withAnimation(Animate.snappy) { hasAppeared = true }
+        }
+        .fullScreenCover(isPresented: .init(
+            get: { selectedImageURL != nil },
+            set: { if !$0 { selectedImageURL = nil } }
+        )) {
+            if let url = selectedImageURL {
+                ImageViewerOverlay(
+                    url: url,
+                    namespace: imageNamespace,
+                    onDismiss: { selectedImageURL = nil }
+                )
+            }
         }
     }
 
@@ -164,27 +178,37 @@ struct MessageBubble: View {
     private var imageGrid: some View {
         HStack(spacing: Theme.Spacing.xs) {
             ForEach(Array(message.imageUrls.enumerated()), id: \.offset) { _, urlString in
-                AsyncImage(url: URL(string: urlString)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: 120, maxHeight: 120)
-                            .clipShape(
-                                RoundedRectangle(
-                                    cornerRadius: Theme.CornerRadius.md, style: .continuous
-                                )
-                            )
-                    case .failure:
-                        imagePlaceholder(failed: true)
-                    case .empty:
-                        imagePlaceholder(failed: false)
-                    @unknown default:
-                        imagePlaceholder(failed: false)
+                if let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            imagePlaceholder(failed: true)
+                        case .empty:
+                            imagePlaceholder(failed: false)
+                        @unknown default:
+                            imagePlaceholder(failed: false)
+                        }
                     }
+                    .frame(maxWidth: 120, maxHeight: 120)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: Theme.CornerRadius.md, style: .continuous
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(
+                            cornerRadius: Theme.CornerRadius.md, style: .continuous
+                        )
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+                    .matchedGeometryEffect(id: url.absoluteString, in: imageNamespace)
+                    .onTapGesture { selectedImageURL = url }
+                    .accessibilityLabel("Image attachment, tap to view fullscreen")
                 }
-                .frame(maxWidth: 120, maxHeight: 120)
             }
         }
     }
