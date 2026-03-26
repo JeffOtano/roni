@@ -47,6 +47,12 @@ struct TonalCoachApp: App {
                         } else {
                             // Still loading user info
                             splashView
+                                .onAppear {
+                                    // Re-subscribe after sign-in since the initial
+                                    // subscription may have failed when unauthenticated
+                                    userInfoCancellable = nil
+                                    subscribeToUserInfo()
+                                }
                         }
                     } else {
                         NavigationStack {
