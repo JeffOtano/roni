@@ -138,16 +138,17 @@ struct ChatView: View {
                                 let grouped = isGroupedWithPrevious(message, previous: previous)
                                 MessageBubble(
                                     message: message,
+                                    onApprovalResponse: { approvalId, approved in
+                                        Task {
+                                            await viewModel.respondToApproval(
+                                                approvalId: approvalId,
+                                                approved: approved,
+                                                using: convex
+                                            )
+                                        }
+                                    },
                                     isGroupedWithPrevious: grouped
-                                ) { approvalId, approved in
-                                    Task {
-                                        await viewModel.respondToApproval(
-                                            approvalId: approvalId,
-                                            approved: approved,
-                                            using: convex
-                                        )
-                                    }
-                                }
+                                )
                                 .padding(.top, grouped ? 4 : 12)
                                 .id(message.id)
                             }

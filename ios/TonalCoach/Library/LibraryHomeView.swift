@@ -541,7 +541,7 @@ final class LibraryViewModel {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
+                    if case .failure(_) = completion {
                     } else {
                     }
                     guard let self else { return }
