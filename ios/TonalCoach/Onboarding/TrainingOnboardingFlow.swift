@@ -25,15 +25,28 @@ struct TrainingOnboardingFlow: View {
     // MARK: - Body
 
     var body: some View {
-        Group {
-            if !isLoaded {
-                loadingView
-            } else {
-                stepContent
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if !isLoaded {
+                    loadingView
+                } else {
+                    stepContent
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+                }
+            }
+
+            // Skip button - always visible so admins/impersonators can bypass
+            if isLoaded && step < 3 {
+                Button("Skip") {
+                    onComplete(.chat)
+                }
+                .font(Theme.Typography.calloutMedium)
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.top, Theme.Spacing.xl)
             }
         }
         .animation(Animate.smooth, value: step)
