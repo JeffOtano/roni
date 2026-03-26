@@ -11,7 +11,7 @@ export interface SnapshotSection {
   lines: string[];
 }
 
-const SNAPSHOT_MAX_CHARS = 8000;
+const SNAPSHOT_MAX_CHARS = 9000;
 export { SNAPSHOT_MAX_CHARS };
 
 export function trimSnapshot(sections: SnapshotSection[], maxChars: number): string {
@@ -172,4 +172,222 @@ function resolveGroupName(apiAccessory: string | undefined): string {
   const profileKey = ACCESSORY_MAP[apiAccessory];
   if (!profileKey) return apiAccessory;
   return ACCESSORY_DISPLAY[profileKey];
+}
+
+// ---------------------------------------------------------------------------
+// Health snapshot helpers
+// ---------------------------------------------------------------------------
+
+/** Minimal shape of a health snapshot document for the summary builder. */
+export interface HealthSnapshotData {
+  date: string;
+  syncedAt: number;
+  steps?: number;
+  activeEnergyBurned?: number;
+  exerciseMinutes?: number;
+  sleepDurationMinutes?: number;
+  sleepDeepMinutes?: number;
+  sleepRemMinutes?: number;
+  sleepCoreMinutes?: number;
+  sleepStartTime?: string;
+  sleepEndTime?: string;
+  restingHeartRate?: number;
+  hrvSDNN?: number;
+  vo2Max?: number;
+  bodyMass?: number;
+  dietaryCalories?: number;
+  dietaryProteinGrams?: number;
+}
+
+const TREND_THRESHOLD = 0.05; // 5% change to classify as up/down
+
+function trendLabel(current: number, avg: number): string {
+  if (avg === 0) return "stable";
+  const ratio = (current - avg) / Math.abs(avg);
+  if (ratio > TREND_THRESHOLD) return "trending up";
+  if (ratio < -TREND_THRESHOLD) return "trending down";
+  return "stable";
+}
+
+function avg(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function formatMinutesAsHm(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return `${h}h ${m}m`;
+}
+
+function formatTimeShort(isoTime: string): string {
+  // Extract HH:MM from ISO or HH:MM:SS string
+  const match = isoTime.match(/(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : isoTime;
+}
+
+/**
+ * Builds the "Health & Recovery" snapshot section from Apple Health data.
+ * Returns null if no meaningful data exists. Pure function.
+ */
+export function buildHealthSection(
+  snapshots: HealthSnapshotData[],
+  now: Date,
+): SnapshotSection | null {
+  if (snapshots.length === 0) return null;
+
+  // Snapshots arrive newest-first from the query
+  const today = snapshots[0];
+  const lines: string[] = [];
+
+  // Activity line (today)
+  const activityParts: string[] = [];
+  if (today.steps != null) activityParts.push(`${today.steps.toLocaleString()} steps`);
+  if (today.activeEnergyBurned != null)
+    activityParts.push(`${Math.round(today.activeEnergyBurned)} kcal active`);
+  if (today.exerciseMinutes != null)
+    activityParts.push(`${Math.round(today.exerciseMinutes)} min exercise`);
+  if (activityParts.length > 0) {
+    lines.push(`  Today: ${activityParts.join(" | ")}`);
+  }
+
+  // Sleep line (last night = today's snapshot typically holds last night's sleep)
+  const sleepParts: string[] = [];
+  if (today.sleepDurationMinutes != null) {
+    sleepParts.push(formatMinutesAsHm(today.sleepDurationMinutes) + " sleep");
+    const breakdownParts: string[] = [];
+    if (today.sleepDeepMinutes != null)
+      breakdownParts.push(`${Math.round(today.sleepDeepMinutes)}m deep`);
+    if (today.sleepRemMinutes != null)
+      breakdownParts.push(`${Math.round(today.sleepRemMinutes)}m REM`);
+    if (today.sleepCoreMinutes != null)
+      breakdownParts.push(`${Math.round(today.sleepCoreMinutes)}m core`);
+    if (breakdownParts.length > 0) {
+      sleepParts.push(`(${breakdownParts.join(", ")})`);
+    }
+  }
+  if (today.sleepStartTime && today.sleepEndTime) {
+    sleepParts.push(
+      `Bed ${formatTimeShort(today.sleepStartTime)} -> ${formatTimeShort(today.sleepEndTime)}`,
+    );
+  }
+  if (sleepParts.length > 0) {
+    lines.push(`  Last night: ${sleepParts.join(" | ")}`);
+  }
+
+  // Heart line
+  const heartParts: string[] = [];
+  if (today.restingHeartRate != null)
+    heartParts.push(`RHR ${Math.round(today.restingHeartRate)} bpm`);
+  if (today.hrvSDNN != null) {
+    const hrvValues = snapshots.map((s) => s.hrvSDNN).filter((v): v is number => v != null);
+    const hrvAvg = avg(hrvValues);
+    const trend = hrvValues.length >= 3 ? trendLabel(today.hrvSDNN, hrvAvg) : "";
+    let hrvStr = `HRV ${Math.round(today.hrvSDNN)}ms`;
+    if (hrvValues.length >= 3) {
+      hrvStr += ` (7-day avg: ${Math.round(hrvAvg)}ms, ${trend})`;
+    }
+    heartParts.push(hrvStr);
+  }
+  if (today.vo2Max != null) heartParts.push(`VO2 Max ${today.vo2Max.toFixed(1)}`);
+  if (heartParts.length > 0) {
+    lines.push(`  Heart: ${heartParts.join(" | ")}`);
+  }
+
+  // Body line
+  const bodyParts: string[] = [];
+  if (today.bodyMass != null) {
+    const weightValues = snapshots.map((s) => s.bodyMass).filter((v): v is number => v != null);
+    const weightAvg = avg(weightValues);
+    const diff = weightValues.length >= 2 ? today.bodyMass - weightAvg : 0;
+    let weightStr = `${today.bodyMass.toFixed(1)} kg`;
+    if (weightValues.length >= 2 && Math.abs(diff) >= 0.1) {
+      const sign = diff > 0 ? "+" : "";
+      weightStr += ` (7-day trend: ${sign}${diff.toFixed(1)} kg)`;
+    }
+    bodyParts.push(weightStr);
+  }
+  if (bodyParts.length > 0) {
+    lines.push(`  Body: ${bodyParts.join(" | ")}`);
+  }
+
+  // Nutrition line
+  const nutritionParts: string[] = [];
+  if (today.dietaryCalories != null)
+    nutritionParts.push(`${Math.round(today.dietaryCalories)} kcal`);
+  if (today.dietaryProteinGrams != null)
+    nutritionParts.push(`${Math.round(today.dietaryProteinGrams)}g protein`);
+  if (nutritionParts.length > 0) {
+    lines.push(`  Nutrition: ${nutritionParts.join(" | ")}`);
+  }
+
+  // Recovery signals
+  const signals: string[] = [];
+
+  // HRV declining 3+ consecutive days
+  const hrvSequence = snapshots
+    .slice(0, 4)
+    .map((s) => s.hrvSDNN)
+    .filter((v): v is number => v != null);
+  if (hrvSequence.length >= 3) {
+    let declining = true;
+    for (let i = 0; i < hrvSequence.length - 1; i++) {
+      // snapshots are newest-first, so declining means each older value is higher
+      if (hrvSequence[i] >= hrvSequence[i + 1]) {
+        declining = false;
+        break;
+      }
+    }
+    if (declining) signals.push("HRV declining " + hrvSequence.length + " days");
+  }
+
+  // Sleep <7h for 2+ of last 3 nights
+  const recentSleep = snapshots
+    .slice(0, 3)
+    .map((s) => s.sleepDurationMinutes)
+    .filter((v): v is number => v != null);
+  const shortNights = recentSleep.filter((m) => m < 7 * 60).length;
+  if (shortNights >= 2) {
+    signals.push(`sleep below 7h ${shortNights} of last ${recentSleep.length} nights`);
+  }
+
+  // RHR elevated 5+ BPM above average
+  if (today.restingHeartRate != null) {
+    const rhrValues = snapshots
+      .map((s) => s.restingHeartRate)
+      .filter((v): v is number => v != null);
+    const rhrAvg = avg(rhrValues);
+    if (rhrValues.length >= 3 && today.restingHeartRate >= rhrAvg + 5) {
+      signals.push(`RHR elevated ${Math.round(today.restingHeartRate - rhrAvg)} bpm above avg`);
+    }
+  }
+
+  // Weight drop >1kg/week
+  if (today.bodyMass != null) {
+    const weightValues = snapshots.map((s) => s.bodyMass).filter((v): v is number => v != null);
+    if (weightValues.length >= 3) {
+      const oldest = weightValues[weightValues.length - 1];
+      if (oldest - today.bodyMass > 1) {
+        signals.push(`weight drop >${(oldest - today.bodyMass).toFixed(1)} kg this week`);
+      }
+    }
+  }
+
+  if (signals.length > 0) {
+    lines.push(`  Recovery signals: ${signals.join(", ")}`);
+  }
+
+  // If no data lines were generated, omit entirely
+  if (lines.length === 0) return null;
+
+  // Stale data warning
+  const latestSyncedAt = Math.max(...snapshots.map((s) => s.syncedAt));
+  const hoursSinceSync = (now.getTime() - latestSyncedAt) / (1000 * 60 * 60);
+  let header = "HEALTH & RECOVERY (from Apple Health):";
+  if (hoursSinceSync > 24) {
+    const daysSinceSync = Math.round(hoursSinceSync / 24);
+    header += ` (last synced ${daysSinceSync} day${daysSinceSync === 1 ? "" : "s"} ago)`;
+  }
+
+  return { priority: 8.5, lines: [header, ...lines] };
 }

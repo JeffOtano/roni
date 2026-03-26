@@ -21,7 +21,7 @@
 	<key>CONVEX_URL</key>
 	<string>$(CONVEX_URL)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>TonalCoach reads your health data to show activity, workouts, heart rate, and weight trends alongside your Tonal training.</string>
+	<string>TonalCoach reads your health data to provide personalized training recommendations based on your sleep, recovery, activity, and body composition.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>TonalCoach does not write health data, but this permission is required by Apple.</string>
 	<key>UIAppFonts</key>
@@ -32,6 +32,11 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
