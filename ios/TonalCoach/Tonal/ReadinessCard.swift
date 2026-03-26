@@ -13,7 +13,6 @@ struct ReadinessCard: View {
             factorPills
         }
         .frame(maxWidth: .infinity)
-        .cardStyle()
     }
 
     // MARK: - Score Ring
