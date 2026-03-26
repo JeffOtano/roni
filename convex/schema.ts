@@ -502,6 +502,9 @@ export default defineSchema({
 
     // Effort
     workoutEffortScore: v.optional(v.number()),
+
+    // Coach
+    coachInsight: v.optional(v.string()),
   })
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId", ["userId"]),
