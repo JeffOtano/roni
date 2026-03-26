@@ -91,7 +91,7 @@ struct ChatView: View {
             ],
             spacing: Theme.Spacing.sm
         ) {
-            ForEach(suggestions, id: \.self) { suggestion in
+            ForEach(Array(suggestions.enumerated()), id: \.element) { chipIndex, suggestion in
                 Button {
                     sendSuggestion(suggestion)
                 } label: {
@@ -117,6 +117,7 @@ struct ChatView: View {
                         )
                 }
                 .accessibilityHint("Send this message to your coach")
+                .staggeredAppear(index: chipIndex, interval: Animate.chipStagger)
             }
         }
         .padding(.top, Theme.Spacing.sm)
@@ -132,8 +133,13 @@ struct ChatView: View {
                         ForEach(groupedMessages, id: \.label) { group in
                             dateDivider(group.label)
 
-                            ForEach(group.messages) { message in
-                                MessageBubble(message: message) { approvalId, approved in
+                            ForEach(Array(group.messages.enumerated()), id: \.element.id) { index, message in
+                                let previous = index > 0 ? group.messages[index - 1] : nil
+                                let grouped = isGroupedWithPrevious(message, previous: previous)
+                                MessageBubble(
+                                    message: message,
+                                    isGroupedWithPrevious: grouped
+                                ) { approvalId, approved in
                                     Task {
                                         await viewModel.respondToApproval(
                                             approvalId: approvalId,
@@ -142,7 +148,7 @@ struct ChatView: View {
                                         )
                                     }
                                 }
-                                .padding(.vertical, Theme.Spacing.xs)
+                                .padding(.top, grouped ? 4 : 12)
                                 .id(message.id)
                             }
                         }
@@ -254,6 +260,13 @@ struct ChatView: View {
     }
 
     // MARK: - Message Grouping
+
+    private func isGroupedWithPrevious(_ message: ChatMessage, previous: ChatMessage?) -> Bool {
+        guard let prev = previous else { return false }
+        guard message.role == prev.role else { return false }
+        let timeDiff = abs(message._creationTime - prev._creationTime)
+        return timeDiff < 120_000
+    }
 
     private struct MessageGroup {
         let label: String

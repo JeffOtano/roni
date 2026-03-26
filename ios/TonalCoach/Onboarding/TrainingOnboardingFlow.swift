@@ -49,7 +49,7 @@ struct TrainingOnboardingFlow: View {
                 .padding(.top, Theme.Spacing.xl)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: step)
+        .animation(Animate.smooth, value: step)
         .onAppear { subscribeToUser() }
     }
 

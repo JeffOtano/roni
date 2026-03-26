@@ -6,13 +6,77 @@ import SwiftUI
 ///
 /// Displays what the coach wants to do and lets the user approve or deny.
 /// Shows a loading state while processing and a result badge when complete.
+/// Collapses to a single-line summary after resolution.
 struct ToolApprovalCard: View {
     let part: MessagePart
     let onRespond: (Bool) -> Void
 
     @State private var status: ApprovalStatus = .pending
+    @State private var hasAppeared = false
 
     var body: some View {
+        resolvedContent
+            .opacity(hasAppeared ? 1 : 0)
+            .offset(y: hasAppeared ? 0 : 12)
+            .onAppear {
+                guard !hasAppeared else { return }
+                withAnimation(Animate.smooth) { hasAppeared = true }
+            }
+            .onChange(of: resolvedApproval) { _, resolved in
+                if let approved = resolved {
+                    status = approved ? .approved : .denied
+                }
+            }
+    }
+
+    // MARK: - Resolved Content
+
+    @ViewBuilder
+    private var resolvedContent: some View {
+        if status == .approved || status == .denied {
+            collapsedSummary
+                .animation(Animate.smooth, value: status)
+        } else {
+            fullCard
+                .animation(Animate.smooth, value: status)
+        }
+    }
+
+    // MARK: - Collapsed Summary
+
+    private var collapsedSummary: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(
+                systemName: status == .approved
+                    ? "checkmark.circle.fill"
+                    : "xmark.circle.fill"
+            )
+            .foregroundColor(
+                status == .approved
+                    ? Theme.Colors.success
+                    : Theme.Colors.mutedForeground
+            )
+            Text(
+                status == .approved
+                    ? "Approved: \(toolDisplayName)"
+                    : "Declined"
+            )
+            .font(Theme.Typography.caption)
+            .foregroundColor(Theme.Colors.mutedForeground)
+        }
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            status == .approved
+                ? "Approved: \(toolDisplayName)"
+                : "Declined"
+        )
+    }
+
+    // MARK: - Full Card
+
+    private var fullCard: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             // Tool label
             Text(part.toolLabel)
@@ -37,11 +101,6 @@ struct ToolApprovalCard: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Tool approval: \(part.toolLabel)")
-        .onChange(of: resolvedApproval) { _, resolved in
-            if let approved = resolved {
-                status = approved ? .approved : .denied
-            }
-        }
     }
 
     // MARK: - Action Area
@@ -67,6 +126,7 @@ struct ToolApprovalCard: View {
                             RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
                         )
                 }
+                .shadow(color: Theme.Colors.success.opacity(0.2), radius: 4, y: 2)
                 .accessibilityHint("Allows the coach to proceed with this action")
 
                 // Deny button
@@ -124,6 +184,12 @@ struct ToolApprovalCard: View {
         .padding(.vertical, Theme.Spacing.xs)
         .background((approved ? Theme.Colors.success : Theme.Colors.destructive).opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm, style: .continuous))
+    }
+
+    // MARK: - Tool Display Name
+
+    private var toolDisplayName: String {
+        part.toolLabel
     }
 
     // MARK: - Tool Description

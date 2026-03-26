@@ -13,6 +13,7 @@ struct OnboardingReadyView: View {
 
     @State private var firstName: String?
     @State private var cancellable: AnyCancellable?
+    @State private var avatarAppeared = false
 
     private var displayName: String {
         if let firstName, !firstName.isEmpty {
@@ -85,6 +86,9 @@ struct OnboardingReadyView: View {
                 .font(.system(size: 28))
                 .foregroundStyle(.white)
         }
+        .scaleEffect(avatarAppeared ? 1.0 : 0.9)
+        .opacity(avatarAppeared ? 1.0 : 0)
+        .onAppear { withAnimation(Animate.gentle) { avatarAppeared = true } }
         .accessibilityHidden(true)
     }
 
@@ -110,8 +114,11 @@ struct OnboardingReadyView: View {
     private var benefitsList: some View {
         VStack(spacing: Theme.Spacing.md) {
             benefitRow(icon: "sparkles", text: "AI-powered workout programming")
+                .staggeredAppear(index: 0)
             benefitRow(icon: "chart.line.uptrend.xyaxis", text: "Training insights from your data")
+                .staggeredAppear(index: 1)
             benefitRow(icon: "dumbbell.fill", text: "Custom workouts pushed to your Tonal")
+                .staggeredAppear(index: 2)
         }
     }
 

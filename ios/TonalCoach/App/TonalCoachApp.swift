@@ -21,33 +21,52 @@ struct TonalCoachApp: App {
     /// Tab to navigate to after onboarding completes.
     @State private var initialTab: AppTab = .chat
 
+    @State private var isLaunched = false
+
     private var authManager: AuthManager { AuthManager.shared }
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if !hasSeenWelcome {
-                    WelcomeCarouselView()
-                } else if authManager.isLoading {
-                    splashView
-                } else if isGuestMode {
-                    ContentView(initialTab: .library)
-                } else if authManager.isAuthenticated {
-                    if onboardingCompleted == true {
-                        ContentView(initialTab: initialTab)
-                    } else if onboardingCompleted == false {
-                        TrainingOnboardingFlow(onComplete: { tab in
-                            initialTab = tab
-                            // onboardingCompleted will flip to true reactively
-                            // via the users:getMe subscription after the mutation
-                        })
-                    } else {
-                        // Still loading user info
+                if isLaunched {
+                    if !hasSeenWelcome {
+                        WelcomeCarouselView()
+                    } else if authManager.isLoading {
                         splashView
+                    } else if isGuestMode {
+                        ContentView(initialTab: .library)
+                    } else if authManager.isAuthenticated {
+                        if onboardingCompleted == true {
+                            ContentView(initialTab: initialTab)
+                        } else if onboardingCompleted == false {
+                            TrainingOnboardingFlow(onComplete: { tab in
+                                initialTab = tab
+                                // onboardingCompleted will flip to true reactively
+                                // via the users:getMe subscription after the mutation
+                            })
+                        } else {
+                            // Still loading user info
+                            splashView
+                        }
+                    } else {
+                        NavigationStack {
+                            LoginView()
+                        }
                     }
                 } else {
-                    NavigationStack {
-                        LoginView()
+                    VStack {
+                        Image(systemName: "figure.strengthtraining.traditional")
+                            .font(.system(size: 48))
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.Colors.background)
+                }
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(Animate.smooth) {
+                        isLaunched = true
                     }
                 }
             }
@@ -60,6 +79,9 @@ struct TonalCoachApp: App {
                 handleDeepLink(url: url)
             }
             .task {
+                // Pre-initialize haptic generators to reduce first-tap latency
+                HapticEngine.warmUp()
+
                 // Init auth manager with convex reference and restore session first
                 authManager.setConvexManager(convexManager)
                 await authManager.restoreSession()

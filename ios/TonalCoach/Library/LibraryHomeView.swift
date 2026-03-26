@@ -209,7 +209,7 @@ struct LibraryHomeView: View {
                     NavigationLink(value: workout) {
                         WorkoutCardView(workout: workout)
                     }
-                    .buttonStyle(CardButtonStyle())
+                    .pressableCard()
                 }
             }
             .padding(.horizontal, Theme.Spacing.lg)
@@ -315,7 +315,7 @@ struct LibraryHomeView: View {
                     NavigationLink(value: workout) {
                         WorkoutCardView(workout: workout)
                     }
-                    .buttonStyle(CardButtonStyle())
+                    .pressableCard()
                     .onAppear {
                         if workout == viewModel.filteredWorkouts.last {
                             Task { await viewModel.loadMore(using: convex) }
@@ -387,7 +387,7 @@ struct LibraryHomeView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Theme.Colors.border)
                         .frame(width: 160, height: 20)
-                        .cardShimmer()
+                        .shimmer()
                         .padding(.horizontal, Theme.Spacing.lg)
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -492,7 +492,7 @@ private struct CuratedSectionRow: View {
                             WorkoutCardView(workout: workout)
                                 .frame(width: 240)
                         }
-                        .buttonStyle(CardButtonStyle())
+                        .pressableCard()
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.lg)

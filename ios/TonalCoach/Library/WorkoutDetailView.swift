@@ -119,6 +119,7 @@ private struct WorkoutDetailContent: View {
 
 private struct HeaderSection: View {
     let workout: LibraryWorkout
+    @State private var imageSettled = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -133,6 +134,13 @@ private struct HeaderSection: View {
                 )
                 BadgePill(text: WorkoutLabels.goalLabel(workout.goal), color: Theme.Colors.primary)
                 BadgePill(text: workout.level.capitalized, color: Theme.Colors.textTertiary)
+            }
+        }
+        .scaleEffect(imageSettled ? 1.0 : 1.02)
+        .opacity(imageSettled ? 1.0 : 0.8)
+        .onAppear {
+            withAnimation(Animate.gentle) {
+                imageSettled = true
             }
         }
     }
@@ -635,7 +643,7 @@ private struct RelatedWorkoutsSection: View {
                             NavigationLink(value: workout) {
                                 WorkoutCardView(workout: workout)
                             }
-                            .buttonStyle(CardButtonStyle())
+                            .pressableCard()
                             .frame(width: 260)
                         }
                     }
@@ -707,35 +715,6 @@ private struct SkeletonRect: View {
             .frame(maxWidth: width ?? .infinity)
             .frame(height: height)
             .shimmer()
-    }
-}
-
-/// Shimmer animation modifier for skeleton loading states.
-private struct ShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = -1
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                LinearGradient(
-                    colors: [.clear, Theme.Colors.border.opacity(0.3), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .offset(x: phase * 300)
-                .mask(content)
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
-            }
-    }
-}
-
-private extension View {
-    func shimmer() -> some View {
-        modifier(ShimmerModifier())
     }
 }
 

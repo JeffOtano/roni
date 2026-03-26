@@ -11,8 +11,9 @@ struct RecentWorkoutsCard: View {
             emptyState
         } else {
             VStack(spacing: Theme.Spacing.sm) {
-                ForEach(workouts.prefix(5)) { workout in
+                ForEach(Array(workouts.prefix(5).enumerated()), id: \.element.id) { index, workout in
                     WorkoutRow(activity: workout)
+                        .staggeredAppear(index: index, interval: Animate.rowStagger)
                 }
             }
         }
@@ -38,6 +39,11 @@ private struct WorkoutRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            Circle()
+                .fill(borderColor)
+                .frame(width: 8, height: 8)
+                .padding(.trailing, Theme.Spacing.sm)
+
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(borderColor)
                 .frame(width: 3)

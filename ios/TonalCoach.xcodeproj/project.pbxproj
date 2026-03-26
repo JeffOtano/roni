@@ -16,6 +16,10 @@
 		084B400E6EBE58218C786A4E /* ExternalActivitiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4572CB37A53DA8BBDDF982 /* ExternalActivitiesCard.swift */; };
 		157388BF966DD54EB48000C0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4702C26F8C2C224E144F379C /* ContentView.swift */; };
 		16DA28B597192FE4302CF41A /* TonalDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7B058508882C8DA068C32A /* TonalDeepLink.swift */; };
+		C3EDE8764BB34335A49F124D /* CountingText.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE256A5D7E8447829A1EB2C3 /* CountingText.swift */; };
+		6643720F8D0C49FC91308BCD /* AnimationConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B534F70E433E45DC84D2D983 /* AnimationConstants.swift */; };
+		C06DAAD551A04064BEDBEBCF /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A9DFCB1A654550BA19E813 /* HapticEngine.swift */; };
+		D1E4F2A3B7C8904F5E3A1D62 /* PressableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */; };
 		1D17B014F694E6A55C7975E3 /* WorkoutFiltersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D6E147E28AD90E816EF993 /* WorkoutFiltersView.swift */; };
 		1F69D85F0F93AB34FD84C89F /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EE6475D29CECCEDAC0653EA /* ResetPasswordView.swift */; };
 		20793F8A10949B7240A93963 /* ConnectTonalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263DBEE6AFD50C23CD03E67B /* ConnectTonalView.swift */; };
@@ -62,7 +66,9 @@
 		F13FD79B53AB9432B6A6E286 /* LibraryHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB955CD4C7D0F3EB4EA7D93 /* LibraryHomeView.swift */; };
 		F5BEBB0864DAA99976946463 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51510A5E87E4621AB14BFE79 /* MarkdownText.swift */; };
 		FB0B9D8AD5210ABEFD77FC79 /* TonalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043752E84535B7A45A93EFE6 /* TonalModels.swift */; };
+		8FD885BB726044B7AECF823B /* ShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1295AE565C2349AA9F25F6A3 /* ShimmerView.swift */; };
 		FD6D5CD51F2316868B127C64 /* WorkoutCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */; };
+		6ADDB05F7EC940BB9664CB00 /* StaggeredAppear.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13D9855B4ED4C359EED20BF /* StaggeredAppear.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -116,7 +122,11 @@
 		D330194F50C144F6BA7C8BB1 /* HealthPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthPermissionView.swift; sourceTree = "<group>"; };
 		D5D6E147E28AD90E816EF993 /* WorkoutFiltersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFiltersView.swift; sourceTree = "<group>"; };
 		DB4E85E4BCB6785EFB82E7BA /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		B534F70E433E45DC84D2D983 /* AnimationConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationConstants.swift; sourceTree = "<group>"; };
+		55A9DFCB1A654550BA19E813 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
+		A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressableCard.swift; sourceTree = "<group>"; };
 		DC7B058508882C8DA068C32A /* TonalDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalDeepLink.swift; sourceTree = "<group>"; };
+		AE256A5D7E8447829A1EB2C3 /* CountingText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountingText.swift; sourceTree = "<group>"; };
 		DE03FBD05A69014939259C3D /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		E348442ED2A315C10B73F250 /* ToolCallChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallChip.swift; sourceTree = "<group>"; };
 		E411ECDAAA0F827C3296CC5E /* GeistMono-Variable.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GeistMono-Variable.ttf"; sourceTree = "<group>"; };
@@ -124,6 +134,8 @@
 		EFA8501E440013785AD6CAC5 /* TrainingPreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingPreferencesView.swift; sourceTree = "<group>"; };
 		F0788CC33759688FF4ED6239 /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
 		F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCardView.swift; sourceTree = "<group>"; };
+		F13D9855B4ED4C359EED20BF /* StaggeredAppear.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaggeredAppear.swift; sourceTree = "<group>"; };
+		1295AE565C2349AA9F25F6A3 /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,8 +215,14 @@
 		51BEA3798F63ED876E1178AC /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				B534F70E433E45DC84D2D983 /* AnimationConstants.swift */,
+				AE256A5D7E8447829A1EB2C3 /* CountingText.swift */,
 				7355A2969D916D85BC65E9AF /* ConvexManager.swift */,
+				55A9DFCB1A654550BA19E813 /* HapticEngine.swift */,
 				8C7486A4B75AF5EE7EB0A043 /* Models.swift */,
+				A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */,
+				F13D9855B4ED4C359EED20BF /* StaggeredAppear.swift */,
+				1295AE565C2349AA9F25F6A3 /* ShimmerView.swift */,
 				2D4460B6F5D6ECAB5000D077 /* Theme.swift */,
 				DC7B058508882C8DA068C32A /* TonalDeepLink.swift */,
 			);
@@ -406,6 +424,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6643720F8D0C49FC91308BCD /* AnimationConstants.swift in Sources */,
+				C3EDE8764BB34335A49F124D /* CountingText.swift in Sources */,
+				D1E4F2A3B7C8904F5E3A1D62 /* PressableCard.swift in Sources */,
+				C06DAAD551A04064BEDBEBCF /* HapticEngine.swift in Sources */,
 				A180D2267F45D4EEE14A52BE /* AsyncCard.swift in Sources */,
 				DF7142365C1B6E5170EDDA63 /* AuthManager.swift in Sources */,
 				7F7792192E65DDD4CD8BD776 /* ChatInputBar.swift in Sources */,
@@ -441,6 +463,8 @@
 				E2A755589CA29DC1C4ECBC81 /* ScheduleModels.swift in Sources */,
 				ED21BA22192AB410A33C1619 /* ScheduleView.swift in Sources */,
 				327D4184BD201D767EA906A7 /* StrengthScoreCard.swift in Sources */,
+				6ADDB05F7EC940BB9664CB00 /* StaggeredAppear.swift in Sources */,
+				8FD885BB726044B7AECF823B /* ShimmerView.swift in Sources */,
 				45013F1AD272E00E3B29EE9A /* Theme.swift in Sources */,
 				58593C18825560C6F1760A54 /* ThinkingIndicator.swift in Sources */,
 				9D801E18724B5959F9780CCB /* TonalCoachApp.swift in Sources */,

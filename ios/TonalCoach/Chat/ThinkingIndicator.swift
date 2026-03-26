@@ -18,11 +18,12 @@ struct ThinkingIndicator: View {
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
-                        .fill(Theme.Colors.textTertiary)
-                        .frame(width: 8, height: 8)
+                        .fill(Theme.Colors.mutedForeground)
+                        .frame(width: 6, height: 6)
                         .opacity(isAnimating ? 1.0 : 0.3)
+                        .scaleEffect(isAnimating ? 1.0 : 0.85)
                         .animation(
-                            .easeInOut(duration: 0.6)
+                            .easeInOut(duration: 0.7)
                                 .repeatForever(autoreverses: true)
                                 .delay(Double(index) * 0.2),
                             value: isAnimating
