@@ -60,6 +60,7 @@ import type * as emailChange from "../emailChange.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as goals from "../goals.js";
 import type * as google_client from "../google/client.js";
+import type * as health from "../health.js";
 import type * as http from "../http.js";
 import type * as injuries from "../injuries.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -184,6 +185,7 @@ declare const fullApi: ApiFromModules<{
   emailTemplates: typeof emailTemplates;
   goals: typeof goals;
   "google/client": typeof google_client;
+  health: typeof health;
   http: typeof http;
   injuries: typeof injuries;
   "lib/auth": typeof lib_auth;
