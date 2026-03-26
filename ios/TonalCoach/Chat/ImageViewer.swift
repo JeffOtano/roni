@@ -7,7 +7,6 @@ import UIKit
 /// Presented as a `.fullScreenCover` from `MessageBubble` when a chat image is tapped.
 struct ImageViewerOverlay: View {
     let url: URL
-    let namespace: Namespace.ID
     let onDismiss: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -28,7 +27,6 @@ struct ImageViewerOverlay: View {
                 .ignoresSafeArea()
 
             ZoomableImageView(url: url)
-                .matchedGeometryEffect(id: url.absoluteString, in: namespace)
                 .scaleEffect(imageScale)
                 .offset(y: dragOffset)
                 .gesture(dismissDrag)

@@ -14,7 +14,7 @@ struct MessageBubble: View {
 
     @State private var hasAppeared = false
     @State private var selectedImageURL: URL?
-    @Namespace private var imageNamespace
+
 
     var body: some View {
         if message.isUser {
@@ -64,7 +64,6 @@ struct MessageBubble: View {
             if let url = selectedImageURL {
                 ImageViewerOverlay(
                     url: url,
-                    namespace: imageNamespace,
                     onDismiss: { selectedImageURL = nil }
                 )
             }
@@ -205,7 +204,6 @@ struct MessageBubble: View {
                         )
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                     )
-                    .matchedGeometryEffect(id: url.absoluteString, in: imageNamespace)
                     .onTapGesture { selectedImageURL = url }
                     .accessibilityLabel("Image attachment, tap to view fullscreen")
                 }
