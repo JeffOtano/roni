@@ -70,6 +70,7 @@
 		F13FD79B53AB9432B6A6E286 /* LibraryHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB955CD4C7D0F3EB4EA7D93 /* LibraryHomeView.swift */; };
 		F5BEBB0864DAA99976946463 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51510A5E87E4621AB14BFE79 /* MarkdownText.swift */; };
 		FB0B9D8AD5210ABEFD77FC79 /* TonalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043752E84535B7A45A93EFE6 /* TonalModels.swift */; };
+		BB22CC4401234567AABB0001 /* WeekPlanCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC5501234567AABB0001 /* WeekPlanCard.swift */; };
 		FD6D5CD51F2316868B127C64 /* WorkoutCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */; };
 		AA11BB2201234567AABB0001 /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0001 /* SparklineView.swift */; };
 		AA11BB2201234567AABB0002 /* ReadinessCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0002 /* ReadinessCard.swift */; };
@@ -144,6 +145,7 @@
 		EEFD4014FB66E4D01C1BF563 /* TonalCoachApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalCoachApp.swift; sourceTree = "<group>"; };
 		EFA8501E440013785AD6CAC5 /* TrainingPreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingPreferencesView.swift; sourceTree = "<group>"; };
 		F0788CC33759688FF4ED6239 /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
+		BB22CC5501234567AABB0001 /* WeekPlanCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekPlanCard.swift; sourceTree = "<group>"; };
 		F13D9855B4ED4C359EED20BF /* StaggeredAppear.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaggeredAppear.swift; sourceTree = "<group>"; };
 		F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCardView.swift; sourceTree = "<group>"; };
 		AA11BB3301234567AABB0001 /* SparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
@@ -225,6 +227,7 @@
 				68F48901D6FC6CA9CFDE14C8 /* ThinkingIndicator.swift */,
 				3B15FA3B7A50423A11C10318 /* ToolApprovalCard.swift */,
 				E348442ED2A315C10B73F250 /* ToolCallChip.swift */,
+				BB22CC5501234567AABB0001 /* WeekPlanCard.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -471,6 +474,7 @@
 				B306D9A4350E316F0199F37E /* LoginView.swift in Sources */,
 				F5BEBB0864DAA99976946463 /* MarkdownText.swift in Sources */,
 				DB9815B3009CB457E20E0BD2 /* MessageBubble.swift in Sources */,
+				BB22CC4401234567AABB0001 /* WeekPlanCard.swift in Sources */,
 				5CA7B64CBAE1BF7129C0C9EE /* Models.swift in Sources */,
 				6EA6E76039A7A1F2F21743C5 /* MuscleReadinessCard.swift in Sources */,
 				02C6AE86E0A5049514C0BD15 /* NotificationDelegate.swift in Sources */,

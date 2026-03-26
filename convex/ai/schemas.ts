@@ -13,7 +13,8 @@ export const weekPlanPresentationSchema = z.object({
         z.object({
           name: z.string(),
           sets: z.number(),
-          reps: z.number(),
+          reps: z.number().optional(),
+          duration: z.number().optional(),
           targetWeight: z.number().optional(),
           lastWeight: z.number().optional(),
           lastReps: z.number().optional(),

@@ -13,6 +13,14 @@ struct MarkdownText: View {
     var body: some View {
         if content.isEmpty {
             EmptyView()
+        } else if let extracted = extractWeekPlan(from: content) {
+            // Week plan detected: render as structured card + remaining text
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                if !extracted.remainingText.isEmpty {
+                    inlineMarkdown(extracted.remainingText)
+                }
+                WeekPlanCard(plan: extracted.plan)
+            }
         } else if let blocks = parseBlocks(from: content), hasCodeBlocks(blocks) {
             // Mixed content with code blocks: render block-by-block
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {

@@ -230,7 +230,7 @@ export function weekPlanPresentation(): string {
   return `WEEKLY PLAN PRESENTATION:
 - Present week plans as a \`\`\`week-plan JSON code block. ALWAYS use the week-plan fence tag, never \`\`\`json.
 - Fields: weekStartDate, split, days [{dayName, sessionType, targetMuscles, durationMinutes, exercises}], summary.
-- Each exercise: name, sets, reps, targetWeight?, lastWeight?, lastReps?, note?, accessory?, block? (same block number = superset).
+- Each exercise: name, sets, reps?, duration? (seconds, for carries/holds/planks), targetWeight?, lastWeight?, lastReps?, note?, accessory?, block? (same block number = superset). Use reps OR duration, not both.
 - After the JSON block, add a brief message asking if the plan looks good.
 - Example:
   \`\`\`week-plan

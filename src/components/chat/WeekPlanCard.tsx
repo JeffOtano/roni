@@ -76,7 +76,11 @@ export function WeekPlanCard({ plan }: WeekPlanCardProps) {
                     )}
                   </td>
                   <td className="py-2 text-center text-muted-foreground">
-                    {ex.sets}x{ex.reps}
+                    {ex.reps
+                      ? `${ex.sets}x${ex.reps}`
+                      : ex.duration
+                        ? `${ex.sets}x${ex.duration}s`
+                        : `${ex.sets} sets`}
                   </td>
                   <td className="py-2 text-right font-medium text-foreground">
                     {ex.targetWeight ? `${ex.targetWeight} lbs` : "\u2014"}
