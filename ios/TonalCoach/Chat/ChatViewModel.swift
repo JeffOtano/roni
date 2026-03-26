@@ -111,7 +111,7 @@ final class ChatViewModel {
     /// - When a thread exists: uses `chat:sendMessageMutation` mutation (faster, schedules processing).
     func send(text: String, using manager: ConvexManager) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty || !pendingImages.isEmpty else { return }
         isSending = true
         error = nil
 
