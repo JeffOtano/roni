@@ -52,4 +52,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
+  syncHealthSnapshot: {
+    kind: "token bucket",
+    rate: 60,
+    period: MINUTE,
+    capacity: 30,
+  },
 });
