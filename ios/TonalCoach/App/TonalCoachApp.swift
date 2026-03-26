@@ -13,6 +13,8 @@ struct TonalCoachApp: App {
     @State private var convexManager = ConvexManager()
     @State private var notificationManager = NotificationManager()
     @State private var healthKitManager = HealthKitManager()
+    @State private var healthSyncManager = HealthSyncManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Tracks onboarding status reactively from the `users:getMe` query.
     @State private var onboardingCompleted: Bool?
@@ -84,6 +86,17 @@ struct TonalCoachApp: App {
             .onOpenURL { url in
                 handleDeepLink(url: url)
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                switch newPhase {
+                case .active:
+                    healthSyncManager.syncIfNeeded()
+                    healthSyncManager.startPeriodicTimer()
+                case .background:
+                    healthSyncManager.stopPeriodicTimer()
+                default:
+                    break
+                }
+            }
             .task {
                 // Pre-initialize haptic generators to reduce first-tap latency
                 HapticEngine.warmUp()
@@ -100,6 +113,12 @@ struct TonalCoachApp: App {
                 notificationManager.convexManager = convexManager
                 await notificationManager.checkAuthorizationStatus()
                 notificationManager.registerNotificationCategories()
+
+                // Health sync setup
+                healthSyncManager.configure(convex: convexManager, health: healthKitManager)
+                if healthKitManager.isAuthorized {
+                    healthSyncManager.startSync()
+                }
             }
         }
     }
