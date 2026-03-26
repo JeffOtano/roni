@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0050DFE0AB4310D4392E8BAD /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23FA42FD4599C5013850591B /* ChatViewModel.swift */; };
 		014658B7C371AB8BC8FEFA4F /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3ECCA7218453986DC46FE3 /* HealthKitManager.swift */; };
+		05DA574E37DB49B38E908B0F /* HealthSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26651474A9AF4DB3ACA36CB9 /* HealthSyncManager.swift */; };
 		027E4B892D6B4D73D106535E /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE38C8177CDD4487B4DF6F3 /* KeychainHelper.swift */; };
 		02C6AE86E0A5049514C0BD15 /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA6E804A7A741F57B6077E9 /* NotificationDelegate.swift */; };
 		06ACBA3BE13DE7B09F9BD4A6 /* TonalDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998344A11A738B6D7F8AC725 /* TonalDashboardView.swift */; };
@@ -123,6 +124,7 @@
 		B319CDBC8A0F05CF9054C28D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B534F70E433E45DC84D2D983 /* AnimationConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationConstants.swift; sourceTree = "<group>"; };
 		CA3ECCA7218453986DC46FE3 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		26651474A9AF4DB3ACA36CB9 /* HealthSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncManager.swift; sourceTree = "<group>"; };
 		CB629C1B92F2380B18896233 /* PasswordAuthProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordAuthProvider.swift; sourceTree = "<group>"; };
 		D330194F50C144F6BA7C8BB1 /* HealthPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthPermissionView.swift; sourceTree = "<group>"; };
 		D5D6E147E28AD90E816EF993 /* WorkoutFiltersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFiltersView.swift; sourceTree = "<group>"; };
@@ -313,6 +315,7 @@
 				03CC410DF7DC8875908F1D45 /* HealthDashboardView.swift */,
 				CA3ECCA7218453986DC46FE3 /* HealthKitManager.swift */,
 				D330194F50C144F6BA7C8BB1 /* HealthPermissionView.swift */,
+				26651474A9AF4DB3ACA36CB9 /* HealthSyncManager.swift */,
 			);
 			path = Health;
 			sourceTree = "<group>";
@@ -440,6 +443,7 @@
 				C73C20B5427061040052FD8F /* HealthDashboardView.swift in Sources */,
 				014658B7C371AB8BC8FEFA4F /* HealthKitManager.swift in Sources */,
 				A55E36E31571F4267AE2FD00 /* HealthPermissionView.swift in Sources */,
+				05DA574E37DB49B38E908B0F /* HealthSyncManager.swift in Sources */,
 				027E4B892D6B4D73D106535E /* KeychainHelper.swift in Sources */,
 				F13FD79B53AB9432B6A6E286 /* LibraryHomeView.swift in Sources */,
 				B306D9A4350E316F0199F37E /* LoginView.swift in Sources */,
