@@ -38,7 +38,7 @@ export function JsonLd() {
               name: "tonal.coach",
               url: "https://tonal.coach",
               logo: "https://tonal.coach/icon.svg",
-              sameAs: ["https://discord.gg/dShrKkwz"],
+              sameAs: ["https://discord.gg/Sa5ewWP5M"],
             },
             {
               "@type": "WebSite",
