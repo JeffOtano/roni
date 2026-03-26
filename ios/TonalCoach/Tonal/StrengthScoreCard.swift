@@ -2,14 +2,56 @@ import SwiftUI
 
 /// Dashboard card showing overall strength score with a large ring,
 /// three smaller region rings (Upper, Lower, Core), and a percentile badge.
+///
+/// When `compact` is true, renders as a single HStack with a small ring
+/// and inline region scores for use in the unified dashboard.
 struct StrengthScoreCard: View {
     let data: StrengthData
+    var compact: Bool = false
 
     var body: some View {
+        if compact {
+            compactLayout
+        } else {
+            fullLayout
+        }
+    }
+
+    // MARK: - Full Layout
+
+    private var fullLayout: some View {
         VStack(spacing: Theme.Spacing.xl) {
             overallRing
             regionRings
             percentileBadge
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Compact Layout
+
+    private var compactLayout: some View {
+        HStack(spacing: Theme.Spacing.lg) {
+            ScoreRing(
+                score: data.distribution.overallScore,
+                size: 48,
+                lineWidth: 5,
+                animated: false
+            )
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                ForEach(regionScores, id: \.label) { region in
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Text(region.label)
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        Spacer()
+                        Text(String(format: "%.0f", region.score))
+                            .font(Theme.Typography.calloutMedium)
+                            .foregroundStyle(Theme.Colors.foreground)
+                    }
+                }
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -77,14 +119,22 @@ private struct ScoreRing: View {
     let maxScore: Double
     let size: CGFloat
     let lineWidth: CGFloat
+    let animated: Bool
 
     @State private var animatedProgress: Double = 0
 
-    init(score: Double, size: CGFloat, lineWidth: CGFloat, maxScore: Double = 500) {
+    init(
+        score: Double,
+        size: CGFloat,
+        lineWidth: CGFloat,
+        maxScore: Double = 500,
+        animated: Bool = true
+    ) {
         self.score = score
         self.maxScore = maxScore
         self.size = size
         self.lineWidth = lineWidth
+        self.animated = animated
     }
 
     private var ringColor: Color {
@@ -108,16 +158,27 @@ private struct ScoreRing: View {
                 .rotationEffect(.degrees(-90))
                 .shadow(color: ringColor.opacity(0.3), radius: 10)
 
-            CountingText(target: score, format: "%.0f")
-                .font(Theme.Typography.monoText)
-                .fontWeight(.bold)
-                .foregroundColor(Theme.Colors.foreground)
+            if animated {
+                CountingText(target: score, format: "%.0f")
+                    .font(Theme.Typography.monoText)
+                    .fontWeight(.bold)
+                    .foregroundColor(Theme.Colors.foreground)
+            } else {
+                Text(String(format: "%.0f", score))
+                    .font(Theme.Typography.monoText)
+                    .fontWeight(.bold)
+                    .foregroundColor(Theme.Colors.foreground)
+            }
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Score \(Int(score)) out of \(Int(maxScore))")
         .onAppear {
-            withAnimation(Animate.gentle) {
+            if animated {
+                withAnimation(Animate.gentle) {
+                    animatedProgress = min(score / maxScore, 1.0)
+                }
+            } else {
                 animatedProgress = min(score / maxScore, 1.0)
             }
         }

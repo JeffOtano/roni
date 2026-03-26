@@ -472,3 +472,84 @@ struct WorkoutFilters: Equatable {
         return map[goal] ?? goal.replacingOccurrences(of: "_", with: " ").capitalized
     }
 }
+
+// MARK: - Health Snapshot (from health:getRecent)
+
+/// Daily health snapshot synced from Apple Health via the iOS app.
+/// Matches the `healthSnapshots` table in `convex/schema.ts`.
+struct HealthSnapshot: Decodable, Identifiable {
+    let _id: String
+    let date: String
+
+    // Sleep
+    let sleepDurationMinutes: Double?
+    let sleepDeepMinutes: Double?
+    let sleepRemMinutes: Double?
+    let sleepCoreMinutes: Double?
+    let sleepAwakeMinutes: Double?
+    let sleepStartTime: String?
+    let sleepEndTime: String?
+
+    // Heart & Recovery
+    let restingHeartRate: Double?
+    let hrvSDNN: Double?
+    let vo2Max: Double?
+    let heartRateRecovery: Double?
+    let oxygenSaturation: Double?
+
+    // Activity
+    let steps: Double?
+    let activeEnergyBurned: Double?
+    let exerciseMinutes: Double?
+    let standHours: Double?
+    let flightsClimbed: Double?
+
+    // Body
+    let bodyMass: Double?
+    let bodyFatPercentage: Double?
+    let leanBodyMass: Double?
+
+    // Nutrition
+    let dietaryCalories: Double?
+    let dietaryProteinGrams: Double?
+
+    // Respiratory
+    let respiratoryRate: Double?
+
+    // Effort
+    let workoutEffortScore: Double?
+
+    var id: String { _id }
+}
+
+// MARK: - Readiness Score (from dashboard:getReadinessScore)
+
+/// Recovery readiness score computed from the last 7 days of health snapshots.
+/// Matches the `ReadinessScore` interface in `convex/dashboard.ts`.
+struct ReadinessScore: Decodable {
+    let score: Double
+    let label: String
+
+    struct Factor: Decodable {
+        let value: Double?
+        let formatted: String
+        let trend: String
+    }
+
+    struct Factors: Decodable {
+        let sleep: Factor
+        let hrv: Factor
+        let rhr: Factor
+        let load: Factor
+    }
+
+    let factors: Factors
+}
+
+// MARK: - Coach Insight (from dashboard:getCoachInsight)
+
+/// Deterministic coach insight based on readiness signals.
+/// Matches the `CoachInsight` interface in `convex/dashboard.ts`.
+struct CoachInsight: Decodable {
+    let insight: String
+}

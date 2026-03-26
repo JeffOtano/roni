@@ -103,53 +103,46 @@ struct ContentView: View {
 
 // MARK: - Dashboard Router
 
-/// Routes between the Tonal dashboard and a connect prompt based on user profile state.
+/// Always shows the unified dashboard. Cards degrade gracefully when data is unavailable.
+/// An inline connect-Tonal prompt appears if the user has not linked their Tonal account.
 private struct DashboardRouter: View {
     @Environment(ConvexManager.self) private var convex
     @Binding var selectedTab: AppTab
     @State private var userInfo: UserInfo?
-    @State private var isLoaded = false
     @State private var showConnectSheet = false
     @State private var cancellable: AnyCancellable?
 
-    var body: some View {
-        Group {
-            if !isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let info = userInfo, info.hasTonalProfile, !info.tonalTokenExpired {
-                TonalDashboardView(selectedTab: $selectedTab)
-            } else {
-                ScrollView {
-                    VStack(spacing: Theme.Spacing.lg) {
-                        connectPromptCard
-                        HealthDashboardView()
-                    }
-                    .padding(.horizontal, Theme.Spacing.lg)
-                    .padding(.vertical, Theme.Spacing.md)
-                }
-            }
-        }
-        .background(Theme.Colors.background)
-        .sheet(isPresented: $showConnectSheet) {
-            ConnectTonalView()
-        }
-        .onAppear { subscribeToUser() }
+    private var needsConnect: Bool {
+        guard let info = userInfo else { return false }
+        return !info.hasTonalProfile || info.tonalTokenExpired
     }
 
-    /// Subscribe to users:getMe so dashboard auto-updates after Tonal connection.
+    var body: some View {
+        TonalDashboardView(selectedTab: $selectedTab)
+            .safeAreaInset(edge: .top) {
+                if needsConnect {
+                    connectPromptCard
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.bottom, Theme.Spacing.sm)
+                }
+            }
+            .background(Theme.Colors.background)
+            .sheet(isPresented: $showConnectSheet) {
+                ConnectTonalView()
+            }
+            .onAppear { subscribeToUser() }
+    }
+
+    /// Subscribe to users:getMe so the connect prompt auto-hides after linking.
     private func subscribeToUser() {
         guard cancellable == nil else { return }
         cancellable = convex.client
             .subscribe(to: "users:getMe", yielding: UserInfo.self)
             .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { _ in
-                    isLoaded = true
-                },
+                receiveCompletion: { _ in },
                 receiveValue: { info in
                     userInfo = info
-                    isLoaded = true
                 }
             )
     }
@@ -165,7 +158,7 @@ private struct DashboardRouter: View {
                 .font(Theme.Typography.title2)
                 .foregroundStyle(Theme.Colors.textPrimary)
 
-            Text("Link your Tonal account to see strength scores, muscle readiness, and workout history.")
+            Text("Link your Tonal account to see strength scores and workout history.")
                 .font(Theme.Typography.callout)
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -186,7 +179,6 @@ private struct DashboardRouter: View {
                 .stroke(Theme.Colors.primary.opacity(0.3), lineWidth: 1)
         )
     }
-
 }
 
 /// Placeholder view for tabs not yet implemented.

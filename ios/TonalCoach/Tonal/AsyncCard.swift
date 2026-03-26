@@ -3,7 +3,7 @@ import SwiftUI
 /// Reusable card wrapper that manages async loading, error, and content states.
 /// Used by each dashboard section to load data independently.
 struct AsyncCard<T, Content: View>: View {
-    let title: String
+    let title: String?
     let load: () async throws -> T
     @ViewBuilder let content: (T) -> Content
 
@@ -14,9 +14,11 @@ struct AsyncCard<T, Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Text(title)
-                .font(Theme.Typography.title2)
-                .foregroundStyle(Theme.Colors.textPrimary)
+            if let title {
+                Text(title)
+                    .font(Theme.Typography.title2)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+            }
 
             if isLoading {
                 loadingView
