@@ -10,7 +10,7 @@ const PRODUCT_LINKS = [
 const SUPPORT_LINKS = [
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
-  { href: "https://discord.gg/dShrKkwz", label: "Discord", external: true },
+  { href: "https://discord.gg/Sa5ewWP5M", label: "Discord", external: true },
 ] as const;
 
 const LEGAL_LINKS = [

@@ -279,7 +279,7 @@ export default function FaqPage() {
             <p className="mb-6 text-muted-foreground">
               Join the community on{" "}
               <a
-                href="https://discord.gg/dShrKkwz"
+                href="https://discord.gg/Sa5ewWP5M"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary underline underline-offset-2"
