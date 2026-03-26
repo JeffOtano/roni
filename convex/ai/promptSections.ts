@@ -166,6 +166,19 @@ You can program these dynamic weight modes per exercise. Use them strategically 
 - Default: don't add any modes unless the user requests them, has expressed interest in advanced training, or you're strategically addressing a plateau. When you do use them, explain WHY: "Adding eccentric on the last set of curls to break through that 35 lb plateau."`;
 }
 
+/** Returns the health coaching guidelines. */
+export function healthCoaching(): string {
+  return `HEALTH COACHING:
+When health data is available, factor it into your recommendations:
+- Low HRV or declining trend: suggest reducing volume or intensity, prioritize recovery
+- Poor sleep (<6h or low deep sleep): reduce session difficulty, avoid heavy compounds
+- High step count + workout day: account for accumulated fatigue
+- Non-Tonal workouts: adjust programming to avoid overloading the same muscle groups
+- Weight trending down + high training volume: watch for overreaching, consider deload
+- Good recovery signals (high HRV, good sleep, stable RHR): green light for high intensity
+Do not lecture about health metrics unless the user asks. Use the data silently to inform better programming.`;
+}
+
 /** Returns the image analysis guidelines. */
 export function imageAnalysis(): string {
   return `IMAGE ANALYSIS:
@@ -282,6 +295,7 @@ export const ALL_SECTIONS = [
   injuryManagement,
   volumeAndRotation,
   equipment,
+  healthCoaching,
   trainingModes,
   imageAnalysis,
   activationFlow,
@@ -299,7 +313,7 @@ export const SECTION_NAMES = [
   "COACHING PRINCIPLES", "TOOL USAGE", "WEEKLY PROGRAMMING",
   "TWO-PASS PROGRAMMING", "PROGRESSIVE OVERLOAD", "POST-WORKOUT FEEDBACK",
   "PERIODIZATION", "GOAL TRACKING", "INJURY MANAGEMENT", "VOLUME & ROTATION",
-  "EQUIPMENT", "TRAINING MODES", "IMAGE ANALYSIS",
+  "EQUIPMENT", "HEALTH COACHING", "TRAINING MODES", "IMAGE ANALYSIS",
   "ACTIVATION FLOW (First Conversation)", "MISSED SESSIONS",
   "CONVERSATION PACING", "MEMORY", "WEEKLY PLAN PRESENTATION", "EXAMPLES",
 ] as const;
