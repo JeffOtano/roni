@@ -13,11 +13,11 @@ struct ImageViewerOverlay: View {
     @State private var isDragging = false
 
     private var backgroundOpacity: Double {
-        0.9 * (1 - abs(dragOffset) / 400)
+        0.9 * (1.0 - abs(dragOffset) / 400.0)
     }
 
     private var imageScale: CGFloat {
-        1 - abs(dragOffset) / 2000
+        1.0 - abs(dragOffset) / 2000.0
     }
 
     var body: some View {
