@@ -71,6 +71,12 @@
 		F5BEBB0864DAA99976946463 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51510A5E87E4621AB14BFE79 /* MarkdownText.swift */; };
 		FB0B9D8AD5210ABEFD77FC79 /* TonalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043752E84535B7A45A93EFE6 /* TonalModels.swift */; };
 		FD6D5CD51F2316868B127C64 /* WorkoutCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */; };
+		AA11BB2201234567AABB0001 /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0001 /* SparklineView.swift */; };
+		AA11BB2201234567AABB0002 /* ReadinessCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0002 /* ReadinessCard.swift */; };
+		AA11BB2201234567AABB0003 /* SleepCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0003 /* SleepCard.swift */; };
+		AA11BB2201234567AABB0004 /* TrainingLoadCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0004 /* TrainingLoadCard.swift */; };
+		AA11BB2201234567AABB0005 /* BodyHeartCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0005 /* BodyHeartCard.swift */; };
+		AA11BB2201234567AABB0006 /* CoachInsightBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB3301234567AABB0006 /* CoachInsightBanner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -140,6 +146,12 @@
 		F0788CC33759688FF4ED6239 /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
 		F13D9855B4ED4C359EED20BF /* StaggeredAppear.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaggeredAppear.swift; sourceTree = "<group>"; };
 		F5C7E1B42E65EB4DF0ADA6B4 /* WorkoutCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCardView.swift; sourceTree = "<group>"; };
+		AA11BB3301234567AABB0001 /* SparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
+		AA11BB3301234567AABB0002 /* ReadinessCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadinessCard.swift; sourceTree = "<group>"; };
+		AA11BB3301234567AABB0003 /* SleepCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepCard.swift; sourceTree = "<group>"; };
+		AA11BB3301234567AABB0004 /* TrainingLoadCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingLoadCard.swift; sourceTree = "<group>"; };
+		AA11BB3301234567AABB0005 /* BodyHeartCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyHeartCard.swift; sourceTree = "<group>"; };
+		AA11BB3301234567AABB0006 /* CoachInsightBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachInsightBanner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -228,6 +240,7 @@
 				A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */,
 				F13D9855B4ED4C359EED20BF /* StaggeredAppear.swift */,
 				1295AE565C2349AA9F25F6A3 /* ShimmerView.swift */,
+				AA11BB3301234567AABB0001 /* SparklineView.swift */,
 				2D4460B6F5D6ECAB5000D077 /* Theme.swift */,
 				DC7B058508882C8DA068C32A /* TonalDeepLink.swift */,
 			);
@@ -297,9 +310,14 @@
 				83F74557E7EABC857AC75A6D /* MuscleReadinessCard.swift */,
 				6198211493BA5A2186362734 /* RecentWorkoutsCard.swift */,
 				7328578675A8F3B615846E43 /* StrengthScoreCard.swift */,
+				AA11BB3301234567AABB0005 /* BodyHeartCard.swift */,
+				AA11BB3301234567AABB0006 /* CoachInsightBanner.swift */,
+				AA11BB3301234567AABB0002 /* ReadinessCard.swift */,
+				AA11BB3301234567AABB0003 /* SleepCard.swift */,
 				998344A11A738B6D7F8AC725 /* TonalDashboardView.swift */,
 				043752E84535B7A45A93EFE6 /* TonalModels.swift */,
 				A968A442D233648FA16136BF /* TrainingFrequencyCard.swift */,
+				AA11BB3301234567AABB0004 /* TrainingLoadCard.swift */,
 			);
 			path = Tonal;
 			sourceTree = "<group>";
@@ -486,6 +504,12 @@
 				FD6D5CD51F2316868B127C64 /* WorkoutCardView.swift in Sources */,
 				A255A48EA8912657C87AB312 /* WorkoutDetailView.swift in Sources */,
 				1D17B014F694E6A55C7975E3 /* WorkoutFiltersView.swift in Sources */,
+				AA11BB2201234567AABB0001 /* SparklineView.swift in Sources */,
+				AA11BB2201234567AABB0002 /* ReadinessCard.swift in Sources */,
+				AA11BB2201234567AABB0003 /* SleepCard.swift in Sources */,
+				AA11BB2201234567AABB0004 /* TrainingLoadCard.swift in Sources */,
+				AA11BB2201234567AABB0005 /* BodyHeartCard.swift in Sources */,
+				AA11BB2201234567AABB0006 /* CoachInsightBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
