@@ -58,9 +58,9 @@ export function CheckInPreferences() {
             variant="outline"
             size="sm"
             onClick={() =>
-              updatePreferences({ enabled: !prefs.enabled }).then(() =>
-                toast.success("Preferences saved"),
-              )
+              updatePreferences({ enabled: !prefs.enabled })
+                .then(() => toast.success("Preferences saved"))
+                .catch(() => toast.error("Failed to save"))
             }
           >
             {prefs.enabled ? "Disable" : "Enable"}
@@ -78,9 +78,9 @@ export function CheckInPreferences() {
                   variant={prefs.frequency === value ? "default" : "outline"}
                   size="sm"
                   onClick={() =>
-                    updatePreferences({ frequency: value as Frequency }).then(() =>
-                      toast.success("Preferences saved"),
-                    )
+                    updatePreferences({ frequency: value as Frequency })
+                      .then(() => toast.success("Preferences saved"))
+                      .catch(() => toast.error("Failed to save"))
                   }
                 >
                   {label}
