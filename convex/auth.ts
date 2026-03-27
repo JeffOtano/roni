@@ -2,7 +2,7 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ResendOTP } from "./ResendOTP";
 
-const BETA_SPOT_LIMIT = 50;
+const BETA_SPOT_LIMIT = 100;
 
 export const { auth, signIn, signOut, store } = convexAuth({
   providers: [
@@ -15,11 +15,13 @@ export const { auth, signIn, signOut, store } = convexAuth({
       // Allow existing users to sign in
       if (args.existingUserId) return args.existingUserId;
 
-      // Block new signups when beta is full
-      const userCount = (await ctx.db.query("users").collect()).length;
-      if (userCount >= BETA_SPOT_LIMIT) {
+      // Block new signups when beta is full.
+      // Count userProfiles (real onboarded users), not the users table
+      // which is inflated by @convex-dev/auth system entries.
+      const realUserCount = (await ctx.db.query("userProfiles").collect()).length;
+      if (realUserCount >= BETA_SPOT_LIMIT) {
         throw new Error(
-          "Beta is full! All 50 free spots have been claimed. Sign up for the waitlist at our Discord.",
+          `Beta is full! All ${BETA_SPOT_LIMIT} free spots have been claimed. Sign up for the waitlist at our Discord.`,
         );
       }
 
