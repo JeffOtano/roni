@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { rateLimiter } from "../rateLimits";
 import type { Id } from "../_generated/dataModel";
 import { TonalApiError, tonalFetch } from "./client";
 import { type BlockInput, expandBlocksToSets } from "./transforms";
@@ -195,6 +196,7 @@ export const createWorkout = internalAction({
       }
     | { success: false; error: string; planId: Id<"workoutPlans"> }
   > => {
+    await rateLimiter.limit(ctx, "createTonalWorkout", { key: userId, throws: true });
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
       const tonalTitle = title;

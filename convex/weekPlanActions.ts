@@ -9,6 +9,7 @@ import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { preferredSplitValidator } from "./weekPlanHelpers";
+import { rateLimiter } from "./rateLimits";
 
 export const programWeek = internalAction({
   args: {
@@ -36,6 +37,7 @@ export const programMyWeek = action({
   handler: async (ctx): Promise<{ weekPlanId: Id<"weekPlans"> }> => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
+    await rateLimiter.limit(ctx, "programWeek", { key: userId, throws: true });
     const result: { weekPlanId: Id<"weekPlans"> } | { error: string } = await ctx.runAction(
       internal.weekPlans.programWeek,
       { userId, targetDays: 4 },

@@ -58,4 +58,22 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 30,
   },
+  createTonalWorkout: {
+    kind: "token bucket",
+    rate: 3,
+    period: MINUTE,
+    capacity: 5,
+  },
+  imageUpload: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 15,
+  },
+  programWeek: {
+    kind: "token bucket",
+    rate: 2,
+    period: MINUTE,
+    capacity: 3,
+  },
 });
