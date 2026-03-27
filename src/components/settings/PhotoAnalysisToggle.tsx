@@ -46,9 +46,9 @@ export function PhotoAnalysisToggle() {
             variant="outline"
             size="sm"
             onClick={() =>
-              updateSettings({ progressPhotoAnalysisEnabled: !enabled }).then(() =>
-                toast.success("Photo analysis preference saved"),
-              )
+              updateSettings({ progressPhotoAnalysisEnabled: !enabled })
+                .then(() => toast.success("Photo analysis preference saved"))
+                .catch(() => toast.error("Failed to save"))
             }
           >
             {enabled ? "Disable" : "Enable"}
