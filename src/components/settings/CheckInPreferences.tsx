@@ -5,6 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff } from "lucide-react";
+import { toast } from "sonner";
 
 const FREQUENCY_OPTIONS = [
   { value: "daily", label: "Daily" },
@@ -56,7 +57,11 @@ export function CheckInPreferences() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => updatePreferences({ enabled: !prefs.enabled })}
+            onClick={() =>
+              updatePreferences({ enabled: !prefs.enabled }).then(() =>
+                toast.success("Preferences saved"),
+              )
+            }
           >
             {prefs.enabled ? "Disable" : "Enable"}
           </Button>
@@ -72,7 +77,11 @@ export function CheckInPreferences() {
                   key={value}
                   variant={prefs.frequency === value ? "default" : "outline"}
                   size="sm"
-                  onClick={() => updatePreferences({ frequency: value as Frequency })}
+                  onClick={() =>
+                    updatePreferences({ frequency: value as Frequency }).then(() =>
+                      toast.success("Preferences saved"),
+                    )
+                  }
                 >
                   {label}
                 </Button>

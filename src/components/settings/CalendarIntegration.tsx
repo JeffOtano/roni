@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { Calendar, CheckCircle2, Loader2, Unlink } from "lucide-react";
+import { toast } from "sonner";
 
 interface CalendarIntegrationProps {
   /** Success flag from OAuth redirect (e.g. ?calendar_connected=true) */
@@ -74,6 +75,7 @@ export function CalendarIntegration({ justConnected, oauthError }: CalendarInteg
     try {
       await disconnect();
       setShowSuccess(false);
+      toast.success("Calendar disconnected");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to disconnect calendar";
       setError(message);

@@ -5,6 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
+import { toast } from "sonner";
 
 const ACCESSORIES = [
   { key: "smartHandles", label: "Smart Handles" },
@@ -56,9 +57,10 @@ export function EquipmentSettings() {
   const owned: OwnedAccessories =
     (profile.ownedAccessories as OwnedAccessories | null) ?? ALL_OWNED;
 
-  function handleToggle(key: AccessoryKey) {
+  async function handleToggle(key: AccessoryKey) {
     const updated: OwnedAccessories = { ...owned, [key]: !owned[key] };
-    updateSettings({ ownedAccessories: updated });
+    await updateSettings({ ownedAccessories: updated });
+    toast.success("Equipment updated");
   }
 
   return (

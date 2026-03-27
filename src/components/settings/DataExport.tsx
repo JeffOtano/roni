@@ -6,6 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function DataExport() {
   const exportData = useAction(api.account.exportData);
@@ -30,6 +31,7 @@ export function DataExport() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      toast.success("Data exported");
 
       setStatus("idle");
     } catch (err) {

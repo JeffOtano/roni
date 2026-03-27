@@ -5,6 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 export function PhotoAnalysisToggle() {
   const profile = useQuery(api.account.getFullProfile, {});
@@ -44,7 +45,11 @@ export function PhotoAnalysisToggle() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => updateSettings({ progressPhotoAnalysisEnabled: !enabled })}
+            onClick={() =>
+              updateSettings({ progressPhotoAnalysisEnabled: !enabled }).then(() =>
+                toast.success("Photo analysis preference saved"),
+              )
+            }
           >
             {enabled ? "Disable" : "Enable"}
           </Button>

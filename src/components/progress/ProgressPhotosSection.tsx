@@ -10,6 +10,7 @@ import { ErrorAlert } from "@/components/ErrorAlert";
 import { ProgressComparison } from "@/components/ProgressComparison";
 import { ProgressPhotoItem } from "@/components/ProgressPhotoItem";
 import { CheckCircle2, ImageIcon, Loader2, Upload } from "lucide-react";
+import { toast } from "sonner";
 
 const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
 
@@ -121,6 +122,7 @@ export function ProgressPhotosSection() {
       setDeletingId(photoId);
       try {
         await remove({ photoId });
+        toast.success("Photo deleted");
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : "Delete failed");
       } finally {
@@ -141,6 +143,7 @@ export function ProgressPhotosSection() {
     setDeletingAll(true);
     try {
       await deleteAll({});
+      toast.success("All photos deleted");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Delete failed");
     } finally {

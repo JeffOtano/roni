@@ -5,6 +5,7 @@ import { useAction, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 
 const TOOL_LABELS: Record<string, string> = {
   approve_week_plan: "Push workouts to your Tonal",
@@ -33,6 +34,7 @@ export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprova
       const { messageId } = await respond({ threadId, approvalId, approved });
       await continueAgent({ threadId, messageId });
       setStatus("done");
+      toast.success(approved ? "Action approved" : "Action denied");
     } catch (err) {
       console.error("Approval failed:", err);
       setStatus("pending");
