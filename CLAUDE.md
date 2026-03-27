@@ -17,6 +17,16 @@ Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connec
 - **Package manager:** npm
 - **Deployment:** Vercel (web), Convex (backend)
 
+## Conductor Workspaces
+
+This project uses [Conductor](https://conductor.build) for parallel agent development. Each workspace is an isolated git worktree with its own branch.
+
+- **Environment files** (`.env.local`, `.env.sentry-build-plugin`) are symlinked from the repo root via the setup script -- do not copy or create them manually
+- **Dev server port**: Use `$CONDUCTOR_PORT` instead of hardcoding 3000. The run script handles this automatically
+- **Convex dev**: All workspaces share the same Convex dev deployment, so avoid running schema-altering backend changes in parallel. `npx convex dev` is started by the run script
+- **Workspace path**: Available as `$CONDUCTOR_WORKSPACE_PATH`. The repo root is `$CONDUCTOR_ROOT_PATH`
+- **Branch per workspace**: Each workspace gets a unique branch. Rename with `git branch -m new-name`
+
 ## Development Commands
 
 ```bash

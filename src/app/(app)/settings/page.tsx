@@ -214,7 +214,11 @@ function SettingsPageInner() {
                 className="gap-1.5"
                 nativeButton={false}
                 render={
-                  <a href="https://discord.gg/Sa5ewWP5M" target="_blank" rel="noopener noreferrer" />
+                  <a
+                    href="https://discord.gg/Sa5ewWP5M"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
                 }
               >
                 Discord

@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "setup": "[ -f \"$CONDUCTOR_ROOT_PATH/.env.local\" ] || { echo 'Missing .env.local in repo root — copy .env.example and fill in values'; exit 1; } && npm install && ln -sf \"$CONDUCTOR_ROOT_PATH/.env.local\" .env.local && ln -sf \"$CONDUCTOR_ROOT_PATH/.env.sentry-build-plugin\" .env.sentry-build-plugin",
+    "run": "trap 'kill 0' SIGTERM SIGINT; npx convex dev & npm run dev -- --port $CONDUCTOR_PORT & wait",
+    "archive": ""
+  },
+  "runScriptMode": "nonconcurrent"
+}
