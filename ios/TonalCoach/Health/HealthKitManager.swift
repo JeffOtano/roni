@@ -448,7 +448,9 @@ final class HealthKitManager {
         }
 
         let entries = samples.compactMap { sample -> WeightEntry? in
-            guard let quantitySample = sample as? HKQuantitySample else { return nil }
+            guard let quantitySample = sample as? HKQuantitySample,
+                  quantitySample.quantity.is(compatibleWith: .gramUnit(with: .kilo))
+            else { return nil }
             return WeightEntry(
                 id: quantitySample.uuid,
                 date: quantitySample.startDate,
@@ -525,7 +527,10 @@ final class HealthKitManager {
                     continuation.resume(throwing: error)
                     return
                 }
-                let value = statistics?.sumQuantity()?.doubleValue(for: unit) ?? 0
+                let sum = statistics?.sumQuantity()
+                let value = (sum?.is(compatibleWith: unit) == true)
+                    ? sum?.doubleValue(for: unit) ?? 0
+                    : 0
                 continuation.resume(returning: value)
             }
             healthStore.execute(query)
@@ -644,7 +649,15 @@ final class HealthKitManager {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error { continuation.resume(throwing: error); return }
-                let value = (samples?.first as? HKQuantitySample)?.quantity.doubleValue(for: unit)
+                let value: Double? = {
+                    guard let quantity = (samples?.first as? HKQuantitySample)?.quantity else {
+                        return nil
+                    }
+                    guard quantity.is(compatibleWith: unit) else {
+                        return nil
+                    }
+                    return quantity.doubleValue(for: unit)
+                }()
                 continuation.resume(returning: value)
             }
             healthStore.execute(query)
