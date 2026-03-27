@@ -61,6 +61,7 @@ export const generateImageUploadUrl = mutation({
   handler: async (ctx) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    await rateLimiter.limit(ctx, "imageUpload", { key: userId, throws: true });
 
     const uploadUrl = await ctx.storage.generateUploadUrl();
     return { uploadUrl };
