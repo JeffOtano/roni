@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { computeBetaCapacity } from "./betaConfig";
 
 export const getByUserId = internalQuery({
   args: { userId: v.id("users") },
@@ -160,18 +161,12 @@ export const getBetaUserCount = query({
   },
 });
 
-const BETA_SPOT_LIMIT = 50;
-
 /** Check if new signups are allowed. Call BEFORE attempting registration. */
 export const canSignUp = query({
   args: {},
   handler: async (ctx) => {
     const profiles = await ctx.db.query("userProfiles").collect();
-    const spotsLeft = BETA_SPOT_LIMIT - profiles.length;
-    return {
-      allowed: spotsLeft > 0,
-      spotsLeft: Math.max(0, spotsLeft),
-    };
+    return computeBetaCapacity(profiles.length);
   },
 });
 
