@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -66,6 +67,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ConvexClientProvider>
             <ErrorBoundary>{children}</ErrorBoundary>
+            <Toaster theme="dark" position="bottom-center" richColors />
           </ConvexClientProvider>
         </ThemeProvider>
       </body>
