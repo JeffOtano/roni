@@ -27,28 +27,31 @@ struct MessageBubble: View {
     // MARK: - User Bubble
 
     private var userBubble: some View {
-        HStack {
-            Spacer(minLength: UIScreen.main.bounds.width * 0.2)
+        GeometryReader { geometry in
+            HStack {
+                Spacer(minLength: geometry.size.width * 0.2)
 
-            VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
-                // Image thumbnails
-                if !message.imageUrls.isEmpty {
-                    imageGrid
-                }
+                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                    // Image thumbnails
+                    if !message.imageUrls.isEmpty {
+                        imageGrid
+                    }
 
-                // Text bubble
-                if !message.displayText.isEmpty {
-                    Text(message.displayText)
-                        .font(Theme.Typography.body)
-                        .foregroundStyle(Theme.Colors.primaryForeground)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, Theme.Spacing.lg)
-                        .padding(.vertical, Theme.Spacing.md)
-                        .background(Theme.Colors.primary)
-                        .clipShape(userBubbleShape)
+                    // Text bubble
+                    if !message.displayText.isEmpty {
+                        Text(message.displayText)
+                            .font(Theme.Typography.body)
+                            .foregroundStyle(Theme.Colors.primaryForeground)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, Theme.Spacing.lg)
+                            .padding(.vertical, Theme.Spacing.md)
+                            .background(Theme.Colors.primary)
+                            .clipShape(userBubbleShape)
+                    }
                 }
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("You said: \(message.displayText)")
         .opacity(hasAppeared ? 1 : 0)
@@ -73,26 +76,29 @@ struct MessageBubble: View {
     // MARK: - Coach Bubble
 
     private var coachBubble: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            // Coach avatar
-            coachAvatar
+        GeometryReader { geometry in
+            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                // Coach avatar
+                coachAvatar
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                // Main text content
-                if !message.displayText.isEmpty || message.isStreaming {
-                    coachTextBubble
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    // Main text content
+                    if !message.displayText.isEmpty || message.isStreaming {
+                        coachTextBubble
+                    }
+
+                    // Tool calls: approval cards and status chips
+                    toolCallsSection
                 }
+                .frame(
+                    maxWidth: geometry.size.width * 0.85,
+                    alignment: .leading
+                )
 
-                // Tool calls: approval cards and status chips
-                toolCallsSection
+                Spacer(minLength: 0)
             }
-            .frame(
-                maxWidth: UIScreen.main.bounds.width * 0.85,
-                alignment: .leading
-            )
-
-            Spacer(minLength: 0)
         }
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .contain)
         .opacity(hasAppeared ? 1 : 0)
         .offset(y: hasAppeared ? 0 : 6)
@@ -278,7 +284,7 @@ private struct StreamingCursor: View {
 
     var body: some View {
         Text("|")
-            .foregroundColor(Theme.Colors.primary)
+            .foregroundStyle(Theme.Colors.primary)
             .opacity(opacity)
             .onAppear {
                 withAnimation(

@@ -91,7 +91,7 @@ struct SessionTypeChipsView: View {
 
     private func toggleSessionType(_ value: String) {
         Theme.Haptics.selection()
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(Animate.snappy) {
             if filters.sessionTypes.contains(value) {
                 filters.sessionTypes.remove(value)
             } else {
@@ -179,7 +179,7 @@ struct WorkoutFiltersView: View {
                 options: FilterOptions.goals,
                 selected: filters.goals,
                 onToggle: { value in
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Animate.snappy) {
                         if filters.goals.contains(value) {
                             filters.goals.remove(value)
                         } else {
@@ -201,7 +201,7 @@ struct WorkoutFiltersView: View {
                         label: option.label,
                         isSelected: filters.durationMinutes == option.value
                     ) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Animate.snappy) {
                             if filters.durationMinutes == option.value {
                                 filters.durationMinutes = nil
                             } else {
@@ -222,7 +222,7 @@ struct WorkoutFiltersView: View {
                 options: FilterOptions.levels,
                 selected: filters.levels,
                 onToggle: { value in
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Animate.snappy) {
                         if filters.levels.contains(value) {
                             filters.levels.remove(value)
                         } else {
@@ -287,7 +287,7 @@ struct ActiveFilterPillsView: View {
                         ActiveFilterPill(
                             label: pair.label,
                             onRemove: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation(Animate.snappy) {
                                     filters.removeFilter(for: pair.key)
                                 }
                             }

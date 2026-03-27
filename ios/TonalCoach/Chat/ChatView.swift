@@ -172,6 +172,11 @@ struct ChatView: View {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }
+                .onChange(of: viewModel.messages.last?.displayText) { _, _ in
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
+                }
                 .onChange(of: showThinkingIndicator) { _, isThinking in
                     if isThinking {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -300,15 +305,19 @@ struct ChatView: View {
         return groups
     }
 
+    private static let messageDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
+
     private func dateLabel(for date: Date, calendar: Calendar) -> String {
         if calendar.isDateInToday(date) {
             return "Today"
         } else if calendar.isDateInYesterday(date) {
             return "Yesterday"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: date)
+            return Self.messageDateFormatter.string(from: date)
         }
     }
 

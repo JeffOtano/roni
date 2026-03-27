@@ -5,7 +5,7 @@ struct TrainingLoadCard: View {
     let tonalActivities: [TonalActivity]
     let externalActivities: [TonalExternalActivity]
 
-    private static let dayAbbreviations = ["M", "T", "W", "T", "F", "S", "S"]
+    private static let dayAbbreviations = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
@@ -138,10 +138,14 @@ struct TrainingLoadCard: View {
         return max(dayMax, 1)
     }
 
-    private func formatDate(_ date: Date) -> String {
+    private static let dayKeyFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func formatDate(_ date: Date) -> String {
+        Self.dayKeyFormatter.string(from: date)
     }
 }
 

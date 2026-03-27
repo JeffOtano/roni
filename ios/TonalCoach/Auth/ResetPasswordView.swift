@@ -54,7 +54,7 @@ struct ResetPasswordView: View {
                     .padding(.bottom, Theme.Spacing.xl)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: step)
+        .animation(Animate.smooth, value: step)
         .onAppear {
             email = initialEmail
         }
@@ -378,7 +378,7 @@ struct ResetPasswordView: View {
                 .accessibilityLabel("Error: \(displayError)")
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: displayError != nil)
+        .animation(Animate.snappy, value: displayError != nil)
     }
 
     private var stepIndicator: some View {

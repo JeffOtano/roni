@@ -79,7 +79,7 @@ struct ChatInputBar: View {
                         .background(Theme.Colors.background)
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .stroke(
                                     isTextFieldFocused ? Theme.Colors.primary.opacity(0.3) : Color.white.opacity(0.08),
                                     lineWidth: 1

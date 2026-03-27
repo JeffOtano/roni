@@ -79,31 +79,31 @@ struct HealthPermissionView: View {
 
             DataTypeRow(
                 icon: "flame.fill",
-                color: .green,
+                color: Theme.Colors.success,
                 title: "Active Energy",
                 description: "Track calories burned throughout the day"
             )
             DataTypeRow(
                 icon: "figure.run",
-                color: .cyan,
+                color: Theme.Colors.primary,
                 title: "Exercise Minutes",
                 description: "Monitor daily exercise time toward your goal"
             )
             DataTypeRow(
                 icon: "figure.stand",
-                color: .red,
+                color: Theme.Colors.destructive,
                 title: "Stand Hours",
                 description: "See your daily movement breaks"
             )
             DataTypeRow(
                 icon: "heart.fill",
-                color: .pink,
+                color: Theme.Colors.chart4,
                 title: "Heart Rate",
                 description: "Resting and workout heart rate trends"
             )
             DataTypeRow(
                 icon: "dumbbell.fill",
-                color: .orange,
+                color: Theme.Colors.warning,
                 title: "Workouts",
                 description: "View Tonal and other workout history"
             )

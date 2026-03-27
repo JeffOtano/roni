@@ -146,7 +146,7 @@ struct ZoomableImageView: UIViewRepresentable {
         scrollView.addGestureRecognizer(doubleTap)
         context.coordinator.scrollView = scrollView
 
-        loadImage(into: imageView, scrollView: scrollView)
+        loadImage(into: imageView, scrollView: scrollView, coordinator: context.coordinator)
 
         return scrollView
     }
@@ -155,7 +155,7 @@ struct ZoomableImageView: UIViewRepresentable {
 
     // MARK: - Image Loading
 
-    private func loadImage(into imageView: UIImageView, scrollView: UIScrollView) {
+    private func loadImage(into imageView: UIImageView, scrollView: UIScrollView, coordinator: Coordinator) {
         let task = URLSession.shared.dataTask(with: url) { data, _, _ in
             guard let data, let image = UIImage(data: data) else { return }
             DispatchQueue.main.async {
@@ -163,6 +163,7 @@ struct ZoomableImageView: UIViewRepresentable {
                 layoutImageView(imageView, in: scrollView, imageSize: image.size)
             }
         }
+        coordinator.imageTask = task
         task.resume()
     }
 
@@ -195,6 +196,9 @@ struct ZoomableImageView: UIViewRepresentable {
     final class Coordinator: NSObject, UIScrollViewDelegate {
         weak var imageView: UIImageView?
         weak var scrollView: UIScrollView?
+        var imageTask: URLSessionDataTask?
+
+        deinit { imageTask?.cancel() }
 
         func viewForZooming(in scrollView: UIScrollView) -> UIView? {
             imageView

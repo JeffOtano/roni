@@ -28,6 +28,7 @@ struct LoginView: View {
     @State private var errorMessage: String?
     @State private var errorDismissTask: Task<Void, Never>?
     @State private var taglineIndex = 0
+    @State private var taglineTimer: Timer?
 
     private let taglines = [
         "AI-powered strength coaching",
@@ -93,11 +94,16 @@ struct LoginView: View {
             dismissError()
         }
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-                withAnimation(.easeInOut(duration: 0.5)) {
+            taglineTimer?.invalidate()
+            taglineTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+                withAnimation(Animate.smooth) {
                     taglineIndex = (taglineIndex + 1) % taglines.count
                 }
             }
+        }
+        .onDisappear {
+            taglineTimer?.invalidate()
+            taglineTimer = nil
         }
     }
 
@@ -389,7 +395,7 @@ struct LoginView: View {
     }
 
     private func showError(_ message: String) {
-        withAnimation(.easeInOut(duration: 0.25)) {
+        withAnimation(Animate.snappy) {
             errorMessage = message
         }
         Theme.Haptics.error()
@@ -405,7 +411,7 @@ struct LoginView: View {
     private func dismissError() {
         errorDismissTask?.cancel()
         errorDismissTask = nil
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(Animate.snappy) {
             errorMessage = nil
         }
         authManager.error = nil

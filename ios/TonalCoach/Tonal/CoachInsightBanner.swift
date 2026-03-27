@@ -15,7 +15,7 @@ struct CoachInsightBanner: View {
                     .font(Theme.Typography.callout)
                     .multilineTextAlignment(.leading)
             }
-            .foregroundColor(Theme.Colors.primary.opacity(0.8))
+            .foregroundStyle(Theme.Colors.primary.opacity(0.8))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Theme.Spacing.lg)
             .background(Theme.Colors.primary.opacity(0.1))

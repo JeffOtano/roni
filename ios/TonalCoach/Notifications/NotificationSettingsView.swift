@@ -19,7 +19,9 @@ struct NotificationSettingsView: View {
             weeklyRecapSection
             coachMessagesSection
             checkInsSection
+            #if DEBUG
             debugSection
+            #endif
         }
         .scrollContentBackground(.hidden)
         .background(Theme.Colors.background)
@@ -208,6 +210,7 @@ struct NotificationSettingsView: View {
         .listRowBackground(Theme.Colors.card)
     }
 
+    #if DEBUG
     private var debugSection: some View {
         Section {
             Button {
@@ -239,6 +242,7 @@ struct NotificationSettingsView: View {
         }
         .listRowBackground(Theme.Colors.card)
     }
+    #endif
 
     // MARK: - Actions
 

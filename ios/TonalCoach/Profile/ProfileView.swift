@@ -180,7 +180,7 @@ struct ProfileView: View {
         }
         .confirmationDialog("Sign Out", isPresented: $showSignOutConfirmation) {
             Button("Sign Out", role: .destructive) {
-                HapticEngine.error()
+                HapticEngine.tap()
                 Task { await authManager.signOut() }
             }
             Button("Cancel", role: .cancel) {}
