@@ -3,6 +3,11 @@ import ConvexMobile
 import Foundation
 import SwiftUI
 
+private struct BetaStatus: Decodable {
+    let allowed: Bool
+    let spotsLeft: Int
+}
+
 /// Coordinates all authentication operations for SwiftUI views.
 ///
 /// Views interact with this class via `@Environment(\.authManager)`.
@@ -107,6 +112,15 @@ final class AuthManager {
         defer { isLoading = false }
 
         do {
+            // Check beta capacity before attempting signup to avoid orphaned auth entries
+            let status: BetaStatus = try await requireConvex().query(
+                "userProfiles:canSignUp"
+            )
+            guard status.allowed else {
+                self.error = "Beta is full! All spots have been claimed. Join our Discord for waitlist updates."
+                return
+            }
+
             let result: SignInResult = try await requireConvex().action(
                 "auth:signIn",
                 with: [

@@ -2,6 +2,7 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ResendOTP } from "./ResendOTP";
 
+// Must match BETA_SPOT_LIMIT in userProfiles.ts (canSignUp query).
 const BETA_SPOT_LIMIT = 50;
 
 export const { auth, signIn, signOut, store } = convexAuth({
@@ -15,9 +16,11 @@ export const { auth, signIn, signOut, store } = convexAuth({
       // Allow existing users to sign in
       if (args.existingUserId) return args.existingUserId;
 
-      // Block new signups when beta is full.
-      // Count userProfiles (real onboarded users), not the users table
-      // which is inflated by @convex-dev/auth system entries.
+      // Safety net: block new signups when beta is full.
+      // The client should check userProfiles:canSignUp BEFORE attempting
+      // registration to avoid orphaned authAccounts entries. This check
+      // is a last resort - if it throws, @convex-dev/auth has already
+      // created an authAccounts entry that becomes orphaned.
       const realUserCount = (await ctx.db.query("userProfiles").collect()).length;
       if (realUserCount >= BETA_SPOT_LIMIT) {
         throw new Error(
