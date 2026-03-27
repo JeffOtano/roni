@@ -237,7 +237,13 @@ final class ConvexManager {
 
 /// Environment key for injecting `ConvexManager` into the SwiftUI view hierarchy.
 private struct ConvexManagerKey: EnvironmentKey {
-    static let defaultValue = ConvexManager()
+    static let defaultValue: ConvexManager = {
+        #if DEBUG
+        preconditionFailure("ConvexManager must be injected via .environment()")
+        #else
+        return ConvexManager()
+        #endif
+    }()
 }
 
 extension EnvironmentValues {

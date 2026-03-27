@@ -16,9 +16,7 @@ struct DayDetailView: View {
                 divider
                 exerciseList
 
-                if let tonalId = day.tonalWorkoutId,
-                   day.derivedStatus == "programmed"
-                {
+                if let tonalId = day.tonalWorkoutId {
                     openInTonalButton(tonalId)
                 }
             }

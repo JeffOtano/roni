@@ -232,6 +232,7 @@ final class ScheduleViewModel {
 
     // MARK: - Load
 
+    @MainActor
     func loadIfNeeded(using manager: ConvexManager) async {
         guard !hasLoaded, !isLoading else { return }
         await load(using: manager)
