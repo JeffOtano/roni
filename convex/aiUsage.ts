@@ -1,6 +1,12 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+
+/** Daily per-user token budget. Configurable - change this constant to adjust. */
+export const DAILY_TOKEN_BUDGET = 500_000;
+
+/** 80% threshold for early warning Discord alert. */
+export const BUDGET_WARNING_THRESHOLD = 0.8;
 
 export const record = internalMutation({
   args: {
@@ -53,5 +59,23 @@ export const recordToolCall = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("aiToolCalls", { ...args, createdAt: Date.now() });
+  },
+});
+
+/** Get total tokens used by a user today (UTC day boundary). */
+export const getDailyTokenUsage = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const now = Date.now();
+    const startOfDay = new Date(now);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const records = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .filter((q) => q.gte(q.field("createdAt"), startOfDay.getTime()))
+      .collect();
+
+    return records.reduce((sum, r) => sum + r.totalTokens, 0);
   },
 });
