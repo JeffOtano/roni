@@ -16,6 +16,7 @@ Deploy Tonal Coach to production. This affects live users -- be careful.
 3. **Ask for explicit confirmation before proceeding.**
 
 4. Deploy Convex backend:
+
    ```bash
    npx convex deploy
    ```
