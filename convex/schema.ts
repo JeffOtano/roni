@@ -407,7 +407,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_createdAt", ["createdAt"]),
+    .index("by_createdAt", ["createdAt"])
+    .index("by_userId_createdAt", ["userId", "createdAt"]),
 
   /** AI agent tool execution log (latency, success/error tracking). */
   aiToolCalls: defineTable({
@@ -418,7 +419,9 @@ export default defineSchema({
     success: v.boolean(),
     error: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_tool", ["toolName", "createdAt"]),
+  })
+    .index("by_tool", ["toolName", "createdAt"])
+    .index("by_createdAt", ["createdAt"]),
 
   /** Permanent record of completed Tonal workouts (synced from activity history). */
   completedWorkouts: defineTable({

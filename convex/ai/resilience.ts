@@ -6,6 +6,7 @@ import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { weekPlanPresentationSchema } from "./schemas";
 import type { WeekPlanPresentation } from "./schemas";
+import { BUDGET_WARNING_THRESHOLD, DAILY_TOKEN_BUDGET } from "../aiUsage";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 const BUDGET_EXCEEDED_MESSAGE =
@@ -188,7 +189,6 @@ export async function checkDailyBudget(
   userId: string,
   threadId: string,
 ): Promise<boolean> {
-  const { DAILY_TOKEN_BUDGET, BUDGET_WARNING_THRESHOLD } = await import("../aiUsage");
   const todayUsage = await ctx.runQuery(internal.aiUsage.getDailyTokenUsage, {
     userId: userId as Id<"users">,
   });

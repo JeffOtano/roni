@@ -92,7 +92,7 @@ export async function withTokenRetry<T>(
       void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
       return markExpiredAndThrow(ctx, userId);
     }
-    void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
+    await ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
 
     try {
       return await fn(freshToken, tonalUserId);
