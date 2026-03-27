@@ -336,6 +336,46 @@ export const updateProfileData = internalMutation({
   },
 });
 
+const TOKEN_REFRESH_LOCK_TTL_MS = 30 * 1000; // 30 seconds
+
+/** Attempt to acquire the token refresh lock. Returns true if acquired. */
+export const acquireTokenRefreshLock = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) return false;
+
+    const now = Date.now();
+    // If lock is held and not expired, someone else is refreshing
+    if (
+      profile.tokenRefreshInProgress &&
+      now - profile.tokenRefreshInProgress < TOKEN_REFRESH_LOCK_TTL_MS
+    ) {
+      return false;
+    }
+
+    await ctx.db.patch(profile._id, { tokenRefreshInProgress: now });
+    return true;
+  },
+});
+
+/** Release the token refresh lock. */
+export const releaseTokenRefreshLock = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (profile) {
+      await ctx.db.patch(profile._id, { tokenRefreshInProgress: undefined });
+    }
+  },
+});
+
 /** Get thread staleness threshold for a user (server-only). */
 export const getThreadStaleHours = internalQuery({
   args: { userId: v.id("users") },

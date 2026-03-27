@@ -100,6 +100,8 @@ export default defineSchema({
     googleCalendarId: v.optional(v.string()),
     /** Hours of inactivity before a new chat thread is created. Default: 24. */
     threadStaleHours: v.optional(v.number()),
+    /** Timestamp when a token refresh started. Used to prevent concurrent refreshes. */
+    tokenRefreshInProgress: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"])

@@ -71,12 +71,28 @@ export async function withTokenRetry<T>(
       return markExpiredAndThrow(ctx, userId);
     }
 
+    // Try to acquire refresh lock to prevent concurrent refreshes
+    const lockAcquired = await ctx.runMutation(internal.userProfiles.acquireTokenRefreshLock, {
+      userId,
+    });
+    if (!lockAcquired) {
+      // Another caller is refreshing. Wait briefly and retry with potentially fresh token.
+      await new Promise((r) => setTimeout(r, 2000));
+      const { token: retryToken, tonalUserId: retryTonalUserId } = await withTonalToken(
+        ctx,
+        userId,
+      );
+      return fn(retryToken, retryTonalUserId);
+    }
+
     let freshToken: string;
     try {
       freshToken = await refreshAndPersist(ctx, userId, profile.tonalRefreshToken);
     } catch {
+      void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
       return markExpiredAndThrow(ctx, userId);
     }
+    void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
 
     try {
       return await fn(freshToken, tonalUserId);
