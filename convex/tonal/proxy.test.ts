@@ -17,6 +17,8 @@ vi.mock("../_generated/api", () => ({
     userProfiles: {
       markTokenExpired: "markTokenExpired",
       updateTonalToken: "updateTonalToken",
+      acquireTokenRefreshLock: "acquireTokenRefreshLock",
+      releaseTokenRefreshLock: "releaseTokenRefreshLock",
     },
   },
 }));
@@ -46,7 +48,11 @@ function makeProfile(overrides?: Record<string, unknown>) {
 function makeMockCtx(profile = makeProfile()) {
   return {
     runQuery: vi.fn(async () => profile),
-    runMutation: vi.fn(async () => {}),
+    runMutation: vi.fn(async (mutationRef: string) => {
+      // acquireTokenRefreshLock must return true so the lock path is taken
+      if (mutationRef === "acquireTokenRefreshLock") return true;
+      return undefined;
+    }),
   } as unknown as ActionCtx;
 }
 

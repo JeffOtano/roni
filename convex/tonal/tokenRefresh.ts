@@ -23,6 +23,15 @@ export const refreshExpiringTokens = internalAction({
           continue;
         }
 
+        // Skip if another refresh is in progress for this user
+        const lockAcquired = await ctx.runMutation(internal.userProfiles.acquireTokenRefreshLock, {
+          userId: profile.userId,
+        });
+        if (!lockAcquired) {
+          console.log(`[tokenRefresh] Skipping ${profile.userId} — refresh already in progress`);
+          continue;
+        }
+
         const refreshToken = await decryptToken(profile.tonalRefreshToken, keyHex);
         const result = await refreshTonalToken(refreshToken);
 
@@ -37,7 +46,14 @@ export const refreshExpiringTokens = internalAction({
           tonalRefreshToken: encryptedRefresh,
           tonalTokenExpiresAt: result.expiresAt,
         });
+
+        void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, {
+          userId: profile.userId,
+        });
       } catch (error) {
+        void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, {
+          userId: profile.userId,
+        });
         console.error(`Failed to refresh token for user ${profile.userId}:`, error);
         void ctx.runAction(internal.discord.notifyError, {
           source: "tokenRefresh",
