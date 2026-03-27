@@ -93,6 +93,7 @@ import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as schedule from "../schedule.js";
 import type * as stats from "../stats.js";
+import type * as systemHealth from "../systemHealth.js";
 import type * as threads from "../threads.js";
 import type * as tonal_accessories from "../tonal/accessories.js";
 import type * as tonal_auth from "../tonal/auth.js";
@@ -221,6 +222,7 @@ declare const fullApi: ApiFromModules<{
   rateLimits: typeof rateLimits;
   schedule: typeof schedule;
   stats: typeof stats;
+  systemHealth: typeof systemHealth;
   threads: typeof threads;
   "tonal/accessories": typeof tonal_accessories;
   "tonal/auth": typeof tonal_auth;

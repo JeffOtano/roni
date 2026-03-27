@@ -8,6 +8,7 @@ describe("formatHealthSummary", () => {
       stuckPushCount: 0,
       lastMovementSyncAge: "2 hours ago",
       movementSyncStale: false,
+      circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("All clear");
@@ -20,6 +21,7 @@ describe("formatHealthSummary", () => {
       stuckPushCount: 0,
       lastMovementSyncAge: "2 hours ago",
       movementSyncStale: false,
+      circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("3 expired tokens");
@@ -31,6 +33,7 @@ describe("formatHealthSummary", () => {
       stuckPushCount: 0,
       lastMovementSyncAge: "2 hours ago",
       movementSyncStale: false,
+      circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("All clear");
@@ -42,6 +45,7 @@ describe("formatHealthSummary", () => {
       stuckPushCount: 2,
       lastMovementSyncAge: "2 hours ago",
       movementSyncStale: false,
+      circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("2 stuck");
@@ -53,6 +57,7 @@ describe("formatHealthSummary", () => {
       stuckPushCount: 0,
       lastMovementSyncAge: "3 days ago",
       movementSyncStale: true,
+      circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("stale");
@@ -64,11 +69,37 @@ describe("formatHealthSummary", () => {
       stuckPushCount: 1,
       lastMovementSyncAge: "2 days ago",
       movementSyncStale: true,
+      circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("5 expired tokens");
     expect(result).toContain("1 stuck");
     expect(result).toContain("stale");
     expect(result).toContain(" | ");
+  });
+
+  it("flags open circuit breaker", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 0,
+      stuckPushCount: 0,
+      lastMovementSyncAge: "2 hours ago",
+      movementSyncStale: false,
+      circuitOpen: true,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("circuit breaker OPEN");
+  });
+
+  it("does not flag closed circuit breaker", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 0,
+      stuckPushCount: 0,
+      lastMovementSyncAge: "2 hours ago",
+      movementSyncStale: false,
+      circuitOpen: false,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("All clear");
+    expect(result).not.toContain("circuit breaker");
   });
 });

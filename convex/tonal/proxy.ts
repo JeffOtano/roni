@@ -62,6 +62,13 @@ export async function cachedFetch<T>(
     return cached.data as T;
   }
 
+  // Circuit breaker: if Tonal is unhealthy, serve stale data without attempting fetch
+  const circuitOpen = await ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" });
+  if (circuitOpen && cached) {
+    console.warn(`cachedFetch(${dataType}): circuit open, serving stale data`);
+    return cached.data as T;
+  }
+
   // Stale-while-revalidate: try to refresh, fall back to stale data
   try {
     const data = await fetcher();
@@ -90,11 +97,17 @@ export async function cachedFetch<T>(
       console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
     }
 
+    // Record success for circuit breaker
+    void ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
+
     return data;
   } catch (error) {
-    // Never swallow auth errors — the user must reconnect
+    // Never swallow auth errors -- the user must reconnect
     if (error instanceof TonalApiError && error.status === 401) throw error;
     if (error instanceof Error && error.message.includes("session expired")) throw error;
+
+    // Record failure for circuit breaker (non-auth errors only)
+    void ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
 
     // For non-auth errors, fall back to stale data if available
     if (cached) {

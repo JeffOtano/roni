@@ -573,6 +573,16 @@ export default defineSchema({
     .index("by_equipmentConfig", ["equipmentConfig"])
     .index("by_generationVersion", ["generationVersion"]),
 
+  /** Circuit breaker state for external API health tracking. Single-row table. */
+  systemHealth: defineTable({
+    service: v.string(), // "tonal"
+    consecutiveFailures: v.number(),
+    lastFailureAt: v.optional(v.number()),
+    circuitOpen: v.boolean(), // true = tripped, don't call API
+    circuitOpenedAt: v.optional(v.number()),
+    lastSuccessAt: v.optional(v.number()),
+  }).index("by_service", ["service"]),
+
   /** Device push tokens for APNs (iOS app). */
   pushTokens: defineTable({
     userId: v.id("users"),

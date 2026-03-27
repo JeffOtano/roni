@@ -14,6 +14,7 @@ export interface HealthSignals {
   stuckPushCount: number;
   lastMovementSyncAge: string;
   movementSyncStale: boolean;
+  circuitOpen: boolean;
 }
 
 /** Pure function: format health signals into a Discord-friendly summary. */
@@ -28,6 +29,9 @@ export function formatHealthSummary(signals: HealthSignals): string {
   }
   if (signals.movementSyncStale) {
     issues.push(`Movement sync stale (${signals.lastMovementSyncAge})`);
+  }
+  if (signals.circuitOpen) {
+    issues.push("Tonal API circuit breaker OPEN");
   }
 
   if (issues.length === 0) {
@@ -73,13 +77,14 @@ export const runHealthCheck = internalAction({
   handler: async (ctx) => {
     const now = Date.now();
 
-    const [expiredTokenCount, stuckPushIds, lastSyncTime] = await Promise.all([
+    const [expiredTokenCount, stuckPushIds, lastSyncTime, circuitOpen] = await Promise.all([
       ctx.runQuery(internal.healthCheck.getExpiredTokenCount),
       ctx.runQuery(internal.workoutPlans.getStuckPushingPlanIds, {
         cutoffTs: now - 5 * 60 * 1000,
         limit: 50,
       }),
       ctx.runQuery(internal.healthCheck.getLastMovementSyncTime),
+      ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" }),
     ]);
 
     const syncAgeMs = lastSyncTime ? now - lastSyncTime : Infinity;
@@ -89,13 +94,15 @@ export const runHealthCheck = internalAction({
       stuckPushCount: stuckPushIds.length,
       lastMovementSyncAge: lastSyncTime ? formatAge(syncAgeMs) : "never",
       movementSyncStale: syncAgeMs > MOVEMENT_SYNC_STALE_MS,
+      circuitOpen,
     };
 
     const summary = formatHealthSummary(signals);
     const hasIssues =
       signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD ||
       signals.stuckPushCount > 0 ||
-      signals.movementSyncStale;
+      signals.movementSyncStale ||
+      signals.circuitOpen;
 
     if (hasIssues) {
       void ctx.runAction(internal.discord.notifyError, {
