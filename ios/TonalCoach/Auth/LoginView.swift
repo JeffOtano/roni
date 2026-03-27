@@ -96,7 +96,7 @@ struct LoginView: View {
         .onAppear {
             taglineTimer?.invalidate()
             taglineTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-                withAnimation(.easeInOut(duration: 0.5)) {
+                withAnimation(Animate.smooth) {
                     taglineIndex = (taglineIndex + 1) % taglines.count
                 }
             }
@@ -395,7 +395,7 @@ struct LoginView: View {
     }
 
     private func showError(_ message: String) {
-        withAnimation(.easeInOut(duration: 0.25)) {
+        withAnimation(Animate.snappy) {
             errorMessage = message
         }
         Theme.Haptics.error()
@@ -411,7 +411,7 @@ struct LoginView: View {
     private func dismissError() {
         errorDismissTask?.cancel()
         errorDismissTask = nil
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(Animate.snappy) {
             errorMessage = nil
         }
         authManager.error = nil

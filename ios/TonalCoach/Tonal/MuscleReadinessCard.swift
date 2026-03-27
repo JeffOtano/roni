@@ -52,11 +52,11 @@ private struct MuscleCell: View {
 
     private var statusColor: Color {
         if value > 60 {
-            return Color(hex: "#34d399") // Ready - emerald
+            return Theme.Colors.levelBeginner // Ready - emerald
         } else if value > 30 {
-            return Color(hex: "#fbbf24") // Recovering - amber
+            return Theme.Colors.levelIntermediate // Recovering - amber
         } else {
-            return Color(hex: "#f87171") // Fatigued - rose
+            return Color(hex: "f87171") // Fatigued - rose
         }
     }
 }

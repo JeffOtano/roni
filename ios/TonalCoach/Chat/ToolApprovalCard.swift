@@ -51,7 +51,7 @@ struct ToolApprovalCard: View {
                     ? "checkmark.circle.fill"
                     : "xmark.circle.fill"
             )
-            .foregroundColor(
+            .foregroundStyle(
                 status == .approved
                     ? Theme.Colors.success
                     : Theme.Colors.mutedForeground
@@ -62,7 +62,7 @@ struct ToolApprovalCard: View {
                     : "Declined"
             )
             .font(Theme.Typography.caption)
-            .foregroundColor(Theme.Colors.mutedForeground)
+            .foregroundStyle(Theme.Colors.mutedForeground)
         }
         .padding(Theme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)

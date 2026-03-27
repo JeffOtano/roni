@@ -162,12 +162,12 @@ private struct ScoreRing: View {
                 CountingText(target: score, format: "%.0f")
                     .font(Theme.Typography.monoText)
                     .fontWeight(.bold)
-                    .foregroundColor(Theme.Colors.foreground)
+                    .foregroundStyle(Theme.Colors.foreground)
             } else {
                 Text(String(format: "%.0f", score))
                     .font(Theme.Typography.monoText)
                     .fontWeight(.bold)
-                    .foregroundColor(Theme.Colors.foreground)
+                    .foregroundStyle(Theme.Colors.foreground)
             }
         }
         .frame(width: size, height: size)

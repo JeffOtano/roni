@@ -34,7 +34,7 @@ struct ReadinessCard: View {
             CountingText(target: readiness.score, format: "%.0f")
                 .font(Theme.Typography.largeTitle)
                 .fontWeight(.bold)
-                .foregroundColor(Theme.Colors.foreground)
+                .foregroundStyle(Theme.Colors.foreground)
         }
         .frame(width: 96, height: 96)
         .accessibilityElement(children: .ignore)

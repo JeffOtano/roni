@@ -76,7 +76,7 @@ struct WelcomeCarouselView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.3), value: currentPage)
+                .animation(Animate.smooth, value: currentPage)
 
                 // Custom page indicator + CTA
                 bottomControls
@@ -103,7 +103,7 @@ struct WelcomeCarouselView: View {
             endRadius: 400
         )
         .hueRotation(.degrees(slides[currentPage].hueRotation))
-        .animation(.easeInOut(duration: 0.6), value: currentPage)
+        .animation(Animate.smooth, value: currentPage)
     }
 
     // MARK: - Skip Bar
@@ -129,7 +129,7 @@ struct WelcomeCarouselView: View {
         }
         .frame(height: 44)
         .padding(.horizontal, Theme.Spacing.md)
-        .animation(.easeInOut(duration: 0.2), value: isLastSlide)
+        .animation(Animate.snappy, value: isLastSlide)
     }
 
     // MARK: - Bottom Controls
@@ -149,7 +149,7 @@ struct WelcomeCarouselView: View {
                             width: slide.id == currentPage ? 10 : 8,
                             height: slide.id == currentPage ? 10 : 8
                         )
-                        .animation(.easeInOut(duration: 0.2), value: currentPage)
+                        .animation(Animate.snappy, value: currentPage)
                 }
             }
             .accessibilityLabel("Page \(currentPage + 1) of \(slides.count)")
@@ -177,7 +177,7 @@ struct WelcomeCarouselView: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: isLastSlide)
+        .animation(Animate.smooth, value: isLastSlide)
     }
 
     // MARK: - Actions

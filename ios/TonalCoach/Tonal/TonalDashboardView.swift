@@ -112,10 +112,10 @@ struct TonalDashboardView: View {
                 .font(Theme.Typography.title)
                 .fontWeight(.bold)
                 .kerning(-0.5)
-                .foregroundColor(Theme.Colors.foreground)
+                .foregroundStyle(Theme.Colors.foreground)
             Text(dateText)
                 .font(Theme.Typography.callout)
-                .foregroundColor(Theme.Colors.mutedForeground)
+                .foregroundStyle(Theme.Colors.mutedForeground)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -1,5 +1,15 @@
 import SwiftUI
 
+// MARK: - Shared Date Formatter
+
+/// File-private ISO date formatter shared by ScheduleView and the todayGlowIfToday extension.
+private let scheduleISODateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    return formatter
+}()
+
 // MARK: - Schedule View
 
 /// Weekly schedule screen showing the user's 7-day training plan.
@@ -66,10 +76,7 @@ struct ScheduleView: View {
     }
 
     private func parsedDate(_ isoDate: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.date(from: isoDate)
+        scheduleISODateFormatter.date(from: isoDate)
     }
 
     // MARK: - Day List
@@ -260,20 +267,26 @@ final class ScheduleViewModel {
 
     // MARK: - Date Formatting
 
-    /// Converts "2026-03-24" to "Mar 24 - Mar 30" (7-day range).
-    private func formatWeekRange(from isoDate: String) -> String? {
+    private static let isoParseFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
 
-        guard let start = formatter.date(from: isoDate) else { return nil }
+    private static let isoDisplayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
+
+    /// Converts "2026-03-24" to "Mar 24 - Mar 30" (7-day range).
+    private func formatWeekRange(from isoDate: String) -> String? {
+        guard let start = Self.isoParseFormatter.date(from: isoDate) else { return nil }
         guard let end = Calendar.current.date(byAdding: .day, value: 6, to: start) else {
             return nil
         }
-
-        let display = DateFormatter()
-        display.dateFormat = "MMM d"
-        return "\(display.string(from: start)) - \(display.string(from: end))"
+        return "\(Self.isoDisplayFormatter.string(from: start)) - \(Self.isoDisplayFormatter.string(from: end))"
     }
 }
 
@@ -282,10 +295,7 @@ final class ScheduleViewModel {
 private extension View {
     /// Applies `.todayGlow()` only when the ISO date string matches today.
     func todayGlowIfToday(_ isoDate: String) -> some View {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        let isToday = formatter.date(from: isoDate).map {
+        let isToday = scheduleISODateFormatter.date(from: isoDate).map {
             Calendar.current.isDateInToday($0)
         } ?? false
         return Group {

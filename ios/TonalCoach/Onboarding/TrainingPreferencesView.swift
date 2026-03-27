@@ -144,7 +144,7 @@ struct TrainingPreferencesView: View {
         let isSelected = selectedGoal == goal.id
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(Animate.snappy) {
                 selectedGoal = goal.id
             }
             Theme.Haptics.selection()
@@ -246,7 +246,7 @@ struct TrainingPreferencesView: View {
         let isSelected = selectedSplit == split.id
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(Animate.snappy) {
                 selectedSplit = split.id
             }
             Theme.Haptics.selection()
@@ -418,7 +418,7 @@ struct TrainingPreferencesView: View {
 
     private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(Animate.snappy) {
                 action()
             }
             Theme.Haptics.selection()
@@ -468,7 +468,7 @@ struct TrainingPreferencesView: View {
                 onComplete()
             } catch {
                 isSaving = false
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(Animate.snappy) {
                     errorMessage = "Failed to save preferences. Please try again."
                 }
                 Theme.Haptics.error()

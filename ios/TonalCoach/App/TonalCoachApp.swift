@@ -65,7 +65,7 @@ struct TonalCoachApp: App {
                     VStack {
                         Image(systemName: "figure.strengthtraining.traditional")
                             .font(.system(size: 48))
-                            .foregroundColor(Theme.Colors.primary)
+                            .foregroundStyle(Theme.Colors.primary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.Colors.background)
