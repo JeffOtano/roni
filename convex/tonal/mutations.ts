@@ -60,11 +60,22 @@ export const doTonalCreateWorkout = internalAction({
     const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
     correctDurationRepsMismatch(sets, catalog);
 
+    const payload = { title, sets, createdSource: "WorkoutBuilder" };
+    console.log(
+      `createWorkout: "${title}", ${sets.length} sets, movements: ${[...new Set(sets.map((s) => s.movementId))].join(", ")}`,
+    );
+
     return withTokenRetry(ctx, userId, async (token) => {
-      const workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
-        method: "POST",
-        body: { title, sets, createdSource: "WorkoutBuilder" },
-      });
+      let workout: { id: string };
+      try {
+        workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
+          method: "POST",
+          body: payload,
+        });
+      } catch (err) {
+        console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
+        throw err;
+      }
       const tonalWorkoutId = workout.id;
 
       // Soft verification: read back custom workouts list to confirm push
