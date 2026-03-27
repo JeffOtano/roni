@@ -38,7 +38,10 @@ const movementFields = {
 
 /** Fetch movements from Tonal API and upsert into the movements table. */
 export const syncMovementCatalog = internalAction({
-  handler: async (ctx) => {
+  args: { retryCount: v.optional(v.number()) },
+  handler: async (ctx, { retryCount = 0 }) => {
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 10 * 60 * 1000; // 10 minutes
     try {
       // Pick any active user's token (movements are global, any auth token works)
       const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
@@ -118,8 +121,16 @@ export const syncMovementCatalog = internalAction({
       console.error("[movementSync] Catalog sync failed:", error);
       void ctx.runAction(internal.discord.notifyError, {
         source: "movementSync",
-        message: `Movement catalog sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Movement catalog sync failed (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${error instanceof Error ? error.message : String(error)}`,
       });
+      if (retryCount < MAX_RETRIES) {
+        await ctx.scheduler.runAfter(
+          RETRY_DELAY_MS,
+          internal.tonal.movementSync.syncMovementCatalog,
+          { retryCount: retryCount + 1 },
+        );
+        console.log(`[movementSync] Retry ${retryCount + 1} scheduled in 10 minutes`);
+      }
     }
   },
 });

@@ -133,7 +133,10 @@ export const getAllTrainingTypes = internalQuery({
 
 /** Main sync action: fetch training types + workout catalog, tag movements. */
 export const syncWorkoutCatalog = internalAction({
-  handler: async (ctx) => {
+  args: { retryCount: v.optional(v.number()) },
+  handler: async (ctx, { retryCount = 0 }) => {
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 10 * 60 * 1000; // 10 minutes
     try {
       const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
       const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
@@ -219,8 +222,16 @@ export const syncWorkoutCatalog = internalAction({
       console.error("[workoutCatalogSync] Catalog sync failed:", error);
       void ctx.runAction(internal.discord.notifyError, {
         source: "workoutCatalogSync",
-        message: `Workout catalog sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Workout catalog sync failed (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${error instanceof Error ? error.message : String(error)}`,
       });
+      if (retryCount < MAX_RETRIES) {
+        await ctx.scheduler.runAfter(
+          RETRY_DELAY_MS,
+          internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
+          { retryCount: retryCount + 1 },
+        );
+        console.log(`[workoutCatalogSync] Retry ${retryCount + 1} scheduled in 10 minutes`);
+      }
     }
   },
 });

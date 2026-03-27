@@ -53,7 +53,7 @@ export const connectTonal = internalAction({
     // 6. Seed movements table if empty (first user connecting)
     const existingMovements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     if (existingMovements.length === 0) {
-      await ctx.runAction(internal.tonal.movementSync.syncMovementCatalog);
+      await ctx.runAction(internal.tonal.movementSync.syncMovementCatalog, {});
     }
 
     // 7. Cache user profile
