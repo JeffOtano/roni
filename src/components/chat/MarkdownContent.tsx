@@ -1,6 +1,42 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
+
+function extractText(node: React.ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (!node) return "";
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  if (typeof node === "object" && node !== null && "props" in node) {
+    const el = node as { props?: { children?: React.ReactNode } };
+    return extractText(el.props?.children);
+  }
+  return "";
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute right-2 top-2 rounded-md bg-muted-foreground/10 p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted-foreground/20 hover:text-foreground group-hover:opacity-100"
+      aria-label="Copy code"
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
+  );
+}
 
 const mdComponents: Components = {
   strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
@@ -23,11 +59,17 @@ const mdComponents: Components = {
       </code>
     );
   },
-  pre: ({ children }) => (
-    <pre className="my-3 max-w-full overflow-x-auto rounded-lg bg-muted p-4 font-mono text-[13px] leading-relaxed">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }) => {
+    const textContent = extractText(children);
+    return (
+      <div className="group relative my-3">
+        <CopyButton text={textContent} />
+        <pre className="max-w-full overflow-x-auto rounded-lg bg-muted p-4 font-mono text-[13px] leading-relaxed">
+          {children}
+        </pre>
+      </div>
+    );
+  },
   ul: ({ children }) => <ul className="my-2 list-disc space-y-0.5 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="my-2 list-decimal space-y-0.5 pl-5">{children}</ol>,
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
