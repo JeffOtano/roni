@@ -237,13 +237,8 @@ export const replaceDraftWithPushed = internalMutation({
     const plan = await ctx.db.get(weekPlanId);
     if (!plan) return;
 
-    // Delete the draft record (the pushed version is the new canonical record)
-    const draft = await ctx.db.get(oldWorkoutPlanId);
-    if (draft && draft.status === "draft") {
-      await ctx.db.delete(oldWorkoutPlanId);
-    }
-
-    // Update the day slot to point to the pushed workout
+    // 1. Patch the day slot FIRST (point to the pushed workout).
+    // If this fails, the draft still exists (harmless).
     const days = [...plan.days];
     days[dayIndex] = {
       ...days[dayIndex],
@@ -251,5 +246,12 @@ export const replaceDraftWithPushed = internalMutation({
       ...(estimatedDuration != null && { estimatedDuration }),
     };
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+
+    // 2. THEN delete the draft (if it still exists and is still a draft).
+    // If this fails, we have an orphaned draft record (harmless cleanup).
+    const draft = await ctx.db.get(oldWorkoutPlanId);
+    if (draft && draft.status === "draft") {
+      await ctx.db.delete(oldWorkoutPlanId);
+    }
   },
 });
