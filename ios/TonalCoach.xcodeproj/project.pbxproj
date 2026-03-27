@@ -55,7 +55,6 @@
 		C06DAAD551A04064BEDBEBCF /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A9DFCB1A654550BA19E813 /* HapticEngine.swift */; };
 		C3A21FFB22CEAF5650584D91 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5104B6101FB951CE50BD1CA /* ProfileView.swift */; };
 		C3EDE8764BB34335A49F124D /* CountingText.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE256A5D7E8447829A1EB2C3 /* CountingText.swift */; };
-		C73C20B5427061040052FD8F /* HealthDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CC410DF7DC8875908F1D45 /* HealthDashboardView.swift */; };
 		C9FC3E5F39C9A66B5EA7DBAA /* TrainingPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA8501E440013785AD6CAC5 /* TrainingPreferencesView.swift */; };
 		D1E4F2A3B7C8904F5E3A1D62 /* PressableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3F87C2E1D4B6509F8E2C741 /* PressableCard.swift */; };
 		D29C91F4BDC6346C0FC65B84 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0788CC33759688FF4ED6239 /* ChatModels.swift */; };
@@ -81,7 +80,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		03CC410DF7DC8875908F1D45 /* HealthDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDashboardView.swift; sourceTree = "<group>"; };
 		043752E84535B7A45A93EFE6 /* TonalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TonalModels.swift; sourceTree = "<group>"; };
 		060DC542CFA2F111BF034A25 /* DayDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDetailView.swift; sourceTree = "<group>"; };
 		1295AE565C2349AA9F25F6A3 /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerView.swift; sourceTree = "<group>"; };
@@ -336,8 +334,7 @@
 		ED1687A7A45A32E295C43240 /* Health */ = {
 			isa = PBXGroup;
 			children = (
-				03CC410DF7DC8875908F1D45 /* HealthDashboardView.swift */,
-				CA3ECCA7218453986DC46FE3 /* HealthKitManager.swift */,
+					CA3ECCA7218453986DC46FE3 /* HealthKitManager.swift */,
 				D330194F50C144F6BA7C8BB1 /* HealthPermissionView.swift */,
 				26651474A9AF4DB3ACA36CB9 /* HealthSyncManager.swift */,
 			);
@@ -465,8 +462,7 @@
 				AB04CE09C9B6CF076C62B51C /* ConvexManager.swift in Sources */,
 				B16886E2BCB9CA386D6C694E /* DayDetailView.swift in Sources */,
 				084B400E6EBE58218C786A4E /* ExternalActivitiesCard.swift in Sources */,
-				C73C20B5427061040052FD8F /* HealthDashboardView.swift in Sources */,
-				014658B7C371AB8BC8FEFA4F /* HealthKitManager.swift in Sources */,
+					014658B7C371AB8BC8FEFA4F /* HealthKitManager.swift in Sources */,
 				A55E36E31571F4267AE2FD00 /* HealthPermissionView.swift in Sources */,
 				05DA574E37DB49B38E908B0F /* HealthSyncManager.swift in Sources */,
 				027E4B892D6B4D73D106535E /* KeychainHelper.swift in Sources */,

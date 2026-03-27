@@ -166,7 +166,7 @@ private struct FloatingTonalCTA: View {
 
             HStack(spacing: Theme.Spacing.sm) {
                 Button(action: {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    Theme.Haptics.medium()
                     TonalDeepLink.openInTonal(url: url)
                 }) {
                     HStack(spacing: Theme.Spacing.sm) {

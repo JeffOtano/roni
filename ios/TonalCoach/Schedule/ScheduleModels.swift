@@ -45,11 +45,15 @@ struct ScheduleDay: Decodable, Identifiable, Hashable {
 
 /// An exercise within a scheduled day's workout.
 struct ScheduleExercise: Decodable, Identifiable {
+    let id = UUID()
     let name: String
     let sets: Int
     let reps: Int?
 
-    var id: String { "\(name)-\(sets)-\(reps ?? 0)" }
+    // Exclude `id` from decoding -- it is a locally-generated UUID.
+    private enum CodingKeys: String, CodingKey {
+        case name, sets, reps
+    }
 
     var volumeText: String {
         if let reps {

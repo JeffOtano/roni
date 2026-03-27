@@ -172,6 +172,11 @@ struct ChatView: View {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }
+                .onChange(of: viewModel.messages.last?.displayText) { _, _ in
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
+                }
                 .onChange(of: showThinkingIndicator) { _, isThinking in
                     if isThinking {
                         withAnimation(.easeOut(duration: 0.3)) {
