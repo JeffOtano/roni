@@ -31,12 +31,18 @@ crons.interval(
   internal.calendarOAuth.cleanupExpiredOAuthStates,
 );
 
-crons.cron("sync-movement-catalog", "0 3 * * *", internal.tonal.movementSync.syncMovementCatalog);
+crons.cron(
+  "sync-movement-catalog",
+  "0 3 * * *",
+  internal.tonal.movementSync.syncMovementCatalog,
+  {},
+);
 
 crons.cron(
   "sync-workout-catalog",
   "0 4 * * 0",
   internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
+  {},
 );
 
 crons.interval("health-check", { minutes: 15 }, internal.healthCheck.runHealthCheck);
