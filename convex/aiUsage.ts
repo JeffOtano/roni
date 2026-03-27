@@ -72,8 +72,9 @@ export const getDailyTokenUsage = internalQuery({
 
     const records = await ctx.db
       .query("aiUsage")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .filter((q) => q.gte(q.field("createdAt"), startOfDay.getTime()))
+      .withIndex("by_userId_createdAt", (q) =>
+        q.eq("userId", userId).gte("createdAt", startOfDay.getTime()),
+      )
       .collect();
 
     return records.reduce((sum, r) => sum + r.totalTokens, 0);

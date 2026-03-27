@@ -12,14 +12,14 @@ export const refreshExpiringTokens = internalAction({
 
     const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
     if (!keyHex) {
-      console.error("TOKEN_ENCRYPTION_KEY not set — skipping token refresh");
+      console.error("TOKEN_ENCRYPTION_KEY not set - skipping token refresh");
       return;
     }
 
     for (const profile of expiring) {
       try {
         if (!profile.tonalRefreshToken) {
-          console.warn(`No refresh token for user ${profile.userId} — skipping`);
+          console.warn(`No refresh token for user ${profile.userId} - skipping`);
           continue;
         }
 
@@ -28,7 +28,7 @@ export const refreshExpiringTokens = internalAction({
           userId: profile.userId,
         });
         if (!lockAcquired) {
-          console.log(`[tokenRefresh] Skipping ${profile.userId} — refresh already in progress`);
+          console.log(`[tokenRefresh] Skipping ${profile.userId} - refresh already in progress`);
           continue;
         }
 
@@ -47,7 +47,7 @@ export const refreshExpiringTokens = internalAction({
           tonalTokenExpiresAt: result.expiresAt,
         });
 
-        void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, {
+        await ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, {
           userId: profile.userId,
         });
       } catch (error) {

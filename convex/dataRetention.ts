@@ -36,7 +36,7 @@ export const getExpiredToolCallIds = internalQuery({
   handler: async (ctx, { cutoff, limit }) => {
     const records = await ctx.db
       .query("aiToolCalls")
-      .withIndex("by_tool")
+      .withIndex("by_createdAt")
       .filter((q) => q.lt(q.field("createdAt"), cutoff))
       .take(limit);
     return records.map((r) => r._id);

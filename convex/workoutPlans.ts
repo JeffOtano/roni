@@ -248,9 +248,16 @@ export const runStuckPushRecovery = internalAction({
             const customWorkouts = await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
               userId: plan.userId,
             });
-            const match = customWorkouts.find(
+            const matches = customWorkouts.filter(
               (w: { id: string; title: string }) => w.title === plan.title,
             );
+            if (matches.length > 1) {
+              console.warn(
+                `[stuckPushRecovery] Multiple Tonal workouts match title "${plan.title}" for plan ${planId} - using most recent`,
+              );
+            }
+            // Use the last match (most recently created on Tonal)
+            const match = matches.length > 0 ? matches[matches.length - 1] : undefined;
             if (match) {
               await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
                 planId,
@@ -260,7 +267,7 @@ export const runStuckPushRecovery = internalAction({
               });
               recovered = true;
               console.log(
-                `[stuckPushRecovery] Recovered plan ${planId} — found matching workout ${match.id} on Tonal`,
+                `[stuckPushRecovery] Recovered plan ${planId} - found matching workout ${match.id} on Tonal`,
               );
             }
           } catch (err) {

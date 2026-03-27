@@ -51,6 +51,7 @@ function formatAge(ms: number): string {
 
 /** Count users with tokens that are already expired (expiresAt > 0 and < now). */
 export const getExpiredTokenCount = internalQuery({
+  args: {},
   handler: async (ctx) => {
     const now = Date.now();
     const profiles = await ctx.db
@@ -66,6 +67,7 @@ export const getExpiredTokenCount = internalQuery({
 
 /** Get the most recent lastSyncedAt from the movements table. */
 export const getLastMovementSyncTime = internalQuery({
+  args: {},
   handler: async (ctx) => {
     const latest = await ctx.db.query("movements").order("desc").first();
     return latest?.lastSyncedAt ?? null;
@@ -105,7 +107,7 @@ export const runHealthCheck = internalAction({
       signals.circuitOpen;
 
     if (hasIssues) {
-      void ctx.runAction(internal.discord.notifyError, {
+      await ctx.runAction(internal.discord.notifyError, {
         source: "healthCheck",
         message: summary,
       });
