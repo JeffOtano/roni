@@ -1,3 +1,9 @@
+/**
+ * Week plan actions: async operations that orchestrate week programming.
+ * Separated from weekPlans.ts because Convex actions have different import
+ * constraints (cannot call queries/mutations directly, must use ctx.runMutation).
+ */
+
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";

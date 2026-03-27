@@ -127,6 +127,7 @@ export default defineSchema({
     .index("by_userId_readAt", ["userId", "readAt"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
 
+  /** Tonal API response cache with TTL (stale-while-revalidate pattern). */
   tonalCache: defineTable({
     userId: v.optional(v.id("users")),
     dataType: v.string(),
@@ -137,6 +138,7 @@ export default defineSchema({
     .index("by_userId_dataType", ["userId", "dataType"])
     .index("by_dataType", ["dataType"]),
 
+  /** Tonal exercise catalog (synced daily at 3 AM from Tonal API). */
   movements: defineTable({
     tonalId: v.string(),
     name: v.string(),
@@ -162,6 +164,7 @@ export default defineSchema({
     .index("by_tonalId", ["tonalId"])
     .index("by_accessory", ["accessory"]),
 
+  /** Tonal training type taxonomy (synced with movement catalog). */
   trainingTypes: defineTable({
     tonalId: v.string(),
     name: v.string(),
@@ -169,6 +172,7 @@ export default defineSchema({
     lastSyncedAt: v.number(),
   }).index("by_tonalId", ["tonalId"]),
 
+  /** AI-generated workout plans. Lifecycle: draft -> pushing -> pushed -> completed. */
   workoutPlans: defineTable({
     userId: v.id("users"),
     threadId: v.optional(v.string()),
@@ -192,6 +196,7 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_status", ["status"]),
 
+  /** 7-day training schedule. Each day has a session type, status, and optional linked workout. */
   weekPlans: defineTable({
     userId: v.id("users"),
     weekStartDate: v.string(),
@@ -384,6 +389,7 @@ export default defineSchema({
     usedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
+  /** LLM token usage tracking for cost monitoring. */
   aiUsage: defineTable({
     userId: v.optional(v.id("users")),
     threadId: v.optional(v.string()),
@@ -401,6 +407,7 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"]),
 
+  /** AI agent tool execution log (latency, success/error tracking). */
   aiToolCalls: defineTable({
     userId: v.optional(v.string()),
     threadId: v.optional(v.string()),

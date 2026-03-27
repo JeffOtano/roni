@@ -6,6 +6,25 @@ import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { buildTrainingSnapshot } from "./context";
 import { buildInstructions } from "./promptSections";
+// ---------------------------------------------------------------------------
+// Tool registry (33 tools across 4 files)
+// ---------------------------------------------------------------------------
+// tools.ts (12):        search_exercises, get_strength_scores, get_strength_history,
+//                       get_muscle_readiness, get_workout_history, get_workout_detail,
+//                       get_training_frequency, create_workout, delete_workout,
+//                       estimate_duration, list_progress_photos, compare_progress_photos
+//
+// weekTools.ts (5):     program_week, get_week_plan_details, delete_week_plan,
+//                       approve_week_plan, get_workout_performance
+//
+// weekModificationTools.ts (4): swap_exercise, add_exercise, move_session,
+//                               adjust_session_duration
+//
+// coachingTools.ts (12): record_feedback, get_recent_feedback, check_deload,
+//                        start_training_block, advance_training_block, set_goal,
+//                        update_goal_progress, get_goals, report_injury,
+//                        resolve_injury, get_injuries, get_weekly_volume
+// ---------------------------------------------------------------------------
 import {
   compareProgressPhotosTool,
   createWorkoutTool,

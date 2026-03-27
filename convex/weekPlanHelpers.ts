@@ -1,3 +1,8 @@
+/**
+ * Week plan helpers: constants, validators, and date utilities.
+ * Pure functions with no Convex DB operations. Imported by all other weekPlan files.
+ */
+
 import { v } from "convex/values";
 
 /** Session type for a day in the week plan. */

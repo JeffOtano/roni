@@ -1,14 +1,127 @@
-# Tonal Coach -- Project Guidelines
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What This Project Is
+
+Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach (Gemini) reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes completed workouts directly to Tonal. There is also a native iOS app with Apple HealthKit integration.
 
 ## Stack
 
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui (Base UI)
-- **Backend:** Convex (queries, mutations, actions), @convex-dev/agent for AI
+- **Backend:** Convex (queries, mutations, actions), @convex-dev/agent for AI coach
+- **iOS:** Swift (Xcode), Convex Swift SDK, HealthKit
 - **Language:** TypeScript (strict mode), Zod for runtime validation
 - **Testing:** Vitest, @vitest/coverage-v8
 - **Formatting:** Prettier (auto-enforced via pre-commit hooks)
 - **Package manager:** npm
-- **Deployment:** Vercel
+- **Deployment:** Vercel (web), Convex (backend)
+
+## Development Commands
+
+```bash
+# Dev servers (run concurrently in separate terminals)
+npx convex dev              # Convex backend with hot reload
+npm run dev                 # Next.js dev server (port 3000)
+
+# Verification (run after every code change)
+npm run typecheck           # tsc --noEmit
+
+# Testing
+npm test                    # all tests once
+npx vitest --project backend   # backend tests only (convex/**/*.test.ts)
+npx vitest --project frontend  # frontend tests only (src/**/*.test.{ts,tsx})
+npx vitest run convex/stats.test.ts  # single test file
+npm run test:watch          # watch mode
+npm run test:coverage       # with coverage report
+
+# Code quality
+npm run lint                # ESLint
+npm run format              # Prettier (write)
+npm run format:check        # Prettier (check only)
+npm run knip                # Dead code detection
+
+# Build
+npm run build               # Production build
+
+# Convex
+npx convex env set KEY value   # Set backend environment variable
+npx convex deploy              # Deploy to production
+```
+
+## Architecture
+
+### Core Data Flow
+
+```
+Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
+                                                                     |
+Apple HealthKit --> iOS app --> health.syncSnapshot mutation -------->|
+                                                                     v
+User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads context
+                                                                     |
+                                                          creates workoutPlans (draft)
+                                                                     |
+                                                          user approves --> push to Tonal API
+```
+
+### Backend Domains (`convex/`)
+
+- **`ai/`** -- Coach agent definition, 33 tools (read Tonal data, create/modify workouts, manage goals/injuries), context builder that injects training snapshot as system message, prompt construction
+- **`coach/`** -- Programming engine: exercise selection, periodization (Building/Deload/Testing blocks), progressive overload tracking
+- **`tonal/`** -- Tonal API integration: OAuth token management (AES-256 encrypted at rest), proxy layer with stale-while-revalidate caching, history sync, movement/workout catalog sync
+- **`google/`** -- Google Calendar OAuth for schedule integration
+- **`mcp/`** -- MCP server for Claude Desktop integration (authenticated via API keys)
+- **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; supports admin impersonation
+
+### Auth & Beta Cap
+
+- Password auth via `@convex-dev/auth` with Resend OTP for password reset
+- Beta capped at 50 users (enforced in both client pre-check via `userProfiles:canSignUp` AND server-side in `auth.ts` `createOrUpdateUser` callback)
+- The server-side check is a safety net only -- if it throws, `@convex-dev/auth` has already created an orphaned auth entry. Clients must check capacity first.
+- `BETA_SPOT_LIMIT` constant must stay in sync between `auth.ts` and `userProfiles.ts`
+
+### Tonal API Token Management
+
+- Tokens encrypted with `TOKEN_ENCRYPTION_KEY` (AES-256), stored in `userProfiles`
+- Cron refreshes expiring tokens every 30 minutes (`tonal/tokenRefresh.ts`)
+- `withTokenRetry` pattern: try with current token, on 401 refresh and retry
+- `withTonalToken()` helper encapsulates token decryption and injection
+
+### Scheduled Jobs (`crons.ts`)
+
+- Every 30m: refresh Tonal tokens, refresh active user cache
+- Every 15m: recover stuck workout pushes
+- Every 1h: activation checks, cleanup OAuth states
+- Every 6h: check-in trigger evaluation (missed sessions, milestones)
+- Daily 3 AM: sync movement catalog
+- Weekly Sunday 4 AM: sync Tonal workout catalog
+
+### iOS App (`ios/TonalCoach/`)
+
+Native Swift app sharing the same Convex backend. Key modules:
+
+- `Auth/` -- Convex session management, password auth
+- `Chat/` -- Real-time AI chat with tool approval cards
+- `Health/` -- HealthKit integration (sleep, HRV, steps, weight) synced daily via `health.syncSnapshot`
+- `Tonal/` -- Dashboard cards (strength scores, training load, muscle readiness)
+- `Schedule/` -- Weekly plan display
+- `Shared/Theme.swift` -- Centralized colors, `AnimationConstants.swift` for animation presets
+
+### Frontend Routes (`src/app/`)
+
+- `(app)/` -- Authenticated area: dashboard, chat, schedule, stats, progress, profile, settings
+- `onboarding/` -- 3-step flow: questionnaire, equipment, training preferences
+- `connect-tonal/` -- Tonal OAuth connection flow
+- `login/`, `reset-password/` -- Auth pages
+
+### Rate Limiting
+
+Uses `@convex-dev/rate-limiter`. Key limits defined in `convex/rateLimits.ts`:
+
+- `sendMessage` -- burst + daily cap per user
+- `syncHealthSnapshot` -- per-user sync rate
+- `mcpRequest` -- per-user MCP API calls
 
 ## Priority Hierarchy
 
@@ -123,10 +236,35 @@ When principles conflict, the higher number always wins.
 ## Convex Patterns
 
 - Use `query` for reads, `mutation` for DB writes, `action` for external API calls.
+- Prefix functions with `internal.*` when they should not be callable from the frontend.
+- All user-facing queries/mutations must call `getEffectiveUserId()` from `convex/lib/auth.ts` for auth + admin impersonation support.
 - `process.env` only in Convex actions or Next.js API routes. `NEXT_PUBLIC_` for client-side.
-- Every new mutation/action: check if it needs rate limiting (see existing patterns in `convex/`).
+- Every new mutation/action: check if it needs rate limiting (see `convex/rateLimits.ts`).
 - Validate external input with Zod at the action boundary. Internal functions receive typed data.
 - The Tonal API integration uses `cachedFetch` pattern -- check cache, fetch if expired, update cache.
+
+## Key Type Locations
+
+- **Tonal API types** (TonalUser, Movement, Activity, StrengthScore, etc.): `convex/tonal/types.ts`
+- **Domain types** (MuscleGroup, SessionDurationMinutes, OverloadSuggestion, etc.): `lib/volumeIntensityTypes.ts`
+- **Enriched week plan** (EnrichedDay, EnrichedWeekPlan): `convex/weekPlanEnriched.ts`
+- **Week plan validators/constants** (SESSION_TYPES, DAY_STATUSES, preferredSplitValidator): `convex/weekPlanHelpers.ts`
+- **Convex document/ID types**: `import type { Doc, Id } from "./_generated/dataModel"`
+- **Workout block structure**: `convex/validators.ts` (blockInputValidator)
+
+## Installed UI Components (shadcn/ui)
+
+alert, badge, button, card, dialog, input, label, scroll-area, separator, skeleton, textarea
+
+Install new ones with `npx shadcn@latest add <component>`.
+
+## Error Handling
+
+All errors use `throw new Error("message")` -- no custom error classes or ConvexError. Three patterns:
+
+- **Auth/ownership guard** (top of handler): `if (!userId) throw new Error("Not authenticated")`
+- **Validation** (before processing): `if (args.dayIndex < 0 || args.dayIndex > 6) throw new Error("dayIndex must be 0-6")`
+- **Action return objects** (actions that callers need to distinguish success/failure): `return { error: "reason" }` or `return { weekPlanId }`
 
 ## Automated Enforcement
 
