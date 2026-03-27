@@ -160,6 +160,21 @@ export const getBetaUserCount = query({
   },
 });
 
+const BETA_SPOT_LIMIT = 50;
+
+/** Check if new signups are allowed. Call BEFORE attempting registration. */
+export const canSignUp = query({
+  args: {},
+  handler: async (ctx) => {
+    const profiles = await ctx.db.query("userProfiles").collect();
+    const spotsLeft = BETA_SPOT_LIMIT - profiles.length;
+    return {
+      allowed: spotsLeft > 0,
+      spotsLeft: Math.max(0, spotsLeft),
+    };
+  },
+});
+
 const trainingPreferencesArgs = {
   preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
   trainingDays: v.array(v.number()),
