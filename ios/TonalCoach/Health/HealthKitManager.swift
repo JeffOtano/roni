@@ -644,7 +644,15 @@ final class HealthKitManager {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error { continuation.resume(throwing: error); return }
-                let value = (samples?.first as? HKQuantitySample)?.quantity.doubleValue(for: unit)
+                let value: Double? = {
+                    guard let quantity = (samples?.first as? HKQuantitySample)?.quantity else {
+                        return nil
+                    }
+                    guard quantity.is(compatibleWith: unit) else {
+                        return nil
+                    }
+                    return quantity.doubleValue(for: unit)
+                }()
                 continuation.resume(returning: value)
             }
             healthStore.execute(query)
