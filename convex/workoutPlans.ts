@@ -142,6 +142,14 @@ export const getById = internalQuery({
   },
 });
 
+/** Get a plan by ID without ownership check (internal use only). */
+export const getByIdInternal = internalQuery({
+  args: { planId: v.id("workoutPlans") },
+  handler: async (ctx, { planId }) => {
+    return ctx.db.get(planId);
+  },
+});
+
 /** Retry pushing a failed/draft plan to Tonal. TOCTOU-safe via transitionToPushing. */
 export const retryPush = action({
   args: { planId: v.id("workoutPlans") },
@@ -220,7 +228,7 @@ export const getStuckPushingPlanIds = internalQuery({
   },
 });
 
-/** Cron: mark stuck "pushing" plans as failed. */
+/** Cron: mark stuck "pushing" plans as failed, recovering any that made it to Tonal. */
 export const runStuckPushRecovery = internalAction({
   args: {},
   handler: async (ctx) => {
@@ -231,11 +239,43 @@ export const runStuckPushRecovery = internalAction({
         limit: STUCK_PUSH_BATCH_SIZE,
       });
       for (const planId of ids) {
-        await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-          planId,
-          status: "failed",
-          pushErrorReason: "Push timed out",
-        });
+        const plan = await ctx.runQuery(internal.workoutPlans.getByIdInternal, { planId });
+
+        // Try to recover: check if the workout made it to Tonal
+        let recovered = false;
+        if (plan) {
+          try {
+            const customWorkouts = await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
+              userId: plan.userId,
+            });
+            const match = customWorkouts.find(
+              (w: { id: string; title: string }) => w.title === plan.title,
+            );
+            if (match) {
+              await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+                planId,
+                status: "pushed",
+                tonalWorkoutId: match.id,
+                pushedAt: Date.now(),
+              });
+              recovered = true;
+              console.log(
+                `[stuckPushRecovery] Recovered plan ${planId} — found matching workout ${match.id} on Tonal`,
+              );
+            }
+          } catch (err) {
+            // If Tonal is unreachable, fall through to mark as failed
+            console.warn(`[stuckPushRecovery] Could not check Tonal for plan ${planId}:`, err);
+          }
+        }
+
+        if (!recovered) {
+          await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+            planId,
+            status: "failed",
+            pushErrorReason: "Push timed out",
+          });
+        }
       }
     } catch (error) {
       console.error("[stuckPushRecovery] Recovery failed:", error);
