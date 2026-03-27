@@ -13,7 +13,7 @@ import type { ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { coachAgent, coachAgentFallback } from "./ai/coach";
-import { streamWithRetry } from "./ai/resilience";
+import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 
 const MAX_IMAGES_PER_MESSAGE = 4;
@@ -123,6 +123,9 @@ export const sendMessage = action({
         targetThreadId = newThreadId;
       }
     }
+
+    const budgetExceeded = await checkDailyBudget(ctx, userId, targetThreadId);
+    if (budgetExceeded) return { threadId: targetThreadId };
 
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
@@ -243,6 +246,9 @@ export const processMessage = internalAction({
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, { threadId, userId, prompt, imageStorageIds }) => {
+    const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
+    if (budgetExceeded) return;
+
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
     await streamWithRetry(ctx, {

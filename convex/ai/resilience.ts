@@ -3,10 +3,13 @@ import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 import { weekPlanPresentationSchema } from "./schemas";
 import type { WeekPlanPresentation } from "./schemas";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
+const BUDGET_EXCEEDED_MESSAGE =
+  "I've hit my daily thinking limit -- let's pick this up tomorrow. Your limit resets at midnight UTC.";
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 1000;
 
@@ -174,4 +177,38 @@ async function saveErrorAndNotify(
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if a user has exceeded their daily token budget.
+ * Returns true if budget is exceeded (caller should abort).
+ */
+export async function checkDailyBudget(
+  ctx: ActionCtx,
+  userId: string,
+  threadId: string,
+): Promise<boolean> {
+  const { DAILY_TOKEN_BUDGET, BUDGET_WARNING_THRESHOLD } = await import("../aiUsage");
+  const todayUsage = await ctx.runQuery(internal.aiUsage.getDailyTokenUsage, {
+    userId: userId as Id<"users">,
+  });
+
+  if (todayUsage >= DAILY_TOKEN_BUDGET) {
+    await saveMessage(ctx, components.agent, {
+      threadId,
+      userId,
+      message: { role: "assistant", content: BUDGET_EXCEEDED_MESSAGE },
+    });
+    return true;
+  }
+
+  if (todayUsage >= DAILY_TOKEN_BUDGET * BUDGET_WARNING_THRESHOLD) {
+    void ctx.runAction(internal.discord.notifyError, {
+      source: "aiBudget",
+      message: `User ${userId} at ${Math.round((todayUsage / DAILY_TOKEN_BUDGET) * 100)}% of daily token budget (${todayUsage.toLocaleString()} / ${DAILY_TOKEN_BUDGET.toLocaleString()})`,
+      userId,
+    });
+  }
+
+  return false;
 }
