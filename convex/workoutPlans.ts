@@ -224,16 +224,24 @@ export const getStuckPushingPlanIds = internalQuery({
 export const runStuckPushRecovery = internalAction({
   args: {},
   handler: async (ctx) => {
-    const cutoffTs = Date.now() - STUCK_PUSH_CUTOFF_MS;
-    const ids = await ctx.runQuery(internal.workoutPlans.getStuckPushingPlanIds, {
-      cutoffTs,
-      limit: STUCK_PUSH_BATCH_SIZE,
-    });
-    for (const planId of ids) {
-      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-        planId,
-        status: "failed",
-        pushErrorReason: "Push timed out",
+    try {
+      const cutoffTs = Date.now() - STUCK_PUSH_CUTOFF_MS;
+      const ids = await ctx.runQuery(internal.workoutPlans.getStuckPushingPlanIds, {
+        cutoffTs,
+        limit: STUCK_PUSH_BATCH_SIZE,
+      });
+      for (const planId of ids) {
+        await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+          planId,
+          status: "failed",
+          pushErrorReason: "Push timed out",
+        });
+      }
+    } catch (error) {
+      console.error("[stuckPushRecovery] Recovery failed:", error);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "stuckPushRecovery",
+        message: `Stuck push recovery failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   },

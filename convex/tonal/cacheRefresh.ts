@@ -38,6 +38,11 @@ export const refreshActiveUsers = internalAction({
         });
       } catch (error) {
         console.error(`Failed to refresh cache for user ${profile.userId}:`, error);
+        void ctx.runAction(internal.discord.notifyError, {
+          source: "cacheRefresh",
+          message: `Cache refresh failed for user ${profile.userId}: ${error instanceof Error ? error.message : String(error)}`,
+          userId: profile.userId,
+        });
       }
     }
   },

@@ -39,80 +39,88 @@ const movementFields = {
 /** Fetch movements from Tonal API and upsert into the movements table. */
 export const syncMovementCatalog = internalAction({
   handler: async (ctx) => {
-    // Pick any active user's token (movements are global, any auth token works)
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-      sinceTimestamp: oneDayAgo,
-    });
-
-    if (activeUsers.length === 0) {
-      console.warn("[movementSync] No active users found — skipping catalog sync");
-      return;
-    }
-
-    const movements = await withTokenRetry(ctx, activeUsers[0].userId, (token) =>
-      tonalFetch<Movement[]>(token, "/v6/movements"),
-    );
-    const now = Date.now();
-
-    let inserted = 0;
-    let updated = 0;
-    const unmappedAccessories = new Set<string>();
-
-    for (const m of movements) {
-      const accessory = m.onMachineInfo?.accessory ?? undefined;
-
-      if (accessory && !(accessory in ACCESSORY_MAP)) {
-        unmappedAccessories.add(accessory);
-      }
-
-      const existing = await ctx.runQuery(internal.tonal.movementSync.getByTonalId, {
-        tonalId: m.id,
+    try {
+      // Pick any active user's token (movements are global, any auth token works)
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
+        sinceTimestamp: oneDayAgo,
       });
 
-      const doc = {
-        tonalId: m.id,
-        name: m.name,
-        shortName: m.shortName ?? m.name,
-        muscleGroups: m.muscleGroups ?? [],
-        skillLevel: m.skillLevel,
-        publishState: m.publishState,
-        sortOrder: m.sortOrder,
-        onMachine: m.onMachine,
-        inFreeLift: m.inFreeLift,
-        countReps: m.countReps,
-        isTwoSided: m.isTwoSided,
-        isBilateral: m.isBilateral,
-        isAlternating: m.isAlternating,
-        descriptionHow: m.descriptionHow,
-        descriptionWhy: m.descriptionWhy,
-        thumbnailMediaUrl: m.thumbnailMediaUrl,
-        accessory,
-        onMachineInfo: m.onMachineInfo,
-        lastSyncedAt: now,
-      };
-
-      if (existing) {
-        await ctx.runMutation(internal.tonal.movementSync.updateMovement, {
-          id: existing._id,
-          ...doc,
-        });
-        updated++;
-      } else {
-        await ctx.runMutation(internal.tonal.movementSync.insertMovement, { ...doc });
-        inserted++;
+      if (activeUsers.length === 0) {
+        console.warn("[movementSync] No active users found — skipping catalog sync");
+        return;
       }
-    }
 
-    if (unmappedAccessories.size > 0) {
-      console.warn(
-        `[movementSync] Unmapped accessory values: ${[...unmappedAccessories].join(", ")}`,
+      const movements = await withTokenRetry(ctx, activeUsers[0].userId, (token) =>
+        tonalFetch<Movement[]>(token, "/v6/movements"),
       );
-    }
+      const now = Date.now();
 
-    console.log(
-      `[movementSync] Synced ${movements.length} movements (${inserted} inserted, ${updated} updated)`,
-    );
+      let inserted = 0;
+      let updated = 0;
+      const unmappedAccessories = new Set<string>();
+
+      for (const m of movements) {
+        const accessory = m.onMachineInfo?.accessory ?? undefined;
+
+        if (accessory && !(accessory in ACCESSORY_MAP)) {
+          unmappedAccessories.add(accessory);
+        }
+
+        const existing = await ctx.runQuery(internal.tonal.movementSync.getByTonalId, {
+          tonalId: m.id,
+        });
+
+        const doc = {
+          tonalId: m.id,
+          name: m.name,
+          shortName: m.shortName ?? m.name,
+          muscleGroups: m.muscleGroups ?? [],
+          skillLevel: m.skillLevel,
+          publishState: m.publishState,
+          sortOrder: m.sortOrder,
+          onMachine: m.onMachine,
+          inFreeLift: m.inFreeLift,
+          countReps: m.countReps,
+          isTwoSided: m.isTwoSided,
+          isBilateral: m.isBilateral,
+          isAlternating: m.isAlternating,
+          descriptionHow: m.descriptionHow,
+          descriptionWhy: m.descriptionWhy,
+          thumbnailMediaUrl: m.thumbnailMediaUrl,
+          accessory,
+          onMachineInfo: m.onMachineInfo,
+          lastSyncedAt: now,
+        };
+
+        if (existing) {
+          await ctx.runMutation(internal.tonal.movementSync.updateMovement, {
+            id: existing._id,
+            ...doc,
+          });
+          updated++;
+        } else {
+          await ctx.runMutation(internal.tonal.movementSync.insertMovement, { ...doc });
+          inserted++;
+        }
+      }
+
+      if (unmappedAccessories.size > 0) {
+        console.warn(
+          `[movementSync] Unmapped accessory values: ${[...unmappedAccessories].join(", ")}`,
+        );
+      }
+
+      console.log(
+        `[movementSync] Synced ${movements.length} movements (${inserted} inserted, ${updated} updated)`,
+      );
+    } catch (error) {
+      console.error("[movementSync] Catalog sync failed:", error);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "movementSync",
+        message: `Movement catalog sync failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
   },
 });
 

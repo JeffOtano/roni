@@ -29,6 +29,8 @@ import type * as ai_weekReasoning from "../ai/weekReasoning.js";
 import type * as ai_weekTools from "../ai/weekTools.js";
 import type * as aiUsage from "../aiUsage.js";
 import type * as auth from "../auth.js";
+import type * as authCleanup from "../authCleanup.js";
+import type * as betaConfig from "../betaConfig.js";
 import type * as calendar from "../calendar.js";
 import type * as calendarActions from "../calendarActions.js";
 import type * as calendarHelpers from "../calendarHelpers.js";
@@ -154,6 +156,8 @@ declare const fullApi: ApiFromModules<{
   "ai/weekTools": typeof ai_weekTools;
   aiUsage: typeof aiUsage;
   auth: typeof auth;
+  authCleanup: typeof authCleanup;
+  betaConfig: typeof betaConfig;
   calendar: typeof calendar;
   calendarActions: typeof calendarActions;
   calendarHelpers: typeof calendarHelpers;

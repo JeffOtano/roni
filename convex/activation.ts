@@ -129,20 +129,28 @@ const DELAY_MS = 2000;
 export const runActivationCheckForEligibleUsers = internalAction({
   args: {},
   handler: async (ctx) => {
-    const userIds = (await ctx.runQuery(
-      internal.activation.getEligibleUserIds,
-      {},
-    )) as Id<"users">[];
-    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
-      const batch = userIds.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map((userId: Id<"users">) =>
-          ctx.runAction(internal.activation.checkActivation, { userId }),
-        ),
-      );
-      if (i + BATCH_SIZE < userIds.length) {
-        await new Promise((r) => setTimeout(r, DELAY_MS));
+    try {
+      const userIds = (await ctx.runQuery(
+        internal.activation.getEligibleUserIds,
+        {},
+      )) as Id<"users">[];
+      for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+        const batch = userIds.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map((userId: Id<"users">) =>
+            ctx.runAction(internal.activation.checkActivation, { userId }),
+          ),
+        );
+        if (i + BATCH_SIZE < userIds.length) {
+          await new Promise((r) => setTimeout(r, DELAY_MS));
+        }
       }
+    } catch (error) {
+      console.error("[activation] Activation check cron failed:", error);
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "activationCheck",
+        message: `Activation check cron failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   },
 });
