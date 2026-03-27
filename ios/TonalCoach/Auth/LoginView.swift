@@ -28,6 +28,7 @@ struct LoginView: View {
     @State private var errorMessage: String?
     @State private var errorDismissTask: Task<Void, Never>?
     @State private var taglineIndex = 0
+    @State private var taglineTimer: Timer?
 
     private let taglines = [
         "AI-powered strength coaching",
@@ -93,11 +94,16 @@ struct LoginView: View {
             dismissError()
         }
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            taglineTimer?.invalidate()
+            taglineTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                 withAnimation(.easeInOut(duration: 0.5)) {
                     taglineIndex = (taglineIndex + 1) % taglines.count
                 }
             }
+        }
+        .onDisappear {
+            taglineTimer?.invalidate()
+            taglineTimer = nil
         }
     }
 

@@ -45,9 +45,10 @@ struct WorkoutDetailView: View {
                     .lineLimit(1)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                if let workout {
+                if let workout,
+                   let shareURL = URL(string: "https://tonal.coach/workouts/\(workout.slug)") {
                     ShareLink(
-                        item: URL(string: "https://tonal.coach/workouts/\(workout.slug)")!,
+                        item: shareURL,
                         subject: Text(workout.title),
                         message: Text(workout.description)
                     ) {
