@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+import { formatHealthSummary, type HealthSignals } from "./healthCheck";
+
+describe("formatHealthSummary", () => {
+  it("returns all-clear when no issues", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 0,
+      stuckPushCount: 0,
+      lastMovementSyncAge: "2 hours ago",
+      movementSyncStale: false,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("All clear");
+    expect(result).not.toContain("ALERT");
+  });
+
+  it("flags expired tokens above threshold", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 3,
+      stuckPushCount: 0,
+      lastMovementSyncAge: "2 hours ago",
+      movementSyncStale: false,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("3 expired tokens");
+  });
+
+  it("does not flag expired tokens below threshold", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 1,
+      stuckPushCount: 0,
+      lastMovementSyncAge: "2 hours ago",
+      movementSyncStale: false,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("All clear");
+  });
+
+  it("flags stuck pushes", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 0,
+      stuckPushCount: 2,
+      lastMovementSyncAge: "2 hours ago",
+      movementSyncStale: false,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("2 stuck");
+  });
+
+  it("flags stale movement sync", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 0,
+      stuckPushCount: 0,
+      lastMovementSyncAge: "3 days ago",
+      movementSyncStale: true,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("stale");
+  });
+
+  it("combines multiple issues with pipe separator", () => {
+    const signals: HealthSignals = {
+      expiredTokenCount: 5,
+      stuckPushCount: 1,
+      lastMovementSyncAge: "2 days ago",
+      movementSyncStale: true,
+    };
+    const result = formatHealthSummary(signals);
+    expect(result).toContain("5 expired tokens");
+    expect(result).toContain("1 stuck");
+    expect(result).toContain("stale");
+    expect(result).toContain(" | ");
+  });
+});

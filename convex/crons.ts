@@ -39,4 +39,6 @@ crons.cron(
   internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
 );
 
+crons.interval("health-check", { minutes: 15 }, internal.healthCheck.runHealthCheck);
+
 export default crons;
