@@ -56,6 +56,7 @@ import type * as coach_weekProgrammingLegacy from "../coach/weekProgrammingLegac
 import type * as contact from "../contact.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as dataRetention from "../dataRetention.js";
 import type * as discord from "../discord.js";
 import type * as email from "../email.js";
 import type * as emailChange from "../emailChange.js";
@@ -185,6 +186,7 @@ declare const fullApi: ApiFromModules<{
   contact: typeof contact;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  dataRetention: typeof dataRetention;
   discord: typeof discord;
   email: typeof email;
   emailChange: typeof emailChange;

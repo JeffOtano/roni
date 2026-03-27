@@ -47,4 +47,6 @@ crons.cron(
 
 crons.interval("health-check", { minutes: 15 }, internal.healthCheck.runHealthCheck);
 
+crons.cron("data-retention", "0 2 * * 0", internal.dataRetention.runDataRetention, {});
+
 export default crons;
