@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { tonalFetch } from "./client";
+import { TonalApiError, tonalFetch } from "./client";
 import { type BlockInput, expandBlocksToSets } from "./transforms";
 import { validateWorkoutBlocks } from "./validation";
 import type { Activity, WorkoutEstimate, WorkoutSetInput } from "./types";
@@ -74,14 +74,26 @@ export const doTonalCreateWorkout = internalAction({
 
     return withTokenRetry(ctx, userId, async (token) => {
       let workout: { id: string };
-      try {
-        workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
-          method: "POST",
-          body: payload,
-        });
-      } catch (err) {
-        console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
-        throw err;
+      const MAX_RETRIES = 2;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
+            method: "POST",
+            body: payload,
+          });
+          break;
+        } catch (err) {
+          const is5xx = err instanceof TonalApiError && err.status >= 500;
+          if (!is5xx || attempt >= MAX_RETRIES) {
+            console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
+            throw err;
+          }
+          const delay = 3000 * (attempt + 1);
+          console.warn(
+            `createWorkout: Tonal ${(err as TonalApiError).status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay / 1000}s`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
       const tonalWorkoutId = workout.id;
 
