@@ -1,3 +1,15 @@
+/**
+ * Week plans: public API.
+ * Queries and mutations callable from the frontend. Also re-exports internal
+ * functions from weekPlanInternals.ts to keep the `internal.weekPlans.*` path.
+ *
+ * Related files:
+ *   weekPlanHelpers.ts     -- constants, validators, date utils (no DB)
+ *   weekPlanActions.ts     -- actions (programWeek, programMyWeek)
+ *   weekPlanInternals.ts   -- internal queries/mutations (for agent, crons, actions)
+ *   weekPlanEnriched.ts    -- enrichment action (joins with Tonal activity data)
+ */
+
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
