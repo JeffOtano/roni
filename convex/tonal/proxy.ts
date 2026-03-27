@@ -67,13 +67,28 @@ export async function cachedFetch<T>(
     const data = await fetcher();
     const now = Date.now();
 
-    await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-      userId,
-      dataType,
-      data,
-      fetchedAt: now,
-      expiresAt: now + ttl,
-    });
+    // Truncate large arrays before caching to stay within Convex's
+    // 8192 element limit per array field. The full data is still
+    // returned to the caller; only the cached copy is truncated.
+    const MAX_CACHE_ARRAY_LENGTH = 500;
+    const cacheData =
+      Array.isArray(data) && data.length > MAX_CACHE_ARRAY_LENGTH
+        ? data.slice(0, MAX_CACHE_ARRAY_LENGTH)
+        : data;
+
+    try {
+      await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
+        userId,
+        dataType,
+        data: cacheData,
+        fetchedAt: now,
+        expiresAt: now + ttl,
+      });
+    } catch (cacheErr) {
+      // If caching fails (e.g., data still too large), log and continue.
+      // The caller still gets fresh data; it just won't be cached.
+      console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
+    }
 
     return data;
   } catch (error) {

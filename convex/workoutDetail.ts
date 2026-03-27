@@ -47,9 +47,14 @@ export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "work
   movementSummaries: MovementSummary[];
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const getWorkoutDetail = action({
   args: { activityId: v.string() },
   handler: async (ctx, args): Promise<EnrichedWorkoutDetail> => {
+    if (!UUID_RE.test(args.activityId)) {
+      throw new Error(`Invalid activityId: expected UUID, got "${args.activityId}"`);
+    }
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 

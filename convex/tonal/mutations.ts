@@ -57,8 +57,15 @@ export const doTonalCreateWorkout = internalAction({
         `Invalid movement IDs. You must use search_exercises to get real IDs from Tonal's catalog. Do not fabricate IDs. Errors: ${validation.errors.join(", ")}`,
       );
     }
-    const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
-    correctDurationRepsMismatch(sets, catalog);
+    const rawSets = expandBlocksToSets(blocks as BlockInput[], catalog);
+    correctDurationRepsMismatch(rawSets, catalog);
+
+    // Strip undefined fields from each set before sending to Tonal.
+    // JSON.stringify drops undefined values, but Tonal's Go backend
+    // may reject null values for optional fields like prescribedReps/prescribedDuration.
+    const sets = rawSets.map((s) =>
+      Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)),
+    );
 
     const payload = { title, sets, createdSource: "WorkoutBuilder" };
     console.log(
