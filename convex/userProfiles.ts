@@ -4,6 +4,21 @@ import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { computeBetaCapacity } from "./betaConfig";
 
+const profileDataValidator = v.object({
+  firstName: v.string(),
+  lastName: v.string(),
+  heightInches: v.number(),
+  weightPounds: v.number(),
+  gender: v.string(),
+  level: v.string(),
+  workoutsPerWeek: v.number(),
+  workoutDurationMin: v.number(),
+  workoutDurationMax: v.number(),
+  dateOfBirth: v.optional(v.string()),
+  username: v.optional(v.string()),
+  tonalCreatedAt: v.optional(v.string()),
+});
+
 export const getByUserId = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -22,21 +37,18 @@ export const create = internalMutation({
     tonalToken: v.string(),
     tonalRefreshToken: v.optional(v.string()),
     tonalTokenExpiresAt: v.optional(v.number()),
-    profileData: v.optional(
-      v.object({
-        firstName: v.string(),
-        lastName: v.string(),
-        heightInches: v.number(),
-        weightPounds: v.number(),
-        gender: v.string(),
-        level: v.string(),
-        workoutsPerWeek: v.number(),
-        workoutDurationMin: v.number(),
-        workoutDurationMax: v.number(),
-      }),
-    ),
+    profileData: v.optional(profileDataValidator),
   },
   handler: async (ctx, args) => {
+    // Sync first/last name to users table for direct access
+    if (args.profileData) {
+      await ctx.db.patch(args.userId, {
+        firstName: args.profileData.firstName,
+        lastName: args.profileData.lastName,
+        name: `${args.profileData.firstName} ${args.profileData.lastName}`,
+      });
+    }
+
     // Upsert: check if profile exists
     const existing = await ctx.db
       .query("userProfiles")
@@ -321,17 +333,7 @@ export const updateLastSyncedActivityDate = internalMutation({
 export const updateProfileData = internalMutation({
   args: {
     userId: v.id("users"),
-    profileData: v.object({
-      firstName: v.string(),
-      lastName: v.string(),
-      heightInches: v.number(),
-      weightPounds: v.number(),
-      gender: v.string(),
-      level: v.string(),
-      workoutsPerWeek: v.number(),
-      workoutDurationMin: v.number(),
-      workoutDurationMax: v.number(),
-    }),
+    profileData: profileDataValidator,
   },
   handler: async (ctx, { userId, profileData }) => {
     const profile = await ctx.db
@@ -342,6 +344,13 @@ export const updateProfileData = internalMutation({
     await ctx.db.patch(profile._id, {
       profileData,
       profileDataRefreshedAt: Date.now(),
+    });
+
+    // Sync first/last name to users table for direct access
+    await ctx.db.patch(userId, {
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      name: `${profileData.firstName} ${profileData.lastName}`,
     });
   },
 });
