@@ -1,7 +1,12 @@
 import type { ToolContext, ToolDefinition, ToolHandler } from "../registry";
 import { internal } from "../../_generated/api";
 import { aggregateProgressMetrics, aggregateTrainingFrequency } from "./aggregations";
-import type { WorkoutActivityDetail } from "../../tonal/types";
+import type {
+  Activity,
+  FormattedWorkoutSummary,
+  Movement,
+  WorkoutActivityDetail,
+} from "../../tonal/types";
 
 // --- Tool handlers ---
 
@@ -10,10 +15,13 @@ async function listWorkoutHistory(
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   const limit = (args.limit as number | undefined) ?? 20;
-  const activities = await toolCtx.ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-    userId: toolCtx.userId,
-    limit,
-  });
+  const activities: Activity[] = await toolCtx.ctx.runAction(
+    internal.tonal.proxy.fetchWorkoutHistory,
+    {
+      userId: toolCtx.userId,
+      limit,
+    },
+  );
 
   const summary = activities.map((a) => ({
     activityId: a.activityId,
@@ -54,7 +62,7 @@ async function getWorkoutMovements(
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   const activityId = args.activityId as string;
 
-  const [detail, formatted, movements] = await Promise.all([
+  const [detail, formatted, movements] = (await Promise.all([
     toolCtx.ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
       userId: toolCtx.userId,
       activityId,
@@ -66,7 +74,7 @@ async function getWorkoutMovements(
       })
       .catch(() => null),
     toolCtx.ctx.runQuery(internal.tonal.movementSync.getAllMovements),
-  ]);
+  ])) as [WorkoutActivityDetail | null, FormattedWorkoutSummary | null, Movement[]];
 
   if (!detail) {
     return { content: [{ type: "text", text: "Workout activity not found." }] };

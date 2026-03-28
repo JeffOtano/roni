@@ -1,5 +1,6 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
+import type { Doc } from "../_generated/dataModel";
 
 /**
  * One-time backfill: fetch fresh Tonal profile for all users and sync
@@ -10,10 +11,13 @@ import { internal } from "../_generated/api";
  */
 export const backfillAllProfiles = internalAction({
   args: {},
-  handler: async (ctx) => {
-    const profiles = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-      sinceTimestamp: 0,
-    });
+  handler: async (ctx): Promise<{ success: number; failed: number; total: number }> => {
+    const profiles: Doc<"userProfiles">[] = await ctx.runQuery(
+      internal.userProfiles.getActiveUsers,
+      {
+        sinceTimestamp: 0,
+      },
+    );
 
     let success = 0;
     let failed = 0;

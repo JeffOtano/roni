@@ -11,7 +11,12 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { aggregateDetailToSessions } from "../progressiveOverload";
-import type { Activity, FormattedWorkoutSummary, WorkoutActivityDetail } from "./types";
+import type {
+  Activity,
+  FormattedWorkoutSummary,
+  StrengthScoreHistoryEntry,
+  WorkoutActivityDetail,
+} from "./types";
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
 
 type WorkoutPayload = typeof workoutValidator.type;
@@ -151,9 +156,12 @@ async function syncActivitiesAndStrength(
 
   // Sync strength score history
   try {
-    const strengthHistory = await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
-      userId,
-    });
+    const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
+      internal.tonal.proxy.fetchStrengthHistory,
+      {
+        userId,
+      },
+    );
     if (strengthHistory.length > 0) {
       const snapshots = strengthHistory.map((entry) => ({
         date: entry.activityTime.slice(0, 10),

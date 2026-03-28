@@ -9,7 +9,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { Movement } from "../tonal/types";
 import { selectExercises } from "./exerciseSelection";
 import { computeExcludedAccessories } from "../tonal/accessories";
@@ -194,7 +194,12 @@ export const adjustDayDuration = internalAction({
       SESSION_DURATION_TO_MAX_EXERCISES[newDurationMinutes] ?? DEFAULT_MAX_EXERCISES;
 
     // Fetch catalog, recent movement IDs, user profile, and active injuries in parallel
-    const [catalog, lastUsedMovementIds, profile, activeInjuries] = await Promise.all([
+    const [catalog, lastUsedMovementIds, profile, activeInjuries]: [
+      Movement[],
+      string[],
+      Doc<"userProfiles"> | null,
+      Doc<"injuries">[],
+    ] = await Promise.all([
       ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx.runQuery(internal.workoutPlans.getRecentMovementIds, { userId }),
       ctx.runQuery(internal.userProfiles.getByUserId, { userId }),

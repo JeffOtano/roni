@@ -247,9 +247,12 @@ export const createWorkoutTool = createTool({
 
       // Pre-validate movement IDs against the movements table
       const allMovementIds = input.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
-      const validatedMovements = await ctx.runQuery(internal.tonal.movementSync.getByTonalIds, {
-        tonalIds: allMovementIds,
-      });
+      const validatedMovements: Movement[] = await ctx.runQuery(
+        internal.tonal.movementSync.getByTonalIds,
+        {
+          tonalIds: allMovementIds,
+        },
+      );
       const validIds = new Set(validatedMovements.map((m) => m.id));
       const invalidIds = allMovementIds.filter((id) => !validIds.has(id));
       if (invalidIds.length > 0) {
