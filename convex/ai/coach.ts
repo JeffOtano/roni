@@ -6,6 +6,7 @@ import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { buildTrainingSnapshot } from "./context";
 import { buildInstructions } from "./promptSections";
+import { captureAiGeneration } from "../lib/posthog";
 // ---------------------------------------------------------------------------
 // Tool registry (33 tools across 4 files)
 // ---------------------------------------------------------------------------
@@ -168,6 +169,17 @@ export const coachAgentConfig = {
       inputTokens: usage.inputTokens ?? 0,
       outputTokens: usage.outputTokens ?? 0,
       totalTokens: usage.totalTokens ?? 0,
+      cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
+      cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
+    });
+    await captureAiGeneration({
+      distinctId: userId ?? "anonymous",
+      traceId: threadId,
+      spanName: agentName,
+      model,
+      provider,
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
       cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
       cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
     });
