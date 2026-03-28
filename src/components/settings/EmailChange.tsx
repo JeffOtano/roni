@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { CheckCircle2, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 type Step = "idle" | "enter-email" | "enter-code" | "success";
 
 export function EmailChange({ currentEmail }: { currentEmail: string }) {
+  const { track } = useAnalytics();
   const [expanded, setExpanded] = useState(false);
   const [step, setStep] = useState<Step>("enter-email");
   const [newEmail, setNewEmail] = useState("");
@@ -40,6 +42,7 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
     setSubmitting(true);
     try {
       await requestChange({ newEmail });
+      track("email_change_requested");
       setStep("enter-code");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send verification code.");
@@ -58,6 +61,7 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
     setSubmitting(true);
     try {
       await confirmChange({ code });
+      track("email_change_confirmed");
       setStep("success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid or expired code.");
