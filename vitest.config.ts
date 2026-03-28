@@ -13,6 +13,12 @@ export default defineConfig({
         "**/*.test.{ts,tsx}",
         "**/*.config.{ts,mjs}",
       ],
+      thresholds: {
+        statements: 20,
+        branches: 15,
+        functions: 17,
+        lines: 20,
+      },
     },
     projects: [
       {

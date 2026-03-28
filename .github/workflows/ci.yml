@@ -11,10 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Quality Checks
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -23,11 +22,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check
-        run: npx tsc --noEmit
+      - run: npm ci
 
       - name: Lint
         run: npm run lint
@@ -38,11 +33,140 @@ jobs:
       - name: Dead code check
         run: npx knip
 
+      - name: File size check
+        run: |
+          EXIT_CODE=0
+          while IFS= read -r file; do
+            case "$file" in
+              *_generated*|*docs/reference*|convex/schema.ts) continue ;;
+            esac
+            lines=$(wc -l < "$file" | tr -d ' ')
+            if [ "$lines" -gt 400 ]; then
+              echo "::error file=$file::File has $lines lines (max 400). Split by responsibility."
+              EXIT_CODE=1
+            fi
+          done < <(find src convex -name '*.ts' -o -name '*.tsx' | sort)
+          exit $EXIT_CODE
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
       - name: Test with coverage
-        run: npm run test:coverage
+        run: npx vitest run --coverage
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'convex/**') }}
+          restore-keys: |
+            nextjs-${{ hashFiles('package-lock.json') }}-
 
       - name: Build
         run: npm run build
+        env:
+          CONVEX_URL: ${{ secrets.CONVEX_URL || 'https://placeholder.convex.cloud' }}
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://placeholder.convex.cloud' }}
+
+      - name: Check bundle size
+        run: |
+          if [ -d ".next/static/chunks" ]; then
+            TOTAL_KB=$(du -sk .next/static/chunks | cut -f1)
+            echo "JS chunks: ${TOTAL_KB}KB (budget: 1500KB)"
+            if [ "$TOTAL_KB" -gt 1500 ]; then
+              echo "::warning::JS bundle ${TOTAL_KB}KB exceeds 1500KB budget. Run 'ANALYZE=true npm run build' locally to investigate."
+            fi
+          fi
+
+      - name: Upload build artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next
+          retention-days: 1
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npx playwright test
         env:
           CONVEX_URL: ${{ secrets.CONVEX_URL || 'https://placeholder.convex.cloud' }}
           NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://placeholder.convex.cloud' }}
