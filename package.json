@@ -40,7 +40,6 @@
     "@convex-dev/agent": "^0.6.1",
     "@convex-dev/auth": "^0.0.91",
     "@convex-dev/rate-limiter": "^0.3.2",
-    "@posthog/next": "^0.1.0",
     "@sentry/nextjs": "^10.46.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
