@@ -74,6 +74,7 @@ export function WorkoutBlockDisplay({ blocks, movementDetails }: WorkoutBlockDis
                         alt={name}
                         width={48}
                         height={48}
+                        unoptimized
                         className="h-12 w-12 shrink-0 rounded bg-muted object-cover"
                       />
                     ) : (

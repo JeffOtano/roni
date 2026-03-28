@@ -39,6 +39,11 @@ export function JsonLd() {
               url: "https://tonal.coach",
               logo: "https://tonal.coach/icon.svg",
               sameAs: ["https://discord.gg/Sa5ewWP5M"],
+              contactPoint: {
+                "@type": "ContactPoint",
+                contactType: "customer support",
+                url: "https://tonal.coach/contact",
+              },
             },
             {
               "@type": "WebSite",

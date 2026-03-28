@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "Privacy policy for tonal.coach. Learn how we handle your data, Tonal credentials, and account information.",
+  alternates: { canonical: "/privacy" },
+  robots: { index: true, follow: true },
 };
 
 export default function PrivacyPage() {

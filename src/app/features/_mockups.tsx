@@ -1,12 +1,27 @@
 import type { ReactNode } from "react";
 
-function MockCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl bg-card p-4 ring-1 ring-border ${className}`}>{children}</div>;
+function MockCard({
+  children,
+  className = "",
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl bg-card p-4 ring-1 ring-border ${className}`}
+      {...(label ? { role: "img", "aria-label": label } : {})}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function MockChat() {
   return (
-    <MockCard>
+    <MockCard label="Mockup of AI coach chat creating a push day workout">
       <div className="space-y-3 text-sm">
         <div className="rounded-lg bg-muted px-3 py-2 text-foreground">
           Give me a push day for tomorrow
@@ -31,7 +46,7 @@ export function MockChat() {
 
 export function MockPushToTonal() {
   return (
-    <MockCard>
+    <MockCard label="Mockup of a custom workout pushed to Tonal">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Custom Workout
       </p>
@@ -58,7 +73,7 @@ export function MockProgressChart() {
   const weeks = ["W1", "W2", "W3", "W4", "W5", "W6"];
   const heights = [40, 48, 52, 56, 62, 68];
   return (
-    <MockCard>
+    <MockCard label="Mockup bar chart showing bench press weight increasing over 6 weeks">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Bench Press — Weight Over Time
       </p>
@@ -83,7 +98,7 @@ export function MockPeriodization() {
     { label: "Deload", active: false },
   ];
   return (
-    <MockCard>
+    <MockCard label="Mockup of training periodization phases with hypertrophy active">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Training Phase
       </p>
@@ -121,7 +136,7 @@ export function MockInjuryMap() {
     ok: "text-emerald-400 bg-emerald-400/15",
   };
   return (
-    <MockCard>
+    <MockCard label="Mockup of injury flags showing shoulder avoidance and lower back caution">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Injury Flags
       </p>
@@ -156,7 +171,7 @@ export function MockReadiness() {
   ];
   const dot = { green: "bg-emerald-400", yellow: "bg-yellow-400", red: "bg-red-400" };
   return (
-    <MockCard>
+    <MockCard label="Mockup of muscle readiness status for six muscle groups">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Muscle Readiness
       </p>
@@ -176,7 +191,7 @@ export function MockRpe() {
   const scale = [6, 7, 8, 9, 10];
   const selected = 8;
   return (
-    <MockCard>
+    <MockCard label="Mockup of RPE rating scale with 8 selected">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         How did that set feel?
       </p>
@@ -217,7 +232,7 @@ export function MockCheckins() {
     },
   ];
   return (
-    <MockCard>
+    <MockCard label="Mockup of proactive coach check-in messages throughout the week">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Coach Check-ins
       </p>
