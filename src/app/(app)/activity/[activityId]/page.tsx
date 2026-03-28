@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
+import { useAnalytics } from "@/lib/analytics";
 import type {
   EnrichedSetActivity,
   EnrichedWorkoutDetail,
@@ -48,6 +49,7 @@ function groupSetsByMovement(sets: EnrichedSetActivity[]): Map<string, EnrichedS
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = use(params);
+  const { track } = useAnalytics();
   const getDetail = useAction(api.workoutDetail.getWorkoutDetail);
 
   const [state, setState] = useState<
@@ -67,6 +69,11 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
       () => setState({ status: "error" }),
     );
   }, [getDetail, activityId]);
+
+  useEffect(() => {
+    track("activity_detail_viewed", { activity_id: activityId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityId]);
 
   useEffect(() => {
     queueMicrotask(() => fetchData());

@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import type {
   Activity,
   ExternalActivity,
@@ -51,6 +53,13 @@ const NAV_PILLS = [
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("dashboard_viewed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const strength = useActionData<{
     scores: StrengthScore[];
     distribution: StrengthDistribution;
