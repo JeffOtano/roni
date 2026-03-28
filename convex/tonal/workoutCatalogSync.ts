@@ -138,17 +138,14 @@ export const syncWorkoutCatalog = internalAction({
     const MAX_RETRIES = 2;
     const RETRY_DELAY_MS = 10 * 60 * 1000; // 10 minutes
     try {
-      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-      const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-        sinceTimestamp: oneDayAgo,
-      });
+      const tokenUser = await ctx.runQuery(internal.userProfiles.getUserWithValidToken);
 
-      if (activeUsers.length === 0) {
-        console.warn("[workoutCatalogSync] No active users — skipping");
+      if (!tokenUser) {
+        console.warn("[workoutCatalogSync] No connected users - skipping");
         return;
       }
 
-      await withTokenRetry(ctx, activeUsers[0].userId, async (token) => {
+      await withTokenRetry(ctx, tokenUser.userId, async (token) => {
         // 1. Fetch and upsert training types
         const trainingTypes = await tonalFetch<TrainingType[]>(token, "/v6/training-types");
         const typeMap = new Map<string, string>();
