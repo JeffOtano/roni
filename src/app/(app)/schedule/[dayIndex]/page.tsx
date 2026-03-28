@@ -1,8 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
+import { useAnalytics } from "@/lib/analytics";
 import { useActionData } from "@/hooks/useActionData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,12 @@ import {
 export default function ScheduleDayPage({ params }: { params: Promise<{ dayIndex: string }> }) {
   const { dayIndex: rawIndex } = use(params);
   const dayIndex = Number(rawIndex);
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("schedule_day_detail_viewed", { day_index: dayIndex });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayIndex]);
 
   const schedule = useActionData<ScheduleData | null>(useAction(api.schedule.getScheduleData));
 

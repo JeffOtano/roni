@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation } from "convex/react";
+import { useAnalytics } from "@/lib/analytics";
 import { ArrowRight, Check, Mail } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { DISCORD_URL } from "../_components/BetaCounter";
 
 export default function WaitlistPage() {
+  const { track } = useAnalytics();
   const joinWaitlist = useMutation(api.waitlist.join);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -24,6 +26,9 @@ export default function WaitlistPage() {
 
     try {
       const result = await joinWaitlist({ email, firstName, lastName });
+      if (!result.alreadyOnList) {
+        track("waitlist_joined");
+      }
       setStatus(result.alreadyOnList ? "already" : "done");
     } catch {
       setError("Something went wrong. Please try again.");

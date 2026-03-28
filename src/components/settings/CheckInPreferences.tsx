@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff } from "lucide-react";
@@ -16,6 +17,7 @@ const FREQUENCY_OPTIONS = [
 type Frequency = (typeof FREQUENCY_OPTIONS)[number]["value"];
 
 export function CheckInPreferences() {
+  const { track } = useAnalytics();
   const prefs = useQuery(api.checkIns.getPreferences, {});
   const updatePreferences = useMutation(api.checkIns.updatePreferences);
 
@@ -59,7 +61,13 @@ export function CheckInPreferences() {
             size="sm"
             onClick={() =>
               updatePreferences({ enabled: !prefs.enabled })
-                .then(() => toast.success("Preferences saved"))
+                .then(() => {
+                  track("check_in_preferences_changed", {
+                    enabled: !prefs.enabled,
+                    frequency: prefs.frequency,
+                  });
+                  toast.success("Preferences saved");
+                })
                 .catch(() => toast.error("Failed to save"))
             }
           >
@@ -79,7 +87,13 @@ export function CheckInPreferences() {
                   size="sm"
                   onClick={() =>
                     updatePreferences({ frequency: value as Frequency })
-                      .then(() => toast.success("Preferences saved"))
+                      .then(() => {
+                        track("check_in_preferences_changed", {
+                          enabled: prefs.enabled,
+                          frequency: value,
+                        });
+                        toast.success("Preferences saved");
+                      })
                       .catch(() => toast.error("Failed to save"))
                   }
                 >

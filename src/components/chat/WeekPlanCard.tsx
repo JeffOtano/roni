@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WeekPlanPresentation } from "../../../convex/ai/schemas";
+import { useAnalytics } from "@/lib/analytics";
 
 const SPLIT_LABELS: Record<string, string> = {
   ppl: "Push/Pull/Legs",
@@ -16,6 +17,24 @@ interface WeekPlanCardProps {
 export function WeekPlanCard({ plan }: WeekPlanCardProps) {
   const [activeDay, setActiveDay] = useState(0);
   const day = plan.days[activeDay];
+  const { track } = useAnalytics();
+  const viewTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (!viewTrackedRef.current) {
+      track("week_plan_card_viewed", { plan_id: plan.weekStartDate });
+      viewTrackedRef.current = true;
+    }
+  }, [track, plan.weekStartDate]);
+
+  const handleDayTap = (index: number, dayName: string) => {
+    track("week_plan_day_tapped", {
+      plan_id: plan.weekStartDate,
+      day_index: index,
+      day_name: dayName,
+    });
+    setActiveDay(index);
+  };
 
   return (
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-card">
@@ -29,7 +48,7 @@ export function WeekPlanCard({ plan }: WeekPlanCardProps) {
         {plan.days.map((d, i) => (
           <button
             key={i}
-            onClick={() => setActiveDay(i)}
+            onClick={() => handleDayTap(i, d.dayName)}
             className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               i === activeDay
                 ? "bg-primary text-primary-foreground"

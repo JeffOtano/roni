@@ -7,6 +7,7 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import * as analytics from "./lib/posthog";
 
 /** Retention windows (configurable). */
 export const RETENTION = {
@@ -125,5 +126,13 @@ export const runDataRetention = internalAction({
         `[dataRetention] Cleaned up ${totalDeleted} records: ${aiUsageDeleted} aiUsage, ${toolCallsDeleted} toolCalls, ${cacheDeleted} cache`,
       );
     }
+
+    analytics.captureSystem("data_retention_completed", {
+      total_deleted: totalDeleted,
+      ai_usage_deleted: aiUsageDeleted,
+      tool_calls_deleted: toolCallsDeleted,
+      cache_deleted: cacheDeleted,
+    });
+    await analytics.flush();
   },
 });

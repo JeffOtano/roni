@@ -3,6 +3,7 @@ import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { Activity } from "./tonal/types";
+import * as analytics from "./lib/posthog";
 
 const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
 
@@ -153,5 +154,10 @@ export const runActivationCheckForEligibleUsers = internalAction({
         await new Promise((r) => setTimeout(r, DELAY_MS));
       }
     }
+
+    analytics.captureSystem("activation_check_completed", {
+      users_checked: userIds.length,
+    });
+    await analytics.flush();
   },
 });

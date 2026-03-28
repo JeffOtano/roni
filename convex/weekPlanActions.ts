@@ -10,6 +10,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { preferredSplitValidator } from "./weekPlanHelpers";
 import { rateLimiter } from "./rateLimits";
+import * as analytics from "./lib/posthog";
 
 export const programWeek = internalAction({
   args: {
@@ -27,7 +28,13 @@ export const programWeek = internalAction({
       targetDays: args.targetDays,
       sessionDurationMinutes: args.sessionDurationMinutes,
     })) as { success: true; weekPlanId: Id<"weekPlans"> } | { success: false; error: string };
-    if (result.success) return { weekPlanId: result.weekPlanId };
+    if (result.success) {
+      analytics.capture(args.userId, "week_plan_generated", {
+        plan_id: result.weekPlanId,
+      });
+      await analytics.flush();
+      return { weekPlanId: result.weekPlanId };
+    }
     return { error: result.error };
   },
 });

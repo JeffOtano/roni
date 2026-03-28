@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
+import { useAnalytics } from "@/lib/analytics";
 import { api } from "../../../../convex/_generated/api";
 import { useActionData } from "@/hooks/useActionData";
 import { ScheduleDayCard } from "@/components/schedule/ScheduleDayCard";
@@ -117,6 +119,13 @@ function ScheduleError({ onRetry }: { onRetry: () => void }) {
 // ---------------------------------------------------------------------------
 
 export default function SchedulePage() {
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("schedule_viewed", { week_offset: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const schedule = useActionData<ScheduleData | null>(useAction(api.schedule.getScheduleData));
 
   if (schedule.state.status === "loading") return <ScheduleSkeleton />;

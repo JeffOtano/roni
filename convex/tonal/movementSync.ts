@@ -13,6 +13,7 @@ import { tonalFetch } from "./client";
 import { withTokenRetry } from "./tokenRetry";
 import { ACCESSORY_MAP } from "./accessories";
 import type { Movement } from "./types";
+import * as analytics from "../lib/posthog";
 
 const movementFields = {
   tonalId: v.string(),
@@ -114,6 +115,13 @@ export const syncMovementCatalog = internalAction({
       console.log(
         `[movementSync] Synced ${movements.length} movements (${inserted} inserted, ${updated} updated)`,
       );
+
+      analytics.captureSystem("movement_catalog_synced", {
+        count: movements.length,
+        inserted,
+        updated,
+      });
+      await analytics.flush();
     } catch (error) {
       console.error("[movementSync] Catalog sync failed:", error);
       void ctx.runAction(internal.discord.notifyError, {

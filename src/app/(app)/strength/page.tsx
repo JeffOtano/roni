@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAction } from "convex/react";
+import { useAnalytics } from "@/lib/analytics";
 import { api } from "../../../../convex/_generated/api";
 import type {
   StrengthDistribution,
@@ -170,6 +171,13 @@ function filterByRange(
 }
 
 export default function StrengthPage() {
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("strength_scores_viewed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [rangeDays, setRangeDays] = useState(0); // 0 = all time
   const strengthHistory = useActionData<StrengthScoreHistoryEntry[]>(
     useAction(api.stats.getStrengthHistory),

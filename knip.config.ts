@@ -12,8 +12,6 @@ const config: KnipConfig = {
     // TODO: remove these unused deps from package.json
     "@ai-sdk/anthropic",
     "@ai-sdk/openai",
-    "react-markdown",
-    "remark-gfm",
   ],
 };
 

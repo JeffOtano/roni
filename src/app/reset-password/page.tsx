@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { useAnalytics } from "@/lib/analytics";
 import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck } from "lucide-react";
 
 type ResetStep = "enter-email" | "enter-code" | "success";
@@ -33,6 +34,7 @@ const RESET_STYLES = `
 export default function ResetPasswordPage() {
   const { signIn } = useAuthActions();
   const router = useRouter();
+  const { track } = useAnalytics();
 
   const [step, setStep] = useState<ResetStep>("enter-email");
   const [email, setEmail] = useState("");
@@ -49,6 +51,7 @@ export default function ResetPasswordPage() {
 
     try {
       await signIn("password", { email, flow: "reset" });
+      track("password_reset_requested");
       setStep("enter-code");
     } catch {
       setError("Could not send reset code. Please check your email and try again.");
@@ -80,6 +83,7 @@ export default function ResetPasswordPage() {
         newPassword,
         flow: "reset-verification",
       });
+      track("password_reset_completed");
       setStep("success");
     } catch {
       setError("Invalid or expired code. Please check the code and try again.");

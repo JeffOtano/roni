@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +25,7 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function ProgressPhotosSection() {
+  const { track } = useAnalytics();
   const list = useQuery(api.progressPhotos.list, {});
   const getListWithThumbnails = useAction(api.progressPhotos.getListWithThumbnails);
   const uploadPhoto = useAction(api.progressPhotos.upload);
@@ -80,6 +82,7 @@ export function ProgressPhotosSection() {
       try {
         const base64 = await fileToBase64(file);
         await uploadPhoto({ imageBase64: base64 });
+        track("progress_photo_uploaded");
         setSuccessMessage("Photo uploaded successfully");
         setTimeout(() => setSuccessMessage(null), 3000);
       } catch (err) {
@@ -88,7 +91,7 @@ export function ProgressPhotosSection() {
         setUploading(false);
       }
     },
-    [uploadPhoto],
+    [uploadPhoto, track],
   );
 
   const handleFileChange = useCallback(
@@ -122,6 +125,7 @@ export function ProgressPhotosSection() {
       setDeletingId(photoId);
       try {
         await remove({ photoId });
+        track("progress_photo_deleted");
         toast.success("Photo deleted");
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : "Delete failed");
@@ -129,7 +133,7 @@ export function ProgressPhotosSection() {
         setDeletingId(null);
       }
     },
-    [remove],
+    [remove, track],
   );
 
   const handleDeleteAll = useCallback(async () => {
@@ -154,6 +158,13 @@ export function ProgressPhotosSection() {
   const hasPhotos = list && list.length > 0;
   const hasComparison =
     list && list.length >= 2 && thumbnails[list[list.length - 1].id] && thumbnails[list[0].id];
+
+  useEffect(() => {
+    if (hasComparison && list) {
+      track("progress_photo_comparison_viewed", { photo_count: list.length });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasComparison]);
 
   return (
     <div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ const PHASE_LABELS = {
 export default function ConnectTonalPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
+  const { track } = useAnalytics();
   const connectTonal = useAction(api.tonal.connectPublic.connectTonal);
   const me = useQuery(api.users.getMe);
   const isReconnecting = me?.hasTonalProfile && me?.tonalTokenExpired;
@@ -50,10 +52,14 @@ export default function ConnectTonalPage() {
       const phaseTimer = setTimeout(() => setPhase("syncing"), 1500);
       await connectTonal({ tonalEmail, tonalPassword });
       clearTimeout(phaseTimer);
+      track("tonal_connected");
       setPhase("done");
       const destination = isReconnecting ? "/dashboard" : "/onboarding";
       setTimeout(() => router.replace(destination), 600);
     } catch {
+      track("tonal_connection_failed", {
+        error: "Connection failed",
+      });
       setPhase("idle");
       setError(
         "Something went wrong connecting your Tonal account. Please try again or contact support.",

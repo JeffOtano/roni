@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import {
   Dialog,
@@ -22,6 +23,7 @@ type ReconnectModalProps = {
 };
 
 export function ReconnectModal({ tonalEmail, open, onDismiss }: ReconnectModalProps) {
+  const { track } = useAnalytics();
   const connectTonal = useAction(api.tonal.connectPublic.connectTonal);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +58,10 @@ export function ReconnectModal({ tonalEmail, open, onDismiss }: ReconnectModalPr
 
     try {
       await connectTonal({ tonalEmail, tonalPassword: password });
+      track("tonal_reconnected");
       setPhase("success");
     } catch {
+      track("tonal_reconnect_failed", { error: "Wrong password" });
       setError("Wrong password. Please try again.");
       setPhase("idle");
       passwordRef.current?.focus();

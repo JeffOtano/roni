@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import type { StrengthDistribution, StrengthScore } from "../../../../convex/tonal/types";
 import Link from "next/link";
 import { useActionData } from "@/hooks/useActionData";
@@ -27,6 +29,13 @@ interface ProgressMetrics {
 }
 
 export default function ProgressPage() {
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("progress_viewed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const strengthData = useActionData<{
     scores: StrengthScore[];
     distribution: StrengthDistribution;

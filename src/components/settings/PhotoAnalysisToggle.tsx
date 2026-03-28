@@ -2,12 +2,14 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export function PhotoAnalysisToggle() {
+  const { track } = useAnalytics();
   const profile = useQuery(api.account.getFullProfile, {});
   const updateSettings = useMutation(api.account.updateProfileSettings);
 
@@ -47,7 +49,10 @@ export function PhotoAnalysisToggle() {
             size="sm"
             onClick={() =>
               updateSettings({ progressPhotoAnalysisEnabled: !enabled })
-                .then(() => toast.success("Photo analysis preference saved"))
+                .then(() => {
+                  track("photo_analysis_toggled", { enabled: !enabled });
+                  toast.success("Photo analysis preference saved");
+                })
                 .catch(() => toast.error("Failed to save"))
             }
           >
