@@ -164,18 +164,23 @@ export function WorkoutBrowseClient({ initialWorkouts }: Props) {
         /* ---- CURATED VIEW ---- */
         <>
           {CURATED_SECTIONS.map((section) => {
-            // Diversify: max 2 per session type to avoid all-Push sections
+            // Prefer diversity (max 2 per session type) but fill remaining
+            // slots from overflow so sections still render when the initial
+            // page skews toward one session type.
             const matched = workouts.filter(section.filter);
             const counts = new Map<string, number>();
-            const filtered: WorkoutCardData[] = [];
+            const preferred: WorkoutCardData[] = [];
+            const rest: WorkoutCardData[] = [];
             for (const w of matched) {
               const n = counts.get(w.sessionType) ?? 0;
               if (n < 2) {
-                filtered.push(w);
+                preferred.push(w);
                 counts.set(w.sessionType, n + 1);
+              } else {
+                rest.push(w);
               }
-              if (filtered.length >= 8) break;
             }
+            const filtered = [...preferred, ...rest].slice(0, 8);
             return (
               <CuratedSection
                 key={section.title}
