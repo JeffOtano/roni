@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { useAnalytics } from "@/lib/analytics";
 import { Loader2 } from "lucide-react";
 
 type Flow = "signIn" | "signUp";
@@ -29,6 +30,7 @@ export default function LoginPage() {
   const { signIn } = useAuthActions();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
+  const { track } = useAnalytics();
 
   const [flow, setFlow] = useState<Flow>("signIn");
   const [email, setEmail] = useState("");
@@ -62,6 +64,7 @@ export default function LoginPage() {
         return;
       }
       await signIn("password", { email, password, flow });
+      track(flow === "signIn" ? "login_completed" : "signup_completed", { method: "password" });
       router.replace("/chat");
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
@@ -70,6 +73,7 @@ export default function LoginPage() {
           "Beta is full! All 50 free spots have been claimed. Join our Discord for waitlist updates.",
         );
       } else if (flow === "signIn") {
+        track("login_failed", { error: "invalid_credentials" });
         setError("Invalid email or password.");
       } else {
         setError("Could not create account. The email may already be in use.");
