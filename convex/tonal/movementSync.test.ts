@@ -251,21 +251,60 @@ describe("insert vs update decision", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Active user selection for sync
+// Token-based user selection for sync
 // ---------------------------------------------------------------------------
 
-describe("active user selection for sync", () => {
-  it("skips sync when no active users found", () => {
-    const activeUsers: Array<{ userId: string }> = [];
+describe("token user selection for sync", () => {
+  interface TokenUser {
+    userId: string;
+    tonalTokenExpiresAt: number | undefined;
+  }
 
-    const shouldSync = activeUsers.length > 0;
+  /** Mirrors the selection logic in getUserWithValidToken. */
+  function pickTokenUser(profiles: TokenUser[], now: number): TokenUser | null {
+    // Prefer a user with a non-expired token
+    const valid = profiles.find((p) => p.tonalTokenExpiresAt && p.tonalTokenExpiresAt > now);
+    if (valid) return valid;
+    // Fallback: any connected user (withTokenRetry can refresh)
+    return profiles[0] ?? null;
+  }
 
-    expect(shouldSync).toBe(false);
+  it("skips sync when no connected users exist", () => {
+    const result = pickTokenUser([], Date.now());
+
+    expect(result).toBeNull();
   });
 
-  it("uses first active user for token", () => {
-    const activeUsers = [{ userId: "user-1" }, { userId: "user-2" }];
+  it("prefers user with non-expired token", () => {
+    const now = Date.now();
+    const profiles: TokenUser[] = [
+      { userId: "expired-user", tonalTokenExpiresAt: now - 1000 },
+      { userId: "valid-user", tonalTokenExpiresAt: now + 3600_000 },
+    ];
 
-    expect(activeUsers[0].userId).toBe("user-1");
+    const result = pickTokenUser(profiles, now);
+
+    expect(result?.userId).toBe("valid-user");
+  });
+
+  it("falls back to any user when all tokens are expired", () => {
+    const now = Date.now();
+    const profiles: TokenUser[] = [
+      { userId: "expired-1", tonalTokenExpiresAt: now - 5000 },
+      { userId: "expired-2", tonalTokenExpiresAt: now - 1000 },
+    ];
+
+    const result = pickTokenUser(profiles, now);
+
+    expect(result?.userId).toBe("expired-1");
+  });
+
+  it("falls back to user with no expiry set", () => {
+    const now = Date.now();
+    const profiles: TokenUser[] = [{ userId: "no-expiry", tonalTokenExpiresAt: undefined }];
+
+    const result = pickTokenUser(profiles, now);
+
+    expect(result?.userId).toBe("no-expiry");
   });
 });
