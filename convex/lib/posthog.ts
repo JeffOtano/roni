@@ -1,29 +1,20 @@
-import { PostHog } from "posthog-node";
+const POSTHOG_HOST = "https://us.i.posthog.com";
 
-let client: PostHog | null = null;
+const pending: Array<{ distinctId: string; event: string; properties?: Record<string, unknown> }> =
+  [];
 
-function getClient(): PostHog | null {
-  const apiKey = process.env.POSTHOG_PROJECT_TOKEN;
-  if (!apiKey) return null;
-
-  if (!client) {
-    client = new PostHog(apiKey, {
-      host: "https://us.i.posthog.com",
-      flushAt: 1,
-      flushInterval: 0,
-    });
-  }
-  return client;
+function getApiKey(): string | undefined {
+  return process.env.POSTHOG_PROJECT_TOKEN;
 }
 
 /**
  * Capture a server-side analytics event.
  * Safe to call even if PostHog is not configured (no-ops silently).
+ * Events are batched and sent on flush().
  */
 export function capture(userId: string, event: string, properties?: Record<string, unknown>): void {
-  const ph = getClient();
-  if (!ph) return;
-  ph.capture({ distinctId: userId, event, properties });
+  if (!getApiKey()) return;
+  pending.push({ distinctId: userId, event, properties });
 }
 
 /**
@@ -34,10 +25,26 @@ export function captureSystem(event: string, properties?: Record<string, unknown
 }
 
 /**
- * Flush pending events. Call at the end of Convex actions.
+ * Flush pending events to PostHog via HTTP API. Call at the end of Convex actions.
+ * Uses fetch() instead of posthog-node to avoid Node.js built-in dependencies,
+ * which are not available in Convex's default V8 runtime.
  */
 export async function flush(): Promise<void> {
-  const ph = getClient();
-  if (!ph) return;
-  await ph.flush();
+  const apiKey = getApiKey();
+  if (!apiKey || pending.length === 0) return;
+
+  const batch = pending.splice(0, pending.length).map((e) => ({
+    ...e,
+    timestamp: new Date().toISOString(),
+  }));
+
+  try {
+    await fetch(`${POSTHOG_HOST}/batch/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey, batch }),
+    });
+  } catch {
+    // Fire-and-forget: don't break the action if analytics fails
+  }
 }
