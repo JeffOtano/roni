@@ -43,18 +43,15 @@ export const syncMovementCatalog = internalAction({
     const MAX_RETRIES = 2;
     const RETRY_DELAY_MS = 10 * 60 * 1000; // 10 minutes
     try {
-      // Pick any active user's token (movements are global, any auth token works)
-      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-      const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-        sinceTimestamp: oneDayAgo,
-      });
+      // Pick any user with a valid Tonal token (movements are global)
+      const tokenUser = await ctx.runQuery(internal.userProfiles.getUserWithValidToken);
 
-      if (activeUsers.length === 0) {
-        console.warn("[movementSync] No active users found — skipping catalog sync");
+      if (!tokenUser) {
+        console.warn("[movementSync] No connected users found - skipping catalog sync");
         return;
       }
 
-      const movements = await withTokenRetry(ctx, activeUsers[0].userId, (token) =>
+      const movements = await withTokenRetry(ctx, tokenUser.userId, (token) =>
         tonalFetch<Movement[]>(token, "/v6/movements"),
       );
       const now = Date.now();

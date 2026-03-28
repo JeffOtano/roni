@@ -125,10 +125,7 @@ export const markTokenExpired = internalMutation({
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
-
-    if (profile) {
-      await ctx.db.patch(profile._id, { tonalTokenExpiresAt: 0 });
-    }
+    if (profile) await ctx.db.patch(profile._id, { tonalTokenExpiresAt: 0 });
   },
 });
 
@@ -149,6 +146,19 @@ export const getActiveUsers = internalQuery({
   handler: async (ctx, { sinceTimestamp }) => {
     const profiles = await ctx.db.query("userProfiles").collect();
     return profiles.filter((p) => p.lastActiveAt > sinceTimestamp);
+  },
+});
+
+/** Pick any user with a valid Tonal token for global API calls (catalog syncs). */
+export const getUserWithValidToken = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const valid = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_tonalTokenExpiresAt", (q) => q.gt("tonalTokenExpiresAt", Date.now()))
+      .first();
+    // Fallback: any connected user (withTokenRetry can refresh expired tokens)
+    return valid ?? (await ctx.db.query("userProfiles").first());
   },
 });
 
