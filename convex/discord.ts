@@ -6,8 +6,9 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 
-const WEBHOOK_URL =
-  "https://discord.com/api/webhooks/1482961555363463270/cRsuQdz-rDFftePjkRZKoSNsppldhnbrePBnuYscoQ-PKR7yLKdqIcpBqfPsXcCcH6MW";
+function getWebhookUrl(): string | undefined {
+  return process.env.DISCORD_WEBHOOK_URL;
+}
 
 const COLORS = {
   signup: 0x00cacb, // teal — new signup
@@ -21,8 +22,11 @@ async function postToDiscord(embed: {
   color: number;
   fields?: { name: string; value: string; inline?: boolean }[];
 }) {
+  const url = getWebhookUrl();
+  if (!url) return;
+
   try {
-    await fetch(WEBHOOK_URL, {
+    await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
