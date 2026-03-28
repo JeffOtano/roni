@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -22,6 +22,7 @@ import { CheckInBell } from "@/components/CheckInBell";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { Button } from "@/components/ui/button";
 import { ReconnectModal } from "@/components/ReconnectModal";
+import { useTheme } from "@/components/ThemeProvider";
 
 const navLinks: Array<{
   href: string;
@@ -42,21 +43,18 @@ function mobileIsActive(pathname: string, href: string, exact?: boolean) {
 }
 
 function ThemeToggle() {
-  const [isDark, setIsDark] = useState(() =>
-    typeof document !== "undefined" ? document.documentElement.classList.contains("dark") : true,
-  );
-
-  const toggle = useCallback(() => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.classList.toggle("dark", next);
-  }, [isDark]);
+  const { theme, setTheme } = useTheme();
+  const isDark =
+    theme === "dark" ||
+    (theme === "system" &&
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   return (
     <Button
       variant="ghost"
       size="icon-sm"
-      onClick={toggle}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
     >
