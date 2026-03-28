@@ -109,12 +109,8 @@ export async function buildTrainingSnapshot(
 
   // Priority 1: User profile + onboarding + preferences
   const profileLines: string[] = [];
-  const ageSuffix = pd.dateOfBirth
-    ? (() => {
-        const age = computeAge(pd.dateOfBirth, new Date());
-        return age !== null ? ` | Age: ${age}` : "";
-      })()
-    : "";
+  const age = computeAge(pd.dateOfBirth, new Date());
+  const ageSuffix = age !== null ? ` | Age: ${age}` : "";
   profileLines.push(
     `User: ${pd.firstName} ${pd.lastName} | ${pd.heightInches}"/${pd.weightPounds}lbs${ageSuffix} | Level: ${pd.level} | ${pd.workoutsPerWeek}x/week`,
   );
