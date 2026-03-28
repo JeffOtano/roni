@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { useAnalytics } from "@/lib/analytics";
 import { Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +26,13 @@ export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprova
   const [status, setStatus] = useState<"pending" | "approving" | "denying" | "done">("pending");
   const respond = useMutation(api.chat.respondToToolApproval);
   const continueAgent = useAction(api.chat.continueAfterApproval);
+  const { track } = useAnalytics();
+  const shownTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    track("tool_approval_shown", { tool_name: toolName });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const label = TOOL_LABELS[toolName] ?? toolName;
 
@@ -33,6 +41,14 @@ export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprova
     try {
       const { messageId } = await respond({ threadId, approvalId, approved });
       await continueAgent({ threadId, messageId });
+      if (approved) {
+        track("tool_approved", {
+          tool_name: toolName,
+          response_time_ms: Date.now() - shownTimeRef.current,
+        });
+      } else {
+        track("tool_denied", { tool_name: toolName });
+      }
       setStatus("done");
       toast.success(approved ? "Action approved" : "Action denied");
     } catch (err) {
