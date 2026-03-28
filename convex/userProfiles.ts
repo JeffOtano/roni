@@ -40,7 +40,6 @@ export const create = internalMutation({
     profileData: v.optional(profileDataValidator),
   },
   handler: async (ctx, args) => {
-    // Sync first/last name to users table for direct access
     if (args.profileData) {
       await ctx.db.patch(args.userId, {
         firstName: args.profileData.firstName,
@@ -49,7 +48,6 @@ export const create = internalMutation({
       });
     }
 
-    // Upsert: check if profile exists
     const existing = await ctx.db
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -105,9 +103,7 @@ export const updateTonalToken = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
-    if (!profile) {
-      throw new Error("User profile not found");
-    }
+    if (!profile) throw new Error("User profile not found");
 
     // Freshness guard: skip if DB already has a newer token.
     // Prevents race between cron refresh and on-demand withTokenRetry.
@@ -341,12 +337,8 @@ export const updateProfileData = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     if (!profile) throw new Error("User profile not found");
-    await ctx.db.patch(profile._id, {
-      profileData,
-      profileDataRefreshedAt: Date.now(),
-    });
+    await ctx.db.patch(profile._id, { profileData, profileDataRefreshedAt: Date.now() });
 
-    // Sync first/last name to users table for direct access
     await ctx.db.patch(userId, {
       firstName: profileData.firstName,
       lastName: profileData.lastName,
@@ -389,9 +381,7 @@ export const releaseTokenRefreshLock = internalMutation({
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
-    if (profile) {
-      await ctx.db.patch(profile._id, { tokenRefreshInProgress: undefined });
-    }
+    if (profile) await ctx.db.patch(profile._id, { tokenRefreshInProgress: undefined });
   },
 });
 
