@@ -1,4 +1,4 @@
-import { usePostHog } from "posthog-js/react";
+import posthog from "posthog-js";
 import { useCallback } from "react";
 
 // ---- Event type map ----
@@ -105,11 +105,13 @@ type AnalyticsEvents = {
   // Admin
   impersonation_started: { target_user_id: string };
   impersonation_stopped: Record<string, never>;
+
+  // Public workout library
+  workout_cta_clicked: { slug: string };
+  workout_opened_in_tonal: { slug: string };
 };
 
 export function useAnalytics() {
-  const posthog = usePostHog();
-
   const track = useCallback(
     <E extends keyof AnalyticsEvents>(
       event: E,
@@ -117,9 +119,9 @@ export function useAnalytics() {
         ? []
         : [properties: AnalyticsEvents[E]]
     ) => {
-      posthog?.capture(event, args[0] as Record<string, unknown> | undefined);
+      posthog.capture(event, args[0] as Record<string, unknown> | undefined);
     },
-    [posthog],
+    [],
   );
 
   return { track };

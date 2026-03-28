@@ -5,7 +5,7 @@ import { JsonLd } from "./JsonLd";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { PostHogProvider } from "@/components/PostHogProvider";
+import { PostHogIdentify } from "@/components/PostHogIdentify";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -67,10 +67,9 @@ export default function RootLayout({
         <SpeedInsights />
         <ThemeProvider>
           <ConvexClientProvider>
-            <PostHogProvider>
-              <ErrorBoundary>{children}</ErrorBoundary>
-              <Toaster theme="dark" position="bottom-center" richColors />
-            </PostHogProvider>
+            <PostHogIdentify />
+            <ErrorBoundary>{children}</ErrorBoundary>
+            <Toaster theme="dark" position="bottom-center" richColors />
           </ConvexClientProvider>
         </ThemeProvider>
       </body>

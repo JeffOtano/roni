@@ -13,12 +13,16 @@ import {
 } from "../../../../convex/coach/goalConfig";
 import { WorkoutBlockDisplay } from "../_components/WorkoutBlockDisplay";
 import { WorkoutCtaBanner } from "../_components/WorkoutCtaBanner";
+import { OpenInTonalButton } from "../_components/OpenInTonalButton";
 import { RelatedWorkouts } from "../_components/RelatedWorkouts";
 import { WorkoutJsonLd } from "../_components/WorkoutJsonLd";
 
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
+  // Skip pre-rendering on preview builds -- pages will be generated on-demand via ISR
+  if (process.env.VERCEL_ENV === "preview") return [];
+
   try {
     const allSlugs: string[] = [];
     let cursor: string | null = null;
@@ -179,18 +183,11 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <WorkoutCtaBanner />
+      <WorkoutCtaBanner slug={slug} />
 
       {/* Open in Tonal button */}
       {workout.tonalDeepLinkUrl && (
-        <a
-          href={workout.tonalDeepLinkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mb-8 flex items-center justify-center gap-2 rounded-lg bg-foreground px-6 py-3.5 text-base font-semibold text-background transition-opacity hover:opacity-90"
-        >
-          Open in Tonal
-        </a>
+        <OpenInTonalButton href={workout.tonalDeepLinkUrl} slug={slug} />
       )}
 
       {/* FAQ */}
