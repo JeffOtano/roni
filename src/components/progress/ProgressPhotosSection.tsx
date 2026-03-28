@@ -91,7 +91,7 @@ export function ProgressPhotosSection() {
         setUploading(false);
       }
     },
-    [uploadPhoto],
+    [uploadPhoto, track],
   );
 
   const handleFileChange = useCallback(
@@ -133,7 +133,7 @@ export function ProgressPhotosSection() {
         setDeletingId(null);
       }
     },
-    [remove],
+    [remove, track],
   );
 
   const handleDeleteAll = useCallback(async () => {
