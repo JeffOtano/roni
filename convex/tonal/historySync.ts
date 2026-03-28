@@ -200,8 +200,11 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
         gender: u.gender,
         level: u.tonalStatus ?? "",
         workoutsPerWeek: u.workoutsPerWeek,
-        workoutDurationMin: (u as unknown as Record<string, number>).workoutDurationMin ?? 0,
-        workoutDurationMax: (u as unknown as Record<string, number>).workoutDurationMax ?? 0,
+        workoutDurationMin: u.workoutDurationMin ?? 0,
+        workoutDurationMax: u.workoutDurationMax ?? 0,
+        dateOfBirth: u.dateOfBirth || undefined,
+        username: u.username || undefined,
+        tonalCreatedAt: u.createdAt || undefined,
       },
     });
   } catch (err) {
