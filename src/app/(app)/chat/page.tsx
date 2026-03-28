@@ -8,6 +8,7 @@ import { ChatThread } from "@/components/chat/ChatThread";
 import { Button } from "@/components/ui/button";
 import { ImagePreviewRow } from "@/components/chat/ImagePreviewRow";
 import { useImageUpload } from "@/hooks/useImageUpload";
+import { useAnalytics } from "@/lib/analytics";
 import {
   Activity,
   Dumbbell,
@@ -43,6 +44,7 @@ function ChatPageInner() {
   const me = useQuery(api.users.getMe);
   const autoSentRef = useRef(false);
   const [waitingForCoach, setWaitingForCoach] = useState(false);
+  const { track } = useAnalytics();
 
   // Wrap sendMessage to track loading state
   const sendAndWait = async (args: { prompt: string }) => {
@@ -109,7 +111,10 @@ function ChatPageInner() {
             {suggestions.map(({ icon: Icon, text }) => (
               <button
                 key={text}
-                onClick={() => sendAndWait({ prompt: text })}
+                onClick={() => {
+                  track("suggestion_tapped", { suggestion_text: text });
+                  sendAndWait({ prompt: text });
+                }}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-foreground transition-colors duration-150 hover:bg-accent active:scale-[0.98]"
               >
                 <Icon className="size-4 shrink-0 text-muted-foreground" />
@@ -150,6 +155,7 @@ function WelcomeInput({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { track } = useAnalytics();
 
   const { pendingImages, addImages, removeImage, uploadAll, clearAll, isUploading } =
     useImageUpload();
@@ -170,9 +176,11 @@ function WelcomeInput({
     setSending(true);
     setInput("");
 
+    const imageCount = pendingImages.length;
+
     try {
       // Upload images first if any are attached
-      if (pendingImages.length > 0) {
+      if (imageCount > 0) {
         await uploadAll(async () => {
           const { uploadUrl } = await generateUploadUrl();
           return uploadUrl;
@@ -182,6 +190,11 @@ function WelcomeInput({
 
       // TODO: pass imageStorageIds once the sendMessage action supports them
       await sendMessage({ prompt: trimmed || "What do you see in these images?" });
+      track("message_sent", {
+        message_length: trimmed.length,
+        has_images: imageCount > 0,
+        image_count: imageCount,
+      });
     } catch {
       setInput(trimmed);
       setError("Message failed to send. Please try again.");

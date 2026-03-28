@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
@@ -32,6 +33,7 @@ const ALL_OWNED: OwnedAccessories = {
 };
 
 export function EquipmentSettings() {
+  const { track } = useAnalytics();
   const profile = useQuery(api.account.getFullProfile, {});
   const updateSettings = useMutation(api.account.updateProfileSettings);
 
@@ -60,6 +62,7 @@ export function EquipmentSettings() {
   async function handleToggle(key: AccessoryKey) {
     const updated: OwnedAccessories = { ...owned, [key]: !owned[key] };
     await updateSettings({ ownedAccessories: updated });
+    track("equipment_settings_changed");
     toast.success("Equipment updated");
   }
 

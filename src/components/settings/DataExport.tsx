@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function DataExport() {
+  const { track } = useAnalytics();
   const exportData = useAction(api.account.exportData);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -31,6 +33,7 @@ export function DataExport() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      track("data_export_requested");
       toast.success("Data exported");
 
       setStatus("idle");

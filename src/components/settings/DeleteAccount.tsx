@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAction } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
 export function DeleteAccount() {
+  const { track } = useAnalytics();
   const deleteAccount = useAction(api.account.deleteAccount);
   const { signOut } = useAuthActions();
   const router = useRouter();
@@ -38,6 +40,7 @@ export function DeleteAccount() {
     setErrorMessage("");
 
     try {
+      track("account_deleted");
       await deleteAccount({});
       await signOut();
       router.replace("/login");

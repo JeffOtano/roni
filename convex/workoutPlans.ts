@@ -10,6 +10,7 @@ import { getEffectiveUserId } from "./lib/auth";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { blockInputValidator } from "./validators";
+import * as analytics from "./lib/posthog";
 
 type RetryPushResult = { success: true; workoutId: string } | { success: false; error: string };
 
@@ -194,6 +195,8 @@ export const retryPush = action({
         fetchedAt: 0,
         expiresAt: 0,
       });
+      analytics.capture(userId, "workout_pushed", { plan_id: planId });
+      await analytics.flush();
       return { success: true, workoutId: id };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -202,6 +205,8 @@ export const retryPush = action({
         status: "failed",
         pushErrorReason: message,
       });
+      analytics.capture(userId, "workout_push_failed", { plan_id: planId, error: message });
+      await analytics.flush();
       return { success: false, error: message };
     }
   },
@@ -266,6 +271,7 @@ export const runStuckPushRecovery = internalAction({
                 pushedAt: Date.now(),
               });
               recovered = true;
+              analytics.capture(plan.userId, "workout_push_recovered", { plan_id: planId });
               console.log(
                 `[stuckPushRecovery] Recovered plan ${planId} - found matching workout ${match.id} on Tonal`,
               );
@@ -284,6 +290,7 @@ export const runStuckPushRecovery = internalAction({
           });
         }
       }
+      await analytics.flush();
     } catch (error) {
       console.error("[stuckPushRecovery] Recovery failed:", error);
       void ctx.runAction(internal.discord.notifyError, {

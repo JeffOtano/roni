@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
 export function ChangePassword() {
+  const { track } = useAnalytics();
   const [expanded, setExpanded] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -47,6 +49,7 @@ export function ChangePassword() {
 
     try {
       await changePassword({ oldPassword, newPassword });
+      track("password_changed");
       setStatus("success");
       setOldPassword("");
       setNewPassword("");

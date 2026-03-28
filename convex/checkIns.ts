@@ -11,6 +11,7 @@ import { getEffectiveUserId } from "./lib/auth";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { getMessageForTrigger } from "./checkIns/content";
+import * as analytics from "./lib/posthog";
 
 const triggerValidator = v.union(
   v.literal("missed_session"),
@@ -239,13 +240,13 @@ async function evaluateUserCheckIn(
   ctx: ActionCtx,
   userId: Id<"users">,
   now: number,
-): Promise<void> {
+): Promise<number> {
   const [prefs, lastCreatedAt] = await Promise.all([
     ctx.runQuery(internal.checkIns.getPreferencesInternal, { userId }),
     ctx.runQuery(internal.checkIns.getLastCheckInCreatedAt, { userId }),
   ]);
   const window = frequencyWindowMs(prefs.frequency);
-  if (lastCreatedAt != null && now - lastCreatedAt < window) return;
+  if (lastCreatedAt != null && now - lastCreatedAt < window) return 0;
 
   const toSend = await ctx.runAction(internal.checkIns.triggers.evaluateTriggersForUser, {
     userId,
@@ -258,7 +259,9 @@ async function evaluateUserCheckIn(
       message,
       triggerContext,
     });
+    analytics.capture(userId, "check_in_received", { trigger });
   }
+  return toSend.length;
 }
 
 export const runCheckInTriggerEvaluation = internalAction({
@@ -268,12 +271,14 @@ export const runCheckInTriggerEvaluation = internalAction({
     const now = Date.now();
     const BATCH_SIZE = 5;
     const DELAY_MS = 2000;
+    let checkInsSent = 0;
 
     for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
       const batch = userIds.slice(i, i + BATCH_SIZE);
       for (const userId of batch) {
         try {
-          await evaluateUserCheckIn(ctx, userId, now);
+          const sent = await evaluateUserCheckIn(ctx, userId, now);
+          checkInsSent += sent;
         } catch (err) {
           console.error("[check-in] evaluateTriggersForUser failed", {
             userId,
@@ -290,5 +295,11 @@ export const runCheckInTriggerEvaluation = internalAction({
         await new Promise((r) => setTimeout(r, DELAY_MS));
       }
     }
+
+    analytics.captureSystem("check_in_trigger_evaluated", {
+      users_checked: userIds.length,
+      check_ins_sent: checkInsSent,
+    });
+    await analytics.flush();
   },
 });

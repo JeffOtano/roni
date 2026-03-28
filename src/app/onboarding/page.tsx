@@ -1,11 +1,12 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Check } from "lucide-react";
 import { PageLoader } from "@/components/PageLoader";
+import { useAnalytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { ConnectStep } from "./ConnectStep";
 import { PreferencesStep } from "./PreferencesStep";
@@ -53,12 +54,32 @@ function OnboardingFlow({
 }) {
   const initialStep: Step = !hasTonalProfile ? 1 : !onboardingCompleted ? 2 : 3;
   const [step, setStep] = useState<Step>(initialStep);
+  const { track } = useAnalytics();
+  const startTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    track("onboarding_started");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const completeStep = (completedStep: Step, nextStep: Step) => {
+    const stepName = STEP_LABELS[completedStep - 1].label;
+    track("onboarding_step_completed", { step: stepName });
+
+    if (nextStep === 3) {
+      track("onboarding_completed", {
+        duration_seconds: Math.round((Date.now() - startTimeRef.current) / 1000),
+      });
+    }
+
+    setStep(nextStep);
+  };
 
   return (
     <div className="w-full max-w-lg">
       <StepIndicator currentStep={step} />
-      {step === 1 && <ConnectStep onComplete={() => setStep(2)} />}
-      {step === 2 && <PreferencesStep onComplete={() => setStep(3)} />}
+      {step === 1 && <ConnectStep onComplete={() => completeStep(1, 2)} />}
+      {step === 2 && <PreferencesStep onComplete={() => completeStep(2, 3)} />}
       {step === 3 && <ReadyStep firstName={firstName} />}
     </div>
   );

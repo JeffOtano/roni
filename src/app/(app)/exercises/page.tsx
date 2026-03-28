@@ -3,6 +3,7 @@
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAnalytics } from "@/lib/analytics";
 import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -165,6 +166,7 @@ type FetchState =
   | { status: "error" };
 
 export default function ExercisesPage() {
+  const { track } = useAnalytics();
   const getCatalog = useAction(api.workoutDetail.getExerciseCatalog);
   const searchParams = useSearchParams();
 
@@ -195,6 +197,7 @@ export default function ExercisesPage() {
   useEffect(() => {
     if (initialFetched.current) return;
     initialFetched.current = true;
+    track("exercises_viewed");
     fetchExercises("", initialMuscleGroup);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

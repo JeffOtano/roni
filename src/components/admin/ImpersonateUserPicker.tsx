@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Search, ShieldAlert, UserCheck } from "lucide-react";
 
 export function ImpersonateUserPicker() {
+  const { track } = useAnalytics();
   const status = useQuery(api.admin.getImpersonationStatus);
   // null return means non-admin or unauthenticated -- skip the users query
   const users = useQuery(api.admin.listUsers, status !== null ? {} : "skip");
@@ -22,16 +24,22 @@ export function ImpersonateUserPicker() {
     return null;
   }
 
+  const currentTargetId = status.impersonatingUser?._id ?? null;
+
   async function handleSelect(targetUserId: Id<"users">) {
     setStartingId(targetUserId);
     try {
+      // If clicking the currently active user, this is a stop action.
+      if (currentTargetId && targetUserId === currentTargetId) {
+        track("impersonation_stopped");
+      } else {
+        track("impersonation_started", { target_user_id: targetUserId });
+      }
       await startImpersonating({ targetUserId });
     } finally {
       setStartingId(null);
     }
   }
-
-  const currentTargetId = status.impersonatingUser?._id ?? null;
 
   return (
     <section className="mb-10">

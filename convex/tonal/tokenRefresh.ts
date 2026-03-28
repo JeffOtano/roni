@@ -1,6 +1,7 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { decryptToken, encryptToken, refreshTonalToken } from "./auth";
+import * as analytics from "../lib/posthog";
 
 export const refreshExpiringTokens = internalAction({
   handler: async (ctx) => {
@@ -50,6 +51,8 @@ export const refreshExpiringTokens = internalAction({
         await ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, {
           userId: profile.userId,
         });
+
+        analytics.capture(profile.userId, "tonal_token_refreshed");
       } catch (error) {
         void ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, {
           userId: profile.userId,
@@ -63,7 +66,13 @@ export const refreshExpiringTokens = internalAction({
         await ctx.runMutation(internal.userProfiles.markTokenExpired, {
           userId: profile.userId,
         });
+
+        analytics.capture(profile.userId, "tonal_token_refresh_failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
+
+    await analytics.flush();
   },
 });

@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useAnalytics } from "@/lib/analytics";
 import { api } from "../../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,12 @@ function SettingsPageInner() {
   const searchParams = useSearchParams();
   const me = useQuery(api.users.getMe, {});
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("settings_viewed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // OAuth callback query params from Google Calendar flow
   const calendarConnected = searchParams.get("calendar_connected") === "true";

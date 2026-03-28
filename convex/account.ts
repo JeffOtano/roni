@@ -3,6 +3,7 @@ import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@conve
 import { action, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import * as analytics from "./lib/posthog";
 
 export const getFullProfile = query({
   args: {},
@@ -100,9 +101,14 @@ export const exportData = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    return (await ctx.runQuery(internal.account.collectUserData, {
+    const data = (await ctx.runQuery(internal.account.collectUserData, {
       userId,
     })) as ExportedData;
+
+    analytics.capture(userId, "data_export_requested");
+    await analytics.flush();
+
+    return data;
   },
 });
 

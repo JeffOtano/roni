@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useAnalytics } from "@/lib/analytics";
 import { useActionData } from "@/hooks/useActionData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardCardSkeleton } from "@/components/DashboardCardSkeleton";
@@ -162,6 +164,13 @@ function StatsContent({ metrics }: { metrics: ProgressMetrics }) {
 // ---------------------------------------------------------------------------
 
 export default function StatsPage() {
+  const { track } = useAnalytics();
+
+  useEffect(() => {
+    track("stats_viewed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const metrics = useActionData<ProgressMetrics>(useAction(api.stats.getProgressMetrics));
 
   return (

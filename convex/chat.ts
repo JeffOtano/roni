@@ -15,6 +15,7 @@ import { getEffectiveUserId } from "./lib/auth";
 import { coachAgent, coachAgentFallback } from "./ai/coach";
 import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
+import * as analytics from "./lib/posthog";
 
 const MAX_IMAGES_PER_MESSAGE = 4;
 
@@ -130,6 +131,7 @@ export const sendMessage = action({
 
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
+    const startTime = Date.now();
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
@@ -137,6 +139,12 @@ export const sendMessage = action({
       userId,
       prompt: resolvedPrompt,
     });
+
+    analytics.capture(userId, "coach_response_received", {
+      response_time_ms: Date.now() - startTime,
+      has_images: (imageStorageIds?.length ?? 0) > 0,
+    });
+    await analytics.flush();
 
     return { threadId: targetThreadId };
   },
@@ -199,6 +207,7 @@ export const continueAfterApproval = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
+    const startTime = Date.now();
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
@@ -206,6 +215,12 @@ export const continueAfterApproval = action({
       userId,
       promptMessageId: messageId,
     });
+
+    analytics.capture(userId, "coach_response_received", {
+      response_time_ms: Date.now() - startTime,
+      after_approval: true,
+    });
+    await analytics.flush();
   },
 });
 
@@ -252,6 +267,7 @@ export const processMessage = internalAction({
 
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
+    const startTime = Date.now();
     await streamWithRetry(ctx, {
       primaryAgent: coachAgent,
       fallbackAgent: coachAgentFallback,
@@ -259,5 +275,11 @@ export const processMessage = internalAction({
       userId,
       prompt: resolvedPrompt,
     });
+
+    analytics.capture(userId, "coach_response_received", {
+      response_time_ms: Date.now() - startTime,
+      has_images: (imageStorageIds?.length ?? 0) > 0,
+    });
+    await analytics.flush();
   },
 });
