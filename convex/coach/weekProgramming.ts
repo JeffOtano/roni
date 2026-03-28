@@ -7,7 +7,7 @@ import { v } from "convex/values";
 import type { ActionCtx } from "../_generated/server";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import {
   getWeekStartDateString,
   isValidWeekStartDateString,
@@ -58,7 +58,12 @@ export async function fetchAndComputePlanData(
   daySessions: { dayIndex: number; sessionType: SessionType }[];
   initialDays: { sessionType: SessionType | "rest"; status: "programmed" }[];
 }> {
-  const [profile, catalog, lastUsedMovementIds, activeInjuries] = await Promise.all([
+  const [profile, catalog, lastUsedMovementIds, activeInjuries]: [
+    Doc<"userProfiles"> | null,
+    Movement[],
+    string[],
+    Doc<"injuries">[],
+  ] = await Promise.all([
     ctx.runQuery(internal.userProfiles.getByUserId, { userId }),
     ctx.runQuery(internal.tonal.movementSync.getAllMovements),
     ctx.runQuery(internal.workoutPlans.getRecentMovementIds, { userId }),

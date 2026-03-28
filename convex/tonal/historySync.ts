@@ -11,7 +11,12 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { aggregateDetailToSessions } from "../progressiveOverload";
-import type { Activity, FormattedWorkoutSummary, WorkoutActivityDetail } from "./types";
+import type {
+  Activity,
+  FormattedWorkoutSummary,
+  StrengthScoreHistoryEntry,
+  WorkoutActivityDetail,
+} from "./types";
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
 
 type WorkoutPayload = typeof workoutValidator.type;
@@ -151,9 +156,12 @@ async function syncActivitiesAndStrength(
 
   // Sync strength score history
   try {
-    const strengthHistory = await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
-      userId,
-    });
+    const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
+      internal.tonal.proxy.fetchStrengthHistory,
+      {
+        userId,
+      },
+    );
     if (strengthHistory.length > 0) {
       const snapshots = strengthHistory.map((entry) => ({
         date: entry.activityTime.slice(0, 10),
@@ -200,8 +208,11 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
         gender: u.gender,
         level: u.tonalStatus ?? "",
         workoutsPerWeek: u.workoutsPerWeek,
-        workoutDurationMin: (u as unknown as Record<string, number>).workoutDurationMin ?? 0,
-        workoutDurationMax: (u as unknown as Record<string, number>).workoutDurationMax ?? 0,
+        workoutDurationMin: u.workoutDurationMin ?? 0,
+        workoutDurationMax: u.workoutDurationMax ?? 0,
+        dateOfBirth: u.dateOfBirth || undefined,
+        username: u.username || undefined,
+        tonalCreatedAt: u.createdAt || undefined,
       },
     });
   } catch (err) {
