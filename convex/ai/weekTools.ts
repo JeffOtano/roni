@@ -213,7 +213,7 @@ export const getWeekPlanDetailsTool = createTool({
       }
 
       // Load movement catalog for name resolution
-      const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+      const catalog: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
       const movementMap = new Map(catalog.map((m) => [m.id, m]));
 
       // Resolve each day's workout details

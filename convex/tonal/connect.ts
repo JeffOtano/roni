@@ -45,8 +45,11 @@ export const connectTonal = internalAction({
         gender: profile.gender,
         level: profile.tonalStatus ?? "",
         workoutsPerWeek: profile.workoutsPerWeek,
-        workoutDurationMin: (profile as unknown as Record<string, number>).workoutDurationMin ?? 0,
-        workoutDurationMax: (profile as unknown as Record<string, number>).workoutDurationMax ?? 0,
+        workoutDurationMin: profile.workoutDurationMin ?? 0,
+        workoutDurationMax: profile.workoutDurationMax ?? 0,
+        dateOfBirth: profile.dateOfBirth || undefined,
+        username: profile.username || undefined,
+        tonalCreatedAt: profile.createdAt || undefined,
       },
     });
 

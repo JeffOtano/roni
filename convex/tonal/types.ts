@@ -11,6 +11,8 @@ export interface TonalUser {
   dateOfBirth: string;
   username: string;
   workoutsPerWeek: number;
+  workoutDurationMin: number;
+  workoutDurationMax: number;
   tonalStatus: string;
   accountType: string;
   location: string;

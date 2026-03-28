@@ -4,6 +4,21 @@ import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { computeBetaCapacity } from "./betaConfig";
 
+const profileDataValidator = v.object({
+  firstName: v.string(),
+  lastName: v.string(),
+  heightInches: v.number(),
+  weightPounds: v.number(),
+  gender: v.string(),
+  level: v.string(),
+  workoutsPerWeek: v.number(),
+  workoutDurationMin: v.number(),
+  workoutDurationMax: v.number(),
+  dateOfBirth: v.optional(v.string()),
+  username: v.optional(v.string()),
+  tonalCreatedAt: v.optional(v.string()),
+});
+
 export const getByUserId = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -22,22 +37,17 @@ export const create = internalMutation({
     tonalToken: v.string(),
     tonalRefreshToken: v.optional(v.string()),
     tonalTokenExpiresAt: v.optional(v.number()),
-    profileData: v.optional(
-      v.object({
-        firstName: v.string(),
-        lastName: v.string(),
-        heightInches: v.number(),
-        weightPounds: v.number(),
-        gender: v.string(),
-        level: v.string(),
-        workoutsPerWeek: v.number(),
-        workoutDurationMin: v.number(),
-        workoutDurationMax: v.number(),
-      }),
-    ),
+    profileData: v.optional(profileDataValidator),
   },
   handler: async (ctx, args) => {
-    // Upsert: check if profile exists
+    if (args.profileData) {
+      await ctx.db.patch(args.userId, {
+        firstName: args.profileData.firstName,
+        lastName: args.profileData.lastName,
+        name: `${args.profileData.firstName} ${args.profileData.lastName}`,
+      });
+    }
+
     const existing = await ctx.db
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -93,9 +103,7 @@ export const updateTonalToken = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
-    if (!profile) {
-      throw new Error("User profile not found");
-    }
+    if (!profile) throw new Error("User profile not found");
 
     // Freshness guard: skip if DB already has a newer token.
     // Prevents race between cron refresh and on-demand withTokenRetry.
@@ -321,17 +329,7 @@ export const updateLastSyncedActivityDate = internalMutation({
 export const updateProfileData = internalMutation({
   args: {
     userId: v.id("users"),
-    profileData: v.object({
-      firstName: v.string(),
-      lastName: v.string(),
-      heightInches: v.number(),
-      weightPounds: v.number(),
-      gender: v.string(),
-      level: v.string(),
-      workoutsPerWeek: v.number(),
-      workoutDurationMin: v.number(),
-      workoutDurationMax: v.number(),
-    }),
+    profileData: profileDataValidator,
   },
   handler: async (ctx, { userId, profileData }) => {
     const profile = await ctx.db
@@ -339,9 +337,12 @@ export const updateProfileData = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     if (!profile) throw new Error("User profile not found");
-    await ctx.db.patch(profile._id, {
-      profileData,
-      profileDataRefreshedAt: Date.now(),
+    await ctx.db.patch(profile._id, { profileData, profileDataRefreshedAt: Date.now() });
+
+    await ctx.db.patch(userId, {
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      name: `${profileData.firstName} ${profileData.lastName}`,
     });
   },
 });
@@ -380,9 +381,7 @@ export const releaseTokenRefreshLock = internalMutation({
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
-    if (profile) {
-      await ctx.db.patch(profile._id, { tokenRefreshInProgress: undefined });
-    }
+    if (profile) await ctx.db.patch(profile._id, { tokenRefreshInProgress: undefined });
   },
 });
 

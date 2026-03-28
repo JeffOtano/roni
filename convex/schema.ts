@@ -9,6 +9,10 @@ export default defineSchema({
   /** Override the auth users table to add admin impersonation fields. */
   users: defineTable({
     name: v.optional(v.string()),
+    /** First name from Tonal profile. */
+    firstName: v.optional(v.string()),
+    /** Last name from Tonal profile. */
+    lastName: v.optional(v.string()),
     image: v.optional(v.string()),
     email: v.optional(v.string()),
     emailVerificationTime: v.optional(v.number()),
@@ -41,6 +45,9 @@ export default defineSchema({
         workoutsPerWeek: v.number(),
         workoutDurationMin: v.number(),
         workoutDurationMax: v.number(),
+        dateOfBirth: v.optional(v.string()),
+        username: v.optional(v.string()),
+        tonalCreatedAt: v.optional(v.string()),
       }),
     ),
     lastActiveAt: v.number(),

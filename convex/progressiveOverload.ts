@@ -7,7 +7,12 @@
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { FormattedWorkoutSummary, SetActivity, WorkoutActivityDetail } from "./tonal/types";
+import type {
+  FormattedWorkoutSummary,
+  Movement,
+  SetActivity,
+  WorkoutActivityDetail,
+} from "./tonal/types";
 import { generatePerformanceSummary } from "./coach/prDetection";
 
 const WEIGHT_STEP_LBS = 2.5;
@@ -187,7 +192,7 @@ export const getWorkoutPerformanceSummary = internalAction({
     });
 
     // 2. Get movement names from movements table
-    const movements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+    const movements: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     const nameMap = new Map(movements.map((m) => [m.id, m.name]));
 
     // 3. Generate summary

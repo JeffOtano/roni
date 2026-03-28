@@ -58,19 +58,21 @@ export const getWorkoutDetail = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    const [detail, movements, formattedSummary] = await Promise.all([
-      ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
-        userId,
-        activityId: args.activityId,
-      }),
-      ctx.runQuery(internal.tonal.movementSync.getAllMovements),
-      ctx
-        .runAction(internal.tonal.proxy.fetchFormattedSummary, {
+    const [detail, movements, formattedSummary]: [unknown, Movement[], unknown] = await Promise.all(
+      [
+        ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
           userId,
-          summaryId: args.activityId,
-        })
-        .catch((): null => null),
-    ]);
+          activityId: args.activityId,
+        }),
+        ctx.runQuery(internal.tonal.movementSync.getAllMovements),
+        ctx
+          .runAction(internal.tonal.proxy.fetchFormattedSummary, {
+            userId,
+            summaryId: args.activityId,
+          })
+          .catch((): null => null),
+      ],
+    );
     if (!detail) throw new Error("Workout not found");
     const movementMap = new Map(movements.map((m) => [m.id, m]));
 
