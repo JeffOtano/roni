@@ -12,6 +12,7 @@ import { internal } from "../_generated/api";
 import { tonalFetch } from "./client";
 import { withTokenRetry } from "./tokenRetry";
 import type { TonalExploreGroup, TonalWorkoutDetail, TrainingType } from "./types";
+import * as analytics from "../lib/posthog";
 
 const BATCH_SIZE = 20;
 
@@ -217,7 +218,12 @@ export const syncWorkoutCatalog = internalAction({
         }
 
         console.log(`[workoutCatalogSync] Tagged ${updated} movements with training types`);
+
+        analytics.captureSystem("workout_catalog_synced", {
+          movements_tagged: updated,
+        });
       });
+      await analytics.flush();
     } catch (error) {
       console.error("[workoutCatalogSync] Catalog sync failed:", error);
       void ctx.runAction(internal.discord.notifyError, {

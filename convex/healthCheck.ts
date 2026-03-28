@@ -5,6 +5,7 @@
 
 import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import * as analytics from "./lib/posthog";
 
 const EXPIRED_TOKEN_ALERT_THRESHOLD = 2;
 const MOVEMENT_SYNC_STALE_MS = 48 * 60 * 60 * 1000; // 48h (expected daily at 3 AM)
@@ -112,5 +113,14 @@ export const runHealthCheck = internalAction({
         message: summary,
       });
     }
+
+    analytics.captureSystem("health_check_completed", {
+      has_issues: hasIssues,
+      expired_tokens: signals.expiredTokenCount,
+      stuck_pushes: signals.stuckPushCount,
+      movement_sync_stale: signals.movementSyncStale,
+      circuit_open: signals.circuitOpen,
+    });
+    await analytics.flush();
   },
 });

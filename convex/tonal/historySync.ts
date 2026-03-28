@@ -13,6 +13,7 @@ import type { ActionCtx } from "../_generated/server";
 import { aggregateDetailToSessions } from "../progressiveOverload";
 import type { Activity, FormattedWorkoutSummary, WorkoutActivityDetail } from "./types";
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
+import * as analytics from "../lib/posthog";
 
 type WorkoutPayload = typeof workoutValidator.type;
 type PerformancePayload = typeof performanceValidator.type;
@@ -233,6 +234,9 @@ export const syncUserHistory = internalAction({
     if (synced > 0) {
       console.log(`[historySync] Synced ${synced} new workouts for user ${userId}`);
     }
+
+    analytics.capture(userId, "history_sync_completed", { new_workouts: synced });
+    await analytics.flush();
   },
 });
 
@@ -256,5 +260,11 @@ export const backfillUserHistory = internalAction({
     console.log(
       `[historySync] Backfilled ${synced}/${activities.length} workouts for user ${userId}`,
     );
+
+    analytics.capture(userId, "history_sync_completed", {
+      new_workouts: synced,
+      backfill: true,
+    });
+    await analytics.flush();
   },
 });
