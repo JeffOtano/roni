@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: "Terms of service for tonal.coach.",
+  alternates: { canonical: "/terms" },
+  robots: { index: true, follow: true },
 };
 
 export default function TermsPage() {

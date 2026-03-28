@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import Image from "next/image";
 import { Dumbbell, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -65,10 +66,12 @@ function ExerciseThumbnail({ src, name }: { src: string; name: string }) {
   }
 
   return (
-    <img
+    <Image
       src={src}
       alt={`${name} demonstration`}
-      loading="lazy"
+      width={56}
+      height={56}
+      unoptimized
       onError={() => setFailed(true)}
       className="size-14 shrink-0 rounded-lg bg-muted/50 object-cover"
     />

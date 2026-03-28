@@ -1,12 +1,27 @@
 import type { ReactNode } from "react";
 
-function MockCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl bg-card p-4 ring-1 ring-border ${className}`}>{children}</div>;
+function MockCard({
+  children,
+  className = "",
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl bg-card p-4 ring-1 ring-border ${className}`}
+      {...(label ? { role: "img", "aria-label": label } : {})}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function MockConnect() {
   return (
-    <MockCard>
+    <MockCard label="Mockup of Tonal account connection form">
       <div className="mb-4 flex items-center gap-2">
         <div className="flex size-8 items-center justify-center rounded-full bg-primary/20 text-primary">
           <svg
@@ -16,6 +31,7 @@ export function MockConnect() {
             stroke="currentColor"
             strokeWidth="2"
             className="size-4"
+            aria-hidden="true"
           >
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -51,7 +67,7 @@ export function MockGoals() {
   const splits = ["Full Body", "Upper / Lower", "Push / Pull / Legs", "Body Part Split"];
   const injuries = ["Lower Back", "Shoulder", "Knee", "Wrist"];
   return (
-    <MockCard>
+    <MockCard label="Mockup of training preferences including split, frequency, and injury flags">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Training Preferences
       </p>
@@ -102,7 +118,7 @@ export function MockGoals() {
 
 export function MockWorkoutPushed() {
   return (
-    <MockCard>
+    <MockCard label="Mockup of a custom workout pushed to Tonal">
       <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         Custom Workout
       </p>
@@ -131,6 +147,7 @@ export function MockWorkoutPushed() {
           stroke="currentColor"
           strokeWidth="2"
           className="size-4"
+          aria-hidden="true"
         >
           <path d="M20 6 9 17l-5-5" />
         </svg>
