@@ -40,9 +40,7 @@ export function trimSnapshot(sections: SnapshotSection[], maxChars: number): str
   return [header, body, footer].filter(Boolean).join("\n");
 }
 
-// ---------------------------------------------------------------------------
 // External activity helpers
-// ---------------------------------------------------------------------------
 
 export function getHrIntensityLabel(hr: number): string | null {
   if (hr === 0) return null;
@@ -78,9 +76,7 @@ export function formatExternalActivityLine(a: ExternalActivity): string {
   return line;
 }
 
-// ---------------------------------------------------------------------------
 // Exercise catalog helpers
-// ---------------------------------------------------------------------------
 
 /** Placeholder movements that exist in the API but aren't real exercises. */
 const PLACEHOLDER_NAMES = new Set([
@@ -174,9 +170,7 @@ function resolveGroupName(apiAccessory: string | undefined): string {
   return ACCESSORY_DISPLAY[profileKey];
 }
 
-// ---------------------------------------------------------------------------
 // Health snapshot helpers
-// ---------------------------------------------------------------------------
 
 /** Minimal shape of a health snapshot document for the summary builder. */
 export interface HealthSnapshotData {
@@ -390,4 +384,17 @@ export function buildHealthSection(
   }
 
   return { priority: 8.5, lines: [header, ...lines] };
+}
+
+/** Compute age in years from an ISO date-of-birth string. Returns null if invalid. */
+export function computeAge(dateOfBirth: string | undefined, now: Date): number | null {
+  if (!dateOfBirth) return null;
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return null;
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
 }

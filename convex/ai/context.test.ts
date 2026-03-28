@@ -7,6 +7,7 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./context";
+import { computeAge } from "./snapshotHelpers";
 import type { ExternalActivity, Movement } from "../tonal/types";
 import type { OwnedAccessories } from "../tonal/accessories";
 
@@ -71,9 +72,7 @@ describe("trimSnapshot", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // HR intensity labels
-// ---------------------------------------------------------------------------
 
 describe("getHrIntensityLabel", () => {
   it("returns null for zero HR", () => {
@@ -101,9 +100,7 @@ describe("getHrIntensityLabel", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Format line
-// ---------------------------------------------------------------------------
 
 describe("formatExternalActivityLine", () => {
   function makeExternal(overrides: Partial<ExternalActivity> = {}): ExternalActivity {
@@ -149,9 +146,7 @@ describe("formatExternalActivityLine", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Recency labels
-// ---------------------------------------------------------------------------
 
 describe("getRecencyLabel", () => {
   it("returns 'today' for same-day timestamps", () => {
@@ -180,9 +175,7 @@ describe("getRecencyLabel", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Exercise catalog section
-// ---------------------------------------------------------------------------
 
 describe("buildExerciseCatalogSection", () => {
   function makeMovement(overrides: Partial<Movement> = {}): Movement {
@@ -380,5 +373,27 @@ describe("buildExerciseCatalogSection", () => {
     const movements = [makeMovement()];
     const section = buildExerciseCatalogSection(movements, allOwned);
     expect(section!.priority).toBe(6.5);
+  });
+});
+
+// computeAge
+
+describe("computeAge", () => {
+  it("computes age correctly before birthday this year", () => {
+    const now = new Date("2026-03-28");
+    expect(computeAge("1993-12-15", now)).toBe(32);
+  });
+
+  it("computes age correctly after birthday this year", () => {
+    const now = new Date("2026-03-28");
+    expect(computeAge("1993-01-10", now)).toBe(33);
+  });
+
+  it("returns null for undefined dateOfBirth", () => {
+    expect(computeAge(undefined, new Date())).toBeNull();
+  });
+
+  it("returns null for invalid date string", () => {
+    expect(computeAge("not-a-date", new Date())).toBeNull();
   });
 });
