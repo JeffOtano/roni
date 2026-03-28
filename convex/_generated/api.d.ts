@@ -110,6 +110,7 @@ import type * as tonal_historySyncMutations from "../tonal/historySyncMutations.
 import type * as tonal_movementSearch from "../tonal/movementSearch.js";
 import type * as tonal_movementSync from "../tonal/movementSync.js";
 import type * as tonal_mutations from "../tonal/mutations.js";
+import type * as tonal_profileBackfill from "../tonal/profileBackfill.js";
 import type * as tonal_proxy from "../tonal/proxy.js";
 import type * as tonal_tokenRefresh from "../tonal/tokenRefresh.js";
 import type * as tonal_tokenRetry from "../tonal/tokenRetry.js";
@@ -240,6 +241,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/movementSearch": typeof tonal_movementSearch;
   "tonal/movementSync": typeof tonal_movementSync;
   "tonal/mutations": typeof tonal_mutations;
+  "tonal/profileBackfill": typeof tonal_profileBackfill;
   "tonal/proxy": typeof tonal_proxy;
   "tonal/tokenRefresh": typeof tonal_tokenRefresh;
   "tonal/tokenRetry": typeof tonal_tokenRetry;
