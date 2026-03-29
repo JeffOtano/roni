@@ -27,31 +27,31 @@ struct MessageBubble: View {
     // MARK: - User Bubble
 
     private var userBubble: some View {
-        GeometryReader { geometry in
-            HStack {
-                Spacer(minLength: geometry.size.width * 0.2)
+        HStack {
+            Spacer(minLength: 0)
 
-                VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
-                    // Image thumbnails
-                    if !message.imageUrls.isEmpty {
-                        imageGrid
-                    }
+            VStack(alignment: .trailing, spacing: Theme.Spacing.xs) {
+                // Image thumbnails
+                if !message.imageUrls.isEmpty {
+                    imageGrid
+                }
 
-                    // Text bubble
-                    if !message.displayText.isEmpty {
-                        Text(message.displayText)
-                            .font(Theme.Typography.body)
-                            .foregroundStyle(Theme.Colors.primaryForeground)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, Theme.Spacing.lg)
-                            .padding(.vertical, Theme.Spacing.md)
-                            .background(Theme.Colors.primary)
-                            .clipShape(userBubbleShape)
-                    }
+                // Text bubble
+                if !message.displayText.isEmpty {
+                    Text(message.displayText)
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.primaryForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.vertical, Theme.Spacing.md)
+                        .background(Theme.Colors.primary)
+                        .clipShape(userBubbleShape)
                 }
             }
+            .containerRelativeFrame(.horizontal, alignment: .trailing) { width, _ in
+                width * 0.8
+            }
         }
-        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("You said: \(message.displayText)")
         .opacity(hasAppeared ? 1 : 0)
@@ -76,29 +76,25 @@ struct MessageBubble: View {
     // MARK: - Coach Bubble
 
     private var coachBubble: some View {
-        GeometryReader { geometry in
-            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-                // Coach avatar
-                coachAvatar
+        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+            // Coach avatar
+            coachAvatar
 
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    // Main text content
-                    if !message.displayText.isEmpty || message.isStreaming {
-                        coachTextBubble
-                    }
-
-                    // Tool calls: approval cards and status chips
-                    toolCallsSection
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                // Main text content
+                if !message.displayText.isEmpty || message.isStreaming {
+                    coachTextBubble
                 }
-                .frame(
-                    maxWidth: geometry.size.width * 0.85,
-                    alignment: .leading
-                )
 
-                Spacer(minLength: 0)
+                // Tool calls: approval cards and status chips
+                toolCallsSection
             }
+            .containerRelativeFrame(.horizontal, alignment: .leading) { width, _ in
+                width * 0.85
+            }
+
+            Spacer(minLength: 0)
         }
-        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .contain)
         .opacity(hasAppeared ? 1 : 0)
         .offset(y: hasAppeared ? 0 : 6)
