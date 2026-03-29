@@ -14,28 +14,7 @@ import { withTokenRetry } from "./tokenRetry";
 import { ACCESSORY_MAP } from "./accessories";
 import type { Movement } from "./types";
 import * as analytics from "../lib/posthog";
-
-const movementFields = {
-  tonalId: v.string(),
-  name: v.string(),
-  shortName: v.string(),
-  muscleGroups: v.array(v.string()),
-  skillLevel: v.number(),
-  publishState: v.string(),
-  sortOrder: v.number(),
-  onMachine: v.boolean(),
-  inFreeLift: v.boolean(),
-  countReps: v.boolean(),
-  isTwoSided: v.boolean(),
-  isBilateral: v.boolean(),
-  isAlternating: v.boolean(),
-  descriptionHow: v.string(),
-  descriptionWhy: v.string(),
-  thumbnailMediaUrl: v.optional(v.string()),
-  accessory: v.optional(v.string()),
-  onMachineInfo: v.optional(v.any()),
-  lastSyncedAt: v.number(),
-} as const;
+import { mapApiToDoc, mapDocToMovement, movementFields } from "./movementMapping";
 
 /** Fetch movements from Tonal API and upsert into the movements table. */
 export const syncMovementCatalog = internalAction({
@@ -72,27 +51,7 @@ export const syncMovementCatalog = internalAction({
           tonalId: m.id,
         });
 
-        const doc = {
-          tonalId: m.id,
-          name: m.name,
-          shortName: m.shortName ?? m.name,
-          muscleGroups: m.muscleGroups ?? [],
-          skillLevel: m.skillLevel,
-          publishState: m.publishState,
-          sortOrder: m.sortOrder,
-          onMachine: m.onMachine,
-          inFreeLift: m.inFreeLift,
-          countReps: m.countReps,
-          isTwoSided: m.isTwoSided,
-          isBilateral: m.isBilateral,
-          isAlternating: m.isAlternating,
-          descriptionHow: m.descriptionHow,
-          descriptionWhy: m.descriptionWhy,
-          thumbnailMediaUrl: m.thumbnailMediaUrl,
-          accessory,
-          onMachineInfo: m.onMachineInfo,
-          lastSyncedAt: now,
-        };
+        const doc = mapApiToDoc(m, now);
 
         if (existing) {
           await ctx.runMutation(internal.tonal.movementSync.updateMovement, {
@@ -173,30 +132,20 @@ export const updateMovement = internalMutation({
 /**
  * Return all movements from the dedicated table, mapped to the Movement
  * interface shape (tonalId -> id) for backward compatibility.
+ * Resolves thumbnailStorageId to a serving URL when thumbnailMediaUrl is absent.
  */
 export const getAllMovements = internalQuery({
   handler: async (ctx): Promise<Movement[]> => {
     const docs = await ctx.db.query("movements").collect();
-    return docs.map((doc) => ({
-      id: doc.tonalId,
-      name: doc.name,
-      shortName: doc.shortName,
-      muscleGroups: doc.muscleGroups,
-      skillLevel: doc.skillLevel,
-      publishState: doc.publishState,
-      sortOrder: doc.sortOrder,
-      onMachine: doc.onMachine,
-      inFreeLift: doc.inFreeLift,
-      countReps: doc.countReps,
-      isTwoSided: doc.isTwoSided,
-      isBilateral: doc.isBilateral,
-      isAlternating: doc.isAlternating,
-      descriptionHow: doc.descriptionHow,
-      descriptionWhy: doc.descriptionWhy,
-      thumbnailMediaUrl: doc.thumbnailMediaUrl,
-      onMachineInfo: doc.onMachineInfo,
-      trainingTypes: doc.trainingTypes,
-    }));
+    const results: Movement[] = [];
+    for (const doc of docs) {
+      const m = mapDocToMovement(doc);
+      if (!m.thumbnailMediaUrl && doc.thumbnailStorageId) {
+        m.thumbnailMediaUrl = (await ctx.storage.getUrl(doc.thumbnailStorageId)) ?? undefined;
+      }
+      results.push(m);
+    }
+    return results;
   },
 });
 
@@ -211,28 +160,97 @@ export const getByTonalIds = internalQuery({
         .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
         .unique();
       if (doc) {
-        results.push({
-          id: doc.tonalId,
-          name: doc.name,
-          shortName: doc.shortName,
-          muscleGroups: doc.muscleGroups,
-          skillLevel: doc.skillLevel,
-          publishState: doc.publishState,
-          sortOrder: doc.sortOrder,
-          onMachine: doc.onMachine,
-          inFreeLift: doc.inFreeLift,
-          countReps: doc.countReps,
-          isTwoSided: doc.isTwoSided,
-          isBilateral: doc.isBilateral,
-          isAlternating: doc.isAlternating,
-          descriptionHow: doc.descriptionHow,
-          descriptionWhy: doc.descriptionWhy,
-          thumbnailMediaUrl: doc.thumbnailMediaUrl,
-          onMachineInfo: doc.onMachineInfo,
-          trainingTypes: doc.trainingTypes,
-        });
+        const m = mapDocToMovement(doc);
+        if (!m.thumbnailMediaUrl && doc.thumbnailStorageId) {
+          m.thumbnailMediaUrl = (await ctx.storage.getUrl(doc.thumbnailStorageId)) ?? undefined;
+        }
+        results.push(m);
       }
     }
     return results;
+  },
+});
+
+/** Save a thumbnail storageId to a movement document. */
+export const setThumbnailStorageId = internalMutation({
+  args: { id: v.id("movements"), storageId: v.id("_storage") },
+  handler: async (ctx, { id, storageId }) => {
+    await ctx.db.patch(id, { thumbnailStorageId: storageId });
+  },
+});
+
+/** Fetch and store thumbnail images for movements that lack them. */
+export const backfillThumbnails = internalAction({
+  args: { batchSize: v.optional(v.number()) },
+  handler: async (ctx, { batchSize = 20 }) => {
+    const tokenUser = await ctx.runQuery(internal.userProfiles.getUserWithValidToken);
+    if (!tokenUser) {
+      console.warn("[movementSync] No connected users - skipping thumbnail backfill");
+      return;
+    }
+
+    const docs = await ctx.runQuery(internal.tonal.movementSync.getMovementsMissingThumbnails, {
+      limit: batchSize,
+    });
+
+    if (docs.length === 0) {
+      console.log("[movementSync] No movements need thumbnail backfill");
+      return;
+    }
+
+    let stored = 0;
+    let failed = 0;
+
+    await withTokenRetry(ctx, tokenUser.userId, async (token: string) => {
+      for (const doc of docs) {
+        try {
+          const res = await fetch(`https://api.tonal.com/v6/assets/${doc.imageAssetId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(10_000),
+          });
+
+          if (!res.ok) {
+            console.warn(`[movementSync] Asset fetch ${doc.imageAssetId} returned ${res.status}`);
+            failed++;
+            continue;
+          }
+
+          const blob = await res.blob();
+          const storageId = await ctx.storage.store(blob);
+          await ctx.runMutation(internal.tonal.movementSync.setThumbnailStorageId, {
+            id: doc._id,
+            storageId,
+          });
+          stored++;
+        } catch (e) {
+          console.warn(`[movementSync] Failed to fetch asset ${doc.imageAssetId}:`, e);
+          failed++;
+        }
+      }
+    });
+
+    console.log(
+      `[movementSync] Thumbnail backfill: ${stored} stored, ${failed} failed, ${docs.length - stored - failed} skipped`,
+    );
+
+    // Schedule next batch if there might be more
+    if (docs.length === batchSize) {
+      await ctx.scheduler.runAfter(1000, internal.tonal.movementSync.backfillThumbnails, {
+        batchSize,
+      });
+      console.log("[movementSync] Scheduled next thumbnail backfill batch");
+    }
+  },
+});
+
+/** Find movements with imageAssetId but no thumbnailMediaUrl and no thumbnailStorageId. */
+export const getMovementsMissingThumbnails = internalQuery({
+  args: { limit: v.number() },
+  handler: async (ctx, { limit }) => {
+    const all = await ctx.db.query("movements").collect();
+    return all
+      .filter((m) => !m.thumbnailMediaUrl && m.imageAssetId && !m.thumbnailStorageId)
+      .slice(0, limit)
+      .map((m) => ({ _id: m._id, imageAssetId: m.imageAssetId! }));
   },
 });

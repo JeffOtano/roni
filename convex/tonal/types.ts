@@ -47,6 +47,27 @@ export interface Movement {
     burnoutDisabled: boolean;
   };
   trainingTypes?: string[];
+  // Additional fields from raw Tonal API
+  baseOfSupport?: string;
+  bodyRegion?: string;
+  bodyRegionDisplay?: string;
+  compatibilityStatus?: { lockedReason: string | null; status: string };
+  createdAt?: string;
+  updatedAt?: string;
+  eliteImageAssetId?: string;
+  family?: string;
+  familyDisplay?: string;
+  featureGroupIds?: string[] | null;
+  hiddenInMovePicker?: boolean;
+  hideReps?: boolean;
+  imageAssetId?: string;
+  isGeneric?: boolean;
+  offMachineAccessories?: unknown;
+  offMachineAccessory?: unknown;
+  pushPull?: string;
+  relatedGenericMovementIDs?: string[];
+  secondsPerRep?: number;
+  thumbnailMediaId?: string;
 }
 
 // Strength score from GET /v6/users/{userId}/strength-scores/current
