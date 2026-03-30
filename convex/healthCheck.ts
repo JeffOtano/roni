@@ -8,13 +8,10 @@ import { internal } from "./_generated/api";
 import * as analytics from "./lib/posthog";
 
 const EXPIRED_TOKEN_ALERT_THRESHOLD = 2;
-const MOVEMENT_SYNC_STALE_MS = 48 * 60 * 60 * 1000; // 48h (expected daily at 3 AM)
 
 export interface HealthSignals {
   expiredTokenCount: number;
   stuckPushCount: number;
-  lastMovementSyncAge: string;
-  movementSyncStale: boolean;
   circuitOpen: boolean;
 }
 
@@ -28,26 +25,15 @@ export function formatHealthSummary(signals: HealthSignals): string {
   if (signals.stuckPushCount > 0) {
     issues.push(`${signals.stuckPushCount} stuck push(es)`);
   }
-  if (signals.movementSyncStale) {
-    issues.push(`Movement sync stale (${signals.lastMovementSyncAge})`);
-  }
   if (signals.circuitOpen) {
     issues.push("Tonal API circuit breaker OPEN");
   }
 
   if (issues.length === 0) {
-    return `All clear. Movement sync: ${signals.lastMovementSyncAge}.`;
+    return "All clear.";
   }
 
   return issues.join(" | ");
-}
-
-function formatAge(ms: number): string {
-  const hours = Math.floor(ms / (60 * 60 * 1000));
-  if (hours < 1) return "< 1 hour ago";
-  if (hours < 24) return `${hours} hours ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day(s) ago`;
 }
 
 /** Count users with tokens that are already expired (expiresAt > 0 and < now). */
@@ -66,37 +52,23 @@ export const getExpiredTokenCount = internalQuery({
   },
 });
 
-/** Get the most recent lastSyncedAt from the movements table. */
-export const getLastMovementSyncTime = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const latest = await ctx.db.query("movements").order("desc").first();
-    return latest?.lastSyncedAt ?? null;
-  },
-});
-
 /** Main health check action. Called by cron every 15 minutes. */
 export const runHealthCheck = internalAction({
   handler: async (ctx) => {
     const now = Date.now();
 
-    const [expiredTokenCount, stuckPushIds, lastSyncTime, circuitOpen] = await Promise.all([
+    const [expiredTokenCount, stuckPushIds, circuitOpen] = await Promise.all([
       ctx.runQuery(internal.healthCheck.getExpiredTokenCount),
       ctx.runQuery(internal.workoutPlans.getStuckPushingPlanIds, {
         cutoffTs: now - 5 * 60 * 1000,
         limit: 50,
       }),
-      ctx.runQuery(internal.healthCheck.getLastMovementSyncTime),
       ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" }),
     ]);
-
-    const syncAgeMs = lastSyncTime ? now - lastSyncTime : null;
 
     const signals: HealthSignals = {
       expiredTokenCount,
       stuckPushCount: stuckPushIds.length,
-      lastMovementSyncAge: syncAgeMs !== null ? formatAge(syncAgeMs) : "never",
-      movementSyncStale: syncAgeMs !== null && syncAgeMs > MOVEMENT_SYNC_STALE_MS,
       circuitOpen,
     };
 
@@ -104,7 +76,6 @@ export const runHealthCheck = internalAction({
     const hasIssues =
       signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD ||
       signals.stuckPushCount > 0 ||
-      signals.movementSyncStale ||
       signals.circuitOpen;
 
     if (hasIssues) {
@@ -118,7 +89,6 @@ export const runHealthCheck = internalAction({
       has_issues: hasIssues,
       expired_tokens: signals.expiredTokenCount,
       stuck_pushes: signals.stuckPushCount,
-      movement_sync_stale: signals.movementSyncStale,
       circuit_open: signals.circuitOpen,
     });
     await analytics.flush();
