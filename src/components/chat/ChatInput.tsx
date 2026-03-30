@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ImagePreviewRow } from "@/components/chat/ImagePreviewRow";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
+import { useAnalytics } from "@/lib/analytics";
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -34,6 +35,7 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
     useImageUpload();
 
   const generateUploadUrl = useMutation(api.chat.generateImageUploadUrl);
+  const { track } = useAnalytics();
 
   const sendMessage = useMutation(api.chat.sendMessageMutation).withOptimisticUpdate(
     optimisticallySendMessage(api.chat.listMessages),
@@ -73,6 +75,11 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
         threadId,
         ...(imageStorageIds && imageStorageIds.length > 0 && { imageStorageIds }),
       });
+      track("message_sent", {
+        message_length: trimmed.length,
+        has_images: pendingImages.length > 0,
+        image_count: pendingImages.length,
+      });
     } catch (err) {
       setInput(trimmed);
       console.error("Failed to send message:", err);
@@ -99,6 +106,7 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
     uploadAll,
     generateUploadUrl,
     clearAll,
+    track,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
