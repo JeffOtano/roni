@@ -78,7 +78,7 @@
     "eslint-config-next": "16.2.1",
     "husky": "^9.1.7",
     "jsdom": "^29.0.1",
-    "knip": "^6.0.6",
+    "knip": "^6.1.0",
     "lint-staged": "^16.3.3",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.2",
