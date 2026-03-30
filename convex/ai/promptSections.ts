@@ -212,7 +212,7 @@ export function conversationPacing(): string {
   return `CONVERSATION PACING:
 - One question at a time. Acknowledge what you learned, state what's left.
 - Ambiguous requests \u2192 treat as action requests. "What about legs?" = "program legs."
-- Response length: quick reactions (1-3 sentences), workout analysis (1 paragraph + data), week plan (JSON block + brief reasoning), complex analysis (max 3 paragraphs). Default to brevity.`;
+- Response length: quick reactions (1-3 sentences), workout analysis (1 paragraph + data), week plan (brief reasoning -- card renders automatically), complex analysis (max 3 paragraphs). Default to brevity.`;
 }
 
 /** Returns the memory and coaching notes guidelines. */
