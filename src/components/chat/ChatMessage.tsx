@@ -38,6 +38,17 @@ function extractWeekPlan(text: string) {
     }
   }
 
+  // Last resort: AI sometimes outputs raw JSON without code fences.
+  // Look for a top-level JSON object containing "weekStartDate" and "days".
+  const rawJsonMatch = text.match(/(\{[\s\S]*"weekStartDate"[\s\S]*"days"[\s\S]*\})\s*$/);
+  if (rawJsonMatch) {
+    try {
+      return weekPlanPresentationSchema.parse(JSON.parse(rawJsonMatch[1]));
+    } catch {
+      return null;
+    }
+  }
+
   return null;
 }
 
@@ -137,6 +148,7 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
             if (plan && !isStreaming) {
               const remainingText = text
                 .replace(/```(?:week-plan|json)\s*\n[\s\S]*?\n```/, "")
+                .replace(/\{[\s\S]*"weekStartDate"[\s\S]*"days"[\s\S]*\}\s*$/, "")
                 .trim();
               return (
                 <div key={i}>
@@ -202,6 +214,7 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
                   toolName={part.toolName}
                   state={part.state}
                   input={part.input}
+                  output={"output" in part ? part.output : undefined}
                 />
               ))}
             </div>

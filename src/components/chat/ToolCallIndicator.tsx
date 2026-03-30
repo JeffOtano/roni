@@ -93,9 +93,10 @@ interface ToolCallIndicatorProps {
   toolName: string;
   state: string;
   input?: unknown;
+  output?: unknown;
 }
 
-export function ToolCallIndicator({ toolName, state, input }: ToolCallIndicatorProps) {
+export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIndicatorProps) {
   const messages = TOOL_MESSAGES[toolName] ?? {
     running: `Running ${toolName}...`,
     done: `Ran ${toolName}`,
