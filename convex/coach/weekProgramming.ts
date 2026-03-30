@@ -208,6 +208,8 @@ export const generateDraftWeekPlan = internalAction({
         suggestedReps?: number;
         lastTimeText?: string;
         suggestedText?: string;
+        lastWeightLbs?: number;
+        targetWeightLbs?: number;
       }[] = [];
       try {
         suggestions = (await ctx.runAction(
@@ -260,6 +262,8 @@ export const generateDraftWeekPlan = internalAction({
           reps: exercise?.reps ?? 10,
           lastTime: suggestion?.lastTimeText,
           suggestedTarget: suggestion?.suggestedText,
+          lastWeight: suggestion?.lastWeightLbs,
+          targetWeight: suggestion?.targetWeightLbs,
         };
       });
 

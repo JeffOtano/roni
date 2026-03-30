@@ -89,6 +89,8 @@ export interface ExerciseSummary {
   reps: number;
   lastTime?: string;
   suggestedTarget?: string;
+  lastWeight?: number;
+  targetWeight?: number;
 }
 
 export interface DraftDaySummary {

@@ -39,6 +39,8 @@ export interface LastTimeAndSuggested {
   plateauOptions?: string;
   /** For week programming: reps to prescribe (8 when adding weight, last+1 when adding rep). */
   suggestedReps?: number;
+  lastWeightLbs?: number;
+  targetWeightLbs?: number;
 }
 
 /** Aggregate workoutSetActivity by movementId into per-movement session snapshot. */
@@ -243,6 +245,11 @@ export const getLastTimeAndSuggested = action({
         suggestedText: suggestedTextVal,
         plateauOptions,
         suggestedReps,
+        lastWeightLbs: last.avgWeightLbs,
+        targetWeightLbs:
+          last.avgWeightLbs != null && last.avgWeightLbs > 0
+            ? Math.round(last.avgWeightLbs + WEIGHT_STEP_LBS)
+            : undefined,
       });
     }
     return out;
@@ -299,6 +306,11 @@ export const getLastTimeAndSuggestedInternal = internalAction({
         suggestedText: suggestedTextVal,
         plateauOptions,
         suggestedReps,
+        lastWeightLbs: last.avgWeightLbs,
+        targetWeightLbs:
+          last.avgWeightLbs != null && last.avgWeightLbs > 0
+            ? Math.round(last.avgWeightLbs + WEIGHT_STEP_LBS)
+            : undefined,
       });
     }
     return out;
