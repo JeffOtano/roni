@@ -225,18 +225,13 @@ export function memory(): string {
 - Track streaks and milestones without being asked: "That's 3 weeks without a miss" or "This is your 20th session since you started." Notice what matters.`;
 }
 
-/** Returns the week plan JSON presentation format. */
+/** Returns the week plan presentation instructions. */
 export function weekPlanPresentation(): string {
   return `WEEKLY PLAN PRESENTATION:
-- Present week plans as a \`\`\`week-plan JSON code block. ALWAYS use the week-plan fence tag, never \`\`\`json.
-- Fields: weekStartDate, split, days [{dayName, sessionType, targetMuscles, durationMinutes, exercises}], summary.
-- Each exercise: name, sets, reps?, duration? (seconds, for carries/holds/planks), targetWeight?, lastWeight?, lastReps?, note?, accessory?, block? (same block number = superset). Use reps OR duration, not both.
-- After the JSON block, add a brief message asking if the plan looks good.
-- Example:
-  \`\`\`week-plan
-  {"weekStartDate":"2026-03-16","split":"ppl","days":[{"dayName":"Monday","sessionType":"Push","targetMuscles":"Chest, Shoulders, Triceps","durationMinutes":45,"exercises":[{"name":"Chest Press Warmup","sets":1,"reps":12,"block":0,"accessory":"Smart Handles","note":"warmup \u2014 50% weight"},{"name":"Bench Press","sets":3,"reps":10,"targetWeight":85,"lastWeight":80,"block":1,"accessory":"Smart Bar"},{"name":"Chest Fly","sets":3,"reps":12,"targetWeight":45,"block":1,"accessory":"Smart Bar","note":"superset with Bench Press"},{"name":"Shoulder Press","sets":3,"reps":10,"targetWeight":55,"block":2,"accessory":"Smart Handles"},{"name":"Lateral Raise","sets":3,"reps":12,"targetWeight":25,"block":2,"accessory":"Smart Handles","note":"superset with Shoulder Press"}]}],"summary":"Push day focused on chest and shoulders. 2 supersets grouped by accessory \u2014 bar work first, then handles."}
-  \`\`\`
-  How does this look? Want me to swap anything or adjust the days?`;
+- After program_week returns, the week plan is rendered as a card automatically from the tool result. Do NOT output JSON.
+- Instead, write a brief conversational summary: highlight key exercise choices, progressive overload targets, superset pairings, and any reasoning for the programming decisions.
+- Example after programming: "Here's your week. Monday is chest-focused with a bench press/fly superset - targeting 85 lbs on bench since you hit 80 clean last week. Wednesday pull day has a new row variation I want to try. Friday legs stays similar but I bumped squat volume."
+- Keep it concise - the card shows the exercises, so focus on the WHY, not listing every exercise again.`;
 }
 
 /** Returns the example coaching interactions. */
