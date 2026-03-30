@@ -139,6 +139,8 @@ export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIn
             reps: number;
             lastTime?: string;
             suggestedTarget?: string;
+            lastWeight?: number;
+            targetWeight?: number;
           }>;
         }>;
       };
@@ -157,6 +159,8 @@ export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIn
             name: ex.name,
             sets: ex.sets,
             reps: ex.reps,
+            targetWeight: ex.targetWeight,
+            lastWeight: ex.lastWeight,
             note: [ex.suggestedTarget, ex.lastTime].filter(Boolean).join(" | ") || undefined,
           })),
         })),
