@@ -6,8 +6,6 @@ describe("formatHealthSummary", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 0,
       stuckPushCount: 0,
-      lastMovementSyncAge: "2 hours ago",
-      movementSyncStale: false,
       circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
@@ -19,8 +17,6 @@ describe("formatHealthSummary", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 3,
       stuckPushCount: 0,
-      lastMovementSyncAge: "2 hours ago",
-      movementSyncStale: false,
       circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
@@ -31,8 +27,6 @@ describe("formatHealthSummary", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 1,
       stuckPushCount: 0,
-      lastMovementSyncAge: "2 hours ago",
-      movementSyncStale: false,
       circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
@@ -43,38 +37,21 @@ describe("formatHealthSummary", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 0,
       stuckPushCount: 2,
-      lastMovementSyncAge: "2 hours ago",
-      movementSyncStale: false,
       circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("2 stuck");
   });
 
-  it("flags stale movement sync", () => {
-    const signals: HealthSignals = {
-      expiredTokenCount: 0,
-      stuckPushCount: 0,
-      lastMovementSyncAge: "3 days ago",
-      movementSyncStale: true,
-      circuitOpen: false,
-    };
-    const result = formatHealthSummary(signals);
-    expect(result).toContain("stale");
-  });
-
   it("combines multiple issues with pipe separator", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 5,
       stuckPushCount: 1,
-      lastMovementSyncAge: "2 days ago",
-      movementSyncStale: true,
       circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
     expect(result).toContain("5 expired tokens");
     expect(result).toContain("1 stuck");
-    expect(result).toContain("stale");
     expect(result).toContain(" | ");
   });
 
@@ -82,8 +59,6 @@ describe("formatHealthSummary", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 0,
       stuckPushCount: 0,
-      lastMovementSyncAge: "2 hours ago",
-      movementSyncStale: false,
       circuitOpen: true,
     };
     const result = formatHealthSummary(signals);
@@ -94,8 +69,6 @@ describe("formatHealthSummary", () => {
     const signals: HealthSignals = {
       expiredTokenCount: 0,
       stuckPushCount: 0,
-      lastMovementSyncAge: "2 hours ago",
-      movementSyncStale: false,
       circuitOpen: false,
     };
     const result = formatHealthSummary(signals);
