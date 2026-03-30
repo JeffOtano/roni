@@ -1,6 +1,8 @@
 "use client";
 
 import { WorkoutCard } from "@/components/WorkoutCard";
+import { WeekPlanCard } from "@/components/chat/WeekPlanCard";
+import type { WeekPlanPresentation } from "../../../convex/ai/schemas";
 
 const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
   search_exercises: {
@@ -117,6 +119,52 @@ export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIn
       }>;
     };
     return <WorkoutCard title={data.name} exercises={data.exercises} />;
+  }
+
+  // Special case: program_week shows WeekPlanCard when done
+  if (toolName === "program_week" && isDone && output) {
+    const data = output as {
+      success?: boolean;
+      summary?: {
+        weekStartDate: string;
+        preferredSplit: string;
+        days: Array<{
+          dayName: string;
+          sessionType: string;
+          estimatedDuration: number;
+          exercises: Array<{
+            name: string;
+            muscleGroups: string[];
+            sets: number;
+            reps: number;
+            lastTime?: string;
+            suggestedTarget?: string;
+          }>;
+        }>;
+      };
+    };
+
+    if (data.success && data.summary) {
+      const plan: WeekPlanPresentation = {
+        weekStartDate: data.summary.weekStartDate,
+        split: data.summary.preferredSplit as "ppl" | "upper_lower" | "full_body",
+        days: data.summary.days.map((day) => ({
+          dayName: day.dayName,
+          sessionType: day.sessionType,
+          targetMuscles: [...new Set(day.exercises.flatMap((ex) => ex.muscleGroups))].join(", "),
+          durationMinutes: day.estimatedDuration,
+          exercises: day.exercises.map((ex) => ({
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            note: [ex.suggestedTarget, ex.lastTime].filter(Boolean).join(" | ") || undefined,
+          })),
+        })),
+        summary: `${data.summary.preferredSplit.toUpperCase()} split - ${data.summary.days.length} training days`,
+      };
+
+      return <WeekPlanCard plan={plan} />;
+    }
   }
 
   // Unified chip layout for both running and done (prevents layout shift during transitions)
