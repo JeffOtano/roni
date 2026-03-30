@@ -90,13 +90,13 @@ export const runHealthCheck = internalAction({
       ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" }),
     ]);
 
-    const syncAgeMs = lastSyncTime ? now - lastSyncTime : Infinity;
+    const syncAgeMs = lastSyncTime ? now - lastSyncTime : null;
 
     const signals: HealthSignals = {
       expiredTokenCount,
       stuckPushCount: stuckPushIds.length,
-      lastMovementSyncAge: lastSyncTime ? formatAge(syncAgeMs) : "never",
-      movementSyncStale: syncAgeMs > MOVEMENT_SYNC_STALE_MS,
+      lastMovementSyncAge: syncAgeMs !== null ? formatAge(syncAgeMs) : "never",
+      movementSyncStale: syncAgeMs !== null && syncAgeMs > MOVEMENT_SYNC_STALE_MS,
       circuitOpen,
     };
 
