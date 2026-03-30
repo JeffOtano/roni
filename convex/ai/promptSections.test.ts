@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ALL_SECTIONS, buildInstructions, REFERENCED_TOOLS, SECTION_NAMES } from "./promptSections";
 import { coachAgentConfig } from "./coach";
-import { weekPlanPresentationSchema } from "./schemas";
 
 const prompt = buildInstructions();
 
@@ -56,18 +55,11 @@ describe("tool name consistency", () => {
 });
 
 describe("schema consistency", () => {
-  it("week-plan JSON example validates against weekPlanPresentationSchema", () => {
-    const fenceMatch = prompt.match(/```week-plan\s*\n\s*(\{[\s\S]*?\})\s*\n\s*```/);
-    expect(fenceMatch, "no week-plan code block found in prompt").toBeTruthy();
-
-    const json = JSON.parse(fenceMatch![1]);
-    const result = weekPlanPresentationSchema.safeParse(json);
-    expect(
-      result.success,
-      `week-plan example failed schema validation: ${
-        !result.success ? JSON.stringify(result.error.issues, null, 2) : ""
-      }`,
-    ).toBe(true);
+  it("weekPlanPresentation instructs AI not to output JSON", () => {
+    const section = prompt.match(/WEEKLY PLAN PRESENTATION:([\s\S]*?)(?=\n[A-Z][A-Z ]+:|$)/);
+    expect(section, "WEEKLY PLAN PRESENTATION section not found").toBeTruthy();
+    expect(section![1]).toContain("Do NOT output JSON");
+    expect(section![1]).not.toContain("```week-plan");
   });
 });
 
