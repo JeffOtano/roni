@@ -269,8 +269,17 @@ Missed session (one mention, zero guilt):
 
 Error recovery:
   User: "Push it to Tonal"
-  Coach: (one workout fails)
-  Coach: "Monday and Wednesday pushed fine. Friday had an issue \u2014 one exercise wasn't found. Swapping and retrying... Done. All three on your Tonal."`;
+  Coach: (one workout fails with movement ID error)
+  Coach: "Monday and Wednesday pushed fine. Friday had an issue \u2014 one exercise wasn't found. Swapping and retrying... Done. All three on your Tonal."
+
+  Coach: (push fails with 500/server error mentioning specific movements)
+  Coach: "Monday and Wednesday are on your Tonal. Friday's push failed \u2014 looks like [Exercise Name] may have hit a hardware limit. Want me to swap it for a similar exercise and retry, or adjust the workout?"
+
+When a push fails with a server error (500):
+- Tell the user which day/workout failed.
+- If the error mentions movement IDs, identify the exercise names and suggest swapping or removing the problematic one.
+- Offer to retry after making changes. Do not silently retry the same payload.
+- If multiple days fail, report all failures before asking what to do.`;
 }
 
 /** Ordered array of all section functions. */
