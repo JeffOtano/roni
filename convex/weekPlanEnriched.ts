@@ -115,6 +115,20 @@ function toStoredStatus(
   return "programmed";
 }
 
+/**
+ * Wraps an activity fetcher so that Tonal API failures degrade gracefully.
+ * Returns an empty array instead of propagating the error, allowing the
+ * schedule page to render without completion-status updates when Tonal is down.
+ */
+export async function safeActivities(fetcher: () => Promise<Activity[]>): Promise<Activity[]> {
+  try {
+    return await fetcher();
+  } catch (err) {
+    console.error("Failed to fetch Tonal activity history; defaulting to empty list", err);
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Public action
 // ---------------------------------------------------------------------------
@@ -151,11 +165,16 @@ export const getWeekPlanEnriched = action({
       if (wp) workoutPlans.set(uniqueIds[i], wp);
     }
 
-    // 4. Fetch recent activities from Tonal to check completion
-    const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: 20,
-    })) as Activity[];
+    // 4. Fetch recent activities from Tonal to check completion.
+    // Wrapped in safeActivities so a Tonal API failure degrades gracefully
+    // (schedule still renders, just without live completion-status updates).
+    const activities = await safeActivities(
+      () =>
+        ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+          userId,
+          limit: 20,
+        }) as Promise<Activity[]>,
+    );
 
     // 5. Build a set of completed Tonal workout IDs from activity history
     const completedTonalIds = new Set<string>(activities.map((a) => a.workoutPreview.workoutId));
