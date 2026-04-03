@@ -38,6 +38,16 @@ export function correctDurationRepsMismatch(
   return corrections;
 }
 
+/** Build an error message that includes workout context for debugging push failures. */
+export function enrichPushErrorMessage(
+  originalError: string,
+  title: string,
+  movementIds: string[],
+): string {
+  const unique = [...new Set(movementIds)];
+  return `Push failed for "${title}" (movements: ${unique.join(", ")}). Tonal error: ${originalError}`;
+}
+
 /** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
 export const doTonalCreateWorkout = internalAction({
   args: {
@@ -87,7 +97,9 @@ export const doTonalCreateWorkout = internalAction({
           const is5xx = err instanceof TonalApiError && err.status >= 500;
           if (!is5xx || attempt >= MAX_RETRIES) {
             console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
-            throw err;
+            const movementIds = sets.map((s) => s.movementId as string);
+            const errMsg = err instanceof Error ? err.message : String(err);
+            throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
           }
           const delay = 3000 * (attempt + 1);
           console.warn(

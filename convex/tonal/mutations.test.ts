@@ -1,6 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { correctDurationRepsMismatch, formatTonalTitle } from "./mutations";
+import { correctDurationRepsMismatch, enrichPushErrorMessage, formatTonalTitle } from "./mutations";
 import type { WorkoutSetInput } from "./types";
+
+// ---------------------------------------------------------------------------
+// enrichPushErrorMessage
+// ---------------------------------------------------------------------------
+
+describe("enrichPushErrorMessage", () => {
+  it("includes title and movement IDs in the enriched message", () => {
+    const result = enrichPushErrorMessage(
+      "Tonal API 500: Internal Server Error",
+      "Push Day - Monday",
+      ["move-abc", "move-def", "move-ghi"],
+    );
+
+    expect(result).toContain("Push Day - Monday");
+    expect(result).toContain("move-abc");
+    expect(result).toContain("move-def");
+    expect(result).toContain("move-ghi");
+    expect(result).toContain("Tonal API 500");
+  });
+
+  it("includes all unique movement IDs", () => {
+    const result = enrichPushErrorMessage("error", "Legs", ["m1", "m2", "m1"]);
+
+    // Should deduplicate
+    expect(result).toContain("m1");
+    expect(result).toContain("m2");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // formatTonalTitle
