@@ -223,10 +223,21 @@ export const fetchWorkoutDetail = internalAction({
         ttl: CACHE_TTLS.workoutHistory,
         fetcher: async () => {
           try {
-            return await tonalFetch<WorkoutActivityDetail>(
+            const detail = await tonalFetch<WorkoutActivityDetail>(
               token,
               `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
             );
+            // Tonal can return thousands of set entries for some activities,
+            // exceeding Convex's 8192 array element limit. Truncate to a safe
+            // ceiling -- no realistic single workout has more than 500 sets.
+            const MAX_SETS = 4000;
+            if (detail.workoutSetActivity && detail.workoutSetActivity.length > MAX_SETS) {
+              console.warn(
+                `fetchWorkoutDetail(${activityId}): truncating workoutSetActivity from ${detail.workoutSetActivity.length} to ${MAX_SETS}`,
+              );
+              detail.workoutSetActivity = detail.workoutSetActivity.slice(0, MAX_SETS);
+            }
+            return detail;
           } catch (error) {
             if (error instanceof TonalApiError && error.status === 404) {
               return null;
