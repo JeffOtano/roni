@@ -103,6 +103,13 @@ export default defineSchema({
     googleCalendarId: v.optional(v.string()),
     /** Hours of inactivity before a new chat thread is created. Default: 24. */
     threadStaleHours: v.optional(v.number()),
+    // BYOK (bring-your-own-key) Gemini API key storage.
+    // Encrypted with TOKEN_ENCRYPTION_KEY. Null means the user is
+    // grandfathered on the house key (pre-BYOK signup) OR a post-BYOK
+    // user who has not yet added their key. The grandfathering gate
+    // in convex/byok.ts distinguishes the two cases.
+    geminiApiKeyEncrypted: v.optional(v.string()),
+    geminiApiKeyAddedAt: v.optional(v.number()),
     /** Timestamp when a token refresh started. Used to prevent concurrent refreshes. */
     tokenRefreshInProgress: v.optional(v.number()),
   })
