@@ -1,7 +1,6 @@
 import { createTool, type ToolCtx } from "@convex-dev/agent";
 import { z } from "zod";
 import { api, internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
 import type {
   Activity,
   Movement,
@@ -334,52 +333,6 @@ export const estimateDurationTool = createTool({
         blocks: input.blocks,
       })) as { duration: number };
       return { estimatedMinutes: Math.round(result.duration / 60) };
-    },
-  ),
-});
-
-export const listProgressPhotosTool = createTool({
-  description:
-    "List progress photos (id, date). Use for compare only if analysis enabled in Settings.",
-  inputSchema: z.object({}),
-  execute: withToolTracking(
-    "list_progress_photos",
-    async (ctx, _input, _options): Promise<{ photos: { id: string; createdAt: number }[] }> => {
-      const userId = requireUserId(ctx);
-      const rows = (await ctx.runQuery(internal.progressPhotos.listByUserId, {
-        userId,
-      })) as { _id: Id<"progressPhotos">; createdAt: number }[];
-      return {
-        photos: rows.map((r) => ({ id: r._id, createdAt: r.createdAt })),
-      };
-    },
-  ),
-});
-
-export const compareProgressPhotosTool = createTool({
-  description:
-    "Compare two progress photos; brief factual observations. Requires analysis enabled and list_progress_photos ids.",
-  inputSchema: z.object({
-    photoId1: z.string().describe("First photo id (earlier)"),
-    photoId2: z.string().describe("Second photo id (later)"),
-  }),
-  execute: withToolTracking(
-    "compare_progress_photos",
-    async (ctx, input, _options): Promise<{ observations: string; error?: string }> => {
-      const userId = requireUserId(ctx);
-      try {
-        const observations = await ctx.runAction(internal.progressPhotos.compareProgressPhotos, {
-          userId,
-          photoId1: input.photoId1 as Id<"progressPhotos">,
-          photoId2: input.photoId2 as Id<"progressPhotos">,
-        });
-        return { observations };
-      } catch (err) {
-        return {
-          observations: "",
-          error: err instanceof Error ? err.message : "Comparison failed",
-        };
-      }
     },
   ),
 });

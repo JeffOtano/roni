@@ -10,7 +10,6 @@ import { useActionData } from "@/hooks/useActionData";
 import { AsyncCard } from "@/components/AsyncCard";
 import { StrengthOverview } from "@/components/progress/StrengthOverview";
 import { TrainingStatsCompact } from "@/components/progress/TrainingStatsCompact";
-import { ProgressPhotosSection } from "@/components/progress/ProgressPhotosSection";
 
 const NAV_PILL =
   "rounded-full bg-muted/50 px-4 py-2 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground";
@@ -80,15 +79,6 @@ export default function ProgressPage() {
           >
             {(d) => <TrainingStatsCompact metrics={d} />}
           </AsyncCard>
-        </div>
-      </section>
-
-      {/* Section 3: Progress Photos */}
-      <section className="mt-10">
-        <h2 className={SECTION_HEADING}>Progress Photos</h2>
-        <p className="mt-1 pl-3 text-xs text-muted-foreground">Only you can see these</p>
-        <div className="mt-3">
-          <ProgressPhotosSection />
         </div>
       </section>
 

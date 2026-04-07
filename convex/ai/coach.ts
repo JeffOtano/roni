@@ -8,12 +8,12 @@ import { buildTrainingSnapshot } from "./context";
 import { buildInstructions } from "./promptSections";
 import { captureAiGeneration } from "../lib/posthog";
 // ---------------------------------------------------------------------------
-// Tool registry (33 tools across 4 files)
+// Tool registry (31 tools across 4 files)
 // ---------------------------------------------------------------------------
-// tools.ts (12):        search_exercises, get_strength_scores, get_strength_history,
+// tools.ts (10):        search_exercises, get_strength_scores, get_strength_history,
 //                       get_muscle_readiness, get_workout_history, get_workout_detail,
 //                       get_training_frequency, create_workout, delete_workout,
-//                       estimate_duration, list_progress_photos, compare_progress_photos
+//                       estimate_duration
 //
 // weekTools.ts (5):     program_week, get_week_plan_details, delete_week_plan,
 //                       approve_week_plan, get_workout_performance
@@ -27,7 +27,6 @@ import { captureAiGeneration } from "../lib/posthog";
 //                        resolve_injury, get_injuries, get_weekly_volume
 // ---------------------------------------------------------------------------
 import {
-  compareProgressPhotosTool,
   createWorkoutTool,
   deleteWorkoutTool,
   estimateDurationTool,
@@ -37,7 +36,6 @@ import {
   getTrainingFrequencyTool,
   getWorkoutDetailTool,
   getWorkoutHistoryTool,
-  listProgressPhotosTool,
   searchExercisesTool,
 } from "./tools";
 import {
@@ -137,8 +135,6 @@ export const coachAgentConfig = {
     create_workout: createWorkoutTool,
     delete_workout: deleteWorkoutTool,
     estimate_duration: estimateDurationTool,
-    list_progress_photos: listProgressPhotosTool,
-    compare_progress_photos: compareProgressPhotosTool,
     program_week: programWeekTool,
     get_week_plan_details: getWeekPlanDetailsTool,
     delete_week_plan: deleteWeekPlanTool,

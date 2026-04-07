@@ -84,7 +84,6 @@ cp .env.example .env.local
 npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
 npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
-npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY $(openssl rand -hex 32)
 npx convex env set APP_URL                        http://localhost:3000
 
 # 6. Start the Next.js dev server (in a second terminal)
@@ -99,14 +98,13 @@ npm run dev
 
 ### Convex backend - set via `npx convex env set KEY value`
 
-| Variable                         | Description                                                                 |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `GOOGLE_GENERATIVE_AI_API_KEY`   | Google AI Studio API key. Used by Gemini 2.5 Pro (coach) and Flash (photos) |
-| `AUTH_RESEND_KEY`                | Resend API key (`re_...`). Sends password-reset OTP emails                  |
-| `TOKEN_ENCRYPTION_KEY`           | 64-char hex string. Encrypts Tonal OAuth tokens. `openssl rand -hex 32`     |
-| `PROGRESS_PHOTOS_ENCRYPTION_KEY` | 64-char hex string. Encrypts progress photo keys. `openssl rand -hex 32`    |
-| `APP_URL`                        | Public app URL for OAuth redirects. `http://localhost:3000` locally         |
-| `CONVEX_SITE_URL`                | Set automatically by Convex. Do not set manually                            |
+| Variable                       | Description                                                             |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used by Gemini 2.5 Pro (coach)                |
+| `AUTH_RESEND_KEY`              | Resend API key (`re_...`). Sends password-reset OTP emails              |
+| `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens. `openssl rand -hex 32` |
+| `APP_URL`                      | Public app URL for OAuth redirects. `http://localhost:3000` locally     |
+| `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                        |
 
 ### Next.js - set in `.env.local`
 
