@@ -271,6 +271,26 @@ describe("resolveGeminiKey", () => {
 
     expect(result).toBe(HOUSE_KEY);
   });
+
+  it("end-to-end: prepareGeminiKeyForStorage ciphertext resolves back to the original key", async () => {
+    // Composite regression guard: the encrypt-in-save path and the
+    // decrypt-in-resolve path must use the same encryption key format.
+    // If the save mutation ever uses a different key or encoding than
+    // resolveGeminiKey expects, grandfathered users could be fine while
+    // every BYOK user's key silently becomes unreadable at chat time.
+    process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+
+    const { encrypted, addedAt } = await prepareGeminiKeyForStorage(USER_KEY, TEST_ENCRYPTION_KEY);
+    const profile = makeProfile({
+      geminiApiKeyEncrypted: encrypted,
+      geminiApiKeyAddedAt: addedAt,
+    });
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    const resolved = await resolveGeminiKey(profile, byokCreationTime);
+
+    expect(resolved).toBe(USER_KEY);
+  });
 });
 
 describe("maskGeminiKey", () => {
