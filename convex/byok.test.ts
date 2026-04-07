@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { BYOK_REQUIRED_AFTER, isBYOKRequired, validateGeminiKeyAgainstGoogle } from "./byok";
+import {
+  BYOK_REQUIRED_AFTER,
+  isBYOKRequired,
+  prepareGeminiKeyForStorage,
+  validateGeminiKeyAgainstGoogle,
+} from "./byok";
+import { decrypt } from "./tonal/encryption";
 
 describe("isBYOKRequired", () => {
   it("returns false for users created before BYOK_REQUIRED_AFTER (grandfathered)", () => {
@@ -116,5 +122,62 @@ describe("validateGeminiKeyAgainstGoogle", () => {
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain(leakKey);
     expect(result).toEqual({ valid: false, reason: "network_error" });
+  });
+});
+
+describe("prepareGeminiKeyForStorage", () => {
+  const TEST_ENCRYPTION_KEY = "00".repeat(32);
+  const VALID_KEY = "AIzaSyA1B2C3D4E5F6G7H8I9J0KlMnOpQrStUvW";
+
+  it("returns ciphertext that does not contain the plaintext key", async () => {
+    const { encrypted } = await prepareGeminiKeyForStorage(VALID_KEY, TEST_ENCRYPTION_KEY);
+    expect(encrypted).not.toContain(VALID_KEY);
+  });
+
+  it("trims leading and trailing whitespace before validating and encrypting", async () => {
+    const padded = `   ${VALID_KEY}   `;
+    const { encrypted } = await prepareGeminiKeyForStorage(padded, TEST_ENCRYPTION_KEY);
+    const decrypted = await decrypt(encrypted, TEST_ENCRYPTION_KEY);
+    expect(decrypted).toBe(VALID_KEY);
+  });
+
+  it("trims trailing newlines before validating and encrypting", async () => {
+    const withNewlines = `${VALID_KEY}\n\n`;
+    const { encrypted } = await prepareGeminiKeyForStorage(withNewlines, TEST_ENCRYPTION_KEY);
+    const decrypted = await decrypt(encrypted, TEST_ENCRYPTION_KEY);
+    expect(decrypted).toBe(VALID_KEY);
+  });
+
+  it("rejects a key that does not match the Gemini format", async () => {
+    await expect(prepareGeminiKeyForStorage("not_a_key", TEST_ENCRYPTION_KEY)).rejects.toThrow(
+      /Invalid Gemini API key format/,
+    );
+  });
+
+  it("rejects an empty string", async () => {
+    await expect(prepareGeminiKeyForStorage("", TEST_ENCRYPTION_KEY)).rejects.toThrow(
+      /Invalid Gemini API key format/,
+    );
+  });
+
+  it("rejects a key with the AIza prefix but wrong length", async () => {
+    const tooShort = "AIzaShort";
+    await expect(prepareGeminiKeyForStorage(tooShort, TEST_ENCRYPTION_KEY)).rejects.toThrow(
+      /Invalid Gemini API key format/,
+    );
+  });
+
+  it("sets addedAt to approximately Date.now()", async () => {
+    const before = Date.now();
+    const { addedAt } = await prepareGeminiKeyForStorage(VALID_KEY, TEST_ENCRYPTION_KEY);
+    const after = Date.now();
+    expect(addedAt).toBeGreaterThanOrEqual(before);
+    expect(addedAt).toBeLessThanOrEqual(after);
+  });
+
+  it("encrypts such that decrypt roundtrips back to the original key", async () => {
+    const { encrypted } = await prepareGeminiKeyForStorage(VALID_KEY, TEST_ENCRYPTION_KEY);
+    const decrypted = await decrypt(encrypted, TEST_ENCRYPTION_KEY);
+    expect(decrypted).toBe(VALID_KEY);
   });
 });

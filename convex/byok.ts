@@ -1,3 +1,8 @@
+import { v } from "convex/values";
+import { mutation } from "./_generated/server";
+import { getEffectiveUserId } from "./lib/auth";
+import { encrypt } from "./tonal/encryption";
+
 // BYOK (bring-your-own-key) grandfathering gate.
 //
 // Users whose _creationTime is before BYOK_REQUIRED_AFTER are grandfathered
@@ -78,3 +83,73 @@ export async function validateGeminiKeyAgainstGoogle(
 
   return { valid: false, reason: "unknown" };
 }
+
+/**
+ * Matches a well-formed Gemini API key: the "AIza" prefix followed by 35
+ * characters from the URL-safe base64 alphabet. Google keys are always
+ * exactly 39 characters. This is a format check only; it does not verify
+ * the key works against Google AI.
+ */
+const GEMINI_KEY_FORMAT = /^AIza[A-Za-z0-9_-]{35}$/;
+
+/**
+ * Prepares a user-supplied Gemini API key for storage on the user's profile.
+ *
+ * Pure helper: no auth, no database. Trims whitespace, enforces the Gemini
+ * key format, and encrypts the result with the AES-256-GCM helper from
+ * convex/tonal/encryption.ts. Returns the ciphertext and an addedAt timestamp
+ * ready to be patched onto a userProfiles row.
+ *
+ * Live validation against Google AI is intentionally NOT performed here.
+ * The call site is expected to run validateGeminiKeyAgainstGoogle before
+ * invoking the storing mutation, so the mutation itself stays off the hot
+ * path of a network request.
+ */
+export async function prepareGeminiKeyForStorage(
+  apiKey: string,
+  encryptionKey: string,
+): Promise<{ encrypted: string; addedAt: number }> {
+  const trimmed = apiKey.trim();
+  if (!GEMINI_KEY_FORMAT.test(trimmed)) {
+    throw new Error(
+      "Invalid Gemini API key format. Keys start with 'AIza' and are 39 characters long.",
+    );
+  }
+  const encrypted = await encrypt(trimmed, encryptionKey);
+  return { encrypted, addedAt: Date.now() };
+}
+
+/**
+ * Encrypt and store the authenticated user's Gemini API key on their profile.
+ *
+ * The caller is expected to have already run live Google validation (see
+ * validateGeminiKeyAgainstGoogle above) before invoking this mutation. The
+ * mutation itself only does format validation via prepareGeminiKeyForStorage,
+ * so it stays off the hot path of any network request.
+ */
+export const saveGeminiKey = mutation({
+  args: { apiKey: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error("Server misconfigured: TOKEN_ENCRYPTION_KEY not set");
+    }
+
+    const { encrypted, addedAt } = await prepareGeminiKeyForStorage(args.apiKey, encryptionKey);
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!profile) throw new Error("User profile not found");
+
+    await ctx.db.patch(profile._id, {
+      geminiApiKeyEncrypted: encrypted,
+      geminiApiKeyAddedAt: addedAt,
+    });
+  },
+});
