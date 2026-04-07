@@ -1,5 +1,5 @@
 import { generateText, Output } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
   generateMetaTitle,
   generateSlug,
@@ -20,6 +20,7 @@ import {
 } from "./weekProgrammingHelpers";
 import type { Movement } from "../tonal/types";
 import { buildWorkoutPrompt, llmWorkoutSchema } from "./libraryPrompt";
+import { withByokErrorSanitization } from "../ai/resilience";
 
 export interface LibraryCombo {
   sessionType: LibrarySessionType;
@@ -175,6 +176,14 @@ export interface BuildLibraryWorkoutInput {
   combo: LibraryCombo;
   catalog: Movement[];
   recentMovementIds: string[];
+  /**
+   * Gemini API key used to bill the LLM call. The library generator is
+   * operator-run (see scripts/generate-library.sh) and produces a shared
+   * catalog of workouts that every user reads, so this is always the
+   * house key. There is no user context to BYOK against. The caller is
+   * responsible for sourcing the key from process.env.GOOGLE_GENERATIVE_AI_API_KEY.
+   */
+  apiKey: string;
 }
 
 const GENERATION_VERSION = 1;
@@ -212,7 +221,7 @@ function preFilterCatalog(catalog: Movement[], combo: LibraryCombo): Movement[] 
 export async function buildLibraryWorkout(
   input: BuildLibraryWorkoutInput,
 ): Promise<LibraryWorkoutData | null> {
-  const { combo, catalog, recentMovementIds } = input;
+  const { combo, catalog, recentMovementIds, apiKey } = input;
   const { sessionType, goal, durationMinutes, level, equipmentConfig } = combo;
 
   const filteredCatalog = preFilterCatalog(catalog, combo);
@@ -221,12 +230,20 @@ export async function buildLibraryWorkout(
   const targetMuscles = SESSION_TYPE_MUSCLES[sessionType] ?? [];
   const prompt = buildWorkoutPrompt(combo, filteredCatalog, recentMovementIds);
 
+  // Per-request provider so this code path never reads the ambient
+  // GOOGLE_GENERATIVE_AI_API_KEY env var. The apiKey is supplied by the
+  // operator-run caller (always the house key, since the library is shared
+  // across all users and there is no per-user context here).
+  const provider = createGoogleGenerativeAI({ apiKey });
+
   try {
-    const { output } = await generateText({
-      model: google("gemini-3-flash-preview"),
-      output: Output.object({ schema: llmWorkoutSchema }),
-      prompt,
-    });
+    const { output } = await withByokErrorSanitization(() =>
+      generateText({
+        model: provider("gemini-3-flash-preview"),
+        output: Output.object({ schema: llmWorkoutSchema }),
+        prompt,
+      }),
+    );
 
     if (!output || output.exercises.length < 3) return null;
 

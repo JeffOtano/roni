@@ -2,7 +2,7 @@
 
 import { v } from "convex/values";
 import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
   action,
   internalAction,
@@ -11,9 +11,35 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { decrypt, encrypt } from "./tonal/encryption";
+import { resolveGeminiKey } from "./byok";
+import { withByokErrorSanitization } from "./ai/resilience";
+
+/**
+ * Resolve the Gemini API key for the given userId from inside an action.
+ *
+ * Mirrors the helper in convex/chat.ts: looks up the user's creation time
+ * and stored profile via an internal query, then defers to resolveGeminiKey
+ * for the kill-switch / grandfathering / BYOK decision tree.
+ *
+ * Throws a typed BYOK error code on failure (byok_key_missing,
+ * byok_misconfigured_no_encryption_key, etc.). The compareProgressPhotos
+ * action MUST NOT silently fall back to the house key on failure: the
+ * entire BYOK release exists to stop the cost bleed of users running on
+ * someone else's key. Photo analysis is a particularly expensive call
+ * (multimodal), which makes the invariant even more important here.
+ */
+async function resolveUserGeminiKey(ctx: ActionCtx, userId: Id<"users">): Promise<string> {
+  const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
+    userId,
+  });
+  if (!context) throw new Error("byok_user_not_found");
+  return await resolveGeminiKey(context.profile, context.userCreationTime);
+}
 
 export const MAX_IMAGE_BASE64_LENGTH = 4 * 1024 * 1024;
 
@@ -255,29 +281,38 @@ export const compareProgressPhotos = internalAction({
     const date1 = new Date(doc1.createdAt).toLocaleDateString();
     const date2 = new Date(doc2.createdAt).toLocaleDateString();
 
-    const { text } = await generateText({
-      model: google("gemini-3-flash-preview"),
-      system: PROGRESS_PHOTO_COMPARE_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Compare these two progress photos. First image is from ${date1}, second from ${date2}. Give brief factual observations about visible changes relative to the person's own baseline only.`,
-            },
-            {
-              type: "image",
-              image: `data:image/jpeg;base64,${base64_1}`,
-            },
-            {
-              type: "image",
-              image: `data:image/jpeg;base64,${base64_2}`,
-            },
-          ],
-        },
-      ],
-    });
+    // Resolve the user's BYOK key. The compare-photos call is multimodal and
+    // expensive, so it must bill against the user's own key (or, for
+    // grandfathered users, the house key) rather than implicitly inheriting
+    // GOOGLE_GENERATIVE_AI_API_KEY from the ambient process env.
+    const apiKey = await resolveUserGeminiKey(ctx, userId);
+    const provider = createGoogleGenerativeAI({ apiKey });
+
+    const { text } = await withByokErrorSanitization(() =>
+      generateText({
+        model: provider("gemini-3-flash-preview"),
+        system: PROGRESS_PHOTO_COMPARE_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Compare these two progress photos. First image is from ${date1}, second from ${date2}. Give brief factual observations about visible changes relative to the person's own baseline only.`,
+              },
+              {
+                type: "image",
+                image: `data:image/jpeg;base64,${base64_1}`,
+              },
+              {
+                type: "image",
+                image: `data:image/jpeg;base64,${base64_2}`,
+              },
+            ],
+          },
+        ],
+      }),
+    );
 
     return text;
   },

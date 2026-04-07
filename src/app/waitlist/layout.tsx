@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Waitlist",
-  description:
-    "Beta spots are full. Join the waitlist to get notified when tonal.coach opens up again.",
+  description: "Drop your email to get updates on tonal.coach, the open-source AI coach for Tonal.",
   alternates: { canonical: "/waitlist" },
   robots: { index: true, follow: true },
 };

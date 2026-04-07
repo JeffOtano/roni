@@ -27,7 +27,7 @@ import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ProfileCard } from "@/components/settings/ProfileCard";
-import { ImpersonateUserPicker } from "@/components/admin/ImpersonateUserPicker";
+import { GeminiKeySection } from "@/components/byok/GeminiKeySection";
 import { Link2, LogOut, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
@@ -190,6 +190,12 @@ function SettingsPageInner() {
         <PhotoAnalysisToggle />
       </section>
 
+      {/* Gemini API Key */}
+      <section className="mb-10">
+        <h2 className={SECTION_HEADING}>Gemini API Key</h2>
+        <GeminiKeySection />
+      </section>
+
       {/* Data Export */}
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Data Export</h2>
@@ -234,9 +240,6 @@ function SettingsPageInner() {
           </CardContent>
         </Card>
       </section>
-
-      {/* Admin -- ImpersonateUserPicker renders nothing for non-admins */}
-      <ImpersonateUserPicker />
 
       {/* Danger Zone */}
       <section className="mb-10">

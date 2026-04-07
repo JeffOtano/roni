@@ -3,11 +3,30 @@ import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { generateText, Output } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { buildLibraryWorkout, enumerateValidCombos } from "./libraryGeneration";
 import { generateSlug } from "./goalConfig";
 import { blockInputValidator } from "../validators";
+import { withByokErrorSanitization } from "../ai/resilience";
+
+/**
+ * Library generation is operator-run from scripts/generate-library.sh and
+ * produces a shared catalog of workouts that every user reads. There is no
+ * per-user context here, so BYOK does not apply: the LLM call is always
+ * billed against the house key. We resolve the key explicitly from the env
+ * (rather than letting the AI SDK pick it up implicitly) so the call site
+ * cannot accidentally inherit a different default in the future.
+ */
+function getHouseGeminiKeyForLibraryGeneration(): string {
+  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!key) {
+    throw new Error(
+      "GOOGLE_GENERATIVE_AI_API_KEY is not set; required for operator-run library generation",
+    );
+  }
+  return key;
+}
 
 const libraryWorkoutValidator = v.object({
   slug: v.string(),
@@ -103,6 +122,10 @@ export const generateBatch = internalAction({
   handler: async (ctx, { sessionTypes, generationVersion, offset = 0, limit = 5 }) => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
 
+    // Operator-run shared catalog generation: use the house key explicitly.
+    // See getHouseGeminiKeyForLibraryGeneration for why BYOK does not apply.
+    const apiKey = getHouseGeminiKeyForLibraryGeneration();
+
     const allCombos = enumerateValidCombos().filter((c) => sessionTypes.includes(c.sessionType));
     const combos = allCombos.slice(offset, offset + limit);
 
@@ -120,7 +143,12 @@ export const generateBatch = internalAction({
         continue;
       }
 
-      const workout = await buildLibraryWorkout({ combo, catalog, recentMovementIds: [] });
+      const workout = await buildLibraryWorkout({
+        combo,
+        catalog,
+        recentMovementIds: [],
+        apiKey,
+      });
 
       if (!workout) {
         skipped++;
@@ -213,10 +241,15 @@ export const generateDescriptions = internalAction({
       targetMuscleGroups: w.targetMuscleGroups,
     }));
 
-    const { output } = await generateText({
-      model: google("gemini-3-flash-preview"),
-      output: Output.object({ schema: descriptionBatchSchema }),
-      prompt: `Generate SEO-friendly descriptions for the following strength training workouts.
+    // Operator-run shared catalog generation: use the house key explicitly.
+    const apiKey = getHouseGeminiKeyForLibraryGeneration();
+    const provider = createGoogleGenerativeAI({ apiKey });
+
+    const { output } = await withByokErrorSanitization(() =>
+      generateText({
+        model: provider("gemini-3-flash-preview"),
+        output: Output.object({ schema: descriptionBatchSchema }),
+        prompt: `Generate SEO-friendly descriptions for the following strength training workouts.
 
 For each workout, produce:
 - description: 2-3 sentences describing the workout, its goals, and what makes it effective. Write in second person ("you"). Be specific about muscle groups, goals, and training level.
@@ -226,7 +259,8 @@ Workouts:
 ${JSON.stringify(workoutSummaries, null, 2)}
 
 Return an array of objects with slug, description, and metaDescription for each workout.`,
-    });
+      }),
+    );
 
     for (const item of output.workouts) {
       await ctx.runMutation(internal.coach.libraryGenerationActions.updateDescription, {

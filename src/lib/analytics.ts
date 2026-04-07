@@ -102,10 +102,6 @@ type AnalyticsEvents = {
   mcp_key_generated: Record<string, never>;
   mcp_key_revoked: Record<string, never>;
 
-  // Admin
-  impersonation_started: { target_user_id: string };
-  impersonation_stopped: Record<string, never>;
-
   // Public workout library
   workout_cta_clicked: { slug: string };
   workout_opened_in_tonal: { slug: string };
