@@ -10,7 +10,6 @@ const APP_TABLES: TableNames[] = [
   "workoutPlans",
   "weekPlans",
   "progressPhotos",
-  "oauthStates",
   "mcpApiKeys",
   "mcpUsage",
   "emailChangeRequests",

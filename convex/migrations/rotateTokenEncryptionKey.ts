@@ -5,8 +5,6 @@ import { decrypt, encrypt } from "../tonal/encryption";
 type EncryptedProfileFields = {
   tonalToken: string;
   tonalRefreshToken?: string;
-  googleCalendarToken?: string;
-  googleCalendarRefreshToken?: string;
   geminiApiKeyEncrypted?: string;
 };
 
@@ -23,14 +21,6 @@ export async function rotateProfileFields(
   if (fields.tonalRefreshToken !== undefined) {
     const plain = await decrypt(fields.tonalRefreshToken, oldKey);
     result.tonalRefreshToken = await encrypt(plain, newKey);
-  }
-  if (fields.googleCalendarToken !== undefined) {
-    const plain = await decrypt(fields.googleCalendarToken, oldKey);
-    result.googleCalendarToken = await encrypt(plain, newKey);
-  }
-  if (fields.googleCalendarRefreshToken !== undefined) {
-    const plain = await decrypt(fields.googleCalendarRefreshToken, oldKey);
-    result.googleCalendarRefreshToken = await encrypt(plain, newKey);
   }
   if (fields.geminiApiKeyEncrypted !== undefined) {
     const plain = await decrypt(fields.geminiApiKeyEncrypted, oldKey);
@@ -67,8 +57,6 @@ export const run = internalMutation({
           {
             tonalToken: profile.tonalToken,
             tonalRefreshToken: profile.tonalRefreshToken,
-            googleCalendarToken: profile.googleCalendarToken,
-            googleCalendarRefreshToken: profile.googleCalendarRefreshToken,
             geminiApiKeyEncrypted: profile.geminiApiKeyEncrypted,
           },
           oldKey,
