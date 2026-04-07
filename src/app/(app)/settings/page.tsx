@@ -27,6 +27,7 @@ import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ProfileCard } from "@/components/settings/ProfileCard";
+import { GeminiKeySection } from "@/components/byok/GeminiKeySection";
 import { Link2, LogOut, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
@@ -187,6 +188,12 @@ function SettingsPageInner() {
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Photo Analysis</h2>
         <PhotoAnalysisToggle />
+      </section>
+
+      {/* Gemini API Key */}
+      <section className="mb-10">
+        <h2 className={SECTION_HEADING}>Gemini API Key</h2>
+        <GeminiKeySection />
       </section>
 
       {/* Data Export */}
