@@ -27,7 +27,6 @@ import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ProfileCard } from "@/components/settings/ProfileCard";
-import { ImpersonateUserPicker } from "@/components/admin/ImpersonateUserPicker";
 import { Link2, LogOut, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
@@ -234,9 +233,6 @@ function SettingsPageInner() {
           </CardContent>
         </Card>
       </section>
-
-      {/* Admin -- ImpersonateUserPicker renders nothing for non-admins */}
-      <ImpersonateUserPicker />
 
       {/* Danger Zone */}
       <section className="mb-10">

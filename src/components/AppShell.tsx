@@ -19,7 +19,6 @@ import {
 import { cn } from "@/lib/utils";
 import { StatusBanner } from "@/components/StatusBanner";
 import { CheckInBell } from "@/components/CheckInBell";
-import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { Button } from "@/components/ui/button";
 import { ReconnectModal } from "@/components/ReconnectModal";
 import { useTheme } from "@/components/ThemeProvider";
@@ -100,7 +99,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ImpersonationBanner />
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar -- darker than main content */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
