@@ -76,4 +76,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
+  // Per-user cap on BYOK key validation calls. Prevents abuse of the
+  // Gemini list-models endpoint during onboarding and settings saves.
+  validateGeminiKey: {
+    kind: "token bucket",
+    rate: 5,
+    period: MINUTE,
+    capacity: 3,
+  },
 });
