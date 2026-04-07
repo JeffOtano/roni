@@ -45,12 +45,8 @@ export default function OnboardingPage() {
     return null;
   }
 
-  // Wait for user data and BYOK status before deciding which flow to render
   if (me === undefined || byokStatus === undefined) return <PageLoader />;
 
-  // Only insert the BYOK step for users who must provide a key and don't yet
-  // have one. Grandfathered users (requiresBYOK === false) and BYOK users who
-  // already saved a key see the original 3-step flow.
   const needsByokStep = byokStatus.requiresBYOK && !byokStatus.hasKey;
   const steps = needsByokStep ? BYOK_STEPS : BASE_STEPS;
 

@@ -1,27 +1,4 @@
-/**
- * TOKEN_ENCRYPTION_KEY rotation migration.
- *
- * One-shot internal mutation run manually on launch day. Walks every row in
- * userProfiles and re-encrypts the Tonal OAuth tokens, Google Calendar OAuth
- * tokens, and BYOK Gemini API keys with a new TOKEN_ENCRYPTION_KEY.
- *
- * Operator procedure:
- *
- * 1. Back up the prod Convex database first: `npx convex export --path <file>.zip`
- * 2. Set the OLD key in Convex env:
- *    `npx convex env set TOKEN_ENCRYPTION_KEY_OLD <current-key>`
- * 3. Set the NEW key in Convex env:
- *    `npx convex env set TOKEN_ENCRYPTION_KEY <new-key>`
- * 4. Run the migration:
- *    `npx convex run migrations/rotateTokenEncryptionKey:run`
- * 5. Verify the output: `{ rotated: <n>, skipped: 0, errors: [] }`
- * 6. Smoke test: log in as a user and verify their Tonal data loads (tests
- *    that their token decrypted successfully with the new key).
- * 7. Unset the OLD key: `npx convex env remove TOKEN_ENCRYPTION_KEY_OLD`
- *
- * PROGRESS_PHOTOS_ENCRYPTION_KEY is rotated separately via Task 5.2's
- * migration. This one only handles the TOKEN_ENCRYPTION_KEY domain.
- */
+// See spike-findings.md "Operator runbook: encryption key rotation" for the full procedure.
 import { internalMutation } from "../_generated/server";
 import { decrypt, encrypt } from "../tonal/encryption";
 
@@ -33,11 +10,6 @@ type EncryptedProfileFields = {
   geminiApiKeyEncrypted?: string;
 };
 
-/**
- * Pure helper: takes the encrypted fields from a profile row and returns the
- * re-encrypted fields. Throws on decrypt failure so the caller can decide
- * whether to swallow (the migration below counts it as a skipped row).
- */
 export async function rotateProfileFields(
   fields: EncryptedProfileFields,
   oldKey: string,

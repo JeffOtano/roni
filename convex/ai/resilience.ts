@@ -35,19 +35,6 @@ export function isTransientError(error: unknown): boolean {
 // ---------------------------------------------------------------------------
 // BYOK error classification
 // ---------------------------------------------------------------------------
-//
-// When the language model call fails because of something the user's Gemini
-// API key caused (invalid key, exhausted quota, safety block), we want the
-// chat action to SURFACE that to the user rather than silently swallow it
-// into the "I'm having trouble right now" generic message. The user cannot
-// fix a generic error, but they can fix "your Gemini key is invalid".
-//
-// CRITICAL INVARIANT: on BYOK failure, chat MUST NOT silently fall back to
-// the house key. That is the cost-bleed the OSS release is designed to
-// prevent. classifyByokError returns a typed code for known BYOK failure
-// modes, and callers re-throw that code so the frontend can display a
-// targeted remediation message. classifyByokError itself never reads or
-// returns the raw error message, which can echo the decrypted Gemini key.
 
 export type ByokErrorCode =
   | "byok_key_invalid"
@@ -55,17 +42,6 @@ export type ByokErrorCode =
   | "byok_safety_blocked"
   | "byok_unknown_error";
 
-/**
- * Classify an error thrown by the AI SDK or @convex-dev/agent into a BYOK
- * error code, or return null if the error is not BYOK-classifiable.
- *
- * This function intentionally inspects only `.status` and a lower-cased,
- * substring-matched version of the error message. The caller is responsible
- * for NEVER logging the raw message, which can contain the decrypted key
- * (Google AI error bodies include the key in text of the form
- * "API key AIza... is invalid"). The caller should only propagate the
- * returned ByokErrorCode.
- */
 export function classifyByokError(error: unknown): ByokErrorCode | null {
   if (!(error instanceof Error)) return null;
 
@@ -89,40 +65,18 @@ export function classifyByokError(error: unknown): ByokErrorCode | null {
   return null;
 }
 
-/**
- * If the error is a BYOK-classifiable failure, throw a sanitized Error whose
- * message is the typed BYOK error code. Otherwise, return without throwing.
- *
- * This helper exists so the chat action handlers and streamWithRetry can
- * share a single place that converts raw AI-SDK errors into BYOK codes
- * without leaking the raw message (which may contain the decrypted key).
- */
 export function throwIfByokError(error: unknown): void {
   const code = classifyByokError(error);
   if (code !== null) throw new Error(code);
 }
 
-/**
- * Run an action body that calls the Gemini language model and sanitize any
- * raw error message into a typed BYOK error code before re-throwing.
- *
- * Sanitization is critical because Google AI error bodies can echo the
- * decrypted API key back to us (for example "API key AIza... is invalid"),
- * and that string MUST NOT be logged, surfaced to the user, or stored.
- *
- * If the underlying error is not BYOK-classifiable, it is re-thrown unchanged
- * so the caller's existing transient/general error handling can take over.
- *
- * Shared across every call site that hits Gemini directly (chat, library
- * generation, progress photo analysis, etc.).
- */
+// Sanitization is mandatory: Google AI error bodies can echo the decrypted key.
 export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     const code = classifyByokError(err);
     if (code !== null) {
-      // Throw the sanitized code only. Never log or rethrow the raw message.
       throw new Error(code);
     }
     throw err;
@@ -158,14 +112,11 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       ? { prompt: args.prompt, maxOutputTokens: MAX_OUTPUT_TOKENS }
       : { promptMessageId: args.promptMessageId!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  // Attempt 1: primary (Gemini Pro)
   try {
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
     return;
   } catch (error) {
-    // BYOK errors are terminal: do not retry, do not save a generic error
-    // message, and do not silently fall back to anything. Re-throw a typed
-    // code so the chat action handler can surface it to the user.
+    // BYOK errors are terminal under BYOK: never silently fall back to the house key.
     throwIfByokError(error);
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
@@ -173,7 +124,6 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
     }
   }
 
-  // Attempt 2: retry primary after delay
   await delay(RETRY_DELAY_MS);
   try {
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
@@ -186,7 +136,6 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
     }
   }
 
-  // Attempt 3: fallback (Gemini Flash)
   try {
     await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
   } catch (error) {

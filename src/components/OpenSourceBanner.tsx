@@ -5,9 +5,6 @@ import { Sparkles, X } from "lucide-react";
 
 const STORAGE_KEY = "tonal-coach-oss-banner-dismissed";
 
-// No-op subscribe: the dismissal flag only changes via this component's own
-// click handler, which sets React state directly. `useSyncExternalStore` is
-// used here only for its SSR-safe "server snapshot / client snapshot" split.
 function subscribe() {
   return () => {};
 }
@@ -21,31 +18,14 @@ function getClientSnapshot(): boolean {
 }
 
 function getServerSnapshot(): boolean {
-  // Hide on the server and during the initial client render so hydration
-  // matches; the real value is read on the commit following hydration.
   return true;
 }
 
-/**
- * Quiet one-time announcement that Tonal Coach is now open source.
- *
- * Rendering rules:
- * - Shows only when `NEXT_PUBLIC_GITHUB_REPO_URL` is set (we won't point users
- *   at a repo that doesn't exist yet).
- * - Dismissal persists in localStorage under `tonal-coach-oss-banner-dismissed`.
- * - SSR-safe: uses `useSyncExternalStore` so the server snapshot always
- *   returns "dismissed" and the real localStorage value is read on the first
- *   client commit, avoiding hydration mismatches.
- */
 export function OpenSourceBanner() {
   const repoUrl = process.env.NEXT_PUBLIC_GITHUB_REPO_URL;
 
-  // Start from the stored value on first client commit; the server snapshot
-  // returns `true` (dismissed) so SSR renders nothing and hydration matches.
   const storedDismissed = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 
-  // Track in-session dismissals independently so the banner can be closed
-  // without needing to re-read localStorage.
   const [dismissedInSession, setDismissedInSession] = useState(false);
 
   const handleDismiss = useCallback(() => {
@@ -53,7 +33,7 @@ export function OpenSourceBanner() {
     try {
       window.localStorage.setItem(STORAGE_KEY, "true");
     } catch {
-      // Best effort; the in-memory state already hid the banner.
+      // Best effort; in-memory state already hid the banner.
     }
   }, []);
 

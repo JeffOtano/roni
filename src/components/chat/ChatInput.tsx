@@ -78,7 +78,6 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
         threadId,
         ...(imageStorageIds && imageStorageIds.length > 0 && { imageStorageIds }),
       });
-      // A successful send proves the key is working again, so dismiss the banner.
       setByokError(null);
       track("message_sent", {
         message_length: trimmed.length,
@@ -89,9 +88,6 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
       setInput(trimmed);
       console.error("Failed to send message:", err);
 
-      // BYOK errors persist in a dedicated banner; the user must fix their key
-      // before the banner clears. Don't fall through to the auto-clearing
-      // generic error state.
       const byokReason = parseByokError(err);
       if (byokReason) {
         setByokError(byokReason);

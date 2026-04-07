@@ -103,12 +103,7 @@ function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMessage[] 
   });
 }
 
-// Server-side provider for the embedding model. Embeddings always stay on
-// the house key regardless of BYOK status. Rationale: embeddings are cheap,
-// used for vector search across threads (not user-visible content), and
-// keeping them on a single server-side key simplifies agent construction
-// without meaningfully changing the cost model. Only the languageModel
-// (text generation) is routed per user by buildCoachAgents below.
+// Embeddings always bill the house key, regardless of BYOK status.
 const serverProvider = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
@@ -211,28 +206,11 @@ export const coachAgentConfig = {
   }) satisfies ContextHandler,
 };
 
-/**
- * Pair of coach agents (primary + fallback) backed by the same Gemini API key.
- * Returned by buildCoachAgents and consumed by streamWithRetry, which retries
- * the primary twice before failing over to the fallback.
- */
 export interface CoachAgentPair {
   primary: Agent;
   fallback: Agent;
 }
 
-/**
- * Build a Gemini-backed coach agent pair using the user-supplied API key.
- * Called inside actions after the key has been resolved by resolveGeminiKey.
- *
- * Constructing a fresh pair per request is cheap: the @convex-dev/agent
- * Agent constructor performs no I/O (only allocates an options object and
- * binds tools). For the volume Tonal Coach handles (one agent build per chat
- * message, plus one per respondToToolApproval continuation), this is fine.
- *
- * Primary uses gemini-3-flash-preview, fallback uses gemini-2.5-flash. The
- * embedding model is sourced from the shared server-keyed provider above.
- */
 export function buildCoachAgents(apiKey: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
 
@@ -251,21 +229,7 @@ export function buildCoachAgents(apiKey: string): CoachAgentPair {
   return { primary, fallback };
 }
 
-/**
- * Build a coach agent for code paths that NEVER invoke the LLM, only the
- * agent component's storage. Currently used by respondToToolApproval, which
- * calls Agent.approveToolCall / Agent.denyToolCall. Both of these only
- * write a tool-approval-response message and never touch languageModel.
- *
- * The languageModel field is set from the server provider so the Agent
- * constructor still receives a valid object, but no LLM call is ever made
- * with this agent. This is the cleanest way to satisfy the Agent constructor
- * contract from a mutation runtime, where we cannot decrypt the user's key.
- *
- * NOTE: it is critical that this function is NEVER used to invoke streamText
- * or generateText, because doing so would silently bill the house key. Code
- * review should reject any such use.
- */
+// Never pass to streamText/generateText; storage-only.
 export function buildCoachAgentForStorageOnly(): Agent {
   return new Agent(components.agent, {
     name: "Tonal Coach (Storage Only)",

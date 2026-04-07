@@ -40,8 +40,6 @@ export function GeminiKeySection() {
     return result;
   }, [getKeyStatus]);
 
-  // Fetch masked status when we know the user has a key. We re-run whenever
-  // byokStatus.hasKey flips so save/remove mutations get reflected in the UI.
   useEffect(() => {
     if (byokStatus === undefined) return;
 

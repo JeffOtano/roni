@@ -1,45 +1,10 @@
-/**
- * PROGRESS_PHOTOS_ENCRYPTION_KEY rotation migration.
- *
- * One-shot internal action run manually on launch day. Unlike the token
- * rotation migration, progress photos store their ciphertext inside a
- * Convex _storage blob (the progressPhotos row only holds a storageId), so
- * the rotation has to read each blob, decrypt it with the old key, write a
- * fresh blob encrypted with the new key, patch the row to point at the new
- * storageId, and delete the old blob. That requires storage APIs that are
- * only available in actions, which is why `run` is an `internalAction`
- * rather than an `internalMutation`.
- *
- * Operator procedure:
- *
- * 1. Back up the prod Convex database first: `npx convex export --path <file>.zip`
- * 2. Set the OLD key in Convex env:
- *    `npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY_OLD <current-key>`
- * 3. Set the NEW key in Convex env:
- *    `npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY <new-key>`
- * 4. Run the migration:
- *    `npx convex run migrations/rotateProgressPhotoEncryptionKey:run`
- * 5. Verify the output: `{ rotated: <n>, skipped: 0, errors: [] }`
- * 6. Smoke test: open the Progress Photos screen as a user and verify a
- *    thumbnail loads (confirms the new ciphertext decrypts with the new key).
- * 7. Unset the OLD key: `npx convex env remove PROGRESS_PHOTOS_ENCRYPTION_KEY_OLD`
- *
- * TOKEN_ENCRYPTION_KEY is rotated separately via the sibling migration
- * `rotateTokenEncryptionKey`. This one only handles the
- * PROGRESS_PHOTOS_ENCRYPTION_KEY domain.
- */
+// See spike-findings.md "Operator runbook: encryption key rotation" for the full procedure.
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { decrypt, encrypt } from "../tonal/encryption";
 
-/**
- * Pure helper: takes a photo's encrypted blob contents (the string written
- * to _storage by `progressPhotos.upload`) and returns the re-encrypted
- * string. Throws on decrypt failure so the caller can decide whether to
- * swallow (the migration below counts it as a skipped row).
- */
 export async function rotatePhotoBlob(
   encoded: string,
   oldKey: string,

@@ -254,3 +254,34 @@ Code review on Task 3.8 surfaced three `generateText` call sites outside `convex
 - **`convex/progressPhotos.ts`** — `compareProgressPhotos` is an `internalAction` that already takes `userId` as an argument (called from the `compare_progress_photos` coach tool, which has full auth context). Added a `resolveUserGeminiKey` helper mirroring the one in `convex/chat.ts` that runs `internal.byok._getKeyResolutionContext` and defers to `resolveGeminiKey`, then instantiates a per-request provider. Photo comparison is multimodal and one of the more expensive Gemini calls in the product, which makes the BYOK-no-fallback invariant especially important here.
 
 No mutation-runtime blockers were hit: every billable LLM call lives in an `action` or `internalAction`, where Web Crypto and `runQuery` are both available. Library generation correctly stays on the house key because there is no caller-supplied user identity, and that decision is now documented in code rather than implicit. Typecheck clean, full suite passes (787 tests, +3 from this change).
+
+## Operator runbook: encryption key rotation
+
+Two encryption keys can be rotated independently using the migrations under `convex/migrations/`:
+
+- `TOKEN_ENCRYPTION_KEY` (Tonal OAuth tokens, Google Calendar OAuth tokens, BYOK Gemini keys) - rotated by `migrations/rotateTokenEncryptionKey:run` (an `internalMutation`).
+- `PROGRESS_PHOTOS_ENCRYPTION_KEY` (encrypted progress photo blobs in Convex `_storage`) - rotated by `migrations/rotateProgressPhotoEncryptionKey:run` (an `internalAction`, because it has to read, re-encrypt, and re-store storage blobs).
+
+Both share the same procedure shape. Substitute the right key name in the env vars and the right migration path in step 4.
+
+### Procedure
+
+1. Back up the prod Convex database first: `npx convex export --path <file>.zip`
+2. Set the OLD key in Convex env:
+   - `npx convex env set TOKEN_ENCRYPTION_KEY_OLD <current-key>`
+   - or `npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY_OLD <current-key>`
+3. Set the NEW key in Convex env:
+   - `npx convex env set TOKEN_ENCRYPTION_KEY <new-key>`
+   - or `npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY <new-key>`
+4. Run the migration:
+   - `npx convex run migrations/rotateTokenEncryptionKey:run`
+   - or `npx convex run migrations/rotateProgressPhotoEncryptionKey:run`
+5. Verify the output: `{ rotated: <n>, skipped: 0, errors: [] }`
+6. Smoke test:
+   - For `TOKEN_ENCRYPTION_KEY`: log in as a user and verify their Tonal data loads (proves their token decrypted with the new key).
+   - For `PROGRESS_PHOTOS_ENCRYPTION_KEY`: open the Progress Photos screen as a user and verify a thumbnail loads (proves the new ciphertext decrypts with the new key).
+7. Unset the OLD key:
+   - `npx convex env remove TOKEN_ENCRYPTION_KEY_OLD`
+   - or `npx convex env remove PROGRESS_PHOTOS_ENCRYPTION_KEY_OLD`
+
+The token rotation is structured as a single `internalMutation` so all profiles either succeed or get individually counted as skipped. The photo rotation uses an `internalAction` because storage blob APIs are only available in actions; failed rows are similarly counted as skipped, and the row is not patched until the new blob has been written.
