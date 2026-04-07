@@ -12,7 +12,6 @@ import type * as ResendOTP from "../ResendOTP.js";
 import type * as account from "../account.js";
 import type * as accountDeletion from "../accountDeletion.js";
 import type * as activation from "../activation.js";
-import type * as admin from "../admin.js";
 import type * as ai_coach from "../ai/coach.js";
 import type * as ai_coachingTools from "../ai/coachingTools.js";
 import type * as ai_context from "../ai/context.js";
@@ -145,7 +144,6 @@ declare const fullApi: ApiFromModules<{
   account: typeof account;
   accountDeletion: typeof accountDeletion;
   activation: typeof activation;
-  admin: typeof admin;
   "ai/coach": typeof ai_coach;
   "ai/coachingTools": typeof ai_coachingTools;
   "ai/context": typeof ai_context;
