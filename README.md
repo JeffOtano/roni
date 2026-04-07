@@ -1,8 +1,40 @@
 # Tonal Coach
 
-An AI coaching companion for [Tonal](https://www.tonal.com) fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly plans. The AI coach (Gemini 2.5 Pro) selects exercises, manages periodization, and pushes completed workouts directly to your Tonal - no manual entry.
+> [!IMPORTANT]
+> **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
 
-Available as a web app (Next.js) and a native iOS app (SwiftUI) sharing the same Convex backend.
+<!-- TODO: add hero screenshots at public/readme/chat.png and public/readme/dashboard.png -->
+
+## What this is
+
+Tonal Coach is an AI coaching companion for Tonal fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly workout plans. The AI coach (Gemini 2.5 Pro) selects exercises, manages periodization, and pushes completed workouts directly to your Tonal - no manual entry. It is built on Next.js and Convex with real-time sync.
+
+## Who it's for
+
+This project is open-source for two reasons: technical users who want to self-host their own copy on free-tier infrastructure, and anyone who wants to audit the code to understand exactly how their Tonal credentials and workout data are handled. The code is the answer to "are you storing my password?"
+
+## How the open-source model works
+
+**Self-host (recommended for technical users).** Clone the repo, spin up a free Convex deployment, set a Gemini API key via env var, and run the stack locally or deploy to Vercel. You own every layer. Instructions are in the Self-Host Setup section below.
+
+**Hosted + BYOK.** The project's hosted instance accepts new signups. New users paste their own Gemini API key during onboarding. The operator pays nothing for AI costs for new users, and users control their own Google AI usage.
+
+**Grandfathered hosted.** Existing beta users (signed up before the open-source launch) continue using the shared hosted AI key at no cost. Nothing changes for them.
+
+## Features
+
+- AI chat coach powered by Gemini 2.5 Pro with 33 tools - reads your Tonal history, programs workouts, explains decisions
+- Custom weekly training plans with periodization (Building, Deload, and Testing blocks)
+- Exercise selection based on your equipment, goals, and injury history
+- Progressive overload tracking across sessions
+- Injury and mobility constraint management
+- Google Calendar integration for schedule-aware programming
+- One-click workout push directly to your Tonal - no manual entry
+- Bring-your-own-key (BYOK) support: self-hosters and new hosted users use their own Gemini key
+
+## Project status
+
+Active, maintained by one person. This is a personal project, not a startup. Issues triaged on a best-effort basis. PRs welcome but may take time to review.
 
 ## Stack
 
@@ -13,9 +45,8 @@ Available as a web app (Next.js) and a native iOS app (SwiftUI) sharing the same
 | Backend    | Convex (queries, mutations, actions, real-time sync) |
 | AI Coach   | @convex-dev/agent with Gemini 2.5 Pro (33 tools)     |
 | Auth       | @convex-dev/auth (password + Resend OTP)             |
-| iOS        | SwiftUI, Convex Swift SDK, HealthKit                 |
 | Monitoring | Sentry (web), Vercel Analytics                       |
-| Deployment | Vercel (web), Convex (backend), Xcode Cloud (iOS)    |
+| Deployment | Vercel (web), Convex (backend)                       |
 
 ## Prerequisites
 
@@ -23,18 +54,10 @@ Available as a web app (Next.js) and a native iOS app (SwiftUI) sharing the same
 - npm
 - A [Convex](https://convex.dev) account (free tier works)
 - A [Google AI Studio](https://aistudio.google.com) API key - the coach uses Gemini 2.5 Pro
-- A [Resend](https://resend.com) account + API key - used for password reset OTP emails
+- A [Resend](https://resend.com) account + API key (optional - only needed for password reset OTP emails)
 - A Tonal account to test the integration end-to-end
 
-For the iOS app:
-
-- Xcode 15+ (macOS only)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- Apple Developer account (for device builds and HealthKit)
-
-## Getting Started
-
-### Web App
+## Self-Host Setup
 
 ```bash
 # 1. Clone and install
@@ -52,7 +75,10 @@ cp .env.example .env.local
 # CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL are already set by step 2.
 # Add NEXT_PUBLIC_CONVEX_SITE_URL (same deployment name, .convex.site domain).
 
-# 4. Set Convex backend secrets (these live in Convex, not .env.local)
+# 4. Get a Gemini API key from Google AI Studio (free for personal use)
+# https://aistudio.google.com/app/apikey
+
+# 5. Set Convex backend secrets
 npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
 npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
@@ -62,31 +88,13 @@ npx convex env set GOOGLE_CLIENT_SECRET           your-google-oauth-client-secre
 npx convex env set GOOGLE_REDIRECT_URI            https://your-deployment.convex.site/google/callback
 npx convex env set APP_URL                        http://localhost:3000
 
-# 5. Start the Next.js dev server (in a second terminal)
+# 6. Start the Next.js dev server (in a second terminal)
 npm run dev
 
-# 6. Open http://localhost:3000
+# 7. Open http://localhost:3000
 ```
 
 `npx convex dev` and `npm run dev` need to run concurrently in separate terminals.
-
-### iOS App
-
-```bash
-# 1. Generate the Xcode project
-cd ios
-xcodegen generate
-
-# 2. Open in Xcode
-open TonalCoach.xcodeproj
-
-# 3. Select a simulator or device target and run (Cmd+R)
-```
-
-- Minimum deployment target: iOS 17.0
-- Debug builds point to the dev Convex deployment; Release builds point to production
-- HealthKit requires a physical device (not available on simulator)
-- Bundle ID: `coach.tonal.app`
 
 ## Environment Variables
 
@@ -111,6 +119,7 @@ open TonalCoach.xcodeproj
 | `CONVEX_DEPLOYMENT`           | Written automatically by `npx convex dev`. Do not edit                       |
 | `NEXT_PUBLIC_CONVEX_URL`      | Convex deployment URL (`https://<name>.convex.cloud`). Written automatically |
 | `NEXT_PUBLIC_CONVEX_SITE_URL` | Convex HTTP URL (`https://<name>.convex.site`). Add manually after step 2    |
+| `NEXT_PUBLIC_GITHUB_REPO_URL` | Public GitHub repo URL. Set once the repo is public. Enables the OSS banner  |
 
 ## Project Structure
 
@@ -129,21 +138,10 @@ src/
     (app)/             Authenticated routes - dashboard, chat, schedule, stats, progress
     connect-tonal/     Tonal OAuth connection flow
     login/             Auth pages
-    onboarding/        New user onboarding (questionnaire, equipment, preferences)
+    onboarding/        New user onboarding (questionnaire, equipment, preferences, BYOK key)
     workouts/          Public workout library (SEO)
     features/          Marketing pages
   components/          Shared React components
-
-ios/
-  TonalCoach/          Native iOS app (SwiftUI)
-    App/               Entry point, root navigation, deep links
-    Auth/              Login, signup, password reset, Keychain storage
-    Chat/              Real-time AI coach chat with tool approvals
-    Health/            HealthKit integration (sleep, HRV, steps, weight)
-    Tonal/             Dashboard cards (strength, training load, muscle readiness)
-    Schedule/          Weekly plan display
-    Shared/            Design system (Theme.swift, animations, haptics)
-  project.yml          XcodeGen project definition
 
 lib/                   Shared TypeScript types and utilities
 scripts/               Build and CI helper scripts
@@ -182,8 +180,6 @@ npx vitest run convex/stats.test.ts   # single file
 
 ### Web App (Vercel + Convex)
 
-The web app deploys to Vercel with Convex as the backend. Vercel runs the build command from `vercel.json`:
-
 ```
 npx convex deploy --cmd 'npm run build'
 ```
@@ -198,58 +194,10 @@ This deploys the Convex backend first, then builds and deploys the Next.js front
    - `NEXT_PUBLIC_CONVEX_URL` - your production Convex URL (`https://<name>.convex.cloud`)
    - `NEXT_PUBLIC_CONVEX_SITE_URL` - your production Convex site URL (`https://<name>.convex.site`)
    - Sentry variables if using error tracking (`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`)
-3. Set production secrets in the Convex dashboard (same keys as the env table above, but with production values)
+3. Set production secrets in the Convex dashboard (same keys as the env table above, with production values)
 4. Push to `main` - Vercel auto-deploys on every push
 
-**Manual deploy:**
-
-```bash
-npx convex deploy --cmd 'npm run build'
-```
-
-### iOS App (Xcode Cloud)
-
-The iOS app uses Xcode Cloud for CI/CD.
-
-**Setup:**
-
-1. In Xcode, go to Product > Xcode Cloud > Create Workflow
-2. Configure the workflow:
-   - Start condition: changes to `ios/` directory on `main` branch
-   - Build action: Archive with Release configuration
-   - Post-action: Distribute to TestFlight
-3. Signing is managed via Xcode Cloud's automatic signing
-
-**Manual archive and upload:**
-
-```bash
-cd ios
-xcodegen generate
-
-# Archive
-xcodebuild archive \
-  -project TonalCoach.xcodeproj \
-  -scheme TonalCoach \
-  -configuration Release \
-  -archivePath build/TonalCoach.xcarchive
-
-# Export for App Store / TestFlight
-xcodebuild -exportArchive \
-  -archivePath build/TonalCoach.xcarchive \
-  -exportPath build/export \
-  -exportOptionsPlist ExportOptions.plist
-
-# Upload to App Store Connect
-xcrun altool --upload-app \
-  -f build/export/TonalCoach.ipa \
-  -t ios \
-  -u your-apple-id \
-  -p your-app-specific-password
-```
-
-### Convex Backend (standalone)
-
-If you need to deploy just the Convex backend without a frontend build:
+### Convex backend only
 
 ```bash
 npx convex deploy
@@ -262,7 +210,6 @@ npx convex deploy
 ```
 Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
                                                                      |
-Apple HealthKit --> iOS app --> health.syncSnapshot mutation -------->|
                                                                      v
 User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads context
                                                                      |
@@ -280,6 +227,8 @@ The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 33 tools that can:
 - Select exercises based on equipment and training goals
 - Manage goals, injuries, and training preferences
 - Push approved workouts directly to Tonal
+
+**BYOK-aware:** The Gemini provider is resolved per request. New hosted users and self-hosters supply their own API key. Grandfathered beta users continue on the shared house key. If a BYOK user's key fails, the request errors with a clear message - it never silently falls back to the house key.
 
 ### Tonal API Integration
 
@@ -301,6 +250,17 @@ The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 33 tools that can:
 | Weekly Sun 4 AM | Sync Tonal workout catalog                        |
 | Weekly Sun 5 AM | Data retention cleanup                            |
 
+## Support the project
+
+This project is free. Hosting and my time are not. If it's saved you work, consider chipping in. No pressure.
+
+- [GitHub Sponsors](https://github.com/sponsors/REPLACE_WITH_GITHUB_USERNAME)
+- [Buy Me a Coffee](https://www.buymeacoffee.com/REPLACE_WITH_BMAC_USERNAME)
+
+## Security
+
+See [SECURITY.md](./SECURITY.md) for how to report security issues.
+
 ## License
 
-Private. All rights reserved.
+MIT. See [LICENSE](./LICENSE).
