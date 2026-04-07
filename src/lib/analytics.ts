@@ -95,8 +95,6 @@ type AnalyticsEvents = {
   account_deleted: Record<string, never>;
 
   // Integrations
-  calendar_connected: Record<string, never>;
-  calendar_disconnected: Record<string, never>;
   tonal_reconnected: Record<string, never>;
   tonal_reconnect_failed: { error: string };
   mcp_key_generated: Record<string, never>;

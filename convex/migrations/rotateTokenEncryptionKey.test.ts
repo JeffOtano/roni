@@ -10,8 +10,6 @@ describe("rotateProfileFields", () => {
     const fields = {
       tonalToken: await encrypt("tonal-access", OLD_KEY),
       tonalRefreshToken: await encrypt("tonal-refresh", OLD_KEY),
-      googleCalendarToken: await encrypt("google-access", OLD_KEY),
-      googleCalendarRefreshToken: await encrypt("google-refresh", OLD_KEY),
       geminiApiKeyEncrypted: await encrypt("gemini-byok-key", OLD_KEY),
     };
 
@@ -19,8 +17,6 @@ describe("rotateProfileFields", () => {
 
     expect(await decrypt(result.tonalToken, NEW_KEY)).toBe("tonal-access");
     expect(await decrypt(result.tonalRefreshToken!, NEW_KEY)).toBe("tonal-refresh");
-    expect(await decrypt(result.googleCalendarToken!, NEW_KEY)).toBe("google-access");
-    expect(await decrypt(result.googleCalendarRefreshToken!, NEW_KEY)).toBe("google-refresh");
     expect(await decrypt(result.geminiApiKeyEncrypted!, NEW_KEY)).toBe("gemini-byok-key");
   });
 
@@ -33,8 +29,6 @@ describe("rotateProfileFields", () => {
 
     expect(await decrypt(result.tonalToken, NEW_KEY)).toBe("just-tonal");
     expect(result.tonalRefreshToken).toBeUndefined();
-    expect(result.googleCalendarToken).toBeUndefined();
-    expect(result.googleCalendarRefreshToken).toBeUndefined();
     expect(result.geminiApiKeyEncrypted).toBeUndefined();
   });
 
@@ -42,16 +36,13 @@ describe("rotateProfileFields", () => {
     const fields = {
       tonalToken: await encrypt("tonal-access", OLD_KEY),
       tonalRefreshToken: await encrypt("tonal-refresh", OLD_KEY),
-      geminiApiKeyEncrypted: await encrypt("gemini-byok-key", OLD_KEY),
     };
 
     const result = await rotateProfileFields(fields, OLD_KEY, NEW_KEY);
 
     expect(await decrypt(result.tonalToken, NEW_KEY)).toBe("tonal-access");
     expect(await decrypt(result.tonalRefreshToken!, NEW_KEY)).toBe("tonal-refresh");
-    expect(await decrypt(result.geminiApiKeyEncrypted!, NEW_KEY)).toBe("gemini-byok-key");
-    expect(result.googleCalendarToken).toBeUndefined();
-    expect(result.googleCalendarRefreshToken).toBeUndefined();
+    expect(result.geminiApiKeyEncrypted).toBeUndefined();
   });
 
   it("throws when the required tonalToken cannot be decrypted", async () => {

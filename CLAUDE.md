@@ -80,7 +80,6 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 - **`ai/`** -- Coach agent definition, 33 tools (read Tonal data, create/modify workouts, manage goals/injuries), context builder that injects training snapshot as system message, prompt construction
 - **`coach/`** -- Programming engine: exercise selection, periodization (Building/Deload/Testing blocks), progressive overload tracking
 - **`tonal/`** -- Tonal API integration: OAuth token management (AES-256 encrypted at rest), proxy layer with stale-while-revalidate caching, history sync, movement/workout catalog sync
-- **`google/`** -- Google Calendar OAuth for schedule integration
 - **`mcp/`** -- MCP server for Claude Desktop integration (authenticated via API keys)
 - **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; thin wrapper over `getAuthUserId`
 
@@ -102,7 +101,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 
 - Every 30m: refresh Tonal tokens, refresh active user cache
 - Every 15m: recover stuck workout pushes
-- Every 1h: activation checks, cleanup OAuth states
+- Every 1h: activation checks
 - Every 6h: check-in trigger evaluation (missed sessions, milestones)
 - Daily 3 AM: sync movement catalog
 - Weekly Sunday 4 AM: sync Tonal workout catalog

@@ -31,7 +31,6 @@ This project is open-source for two reasons: technical users who want to self-ho
 - Exercise selection based on your equipment, goals, and injury history
 - Progressive overload tracking across sessions
 - Injury and mobility constraint management
-- Google Calendar integration for schedule-aware programming
 - One-click workout push directly to your Tonal - no manual entry
 - Bring-your-own-key (BYOK) support: self-hosters and new hosted users use their own Gemini key
 
@@ -86,9 +85,6 @@ npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
 npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
 npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY $(openssl rand -hex 32)
-npx convex env set GOOGLE_CLIENT_ID               your-google-oauth-client-id
-npx convex env set GOOGLE_CLIENT_SECRET           your-google-oauth-client-secret
-npx convex env set GOOGLE_REDIRECT_URI            https://your-deployment.convex.site/google/callback
 npx convex env set APP_URL                        http://localhost:3000
 
 # 6. Start the Next.js dev server (in a second terminal)
@@ -109,9 +105,6 @@ npm run dev
 | `AUTH_RESEND_KEY`                | Resend API key (`re_...`). Sends password-reset OTP emails                  |
 | `TOKEN_ENCRYPTION_KEY`           | 64-char hex string. Encrypts Tonal OAuth tokens. `openssl rand -hex 32`     |
 | `PROGRESS_PHOTOS_ENCRYPTION_KEY` | 64-char hex string. Encrypts progress photo keys. `openssl rand -hex 32`    |
-| `GOOGLE_CLIENT_ID`               | Google OAuth client ID for Calendar integration                             |
-| `GOOGLE_CLIENT_SECRET`           | Google OAuth client secret for Calendar integration                         |
-| `GOOGLE_REDIRECT_URI`            | OAuth callback: `https://<deployment>.convex.site/google/callback`          |
 | `APP_URL`                        | Public app URL for OAuth redirects. `http://localhost:3000` locally         |
 | `CONVEX_SITE_URL`                | Set automatically by Convex. Do not set manually                            |
 
@@ -131,7 +124,6 @@ convex/                Backend (Convex)
   ai/                  AI coach agent, 33 tool definitions, context builder
   coach/               Programming engine - exercise selection, periodization, progressive overload
   tonal/               Tonal API integration - OAuth, encrypted tokens, proxy with caching
-  google/              Google Calendar OAuth client
   mcp/                 MCP server for Claude Desktop / Claude Code integration
   schema.ts            Full data model
   crons.ts             Scheduled jobs (token refresh, cache refresh, data retention)
@@ -247,7 +239,7 @@ The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 33 tools that can:
 | --------------- | ------------------------------------------------- |
 | Every 15 min    | Recover stuck workout pushes                      |
 | Every 30 min    | Refresh Tonal tokens, refresh active user cache   |
-| Every 1 hour    | Activation checks, cleanup OAuth states           |
+| Every 1 hour    | Activation checks                                 |
 | Every 6 hours   | Check-in evaluation (missed sessions, milestones) |
 | Daily 3 AM      | Sync movement catalog                             |
 | Weekly Sun 4 AM | Sync Tonal workout catalog                        |

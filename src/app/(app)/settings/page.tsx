@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useAnalytics } from "@/lib/analytics";
@@ -18,7 +18,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CalendarIntegration } from "@/components/settings/CalendarIntegration";
 import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { ChangePassword } from "@/components/settings/ChangePassword";
 import { EmailChange } from "@/components/settings/EmailChange";
@@ -45,7 +44,6 @@ export default function SettingsPage() {
 function SettingsPageInner() {
   const { signOut } = useAuthActions();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const me = useQuery(api.users.getMe, {});
   const [signOutOpen, setSignOutOpen] = useState(false);
   const { track } = useAnalytics();
@@ -54,10 +52,6 @@ function SettingsPageInner() {
     track("settings_viewed");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // OAuth callback query params from Google Calendar flow
-  const calendarConnected = searchParams.get("calendar_connected") === "true";
-  const calendarError = searchParams.get("calendar_error");
 
   const handleSignOut = async () => {
     await signOut();
@@ -176,12 +170,6 @@ function SettingsPageInner() {
       <section className="mb-10" id="check-ins">
         <h2 className={SECTION_HEADING}>Check-in Preferences</h2>
         <CheckInPreferences />
-      </section>
-
-      {/* Calendar */}
-      <section className="mb-10">
-        <h2 className={SECTION_HEADING}>Calendar</h2>
-        <CalendarIntegration justConnected={calendarConnected} oauthError={calendarError} />
       </section>
 
       {/* Photo Analysis */}
