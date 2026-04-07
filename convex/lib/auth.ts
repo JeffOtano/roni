@@ -4,24 +4,14 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 
 /**
- * Returns the effective user ID, respecting admin impersonation.
- * If the authenticated user is an admin with impersonatingUserId set,
- * returns the impersonated user's ID instead.
+ * Returns the authenticated user's id, or null if no user is signed in.
  *
- * Use in queries and mutations (which have ctx.db).
+ * Use in queries and mutations (which have ctx.db). Wraps getAuthUserId so
+ * call sites can swap to a richer notion of "effective user" later without
+ * touching every caller.
  */
 export async function getEffectiveUserId(ctx: QueryCtx | MutationCtx): Promise<Id<"users"> | null> {
-  const authUserId = await getAuthUserId(ctx);
-  if (!authUserId) return null;
-
-  const user = await ctx.db.get(authUserId);
-  if (!user) return null;
-
-  if (user.isAdmin && user.impersonatingUserId) {
-    return user.impersonatingUserId;
-  }
-
-  return authUserId;
+  return await getAuthUserId(ctx);
 }
 
 /**
