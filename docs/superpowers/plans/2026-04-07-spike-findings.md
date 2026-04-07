@@ -186,4 +186,60 @@ No code changes in this task. Findings only.
 
 ## Controller note
 
-Task 0.2 was handled directly by the controller (not dispatched to a subagent). Rationale: the task is a single WebFetch plus a two-line append to this file. The three-subagent flow (implementer + spec reviewer + code quality reviewer) is designed for code tasks and is disproportionate for a trivial doc lookup. No other tasks in the plan should skip the subagent flow; this is the only exception because the work is too small to justify the overhead.
+Task 0.2 was handled directly by the controller (not dispatched to a subagent). Rationale: the task is a single WebFetch plus a two-line append to this file. The three-subagent flow (implementer + spec reviewer + code quality reviewer) is designed for code tasks and is disproportionate for a trivial doc lookup. Task 1.4 (below) was also handled directly for the same reason: the work is a series of greps and a short report, and is closer to diligence than implementation.
+
+## Task 1.4: Privileged-access audit
+
+**Question:** After Tasks 1.1-1.3 removed admin impersonation, are there any OTHER privileged capabilities in the codebase that should be removed, gated, or documented before the OSS release?
+
+**Method:** grepped `convex/` and `src/` for known patterns associated with privileged surface: admin allowlists, hardcoded email special-cases, debug/dev/internal routes, rate limit bypasses, feature flags scoped to specific users, author self-references.
+
+### Findings
+
+**1. `isAdmin`, `requireAdmin`, `admin: true`**
+
+Only matches: `convex/lib/auth.test.ts` (the regression guard test from Task 1.1). The test keeps a fake `isAdmin: true` user on the stub context to prove `getEffectiveUserId` ignores it. Expected and correct. No production code still references these patterns.
+
+**2. Hardcoded email special-cases (`email ===`, `email ==`)**
+
+One match: `convex/emailChange.ts:21` — `if (currentUser?.email === normalizedEmail)`. This is a legitimate "same email, no change needed" check in the email change flow, not an admin backdoor. Safe.
+
+**3. Debug, dev, admin, or internal routes in `src/app/`**
+
+None. The glob `src/app/**/*{admin,debug,dev,internal}*` returned no files. All routes under `src/app/` are user-facing.
+
+**4. Rate limit bypasses (`skipRateLimit`, `bypassLimit`, `adminOverride`, `rateLimitBypass`)**
+
+None. No bypass mechanisms exist.
+
+**5. Feature flags scoped to specific users (`featureFlag`, `FEATURE_FLAG`, `enabledFor`)**
+
+None. No user-scoped feature flags exist.
+
+**6. Author self-references (`jeffrey`, `otano`, `jeffotano`) in code**
+
+None in any `.ts` or `.tsx` file. Clean.
+
+**7. Stale "admin only" or "backdoor" comments**
+
+None in code. Several historical references in documentation:
+
+- `CLAUDE.md:85` and `:250` described `getEffectiveUserId` as "supports admin impersonation." **Fixed in this commit** (see change below).
+- `docs/superpowers/specs/2026-03-28-posthog-analytics-design.md:213-214` lists `impersonation_started` / `impersonation_stopped` events. **Left unchanged.** Historical design doc describing what was true at the time; rewriting it would falsify history.
+- `docs/superpowers/plans/2026-03-28-posthog-analytics.md:60, 447, 448, 990, 1020, 1022, 1026, 1027, 1054` references the deleted components and events. **Left unchanged.** Historical plan.
+- `docs/superpowers/plans/2026-03-28-tonal-profile-sync.md:86` has an `impersonatingUserId` entry in an old schema snippet. **Left unchanged.** Historical plan.
+- `docs/superpowers/specs/2026-04-07-open-source-release-design.md` and `docs/superpowers/plans/2026-04-07-open-source-release.md` reference admin impersonation as something being removed in this release. **Correct and should stay.**
+- `ios/TonalCoach/Onboarding/TrainingOnboardingFlow.swift:41` has a stale comment mentioning impersonation. **Out of scope.** iOS is not in the OSS release; the iOS app will stay in the private repo and can fix stale comments on its own schedule.
+
+### CLAUDE.md fixes applied in this commit
+
+- Line 85: "supports admin impersonation" replaced with "thin wrapper over `getAuthUserId`"
+- Line 250: "auth + admin impersonation support" replaced with "to resolve the authenticated user"
+
+### Remaining follow-ups (not blocking)
+
+- Consider a separate cleanup pass on the historical `docs/superpowers/` files if they end up in the public repo and the stale references become confusing. The filter-repo exclusion list in Task 7.2 should decide whether these old plans ship publicly at all.
+
+### Conclusion
+
+No additional privileged capabilities were found beyond what Tasks 1.1-1.3 already removed. The security hardening phase is complete for code purposes. The only remaining work is the launch-day prod data cleanup for stale `impersonatingUserId` values (flagged in the Task 1.2 review; belongs in the Phase 8 cutover).
