@@ -11,8 +11,6 @@ import { cachedFetch } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
-const DEFAULT_WORKOUT_DURATION_MINUTES = 45;
-
 /**
  * Correct sets where a duration-based movement was incorrectly assigned prescribedReps.
  * Mutates the sets in place; returns the number of corrections made.
@@ -192,12 +190,10 @@ export const createWorkout = internalAction({
     userId: v.id("users"),
     title: v.string(),
     blocks: blockInputValidator,
-    scheduledDate: v.optional(v.string()),
-    estimatedDurationMinutes: v.optional(v.number()),
   },
   handler: async (
     ctx,
-    { userId, title, blocks, scheduledDate, estimatedDurationMinutes },
+    { userId, title, blocks },
   ): Promise<
     | {
         success: true;
@@ -234,18 +230,6 @@ export const createWorkout = internalAction({
         data: null,
         fetchedAt: 0,
         expiresAt: 0,
-      });
-
-      // Schedule calendar event creation (non-blocking)
-      const eventDate = scheduledDate ?? new Date().toISOString();
-      const durationMinutes = estimatedDurationMinutes ?? DEFAULT_WORKOUT_DURATION_MINUTES;
-      await ctx.scheduler.runAfter(0, internal.calendarActions.createCalendarEvent, {
-        userId,
-        title: tonalTitle,
-        date: eventDate,
-        durationMinutes: durationMinutes,
-        description: `Workout programmed by tonal.coach`,
-        workoutPlanId: planId,
       });
 
       return {

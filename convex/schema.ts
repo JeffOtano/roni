@@ -95,12 +95,6 @@ export default defineSchema({
         completedAt: v.number(),
       }),
     ),
-    /** Google Calendar OAuth integration fields. */
-    googleCalendarToken: v.optional(v.string()),
-    googleCalendarRefreshToken: v.optional(v.string()),
-    googleCalendarTokenExpiresAt: v.optional(v.number()),
-    googleCalendarEnabled: v.optional(v.boolean()),
-    googleCalendarId: v.optional(v.string()),
     /** Hours of inactivity before a new chat thread is created. Default: 24. */
     threadStaleHours: v.optional(v.number()),
     // BYOK Gemini key, encrypted with TOKEN_ENCRYPTION_KEY.
@@ -267,15 +261,6 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
-
-  /** Time-limited, single-use OAuth state tokens for CSRF protection. */
-  oauthStates: defineTable({
-    token: v.string(),
-    userId: v.id("users"),
-    origin: v.string(),
-    createdAt: v.number(),
-    usedAt: v.optional(v.number()),
-  }).index("by_token", ["token"]),
 
   /** MCP API keys for Claude Desktop/Code integration. */
   mcpApiKeys: defineTable({
