@@ -86,6 +86,8 @@ import type * as mcp_tools_exercises from "../mcp/tools/exercises.js";
 import type * as mcp_tools_user from "../mcp/tools/user.js";
 import type * as mcp_tools_workouts from "../mcp/tools/workouts.js";
 import type * as mcp_usage from "../mcp/usage.js";
+import type * as migrations_rotateProgressPhotoEncryptionKey from "../migrations/rotateProgressPhotoEncryptionKey.js";
+import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as notifications_pushTokens from "../notifications/pushTokens.js";
 import type * as notifications_send from "../notifications/send.js";
 import type * as notifications_tokenQuery from "../notifications/tokenQuery.js";
@@ -218,6 +220,8 @@ declare const fullApi: ApiFromModules<{
   "mcp/tools/user": typeof mcp_tools_user;
   "mcp/tools/workouts": typeof mcp_tools_workouts;
   "mcp/usage": typeof mcp_usage;
+  "migrations/rotateProgressPhotoEncryptionKey": typeof migrations_rotateProgressPhotoEncryptionKey;
+  "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   "notifications/pushTokens": typeof notifications_pushTokens;
   "notifications/send": typeof notifications_send;
   "notifications/tokenQuery": typeof notifications_tokenQuery;
