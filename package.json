@@ -5,11 +5,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/REPLACE_WITH_OWNER/tonal-coach.git"
+    "url": "git+https://github.com/JeffOtano/tonal-coach.git"
   },
-  "homepage": "https://github.com/REPLACE_WITH_OWNER/tonal-coach#readme",
+  "homepage": "https://github.com/JeffOtano/tonal-coach#readme",
   "bugs": {
-    "url": "https://github.com/REPLACE_WITH_OWNER/tonal-coach/issues"
+    "url": "https://github.com/JeffOtano/tonal-coach/issues"
   },
   "scripts": {
     "dev": "next dev",

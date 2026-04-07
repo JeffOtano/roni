@@ -8,8 +8,6 @@
 > [!IMPORTANT]
 > **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
 
-<!-- TODO: add hero screenshots at public/readme/chat.png and public/readme/dashboard.png -->
-
 ## What this is
 
 Tonal Coach is an AI coaching companion for Tonal fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly workout plans. The AI coach (Gemini 2.5 Pro) selects exercises, manages periodization, and pushes completed workouts directly to your Tonal - no manual entry. It is built on Next.js and Convex with real-time sync.
@@ -259,8 +257,8 @@ The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 33 tools that can:
 
 This project is free. Hosting and my time are not. If it's saved you work, consider chipping in. No pressure.
 
-- [GitHub Sponsors](https://github.com/sponsors/REPLACE_WITH_GITHUB_USERNAME)
-- [Buy Me a Coffee](https://www.buymeacoffee.com/REPLACE_WITH_BMAC_USERNAME)
+- [GitHub Sponsors](https://github.com/sponsors/JeffOtano)
+- [Buy Me a Coffee](https://www.buymeacoffee.com/jeffotano)
 
 ## Security
 
