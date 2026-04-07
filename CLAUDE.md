@@ -82,7 +82,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 - **`tonal/`** -- Tonal API integration: OAuth token management (AES-256 encrypted at rest), proxy layer with stale-while-revalidate caching, history sync, movement/workout catalog sync
 - **`google/`** -- Google Calendar OAuth for schedule integration
 - **`mcp/`** -- MCP server for Claude Desktop integration (authenticated via API keys)
-- **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; supports admin impersonation
+- **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; thin wrapper over `getAuthUserId`
 
 ### Auth & Beta Cap
 
@@ -247,7 +247,7 @@ When principles conflict, the higher number always wins.
 
 - Use `query` for reads, `mutation` for DB writes, `action` for external API calls.
 - Prefix functions with `internal.*` when they should not be callable from the frontend.
-- All user-facing queries/mutations must call `getEffectiveUserId()` from `convex/lib/auth.ts` for auth + admin impersonation support.
+- All user-facing queries/mutations must call `getEffectiveUserId()` from `convex/lib/auth.ts` to resolve the authenticated user.
 - `process.env` only in Convex actions or Next.js API routes. `NEXT_PUBLIC_` for client-side.
 - Every new mutation/action: check if it needs rate limiting (see `convex/rateLimits.ts`).
 - Validate external input with Zod at the action boundary. Internal functions receive typed data.

@@ -6,7 +6,7 @@ import { blockInputValidator } from "./validators";
 export default defineSchema({
   ...authTables,
 
-  /** Override the auth users table to add admin impersonation fields. */
+  /** Override the auth users table to add Tonal profile fields. */
   users: defineTable({
     name: v.optional(v.string()),
     /** First name from Tonal profile. */
@@ -19,10 +19,6 @@ export default defineSchema({
     phone: v.optional(v.string()),
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
-    /** Whether this user has admin privileges. */
-    isAdmin: v.optional(v.boolean()),
-    /** When set, the admin sees the app as this user. */
-    impersonatingUserId: v.optional(v.id("users")),
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
@@ -107,6 +103,9 @@ export default defineSchema({
     googleCalendarId: v.optional(v.string()),
     /** Hours of inactivity before a new chat thread is created. Default: 24. */
     threadStaleHours: v.optional(v.number()),
+    // BYOK Gemini key, encrypted with TOKEN_ENCRYPTION_KEY.
+    geminiApiKeyEncrypted: v.optional(v.string()),
+    geminiApiKeyAddedAt: v.optional(v.number()),
     /** Timestamp when a token refresh started. Used to prevent concurrent refreshes. */
     tokenRefreshInProgress: v.optional(v.number()),
   })

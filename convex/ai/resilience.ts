@@ -16,7 +16,7 @@ const RETRY_DELAY_MS = 1000;
 // Error classification
 // ---------------------------------------------------------------------------
 
-const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
+const TRANSIENT_STATUS_CODES = new Set([500, 502, 503]);
 
 export function isTransientError(error: unknown): boolean {
   if (error instanceof TypeError && error.message.includes("fetch")) return true;
@@ -30,6 +30,57 @@ export function isTransientError(error: unknown): boolean {
   }
 
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// BYOK error classification
+// ---------------------------------------------------------------------------
+
+export type ByokErrorCode =
+  | "byok_key_invalid"
+  | "byok_quota_exceeded"
+  | "byok_safety_blocked"
+  | "byok_unknown_error";
+
+export function classifyByokError(error: unknown): ByokErrorCode | null {
+  if (!(error instanceof Error)) return null;
+
+  const status = (error as Error & { status?: number }).status;
+  const lower = error.message.toLowerCase();
+
+  if (status === 401 || status === 403) return "byok_key_invalid";
+  if (lower.includes("api key not valid") || lower.includes("api_key_invalid")) {
+    return "byok_key_invalid";
+  }
+
+  if (status === 429) return "byok_quota_exceeded";
+  if (lower.includes("resource_exhausted") || lower.includes("quota")) {
+    return "byok_quota_exceeded";
+  }
+
+  if (lower.includes("safety") || lower.includes("blocked")) {
+    return "byok_safety_blocked";
+  }
+
+  return null;
+}
+
+export function throwIfByokError(error: unknown): void {
+  const code = classifyByokError(error);
+  if (code !== null) throw new Error(code);
+}
+
+// Sanitization is mandatory: Google AI error bodies can echo the decrypted key.
+export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const code = classifyByokError(err);
+    if (code !== null) {
+      throw new Error(code);
+    }
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -61,33 +112,34 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       ? { prompt: args.prompt, maxOutputTokens: MAX_OUTPUT_TOKENS }
       : { promptMessageId: args.promptMessageId!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  // Attempt 1: primary (Gemini Pro)
   try {
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
     return;
   } catch (error) {
+    // BYOK errors are terminal under BYOK: never silently fall back to the house key.
+    throwIfByokError(error);
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
     }
   }
 
-  // Attempt 2: retry primary after delay
   await delay(RETRY_DELAY_MS);
   try {
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
     return;
   } catch (error) {
+    throwIfByokError(error);
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
     }
   }
 
-  // Attempt 3: fallback (Gemini Flash)
   try {
     await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
   } catch (error) {
+    throwIfByokError(error);
     await saveErrorAndNotify(ctx, threadId, userId, error);
   }
 }

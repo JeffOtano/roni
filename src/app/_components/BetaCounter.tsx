@@ -1,49 +1,22 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+// The 50-user beta cap was removed with the BYOK open-source release, so
+// there is no capacity to count. BetaCounter and useBetaFull are retained as
+// no-op exports so existing landing-page and AuthCta call sites continue to
+// compile without a broader refactor.
 
-const TOTAL_BETA_SPOTS = 50;
 export const DISCORD_URL = "https://discord.gg/Sa5ewWP5M";
 
-/** Hook to check if beta is full. */
-export function useBetaFull(): boolean | undefined {
-  const userCount = useQuery(api.userProfiles.getBetaUserCount);
-  if (userCount === undefined) return undefined;
-  return userCount >= TOTAL_BETA_SPOTS;
+/** Hook to check if beta is full. Always false post-BYOK. */
+export function useBetaFull(): boolean {
+  return false;
 }
 
 /**
- * Live counter showing remaining free beta spots.
- * Reads from Convex in real-time so the number ticks down as people sign up.
+ * Live counter showing remaining free beta spots. Renders nothing now that
+ * capacity is unlimited; kept as an export so landing-page call sites don't
+ * need to change.
  */
 export function BetaCounter() {
-  const userCount = useQuery(api.userProfiles.getBetaUserCount);
-
-  if (userCount === undefined) return null;
-
-  const remaining = Math.max(TOTAL_BETA_SPOTS - userCount, 0);
-
-  if (remaining === 0) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-        <span
-          className="inline-block size-2 rounded-full"
-          style={{ background: "oklch(0.65 0.2 25)" }}
-        />
-        Beta is full &mdash; join the waitlist
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-      <span
-        className="inline-block size-2 animate-pulse rounded-full"
-        style={{ background: "oklch(0.78 0.154 195)" }}
-      />
-      <span className="font-semibold text-foreground">{remaining}</span>
-      <span>of {TOTAL_BETA_SPOTS} free beta spots remaining</span>
-    </span>
-  );
+  return null;
 }

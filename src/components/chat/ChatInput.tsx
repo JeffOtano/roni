@@ -7,6 +7,8 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ImagePreviewRow } from "@/components/chat/ImagePreviewRow";
+import { FailureBanner, type FailureReason } from "@/components/byok/FailureBanner";
+import { parseByokError } from "@/components/byok/parseByokError";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
 import { useAnalytics } from "@/lib/analytics";
@@ -28,6 +30,7 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [byokError, setByokError] = useState<FailureReason | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +78,7 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
         threadId,
         ...(imageStorageIds && imageStorageIds.length > 0 && { imageStorageIds }),
       });
+      setByokError(null);
       track("message_sent", {
         message_length: trimmed.length,
         has_images: pendingImages.length > 0,
@@ -83,6 +87,14 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
     } catch (err) {
       setInput(trimmed);
       console.error("Failed to send message:", err);
+
+      const byokReason = parseByokError(err);
+      if (byokReason) {
+        setByokError(byokReason);
+        setError(null);
+        return;
+      }
+
       const message = err instanceof Error ? err.message.toLowerCase() : "";
       if (message.includes("dailymessages") || message.includes("daily")) {
         setError("You've hit your daily message limit. Come back tomorrow!");
@@ -129,13 +141,19 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      {error && (
-        <div
-          role="alert"
-          className="mb-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
-        >
-          {error}
+      {byokError ? (
+        <div className="mb-2">
+          <FailureBanner reason={byokError} />
         </div>
+      ) : (
+        error && (
+          <div
+            role="alert"
+            className="mb-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
+          >
+            {error}
+          </div>
+        )
       )}
       <div className="rounded-2xl border border-border bg-card p-2 shadow-sm transition-colors duration-200 focus-within:border-primary/40 focus-within:shadow-md focus-within:shadow-primary/5">
         <ImagePreviewRow images={pendingImages} onRemove={removeImage} disabled={isDisabled} />

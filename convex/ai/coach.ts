@@ -1,7 +1,7 @@
 import { Agent } from "@convex-dev/agent";
 import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
 import type { ModelMessage, UserContent } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { buildTrainingSnapshot } from "./context";
@@ -103,8 +103,14 @@ function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMessage[] 
   });
 }
 
+// Embeddings always bill the house key, regardless of BYOK status.
+const serverProvider = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
+const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
+
 export const coachAgentConfig = {
-  embeddingModel: google.textEmbeddingModel("gemini-embedding-001"),
+  embeddingModel: sharedEmbeddingModel,
 
   contextOptions: {
     recentMessages: 30,
@@ -200,14 +206,34 @@ export const coachAgentConfig = {
   }) satisfies ContextHandler,
 };
 
-export const coachAgent = new Agent(components.agent, {
-  name: "Tonal Coach",
-  languageModel: google("gemini-3-flash-preview"),
-  ...coachAgentConfig,
-});
+export interface CoachAgentPair {
+  primary: Agent;
+  fallback: Agent;
+}
 
-export const coachAgentFallback = new Agent(components.agent, {
-  name: "Tonal Coach (Fallback)",
-  languageModel: google("gemini-2.5-flash"),
-  ...coachAgentConfig,
-});
+export function buildCoachAgents(apiKey: string): CoachAgentPair {
+  const provider = createGoogleGenerativeAI({ apiKey });
+
+  const primary = new Agent(components.agent, {
+    name: "Tonal Coach",
+    languageModel: provider("gemini-3-flash-preview"),
+    ...coachAgentConfig,
+  });
+
+  const fallback = new Agent(components.agent, {
+    name: "Tonal Coach (Fallback)",
+    languageModel: provider("gemini-2.5-flash"),
+    ...coachAgentConfig,
+  });
+
+  return { primary, fallback };
+}
+
+// Never pass to streamText/generateText; storage-only.
+export function buildCoachAgentForStorageOnly(): Agent {
+  return new Agent(components.agent, {
+    name: "Tonal Coach (Storage Only)",
+    languageModel: serverProvider("gemini-2.5-flash"),
+    ...coachAgentConfig,
+  });
+}
