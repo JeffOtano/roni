@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBanner } from "@/components/StatusBanner";
+import { OpenSourceBanner } from "@/components/OpenSourceBanner";
 import { CheckInBell } from "@/components/CheckInBell";
 import { Button } from "@/components/ui/button";
 import { ReconnectModal } from "@/components/ReconnectModal";
@@ -161,6 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <CheckInBell />
           </header>
 
+          <OpenSourceBanner />
           <StatusBanner />
 
           {/* Content — min-h-0 constrains flex height so child scroll containers work */}
