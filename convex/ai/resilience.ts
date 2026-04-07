@@ -102,6 +102,33 @@ export function throwIfByokError(error: unknown): void {
   if (code !== null) throw new Error(code);
 }
 
+/**
+ * Run an action body that calls the Gemini language model and sanitize any
+ * raw error message into a typed BYOK error code before re-throwing.
+ *
+ * Sanitization is critical because Google AI error bodies can echo the
+ * decrypted API key back to us (for example "API key AIza... is invalid"),
+ * and that string MUST NOT be logged, surfaced to the user, or stored.
+ *
+ * If the underlying error is not BYOK-classifiable, it is re-thrown unchanged
+ * so the caller's existing transient/general error handling can take over.
+ *
+ * Shared across every call site that hits Gemini directly (chat, library
+ * generation, progress photo analysis, etc.).
+ */
+export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const code = classifyByokError(err);
+    if (code !== null) {
+      // Throw the sanitized code only. Never log or rethrow the raw message.
+      throw new Error(code);
+    }
+    throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Stream with retry + fallback
 // ---------------------------------------------------------------------------

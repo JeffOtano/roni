@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyByokError, isTransientError, throwIfByokError } from "./resilience";
+import {
+  classifyByokError,
+  isTransientError,
+  throwIfByokError,
+  withByokErrorSanitization,
+} from "./resilience";
 
 describe("isTransientError", () => {
   it("returns true for network errors", () => {
@@ -125,5 +130,31 @@ describe("throwIfByokError", () => {
   it("returns without throwing for non-BYOK errors", () => {
     const error = Object.assign(new Error("Internal"), { status: 500 });
     expect(() => throwIfByokError(error)).not.toThrow();
+  });
+});
+
+describe("withByokErrorSanitization", () => {
+  it("returns the wrapped function's result on success", async () => {
+    const result = await withByokErrorSanitization(async () => "ok");
+    expect(result).toBe("ok");
+  });
+
+  it("rethrows BYOK errors as the typed code without leaking the raw message", async () => {
+    const leakKey = "AIza_leak_for_wrap_test";
+    const error = new Error(`API key not valid (${leakKey})`);
+    await expect(
+      withByokErrorSanitization(async () => {
+        throw error;
+      }),
+    ).rejects.toMatchObject({ message: "byok_key_invalid" });
+  });
+
+  it("rethrows non-BYOK errors unchanged so transient handling can run", async () => {
+    const original = Object.assign(new Error("Internal server error"), { status: 500 });
+    await expect(
+      withByokErrorSanitization(async () => {
+        throw original;
+      }),
+    ).rejects.toBe(original);
   });
 });
