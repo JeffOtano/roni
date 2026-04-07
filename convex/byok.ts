@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalQuery, mutation } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
@@ -326,5 +326,32 @@ export const getGeminiKeyStatus = action({
     const decrypted = await decrypt(raw.encrypted, encryptionKey);
     const maskedLast4 = maskGeminiKey(decrypted);
     return { hasKey: true, maskedLast4, addedAt: raw.addedAt ?? 0 };
+  },
+});
+
+/**
+ * Public query that returns whether the authenticated user must provide their
+ * own Gemini API key (BYOK) and whether they currently have one stored. Used by
+ * the onboarding orchestrator to decide whether to insert the BYOK capture step
+ * into the flow.
+ *
+ * Returns the safe default `{ requiresBYOK: false, hasKey: false }` for any
+ * unauthenticated or missing-user case so the UI can render without throwing.
+ */
+export const getBYOKStatus = query({
+  args: {},
+  handler: async (ctx): Promise<{ requiresBYOK: boolean; hasKey: boolean }> => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) return { requiresBYOK: false, hasKey: false };
+    const user = await ctx.db.get(userId);
+    if (!user) return { requiresBYOK: false, hasKey: false };
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return {
+      requiresBYOK: isBYOKRequired(user._creationTime),
+      hasKey: !!profile?.geminiApiKeyEncrypted,
+    };
   },
 });
