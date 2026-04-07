@@ -165,3 +165,25 @@ Both work, but per-request construction is preferable for Tonal Coach for these 
 5. **`assert(model, "model is required")` is the only runtime guard.** If a downstream tweak ever passes `undefined` as the user's key, the call would fail with a generic message at `start.ts:159`. Wrap the BYOK lookup so a missing key throws a typed `BYOK_MISSING` error before reaching the agent. This is already in scope for Task 3.2 and Task 4.5.
 
 6. **AI SDK version pinning.** `@convex-dev/agent` v0.6.1 enforces AI SDK v6 via the `AssertAISDKv6` type guard (`types.d.ts:19-21`). The current installed `@ai-sdk/google` is v3.x of the `@ai-sdk/google` package (which corresponds to AI SDK v6). No upgrade needed for this spike, but pin both packages explicitly when bumping either.
+
+## Task 0.2: Tonal legal entity name
+
+**Question:** What is the exact legal entity name to use in the OSS release disclaimer, LICENSE footer, and hosted app footer?
+
+**Answer:** `Tonal Systems, Inc.` (with a comma before `Inc.`)
+
+**Evidence:**
+
+- Tonal's Terms of Service at `https://www.tonal.com/terms` opens with: _"This Agreement is between you and Tonal Systems, Inc. ("Tonal" or "we" or "us")..."_. This is the authoritative legal framing the OSS disclaimer should mirror.
+- Tonal's Privacy Policy at `https://www.tonal.com/privacy` contains a shop address section with `"company":"Tonal Systems Inc."` (no comma). This is a commerce-platform address field, not the legal entity name, and is not authoritative for legal references.
+
+**How to use this in downstream tasks:**
+
+- README callout, LICENSE footer, app footer, GitHub repo description: use `Tonal Systems, Inc.` (with comma)
+- Trademark attribution language: _"Tonal is a trademark of Tonal Systems, Inc., used here under nominative fair use."_
+
+No code changes in this task. Findings only.
+
+## Controller note
+
+Task 0.2 was handled directly by the controller (not dispatched to a subagent). Rationale: the task is a single WebFetch plus a two-line append to this file. The three-subagent flow (implementer + spec reviewer + code quality reviewer) is designed for code tasks and is disproportionate for a trivial doc lookup. No other tasks in the plan should skip the subagent flow; this is the only exception because the work is too small to justify the overhead.
