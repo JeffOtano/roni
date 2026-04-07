@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BYOK_REQUIRED_AFTER,
   isBYOKRequired,
+  maskGeminiKey,
   prepareGeminiKeyForStorage,
   validateGeminiKeyAgainstGoogle,
 } from "./byok";
@@ -179,5 +180,25 @@ describe("prepareGeminiKeyForStorage", () => {
     const { encrypted } = await prepareGeminiKeyForStorage(VALID_KEY, TEST_ENCRYPTION_KEY);
     const decrypted = await decrypt(encrypted, TEST_ENCRYPTION_KEY);
     expect(decrypted).toBe(VALID_KEY);
+  });
+});
+
+describe("maskGeminiKey", () => {
+  it("returns the last 4 characters of a full Gemini key", () => {
+    const key = "AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R";
+    expect(maskGeminiKey(key)).toBe("6Q7R");
+  });
+
+  it("never returns more than 4 characters even for long inputs", () => {
+    const long = "x".repeat(200);
+    expect(maskGeminiKey(long)).toHaveLength(4);
+  });
+
+  it("returns the entire string when input is shorter than 4 characters", () => {
+    expect(maskGeminiKey("abc")).toBe("abc");
+  });
+
+  it("returns an empty string for empty input", () => {
+    expect(maskGeminiKey("")).toBe("");
   });
 });

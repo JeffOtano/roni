@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { action, internalQuery, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
-import { encrypt } from "./tonal/encryption";
+import { decrypt, encrypt } from "./tonal/encryption";
 
 // BYOK (bring-your-own-key) grandfathering gate.
 //
@@ -151,5 +152,97 @@ export const saveGeminiKey = mutation({
       geminiApiKeyEncrypted: encrypted,
       geminiApiKeyAddedAt: addedAt,
     });
+  },
+});
+
+/**
+ * Clear the authenticated user's stored Gemini API key.
+ *
+ * Patches both the ciphertext and the addedAt timestamp back to undefined.
+ * After this runs, isBYOKRequired logic on the calling layer will treat the
+ * user as having no key on file.
+ */
+export const removeGeminiKey = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!profile) throw new Error("User profile not found");
+
+    await ctx.db.patch(profile._id, {
+      geminiApiKeyEncrypted: undefined,
+      geminiApiKeyAddedAt: undefined,
+    });
+  },
+});
+
+/**
+ * Internal-only query that returns the raw ciphertext for the authenticated
+ * user's stored Gemini key. Used by getGeminiKeyStatus, which decrypts in an
+ * action runtime so the plaintext never crosses a query boundary.
+ *
+ * Returns null if the user is unauthenticated, has no profile, or has no key
+ * stored. Never returns plaintext.
+ */
+export const _getGeminiKeyRaw = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) return null;
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) return null;
+    return {
+      encrypted: profile.geminiApiKeyEncrypted,
+      addedAt: profile.geminiApiKeyAddedAt,
+    };
+  },
+});
+
+/**
+ * Returns the last 4 characters of an already-decrypted Gemini API key.
+ *
+ * Pure helper extracted so the masking rule (last 4 only, never more) lives in
+ * one place and can be unit tested. The caller is responsible for ensuring the
+ * input is the decrypted plaintext; this function does not perform decryption.
+ */
+export function maskGeminiKey(decrypted: string): string {
+  return decrypted.slice(-4);
+}
+
+/**
+ * Public action that returns a masked view of the authenticated user's stored
+ * Gemini API key. The key is decrypted in memory inside this action only long
+ * enough to compute the last 4 characters; the full plaintext NEVER leaves the
+ * action and is never returned to the caller.
+ *
+ * Lives in an action (rather than a query) because decryption uses Web Crypto,
+ * which we exercise from the action runtime elsewhere in convex/calendarActions
+ * and convex/tonal modules.
+ */
+export const getGeminiKeyStatus = action({
+  args: {},
+  handler: async (
+    ctx,
+  ): Promise<{ hasKey: false } | { hasKey: true; maskedLast4: string; addedAt: number }> => {
+    const raw = await ctx.runQuery(internal.byok._getGeminiKeyRaw, {});
+    if (!raw || !raw.encrypted) return { hasKey: false };
+
+    const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error("Server misconfigured: TOKEN_ENCRYPTION_KEY not set");
+    }
+
+    const decrypted = await decrypt(raw.encrypted, encryptionKey);
+    const maskedLast4 = maskGeminiKey(decrypted);
+    return { hasKey: true, maskedLast4, addedAt: raw.addedAt ?? 0 };
   },
 });

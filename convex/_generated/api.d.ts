@@ -30,6 +30,7 @@ import type * as aiUsage from "../aiUsage.js";
 import type * as auth from "../auth.js";
 import type * as authCleanup from "../authCleanup.js";
 import type * as betaConfig from "../betaConfig.js";
+import type * as byok from "../byok.js";
 import type * as calendar from "../calendar.js";
 import type * as calendarActions from "../calendarActions.js";
 import type * as calendarHelpers from "../calendarHelpers.js";
@@ -162,6 +163,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authCleanup: typeof authCleanup;
   betaConfig: typeof betaConfig;
+  byok: typeof byok;
   calendar: typeof calendar;
   calendarActions: typeof calendarActions;
   calendarHelpers: typeof calendarHelpers;
