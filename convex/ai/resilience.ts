@@ -16,7 +16,7 @@ const RETRY_DELAY_MS = 1000;
 // Error classification
 // ---------------------------------------------------------------------------
 
-const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
+const TRANSIENT_STATUS_CODES = new Set([500, 502, 503]);
 
 export function isTransientError(error: unknown): boolean {
   if (error instanceof TypeError && error.message.includes("fetch")) return true;
@@ -30,6 +30,76 @@ export function isTransientError(error: unknown): boolean {
   }
 
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// BYOK error classification
+// ---------------------------------------------------------------------------
+//
+// When the language model call fails because of something the user's Gemini
+// API key caused (invalid key, exhausted quota, safety block), we want the
+// chat action to SURFACE that to the user rather than silently swallow it
+// into the "I'm having trouble right now" generic message. The user cannot
+// fix a generic error, but they can fix "your Gemini key is invalid".
+//
+// CRITICAL INVARIANT: on BYOK failure, chat MUST NOT silently fall back to
+// the house key. That is the cost-bleed the OSS release is designed to
+// prevent. classifyByokError returns a typed code for known BYOK failure
+// modes, and callers re-throw that code so the frontend can display a
+// targeted remediation message. classifyByokError itself never reads or
+// returns the raw error message, which can echo the decrypted Gemini key.
+
+export type ByokErrorCode =
+  | "byok_key_invalid"
+  | "byok_quota_exceeded"
+  | "byok_safety_blocked"
+  | "byok_unknown_error";
+
+/**
+ * Classify an error thrown by the AI SDK or @convex-dev/agent into a BYOK
+ * error code, or return null if the error is not BYOK-classifiable.
+ *
+ * This function intentionally inspects only `.status` and a lower-cased,
+ * substring-matched version of the error message. The caller is responsible
+ * for NEVER logging the raw message, which can contain the decrypted key
+ * (Google AI error bodies include the key in text of the form
+ * "API key AIza... is invalid"). The caller should only propagate the
+ * returned ByokErrorCode.
+ */
+export function classifyByokError(error: unknown): ByokErrorCode | null {
+  if (!(error instanceof Error)) return null;
+
+  const status = (error as Error & { status?: number }).status;
+  const lower = error.message.toLowerCase();
+
+  if (status === 401 || status === 403) return "byok_key_invalid";
+  if (lower.includes("api key not valid") || lower.includes("api_key_invalid")) {
+    return "byok_key_invalid";
+  }
+
+  if (status === 429) return "byok_quota_exceeded";
+  if (lower.includes("resource_exhausted") || lower.includes("quota")) {
+    return "byok_quota_exceeded";
+  }
+
+  if (lower.includes("safety") || lower.includes("blocked")) {
+    return "byok_safety_blocked";
+  }
+
+  return null;
+}
+
+/**
+ * If the error is a BYOK-classifiable failure, throw a sanitized Error whose
+ * message is the typed BYOK error code. Otherwise, return without throwing.
+ *
+ * This helper exists so the chat action handlers and streamWithRetry can
+ * share a single place that converts raw AI-SDK errors into BYOK codes
+ * without leaking the raw message (which may contain the decrypted key).
+ */
+export function throwIfByokError(error: unknown): void {
+  const code = classifyByokError(error);
+  if (code !== null) throw new Error(code);
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +136,10 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
     return;
   } catch (error) {
+    // BYOK errors are terminal: do not retry, do not save a generic error
+    // message, and do not silently fall back to anything. Re-throw a typed
+    // code so the chat action handler can surface it to the user.
+    throwIfByokError(error);
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
@@ -78,6 +152,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
     return;
   } catch (error) {
+    throwIfByokError(error);
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
@@ -88,6 +163,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   try {
     await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
   } catch (error) {
+    throwIfByokError(error);
     await saveErrorAndNotify(ctx, threadId, userId, error);
   }
 }

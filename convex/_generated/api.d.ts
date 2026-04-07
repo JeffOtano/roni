@@ -89,7 +89,6 @@ import type * as mcp_usage from "../mcp/usage.js";
 import type * as notifications_pushTokens from "../notifications/pushTokens.js";
 import type * as notifications_send from "../notifications/send.js";
 import type * as notifications_tokenQuery from "../notifications/tokenQuery.js";
-import type * as playground from "../playground.js";
 import type * as progressPhotos from "../progressPhotos.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
@@ -222,7 +221,6 @@ declare const fullApi: ApiFromModules<{
   "notifications/pushTokens": typeof notifications_pushTokens;
   "notifications/send": typeof notifications_send;
   "notifications/tokenQuery": typeof notifications_tokenQuery;
-  playground: typeof playground;
   progressPhotos: typeof progressPhotos;
   progressiveOverload: typeof progressiveOverload;
   rateLimits: typeof rateLimits;

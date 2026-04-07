@@ -1,12 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BYOK_REQUIRED_AFTER,
   isBYOKRequired,
   maskGeminiKey,
   prepareGeminiKeyForStorage,
+  resolveGeminiKey,
   validateGeminiKeyAgainstGoogle,
 } from "./byok";
-import { decrypt } from "./tonal/encryption";
+import { decrypt, encrypt } from "./tonal/encryption";
+import type { Doc } from "./_generated/dataModel";
 
 describe("isBYOKRequired", () => {
   it("returns false for users created before BYOK_REQUIRED_AFTER (grandfathered)", () => {
@@ -180,6 +182,94 @@ describe("prepareGeminiKeyForStorage", () => {
     const { encrypted } = await prepareGeminiKeyForStorage(VALID_KEY, TEST_ENCRYPTION_KEY);
     const decrypted = await decrypt(encrypted, TEST_ENCRYPTION_KEY);
     expect(decrypted).toBe(VALID_KEY);
+  });
+});
+
+describe("resolveGeminiKey", () => {
+  // Save and restore env vars across tests so the suite never leaks state
+  // into other test files. resolveGeminiKey reads three env vars at call time:
+  // BYOK_DISABLED, GOOGLE_GENERATIVE_AI_API_KEY, and TOKEN_ENCRYPTION_KEY.
+  const originalByokDisabled = process.env.BYOK_DISABLED;
+  const originalHouseKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const originalEncryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+
+  const TEST_ENCRYPTION_KEY = "11".repeat(32);
+  const HOUSE_KEY = "AIzaHouseKey00000000000000000000000abcd";
+  const USER_KEY = "AIzaSyA1B2C3D4E5F6G7H8I9J0KlMnOpQrStUvW";
+
+  beforeEach(() => {
+    delete process.env.BYOK_DISABLED;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    delete process.env.TOKEN_ENCRYPTION_KEY;
+  });
+
+  afterEach(() => {
+    if (originalByokDisabled === undefined) delete process.env.BYOK_DISABLED;
+    else process.env.BYOK_DISABLED = originalByokDisabled;
+    if (originalHouseKey === undefined) delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    else process.env.GOOGLE_GENERATIVE_AI_API_KEY = originalHouseKey;
+    if (originalEncryptionKey === undefined) delete process.env.TOKEN_ENCRYPTION_KEY;
+    else process.env.TOKEN_ENCRYPTION_KEY = originalEncryptionKey;
+  });
+
+  function makeProfile(overrides: Partial<Doc<"userProfiles">> = {}): Doc<"userProfiles"> {
+    return {
+      _id: "profile_test_id" as Doc<"userProfiles">["_id"],
+      _creationTime: 1,
+      userId: "user_test_id" as Doc<"userProfiles">["userId"],
+      ...overrides,
+    } as Doc<"userProfiles">;
+  }
+
+  it("returns the house key for a grandfathered user", async () => {
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = HOUSE_KEY;
+    const grandfatheredCreationTime = BYOK_REQUIRED_AFTER - 1;
+
+    const result = await resolveGeminiKey(makeProfile(), grandfatheredCreationTime);
+
+    expect(result).toBe(HOUSE_KEY);
+  });
+
+  it("throws byok_key_missing when a BYOK user has no key on file", async () => {
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = HOUSE_KEY;
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    await expect(
+      resolveGeminiKey(makeProfile({ geminiApiKeyEncrypted: undefined }), byokCreationTime),
+    ).rejects.toThrow("byok_key_missing");
+
+    // Also covers the null-profile case, which the saveGeminiKey path can
+    // produce if the userProfiles row is somehow missing.
+    await expect(resolveGeminiKey(null, byokCreationTime)).rejects.toThrow("byok_key_missing");
+  });
+
+  it("decrypts and returns the user's key for a BYOK user with a key on file", async () => {
+    process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+    const ciphertext = await encrypt(USER_KEY, TEST_ENCRYPTION_KEY);
+    const profile = makeProfile({
+      geminiApiKeyEncrypted: ciphertext,
+      geminiApiKeyAddedAt: 12345,
+    });
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    const result = await resolveGeminiKey(profile, byokCreationTime);
+
+    expect(result).toBe(USER_KEY);
+  });
+
+  it("returns the house key when BYOK_DISABLED is set, regardless of user state", async () => {
+    process.env.BYOK_DISABLED = "true";
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = HOUSE_KEY;
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    // Even though this user is post-BYOK and has no key on file (which would
+    // normally throw byok_key_missing), the kill switch forces the house key.
+    const result = await resolveGeminiKey(
+      makeProfile({ geminiApiKeyEncrypted: undefined }),
+      byokCreationTime,
+    );
+
+    expect(result).toBe(HOUSE_KEY);
   });
 });
 

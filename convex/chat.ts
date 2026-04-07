@@ -12,12 +12,57 @@ import { components, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
-import { coachAgent, coachAgentFallback } from "./ai/coach";
-import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
+import { buildCoachAgentForStorageOnly, buildCoachAgents } from "./ai/coach";
+import { resolveGeminiKey } from "./byok";
+import { checkDailyBudget, classifyByokError, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 import * as analytics from "./lib/posthog";
 
 const MAX_IMAGES_PER_MESSAGE = 4;
+
+/**
+ * Resolve the Gemini API key for the given userId from inside an action.
+ *
+ * Wraps resolveGeminiKey() with the action-runtime plumbing: runs the
+ * internal query that fetches the user's creation time and profile, then
+ * delegates to resolveGeminiKey for the kill-switch / grandfathering /
+ * BYOK decision tree.
+ *
+ * Throws a typed BYOK error code on failure (byok_key_missing,
+ * byok_misconfigured_no_encryption_key, etc.). Callers MUST NOT silently
+ * fall back to the house key on failure: the entire BYOK release exists to
+ * stop the cost bleed of users running on someone else's key.
+ */
+async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<string> {
+  const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
+    userId: userId as Id<"users">,
+  });
+  if (!context) throw new Error("byok_user_not_found");
+  return await resolveGeminiKey(context.profile, context.userCreationTime);
+}
+
+/**
+ * Run an action body that calls the Gemini language model and sanitize any
+ * raw error message into a typed BYOK error code before re-throwing. The
+ * sanitization is critical because Google AI error bodies can echo the
+ * decrypted API key back to us (for example "API key AIza... is invalid"),
+ * and we MUST NOT log or surface that.
+ *
+ * If the underlying error is not BYOK-classifiable, it is re-thrown
+ * unchanged so the existing transient-error handling can take over.
+ */
+async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const code = classifyByokError(err);
+    if (code !== null) {
+      // Throw the sanitized code only. Never log or rethrow the raw message.
+      throw new Error(code);
+    }
+    throw err;
+  }
+}
 
 /**
  * Resolves storage IDs to URLs and builds a multimodal ModelMessage array.
@@ -106,6 +151,13 @@ export const sendMessage = action({
     const staleHours = await ctx.runQuery(internal.userProfiles.getThreadStaleHours, { userId });
     const staleMs = staleHours * 60 * 60 * 1000;
 
+    // Resolve the user's Gemini key BEFORE doing anything expensive. A BYOK
+    // error here throws out of the action and is surfaced to the frontend,
+    // not silently ignored. The standalone agentCreateThread below does not
+    // invoke the LLM, but we still want the key error to block thread
+    // creation so the user gets a single clean failure.
+    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+
     let targetThreadId: string;
     if (threadId) {
       targetThreadId = threadId;
@@ -118,8 +170,11 @@ export const sendMessage = action({
       if (active && Date.now() - active.lastMessageTime < staleMs) {
         targetThreadId = active.threadId;
       } else {
-        // Create new thread (stale or none exists)
-        const { threadId: newThreadId } = await coachAgent.createThread(ctx, {
+        // Create new thread (stale or none exists). createThread is the
+        // standalone helper from @convex-dev/agent that writes directly
+        // into the agent component's storage with no LLM call, so it does
+        // not need a per-request agent instance.
+        const newThreadId = await agentCreateThread(ctx, components.agent, {
           userId,
         });
         targetThreadId = newThreadId;
@@ -132,13 +187,16 @@ export const sendMessage = action({
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
     const startTime = Date.now();
-    await streamWithRetry(ctx, {
-      primaryAgent: coachAgent,
-      fallbackAgent: coachAgentFallback,
-      threadId: targetThreadId,
-      userId,
-      prompt: resolvedPrompt,
-    });
+    const { primary, fallback } = buildCoachAgents(geminiKey);
+    await withByokErrorSanitization(() =>
+      streamWithRetry(ctx, {
+        primaryAgent: primary,
+        fallbackAgent: fallback,
+        threadId: targetThreadId,
+        userId,
+        prompt: resolvedPrompt,
+      }),
+    );
 
     analytics.capture(userId, "coach_response_received", {
       response_time_ms: Date.now() - startTime,
@@ -180,15 +238,24 @@ export const respondToToolApproval = mutation({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // approveToolCall and denyToolCall only write a tool-approval-response
+    // message into the agent component's storage. They do not invoke the
+    // language model, so we use buildCoachAgentForStorageOnly here, which
+    // satisfies the Agent constructor with the server provider but does
+    // not (and must not) be used to make any LLM call. The actual LLM
+    // continuation happens in continueAfterApproval below, which resolves
+    // the user's BYOK key the normal way.
+    const storageAgent = buildCoachAgentForStorageOnly();
+
     let messageId: string;
     if (approved) {
-      ({ messageId } = await coachAgent.approveToolCall(ctx, {
+      ({ messageId } = await storageAgent.approveToolCall(ctx, {
         threadId,
         approvalId,
         reason,
       }));
     } else {
-      ({ messageId } = await coachAgent.denyToolCall(ctx, {
+      ({ messageId } = await storageAgent.denyToolCall(ctx, {
         threadId,
         approvalId,
         reason,
@@ -207,14 +274,19 @@ export const continueAfterApproval = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
+    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+
     const startTime = Date.now();
-    await streamWithRetry(ctx, {
-      primaryAgent: coachAgent,
-      fallbackAgent: coachAgentFallback,
-      threadId,
-      userId,
-      promptMessageId: messageId,
-    });
+    const { primary, fallback } = buildCoachAgents(geminiKey);
+    await withByokErrorSanitization(() =>
+      streamWithRetry(ctx, {
+        primaryAgent: primary,
+        fallbackAgent: fallback,
+        threadId,
+        userId,
+        promptMessageId: messageId,
+      }),
+    );
 
     analytics.capture(userId, "coach_response_received", {
       response_time_ms: Date.now() - startTime,
@@ -265,16 +337,21 @@ export const processMessage = internalAction({
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
 
+    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
     const startTime = Date.now();
-    await streamWithRetry(ctx, {
-      primaryAgent: coachAgent,
-      fallbackAgent: coachAgentFallback,
-      threadId,
-      userId,
-      prompt: resolvedPrompt,
-    });
+    const { primary, fallback } = buildCoachAgents(geminiKey);
+    await withByokErrorSanitization(() =>
+      streamWithRetry(ctx, {
+        primaryAgent: primary,
+        fallbackAgent: fallback,
+        threadId,
+        userId,
+        prompt: resolvedPrompt,
+      }),
+    );
 
     analytics.capture(userId, "coach_response_received", {
       response_time_ms: Date.now() - startTime,

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { decrypt, encrypt } from "./tonal/encryption";
 
@@ -26,6 +27,55 @@ export const BYOK_REQUIRED_AFTER = 9999999999999;
  */
 export function isBYOKRequired(creationTime: number): boolean {
   return creationTime >= BYOK_REQUIRED_AFTER;
+}
+
+/**
+ * Resolves the Gemini API key to use for a given user profile.
+ *
+ * Decision tree (in priority order):
+ *
+ * 1. BYOK_DISABLED kill switch: if the env var is "true", always returns the
+ *    house key. Operators can flip this during an incident to force all users
+ *    back onto the house key without a code deploy.
+ * 2. Grandfathered user (creationTime < BYOK_REQUIRED_AFTER): returns the
+ *    house key.
+ * 3. BYOK user with no key set: throws "byok_key_missing".
+ * 4. BYOK user with key set: decrypts and returns the user's key.
+ *
+ * The throw semantics are the critical invariant of the BYOK release: on ANY
+ * BYOK failure, this function throws a typed error rather than silently
+ * falling back to the house key. Callers must handle the error explicitly so
+ * the frontend can surface it to the user. Silently falling back would
+ * re-create the cost bleed the OSS release is meant to solve.
+ */
+export async function resolveGeminiKey(
+  profile: Doc<"userProfiles"> | null,
+  userCreationTime: number,
+): Promise<string> {
+  // Kill switch: operator can flip this during an incident to force all users
+  // back onto the house key without a code deploy.
+  if (process.env.BYOK_DISABLED === "true") {
+    const houseKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!houseKey) throw new Error("byok_disabled_no_house_key");
+    return houseKey;
+  }
+
+  // Grandfathered path: user existed before BYOK launch, keeps using house key.
+  if (!isBYOKRequired(userCreationTime)) {
+    const houseKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!houseKey) throw new Error("grandfathered_no_house_key");
+    return houseKey;
+  }
+
+  // BYOK required but no key stored.
+  if (!profile?.geminiApiKeyEncrypted) {
+    throw new Error("byok_key_missing");
+  }
+
+  const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+  if (!encryptionKey) throw new Error("byok_misconfigured_no_encryption_key");
+
+  return await decrypt(profile.geminiApiKeyEncrypted, encryptionKey);
 }
 
 /**
@@ -179,6 +229,38 @@ export const removeGeminiKey = mutation({
       geminiApiKeyEncrypted: undefined,
       geminiApiKeyAddedAt: undefined,
     });
+  },
+});
+
+/**
+ * Internal-only query that returns the user creation time and the user's
+ * stored profile (if any), used by chat actions to resolve which Gemini key
+ * to bill against. Returns the raw ciphertext, never plaintext: the calling
+ * action runs decrypt() inside the action runtime via resolveGeminiKey().
+ *
+ * Takes userId as an explicit argument because the chat action runtime
+ * receives userId from the caller (via processMessage args), not from
+ * getEffectiveUserId.
+ */
+export const _getKeyResolutionContext = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    userCreationTime: number;
+    profile: Doc<"userProfiles"> | null;
+  } | null> => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return null;
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+    return {
+      userCreationTime: user._creationTime,
+      profile,
+    };
   },
 });
 
