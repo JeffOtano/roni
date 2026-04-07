@@ -1,5 +1,10 @@
 # Tonal Coach
 
+[![CI](https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](tsconfig.json)
+[![Tests](https://img.shields.io/badge/tests-826%20passing-success.svg)](#testing)
+
 > [!IMPORTANT]
 > **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
 
