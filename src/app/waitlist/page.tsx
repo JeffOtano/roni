@@ -54,11 +54,10 @@ export default function WaitlistPage() {
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Beta is full
+            Stay in the loop
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-            All 50 free beta spots have been claimed. Drop your email and we&apos;ll let you know
-            the moment a spot opens up.
+            Drop your email and we&apos;ll send occasional updates about tonal.coach.
           </p>
 
           {status === "done" || status === "already" ? (

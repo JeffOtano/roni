@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useConvexAuth } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +36,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const betaStatus = useQuery(api.userProfiles.canSignUp);
 
   // Redirect if already authenticated
   if (authLoading) {
@@ -55,24 +53,11 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      // Block signup before hitting auth to avoid orphaned authAccounts entries
-      if (flow === "signUp" && betaStatus && !betaStatus.allowed) {
-        setError(
-          "Beta is full! All 50 free spots have been claimed. Join our Discord for waitlist updates.",
-        );
-        setSubmitting(false);
-        return;
-      }
       await signIn("password", { email, password, flow });
       track(flow === "signIn" ? "login_completed" : "signup_completed", { method: "password" });
       router.replace("/chat");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (message.includes("Beta is full")) {
-        setError(
-          "Beta is full! All 50 free spots have been claimed. Join our Discord for waitlist updates.",
-        );
-      } else if (flow === "signIn") {
+    } catch {
+      if (flow === "signIn") {
         track("login_failed", { error: "invalid_credentials" });
         setError("Invalid email or password.");
       } else {

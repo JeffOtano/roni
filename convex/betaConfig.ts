@@ -1,36 +1,18 @@
-/** Maximum number of beta users allowed. Used in auth.ts and userProfiles.ts. */
-export const BETA_SPOT_LIMIT = 50;
+// Beta user cap was 50 during the shared-Gemini-key phase.
+// Removed as part of the BYOK open-source release:
+// new users bring their own Gemini key, so there is no cost ceiling.
 
 /**
- * Pure function: compute whether signups are allowed and how many spots remain.
- * Extracted for testability - both canSignUp query and createOrUpdateUser use this.
+ * Pure function: capacity is always available in the open-source release.
+ * Kept as a function (rather than deleted) so the canSignUp query and any
+ * frontend callers continue to compile without ad-hoc stubs.
  */
-export function computeBetaCapacity(profileCount: number): {
+export function computeBetaCapacity(): {
   allowed: boolean;
   spotsLeft: number;
 } {
-  const spotsLeft = BETA_SPOT_LIMIT - profileCount;
   return {
-    allowed: spotsLeft > 0,
-    spotsLeft: Math.max(0, spotsLeft),
+    allowed: true,
+    spotsLeft: Number.POSITIVE_INFINITY,
   };
-}
-
-/**
- * Pure function: decide whether a new user creation should be blocked.
- * Returns null if allowed, or an error message string if blocked.
- */
-export function shouldBlockSignup(
-  existingUserId: string | undefined | null,
-  profileCount: number,
-): string | null {
-  // Existing users can always sign in
-  if (existingUserId) return null;
-
-  const { allowed } = computeBetaCapacity(profileCount);
-  if (!allowed) {
-    return `Beta is full! All ${BETA_SPOT_LIMIT} free spots have been claimed. Sign up for the waitlist at our Discord.`;
-  }
-
-  return null;
 }

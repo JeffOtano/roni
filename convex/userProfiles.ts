@@ -179,13 +179,10 @@ export const getBetaUserCount = query({
   },
 });
 
-/** Check if new signups are allowed. Call BEFORE attempting registration. */
+/** Legacy beta-capacity check. Always allowed post-BYOK open-source release. */
 export const canSignUp = query({
   args: {},
-  handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect();
-    return computeBetaCapacity(profiles.length);
-  },
+  handler: async () => computeBetaCapacity(),
 });
 
 const trainingPreferencesArgs = {
