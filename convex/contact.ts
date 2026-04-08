@@ -10,7 +10,9 @@ export const send = action({
   },
   handler: async (_ctx, { name, email, message }) => {
     const webhookUrl = process.env.DISCORD_CONTACT_WEBHOOK;
-    if (!webhookUrl) throw new Error("Contact webhook not configured");
+    if (!webhookUrl) {
+      throw new Error("Contact form is not configured for this deployment");
+    }
 
     const embed = {
       title: "New Contact Form Message",

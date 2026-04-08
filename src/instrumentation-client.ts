@@ -4,6 +4,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
+import { getSentryRuntimeConfig } from "@/lib/deployment";
 
 if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, {
@@ -17,25 +18,28 @@ if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
   });
 }
 
-Sentry.init({
-  dsn: "https://26edc867bc124097762f80b3670d82db@o4511044550656000.ingest.us.sentry.io/4511044553998336",
-
-  // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
-
-  tracesSampleRate: 1,
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
-
-  // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
-
-  // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
-
-  sendDefaultPii: false,
+const sentryConfig = getSentryRuntimeConfig({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
+  replaysOnErrorSampleRate: process.env.NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
+  replaysSessionSampleRate: process.env.NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
 });
+
+if (sentryConfig) {
+  Sentry.init({
+    ...sentryConfig,
+    integrations:
+      sentryConfig.replaysOnErrorSampleRate > 0 || sentryConfig.replaysSessionSampleRate > 0
+        ? [
+            Sentry.replayIntegration({
+              maskAllText: true,
+              blockAllMedia: true,
+            }),
+          ]
+        : [],
+    enableLogs: false,
+    sendDefaultPii: false,
+  });
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
