@@ -1,8 +1,9 @@
 #!/bin/bash
-# Check that staged files don't exceed 300 lines.
+# Check staged files against the documented soft and hard size caps.
 # Used by lint-staged in pre-commit hook.
 
-MAX_LINES=400
+SOFT_MAX_LINES=300
+HARD_MAX_LINES=400
 EXIT_CODE=0
 
 for file in "$@"; do
@@ -12,9 +13,11 @@ for file in "$@"; do
   fi
   if [ -f "$file" ]; then
     lines=$(wc -l < "$file" | tr -d ' ')
-    if [ "$lines" -gt "$MAX_LINES" ]; then
-      echo "WARNING: $file has $lines lines (max $MAX_LINES). Consider splitting by responsibility."
+    if [ "$lines" -gt "$HARD_MAX_LINES" ]; then
+      echo "ERROR: $file has $lines lines (hard max $HARD_MAX_LINES). Split by responsibility."
       EXIT_CODE=1
+    elif [ "$lines" -gt "$SOFT_MAX_LINES" ]; then
+      echo "WARNING: $file has $lines lines (soft max $SOFT_MAX_LINES). Consider splitting by responsibility."
     fi
   fi
 done

@@ -8,7 +8,7 @@ For the full project guidelines including decision frameworks, priority hierarch
 
 - **Stack:** Next.js 16, Convex, TypeScript strict, Tailwind CSS v4, shadcn/ui, Vitest
 - **Formatting:** Prettier is enforced via pre-commit hooks. Don't manually format.
-- **Max file size:** 300 lines. Split by responsibility if approaching this.
+- **Max file size:** 300-line soft cap, 400-line hard cap. Split by responsibility if approaching the soft cap.
 - **Max function size:** 60 lines. If longer, check the splitting decision tree in CLAUDE.md.
 - **One component per `.tsx` file.** Named export matching the filename.
 - **Tests:** Co-located as `<module>.test.ts`. Every function with logic gets a test.
@@ -27,7 +27,7 @@ For the full project guidelines including decision frameworks, priority hierarch
 1. Run `npx tsc --noEmit` -- must pass.
 2. Run `npm test` -- existing tests must pass.
 3. If you wrote logic, write a test. If tests exist for what you changed, run them.
-4. Check that no file exceeds 300 lines.
+4. Check that no new or materially expanded file exceeds 300 lines, and that no file exceeds the 400-line hard cap.
 
 <!-- convex-ai-start -->
 

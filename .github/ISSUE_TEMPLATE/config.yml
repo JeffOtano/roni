@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support
+    url: https://github.com/JeffOtano/tonal-coach/blob/main/SUPPORT.md
+    about: Read support expectations and choose the right help channel.
+  - name: Security
+    url: https://github.com/JeffOtano/tonal-coach/blob/main/SECURITY.md
+    about: Report vulnerabilities privately instead of opening a public issue.

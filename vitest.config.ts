@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      reporter: ["text", "text-summary"],
+      reporter: ["lcov", "text", "text-summary"],
       include: ["convex/**/*.ts", "src/**/*.{ts,tsx}"],
       exclude: [
         "convex/_generated/**",
@@ -14,10 +14,10 @@ export default defineConfig({
         "**/*.config.{ts,mjs}",
       ],
       thresholds: {
-        statements: 20,
-        branches: 15,
-        functions: 17,
-        lines: 20,
+        statements: 23,
+        branches: 19,
+        functions: 20,
+        lines: 23,
       },
     },
     projects: [

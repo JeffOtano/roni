@@ -2,6 +2,7 @@
 
 import type { PendingImage } from "@/hooks/useImageUpload";
 import { X } from "lucide-react";
+import Image from "next/image";
 
 interface ImagePreviewRowProps {
   images: readonly PendingImage[];
@@ -16,9 +17,12 @@ export function ImagePreviewRow({ images, onRemove, disabled }: ImagePreviewRowP
     <div className="flex gap-2 overflow-x-auto px-1 pb-2" role="list" aria-label="Attached images">
       {images.map((img, index) => (
         <div key={img.previewUrl} role="listitem" className="group relative shrink-0">
-          <img
+          <Image
             src={img.previewUrl}
             alt={`Attachment ${index + 1}`}
+            width={48}
+            height={48}
+            unoptimized
             className="size-12 rounded-lg border border-border object-cover"
           />
           <button

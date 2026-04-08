@@ -12,7 +12,8 @@
 - [ ] `npm run lint` passes
 - [ ] `npm test` passes (existing + new tests)
 - [ ] New logic has tests (happy path + at least one error/edge case)
-- [ ] No file exceeds 300 lines
+- [ ] No new or materially expanded file exceeds the 300-line soft cap
+- [ ] No file exceeds the 400-line hard cap
 - [ ] No function exceeds 60 lines
 - [ ] No new `any` types or unsafe `as` casts
 - [ ] Tested in browser (if UI changes)
