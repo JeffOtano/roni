@@ -108,7 +108,6 @@ import type * as tonal_workoutCatalogSync from "../tonal/workoutCatalogSync.js";
 import type * as userProfiles from "../userProfiles.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
-import type * as waitlist from "../waitlist.js";
 import type * as weekPlanActions from "../weekPlanActions.js";
 import type * as weekPlanEnriched from "../weekPlanEnriched.js";
 import type * as weekPlanHelpers from "../weekPlanHelpers.js";
@@ -226,7 +225,6 @@ declare const fullApi: ApiFromModules<{
   userProfiles: typeof userProfiles;
   users: typeof users;
   validators: typeof validators;
-  waitlist: typeof waitlist;
   weekPlanActions: typeof weekPlanActions;
   weekPlanEnriched: typeof weekPlanEnriched;
   weekPlanHelpers: typeof weekPlanHelpers;

@@ -13,7 +13,6 @@ type AnalyticsEvents = {
   tonal_connected: Record<string, never>;
   tonal_connection_failed: { error: string };
   tonal_sync_completed: { workout_count: number };
-  waitlist_joined: Record<string, never>;
 
   // Auth
   login_completed: { method: string };
