@@ -50,8 +50,8 @@ next-env.d.ts
 
 # Agent directories
 .agent/*
+.agents/*
 .claude/*
-!.claude/commands/
 .factory/*
 .junie/*
 .kiro/*
