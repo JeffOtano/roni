@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible bug in the hosted or self-hosted app.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: dropdown
+    id: deployment_mode
+    attributes:
+      label: Deployment mode
+      description: Where did you reproduce the problem?
+      options:
+        - Hosted app
+        - Self-hosted
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Tag, commit SHA, or branch if self-hosted.
+      placeholder: v0.1.0 or abc1234
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the bug in one or two sentences.
+      placeholder: The app fails to push approved workouts to Tonal after...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reproducible sequence.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs, screenshots, or stack traces
+      render: shell
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Include OS, browser, Node.js version, and any deployment notes.
+      placeholder: macOS 14, Chrome 135, Node.js 22, Convex dev deployment

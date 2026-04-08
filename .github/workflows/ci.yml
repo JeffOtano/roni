@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -36,14 +39,18 @@ jobs:
       - name: File size check
         run: |
           EXIT_CODE=0
+          SOFT_MAX=300
+          HARD_MAX=400
           while IFS= read -r file; do
             case "$file" in
               *_generated*|*docs/reference*|convex/schema.ts) continue ;;
             esac
             lines=$(wc -l < "$file" | tr -d ' ')
-            if [ "$lines" -gt 400 ]; then
-              echo "::error file=$file::File has $lines lines (max 400). Split by responsibility."
+            if [ "$lines" -gt "$HARD_MAX" ]; then
+              echo "::error file=$file::File has $lines lines (hard max ${HARD_MAX}). Split by responsibility."
               EXIT_CODE=1
+            elif [ "$lines" -gt "$SOFT_MAX" ]; then
+              echo "::warning file=$file::File has $lines lines (soft max ${SOFT_MAX}). Consider splitting by responsibility."
             fi
           done < <(find src convex -name '*.ts' -o -name '*.tsx' | sort)
           exit $EXIT_CODE
@@ -79,6 +86,13 @@ jobs:
 
       - name: Test with coverage
         run: npx vitest run --coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 7
 
   build:
     name: Build
@@ -171,3 +185,11 @@ jobs:
         env:
           CONVEX_URL: ${{ secrets.CONVEX_URL || 'https://placeholder.convex.cloud' }}
           NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://placeholder.convex.cloud' }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

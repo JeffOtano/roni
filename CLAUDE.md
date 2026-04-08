@@ -216,7 +216,7 @@ When principles conflict, the higher number always wins.
 - You created a utility function used by exactly one caller
 - Your abstraction has more lines than the duplication it replaced
 - A function has >3 levels of nesting
-- A file exceeds 300 lines (ESLint enforced)
+- A file exceeds the 400-line hard cap, or repeatedly grows past the 300-line soft cap
 - A function exceeds 60 lines (ESLint enforced)
 - You're mocking >2 dependencies in a single test
 - A function takes >5 parameters
@@ -227,7 +227,7 @@ When principles conflict, the higher number always wins.
 ## File Organization
 
 - **One component per `.tsx` file.** Named export matching the filename.
-- **Max 300 lines per file.** If approaching this, split by responsibility.
+- **Max 300 lines per file as a soft cap, 400 lines as a hard cap.** If approaching the soft cap, split by responsibility.
 - **Convex modules:** One concept per file in `convex/`. Queries, mutations, and actions for the same domain live together.
 - **Test files:** Co-located as `<module>.test.ts` next to the source file.
 - **No barrel files** (`index.ts` that re-exports). Import directly from the source module.

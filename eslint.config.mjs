@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
     "convex/_generated/**",
     "docs/reference/**",
@@ -17,6 +18,15 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
     rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+          varsIgnorePattern: "^_",
+        },
+      ],
       // Max nesting depth (red flag: >3 levels)
       "max-depth": ["error", 5],
       // Enforce consistent import ordering
@@ -28,6 +38,12 @@ const eslintConfig = defineConfig([
           ignoreMemberSort: false,
         },
       ],
+    },
+  },
+  {
+    files: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "@next/next/no-img-element": "off",
     },
   },
 ]);

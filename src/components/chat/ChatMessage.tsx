@@ -2,12 +2,13 @@
 
 import type { UIMessage } from "@convex-dev/agent/react";
 import { useSmoothText } from "@convex-dev/agent/react";
+import { Sparkles } from "lucide-react";
+import Image from "next/image";
 import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { ToolApprovalCard } from "@/components/chat/ToolApprovalCard";
 import { ToolCallIndicator } from "@/components/chat/ToolCallIndicator";
 import { WeekPlanCard } from "@/components/chat/WeekPlanCard";
 import { weekPlanPresentationSchema } from "../../../convex/ai/schemas";
-import { Sparkles } from "lucide-react";
 
 function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString([], {
@@ -70,7 +71,7 @@ interface ChatMessageProps {
   threadId: string;
 }
 
-export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }: ChatMessageProps) {
+export function ChatMessage({ message, isGrouped, threadId }: ChatMessageProps) {
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
 
@@ -97,11 +98,14 @@ export function ChatMessage({ message, userInitial = "U", isGrouped, threadId }:
           {imageParts.length > 0 && (
             <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
               {imageParts.map((part, i) => (
-                <img
+                <Image
                   key={`img-${i}`}
                   src={part.url}
                   alt={part.filename ?? `Attached image ${i + 1}`}
-                  className="max-h-48 max-w-full rounded-xl border border-border object-contain"
+                  width={384}
+                  height={384}
+                  unoptimized
+                  className="h-auto max-h-48 w-auto max-w-full rounded-xl border border-border object-contain"
                   loading="lazy"
                 />
               ))}

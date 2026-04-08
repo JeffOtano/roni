@@ -9,7 +9,6 @@ import {
   PARSE_ERROR,
   parseJsonRpcRequest,
   RATE_LIMITED,
-  UNAUTHORIZED,
 } from "./protocol";
 import { authenticateMcpRequest, McpAuthError } from "./auth";
 import { internal } from "../_generated/api";
