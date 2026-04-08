@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -93,7 +92,6 @@ jobs:
           name: coverage-report
           path: coverage
           retention-days: 7
-
   build:
     name: Build
     runs-on: ubuntu-latest

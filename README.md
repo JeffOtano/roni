@@ -26,7 +26,7 @@ This project is open-source for two reasons: technical users who want to self-ho
 
 ## Features
 
-- AI chat coach powered by Gemini 2.5 Pro with 31 tools - reads your Tonal history, programs workouts, explains decisions
+- AI chat coach powered by Gemini 2.5 Pro with Tonal-specific tools - reads your Tonal history, programs workouts, explains decisions
 - Custom weekly training plans with periodization (Building, Deload, and Testing blocks)
 - Exercise selection based on your equipment, goals, and injury history
 - Progressive overload tracking across sessions
@@ -45,7 +45,7 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 | Frontend   | Next.js 16 (App Router), React 19, Tailwind CSS v4   |
 | UI         | shadcn/ui (Base UI), Lucide icons                    |
 | Backend    | Convex (queries, mutations, actions, real-time sync) |
-| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro (31 tools)     |
+| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro                |
 | Auth       | @convex-dev/auth (password + Resend OTP)             |
 | Monitoring | Sentry (web), Vercel Analytics                       |
 | Deployment | Vercel (web), Convex (backend)                       |
@@ -120,7 +120,7 @@ npm run dev
 
 ```
 convex/                Backend (Convex)
-  ai/                  AI coach agent, 31 tools across 4 files, context builder
+  ai/                  AI coach agent, tool definitions, context builder
   coach/               Programming engine - exercise selection, periodization, progressive overload
   tonal/               Tonal API integration - OAuth, encrypted tokens, proxy with caching
   mcp/                 MCP server for Claude Desktop / Claude Code integration
@@ -209,7 +209,7 @@ npx convex deploy
 Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
                                                                      |
                                                                      v
-User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads context
+User (chat) --> sendMessage --> AI Coach Agent (Gemini, tool-driven) --> reads context
                                                                      |
                                                           creates workoutPlans (draft)
                                                                      |
@@ -218,7 +218,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads cont
 
 ### AI Coach
 
-The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 31 tools that can:
+The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with tool-driven capabilities that can:
 
 - Read Tonal training history, strength scores, and workout data
 - Create and modify weekly workout plans with periodization
