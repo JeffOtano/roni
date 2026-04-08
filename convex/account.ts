@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@convex-dev/auth/server";
 import { action, internalQuery, mutation, query } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import * as analytics from "./lib/posthog";
 
@@ -224,6 +224,13 @@ export const deleteAccount = action({
   handler: async (ctx): Promise<void> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Purge the @convex-dev/agent component's threads and messages first.
+    // Its tables live outside our schema, so deleteAllUserData can't touch
+    // them - we have to call the component's own purge action. Running it
+    // before the user row is deleted keeps the foreign-key target alive
+    // for any internal cascades the component performs.
+    await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
 
     await ctx.runMutation(internal.accountDeletion.deleteAllUserData, { userId });
   },
