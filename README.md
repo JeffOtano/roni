@@ -3,7 +3,7 @@
 [![CI](https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](tsconfig.json)
-[![Tests](https://img.shields.io/badge/tests-785%20passing-success.svg)](#testing)
+[![Vitest](https://img.shields.io/badge/tests-Vitest-6E9F18.svg)](#testing)
 
 > [!IMPORTANT]
 > **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
@@ -26,7 +26,7 @@ This project is open-source for two reasons: technical users who want to self-ho
 
 ## Features
 
-- AI chat coach powered by Gemini 2.5 Pro with 31 tools - reads your Tonal history, programs workouts, explains decisions
+- AI chat coach powered by Gemini 2.5 Pro with Tonal-specific tools - reads your Tonal history, programs workouts, explains decisions
 - Custom weekly training plans with periodization (Building, Deload, and Testing blocks)
 - Exercise selection based on your equipment, goals, and injury history
 - Progressive overload tracking across sessions
@@ -45,14 +45,14 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 | Frontend   | Next.js 16 (App Router), React 19, Tailwind CSS v4   |
 | UI         | shadcn/ui (Base UI), Lucide icons                    |
 | Backend    | Convex (queries, mutations, actions, real-time sync) |
-| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro (31 tools)     |
+| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro                |
 | Auth       | @convex-dev/auth (password + Resend OTP)             |
 | Monitoring | Sentry (web), Vercel Analytics                       |
 | Deployment | Vercel (web), Convex (backend)                       |
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22 (matches `.nvmrc`; Node.js 20+ should also work)
 - npm
 - A [Convex](https://convex.dev) account (free tier works)
 - A [Google AI Studio](https://aistudio.google.com) API key - the coach uses Gemini 2.5 Pro
@@ -67,29 +67,30 @@ git clone <repo-url> tonal-coach
 cd tonal-coach
 npm install
 
-# 2. Start the Convex dev backend (creates a new deployment on first run)
+# 2. Create .env.local from the example
+cp .env.example .env.local
+
+# 3. Start the Convex dev backend (creates a new deployment on first run)
 npx convex dev
 # Follow the prompts to log in and create a project.
-# This writes CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL into .env.local.
+# This updates .env.local with CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL.
 
-# 3. Copy env file and fill in values (see table below)
-cp .env.example .env.local
-# CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL are already set by step 2.
+# 4. Review .env.local and fill in the remaining values (see table below)
 # Add NEXT_PUBLIC_CONVEX_SITE_URL (same deployment name, .convex.site domain).
 
-# 4. Get a Gemini API key from Google AI Studio (free for personal use)
+# 5. Get a Gemini API key from Google AI Studio (free for personal use)
 # https://aistudio.google.com/app/apikey
 
-# 5. Set Convex backend secrets
+# 6. Set Convex backend secrets
 npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
 npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
 npx convex env set APP_URL                        http://localhost:3000
 
-# 6. Start the Next.js dev server (in a second terminal)
+# 7. Start the Next.js dev server (in a second terminal)
 npm run dev
 
-# 7. Open http://localhost:3000
+# 8. Open http://localhost:3000
 ```
 
 `npx convex dev` and `npm run dev` need to run concurrently in separate terminals.
@@ -119,7 +120,7 @@ npm run dev
 
 ```
 convex/                Backend (Convex)
-  ai/                  AI coach agent, 33 tool definitions, context builder
+  ai/                  AI coach agent, tool definitions, context builder
   coach/               Programming engine - exercise selection, periodization, progressive overload
   tonal/               Tonal API integration - OAuth, encrypted tokens, proxy with caching
   mcp/                 MCP server for Claude Desktop / Claude Code integration
@@ -152,6 +153,7 @@ scripts/               Build and CI helper scripts
 | `npx vitest --project frontend` | Frontend tests only                      |
 | `npm run test:watch`            | Run tests in watch mode                  |
 | `npm run test:coverage`         | Run tests with coverage report           |
+| `npm run test:e2e`              | Run Playwright smoke tests               |
 | `npm run build`                 | Production build                         |
 | `npm run lint`                  | ESLint                                   |
 | `npm run format`                | Prettier (write)                         |
@@ -167,7 +169,10 @@ npm test                              # all tests
 npx vitest --project backend          # backend only
 npx vitest --project frontend         # frontend only
 npx vitest run convex/stats.test.ts   # single file
+npm run test:e2e                      # Playwright smoke tests
 ```
+
+Coverage is enforced in CI and ratcheted upward over time. Lint is also treated as a hard gate: warnings fail CI.
 
 ## Deployment
 
@@ -204,7 +209,7 @@ npx convex deploy
 Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
                                                                      |
                                                                      v
-User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads context
+User (chat) --> sendMessage --> AI Coach Agent (Gemini, tool-driven) --> reads context
                                                                      |
                                                           creates workoutPlans (draft)
                                                                      |
@@ -213,7 +218,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads cont
 
 ### AI Coach
 
-The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 31 tools that can:
+The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with tool-driven capabilities that can:
 
 - Read Tonal training history, strength scores, and workout data
 - Create and modify weekly workout plans with periodization
@@ -250,9 +255,18 @@ This project is free. Hosting and my time are not. If it's saved you work, consi
 - [GitHub Sponsors](https://github.com/sponsors/JeffOtano)
 - [Buy Me a Coffee](https://www.buymeacoffee.com/jeffotano)
 
+## Community standards
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, coding standards, and PR expectations
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community expectations
+- [SUPPORT.md](./SUPPORT.md) for where to ask for help or report bugs
+- [SECURITY.md](./SECURITY.md) for private security reporting
+- [CHANGELOG.md](./CHANGELOG.md) for notable changes
+- [RELEASING.md](./RELEASING.md) for the maintainer release workflow
+
 ## Security
 
-See [SECURITY.md](./SECURITY.md) for how to report security issues.
+See [SECURITY.md](./SECURITY.md) for private reporting and [docs/trust-model.md](./docs/trust-model.md) for the data-handling trust model.
 
 ## License
 

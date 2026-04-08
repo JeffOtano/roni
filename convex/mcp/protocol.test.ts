@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  INVALID_REQUEST,
-  jsonRpcError,
-  jsonRpcSuccess,
-  METHOD_NOT_FOUND,
-  parseJsonRpcRequest,
-} from "./protocol";
+import { INVALID_REQUEST, jsonRpcError, jsonRpcSuccess, parseJsonRpcRequest } from "./protocol";
 
 describe("jsonRpcSuccess", () => {
   it("wraps result in JSON-RPC 2.0 response", () => {

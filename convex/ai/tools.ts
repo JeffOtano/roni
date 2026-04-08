@@ -7,7 +7,6 @@ import type {
   MuscleReadiness,
   StrengthScore,
   StrengthScoreHistoryEntry,
-  WorkoutActivityDetail,
 } from "../tonal/types";
 import type { EnrichedWorkoutDetail } from "../workoutDetail";
 import { requireUserId, withToolTracking } from "./helpers";

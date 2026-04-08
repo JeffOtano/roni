@@ -4,7 +4,11 @@ Thanks for your interest in Tonal Coach. This is a personal project maintained b
 
 ## Before you file an issue
 
-Search existing issues first. If it's a security concern, see [SECURITY.md](SECURITY.md) and email rather than opening a public issue.
+Search existing issues first. Then pick the right channel:
+
+- Security issue: follow [SECURITY.md](SECURITY.md) and email rather than opening a public issue
+- Bug report or feature request: use the GitHub issue templates
+- Usage or self-hosting help: start with [SUPPORT.md](SUPPORT.md)
 
 ## Development setup
 
@@ -14,11 +18,12 @@ See the [Self-host setup](README.md#self-host-setup) section of the README for t
 git clone https://github.com/JeffOtano/tonal-coach.git
 cd tonal-coach
 npm install
+cp .env.example .env.local
 npx convex dev       # in one terminal
 npm run dev          # in another terminal
 ```
 
-You will need a free Convex account, a Google AI Studio API key, and (for end-to-end testing) a Tonal account.
+Use Node.js 22 to match `.nvmrc`. You will need a free Convex account, a Google AI Studio API key, and (for end-to-end testing) a Tonal account.
 
 ## Running tests
 
@@ -27,6 +32,7 @@ npm test                 # all tests once
 npm run test:watch       # watch mode
 npm run typecheck        # tsc --noEmit
 npm run lint             # eslint
+npm run test:e2e         # Playwright smoke tests
 ```
 
 All PRs must pass `npm test`, `npm run typecheck`, and `npm run lint`. CI enforces this on every pull request.
@@ -38,7 +44,8 @@ All PRs must pass `npm test`, `npm run typecheck`, and `npm run lint`. CI enforc
 - All commit subject lines must be lowercase.
 - Write tests for new behavior. The test pattern in this codebase is Vitest with `vi.mock` for Convex modules (no `convex-test`).
 - Comments explain WHY, not WHAT. If you find yourself writing prose that describes what the next line does, rename something instead.
-- Files have soft and hard size caps enforced by pre-commit hooks: 300-line warning, 400-line hard limit.
+- Files have soft and hard size caps enforced by hooks and CI: 300-line warning, 400-line hard limit.
+- Issues and pull requests are expected to stay within the project's [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Code style
 
@@ -58,4 +65,4 @@ All PRs must pass `npm test`, `npm run typecheck`, and `npm run lint`. CI enforc
 
 - The iOS app is not in this repository (it stays in a private fork).
 - Adding support for fitness machines other than Tonal is not on the roadmap right now, though the coach engine is mostly machine-agnostic. File an issue to discuss before starting work.
-- Community infrastructure (Discussions, Discord, etc.) is intentionally not set up.
+- Real-time community support channels (Discord, Slack, etc.) are intentionally not set up.

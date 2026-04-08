@@ -6,9 +6,7 @@ import {
   detectRegressions,
   formatPerformanceHighlights,
   generatePerformanceSummary,
-  type PlateauRecord,
   type PRRecord,
-  type RegressionRecord,
   type WorkoutPerformanceSummary,
 } from "./prDetection";
 
