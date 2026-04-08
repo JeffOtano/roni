@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AuthCta } from "./AuthCta";
-import { BetaCounter } from "./BetaCounter";
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                                */
@@ -74,7 +73,7 @@ interface FaqItem {
 const FAQ_ITEMS: FaqItem[] = [
   {
     q: "Is tonal.coach free?",
-    a: "Yes, completely free during beta. No credit card required. After beta there will be a small monthly fee to help cover AI costs — the goal is to keep it as affordable as possible. No ads, no data selling.",
+    a: "Yes, completely free and open source. No credit card required. You bring your own Google Gemini API key (free from Google AI Studio) so the AI runs on your quota, not ours.",
   },
   {
     q: "Is it safe to connect my Tonal account?",
@@ -293,7 +292,7 @@ export function PricingTeaser() {
               className="mb-2 text-xs font-medium uppercase tracking-widest"
               style={{ color: "oklch(0.78 0.154 195)" }}
             >
-              Beta Pricing
+              Open Source
             </p>
             <span
               className="text-6xl font-bold tracking-tight"
@@ -301,14 +300,11 @@ export function PricingTeaser() {
             >
               $0
             </span>
-            <p className="mt-2 text-muted-foreground">Free while in beta</p>
+            <p className="mt-2 text-muted-foreground">Forever free to use</p>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground/70">
-              Small monthly fee after beta to help cover AI costs. Goal is to keep it as low as
-              possible.
+              Bring your own Google Gemini API key (free from Google AI Studio) so the AI runs on
+              your quota, not ours.
             </p>
-            <div className="mt-4 flex justify-center">
-              <BetaCounter />
-            </div>
             <div className="mt-6">
               <AuthCta variant="hero" />
             </div>

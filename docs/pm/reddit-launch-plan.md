@@ -1,7 +1,7 @@
 # tonal.coach — Reddit Launch: Product Plan
 
 > [!NOTE]
-> Historical product-planning document dated March 14, 2026. Sections such as "What We Have Today" describe the product at that planning moment, not the current repo state.
+> **Historical product-planning document dated March 14, 2026.** This describes the product at that planning moment, not the current repo state. Several features referenced here (notably the Google Calendar integration and the 50-user beta cap) were later removed when the project went open source. Kept in the repo for historical context only - do not treat as current product guidance.
 
 **Author:** Jeff Otano
 **Date:** March 14, 2026

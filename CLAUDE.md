@@ -84,8 +84,8 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads cont
 ### Auth & Signup Policy
 
 - Password auth via `@convex-dev/auth` with Resend OTP for password reset
-- The old 50-user beta cap has been removed. `userProfiles.canSignUp` now always allows signups, and `auth.ts` no longer blocks account creation on capacity.
-- Shared-key versus BYOK enforcement is handled separately in `convex/byok.ts`. The repo currently keeps `BYOK_REQUIRED_AFTER` at a placeholder value until an operator chooses a cutoff.
+- Signups are uncapped. The old 50-user beta cap and its `canSignUp`/`betaConfig` plumbing were removed when the project went open source.
+- Shared-key versus BYOK enforcement is handled in `convex/byok.ts`. Users created before `BYOK_REQUIRED_AFTER` are grandfathered onto the house key; anyone created after must provide their own Google Gemini API key during onboarding.
 
 ### Tonal API Token Management
 

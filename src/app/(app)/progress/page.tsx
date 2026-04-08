@@ -48,7 +48,7 @@ export default function ProgressPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Progress</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Track your strength, stats, and visible changes
+          Track your strength scores and training stats
         </p>
       </div>
 

@@ -8,7 +8,8 @@ import { ArrowRight, Check, Mail } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DISCORD_URL } from "../_components/BetaCounter";
+
+const DISCORD_URL = "https://discord.gg/Sa5ewWP5M";
 
 export default function WaitlistPage() {
   const { track } = useAnalytics();
@@ -124,7 +125,7 @@ export default function WaitlistPage() {
           <div className="mt-10 rounded-xl bg-card p-6 ring-1 ring-border">
             <p className="text-sm font-medium text-foreground">Want to stay in the loop?</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Join our Discord to chat with beta testers, share feedback, and get early updates.
+              Join our Discord to chat with other users, share feedback, and get early updates.
             </p>
             <a
               href={DISCORD_URL}

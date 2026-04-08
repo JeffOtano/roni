@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Lock, RotateCcw, ShieldCheck } from "lucide-react";
+import { Check, Code2, Key, Lock } from "lucide-react";
 import { SiteNav } from "@/app/_components/SiteNav";
 import { SiteFooter } from "@/app/_components/SiteFooter";
 import { AuthCta } from "@/app/_components/AuthCta";
@@ -18,8 +18,8 @@ const FEATURES = [
 ] as const;
 
 const TRUST_SIGNALS = [
-  { icon: ShieldCheck, label: "No credit card required" },
-  { icon: RotateCcw, label: "Cancel anytime" },
+  { icon: Code2, label: "Open source" },
+  { icon: Key, label: "Your API key, your usage" },
   { icon: Lock, label: "Your data, your control" },
 ] as const;
 
@@ -27,7 +27,7 @@ const productJsonLd = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "tonal.coach",
-  description: "AI-powered custom workout programming for Tonal home gym owners.",
+  description: "Free, open-source AI-powered custom workout programming for Tonal home gym owners.",
   url: "https://tonal.coach/pricing",
   brand: {
     "@type": "Organization",
@@ -37,7 +37,7 @@ const productJsonLd = {
     "@type": "Offer",
     price: "0",
     priceCurrency: "USD",
-    description: "Free during beta. Small monthly fee after beta to cover AI costs.",
+    description: "Free and open source. Bring your own Google Gemini API key.",
     availability: "https://schema.org/InStock",
   },
 };
@@ -57,7 +57,7 @@ export default function PricingPage() {
           <section className="px-6 py-20 text-center sm:py-28">
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Pricing</h1>
             <p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
-              Simple, transparent pricing
+              Free and open source. Bring your own Gemini API key.
             </p>
           </section>
 
@@ -83,7 +83,7 @@ export default function PricingPage() {
                         border: "1px solid oklch(0.78 0.154 195 / 0.3)",
                       }}
                     >
-                      Beta
+                      Open Source
                     </Badge>
                   </div>
 
@@ -95,9 +95,8 @@ export default function PricingPage() {
                     >
                       $0
                     </span>
-                    <span className="ml-1 text-xl text-muted-foreground">/month</span>
                   </div>
-                  <p className="mb-8 text-center text-muted-foreground">Free while in beta</p>
+                  <p className="mb-8 text-center text-muted-foreground">Forever free to use</p>
 
                   {/* Feature checklist */}
                   <ul className="mb-8 space-y-3">
@@ -115,28 +114,37 @@ export default function PricingPage() {
                   {/* CTA */}
                   <div className="flex flex-col items-center gap-3">
                     <AuthCta variant="hero" />
-                    <p className="text-xs text-muted-foreground">No credit card required</p>
+                    <p className="text-xs text-muted-foreground">
+                      Bring your own Gemini API key (free from Google AI Studio)
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Future pricing */}
+          {/* How it works */}
           <section className="border-t border-border px-6 py-16">
             <div className="mx-auto max-w-lg text-center">
               <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-                After beta
+                How it stays free
               </p>
-              <p className="mt-3 text-2xl font-bold tracking-tight">Pricing TBD</p>
+              <p className="mt-3 text-2xl font-bold tracking-tight">You run the AI, not us</p>
               <p className="mt-4 leading-relaxed text-muted-foreground">
-                Every workout your coach programs uses AI that costs real money to run. During beta,
-                that&apos;s on us. After beta, there will be a small monthly fee to help cover those
-                costs &mdash; the goal is to keep it as low as possible. No investors, no ads, no
-                data selling. Just a community tool built by a Tonal owner for Tonal owners.
+                tonal.coach is open source and free to use forever. When you sign up, you paste your
+                own Google Gemini API key during onboarding. The AI coach runs on your key, which
+                means you control usage and never get a bill from us. Gemini keys are free from
+                Google AI Studio and the free tier is generous enough for normal use.
               </p>
               <p className="mt-3 text-sm text-muted-foreground/70">
-                Sign up now during beta &mdash; no commitment, no credit card.
+                Prefer to run your own copy?{" "}
+                <Link
+                  href="https://github.com/JeffOtano/tonal-coach"
+                  className="text-primary underline underline-offset-2"
+                >
+                  Self-host from GitHub
+                </Link>
+                .
               </p>
             </div>
           </section>

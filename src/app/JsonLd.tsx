@@ -19,7 +19,7 @@ export function JsonLd() {
                 "@type": "Offer",
                 price: "0",
                 priceCurrency: "USD",
-                description: "Free during beta. $10/month after beta ends.",
+                description: "Free and open source. Bring your own Google Gemini API key.",
               },
               featureList: [
                 "AI coaching powered by real training data",

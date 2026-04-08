@@ -29,7 +29,6 @@ import type * as ai_weekTools from "../ai/weekTools.js";
 import type * as aiUsage from "../aiUsage.js";
 import type * as auth from "../auth.js";
 import type * as authCleanup from "../authCleanup.js";
-import type * as betaConfig from "../betaConfig.js";
 import type * as byok from "../byok.js";
 import type * as chat from "../chat.js";
 import type * as checkIns from "../checkIns.js";
@@ -148,7 +147,6 @@ declare const fullApi: ApiFromModules<{
   aiUsage: typeof aiUsage;
   auth: typeof auth;
   authCleanup: typeof authCleanup;
-  betaConfig: typeof betaConfig;
   byok: typeof byok;
   chat: typeof chat;
   checkIns: typeof checkIns;

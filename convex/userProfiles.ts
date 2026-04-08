@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
-import { computeBetaCapacity } from "./betaConfig";
 
 const profileDataValidator = v.object({
   firstName: v.string(),
@@ -168,21 +167,6 @@ export const getUserWithValidToken = internalQuery({
     // Fallback: any connected user (withTokenRetry can refresh expired tokens)
     return valid ?? (await ctx.db.query("userProfiles").first());
   },
-});
-
-/** Public count of beta users (for landing page counter). */
-export const getBetaUserCount = query({
-  args: {},
-  handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect();
-    return profiles.length;
-  },
-});
-
-/** Legacy beta-capacity check. Always allowed post-BYOK open-source release. */
-export const canSignUp = query({
-  args: {},
-  handler: async () => computeBetaCapacity(),
 });
 
 const trainingPreferencesArgs = {

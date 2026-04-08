@@ -83,8 +83,8 @@ export function DeleteAccount() {
               <DialogHeader>
                 <DialogTitle>Delete your account?</DialogTitle>
                 <DialogDescription>
-                  This will permanently delete your account, all training data, workout plans,
-                  progress photos, and check-in history. This action cannot be undone.
+                  This will permanently delete your account, all training data, workout plans, and
+                  check-in history. This action cannot be undone.
                 </DialogDescription>
               </DialogHeader>
 
