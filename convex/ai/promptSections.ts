@@ -69,7 +69,7 @@ export function toolUsage(): string {
 - Modifications (draft plans only): swap_exercise, add_exercise, move_session, adjust_session_duration. Use add_exercise when the user wants to include an extra exercise without rebuilding the week.
 - Coaching: record_feedback, check_deload, start_training_block, advance_training_block, set_goal, update_goal_progress, get_goals, get_recent_feedback
 - Injuries: report_injury, resolve_injury, get_injuries
-- Analysis: get_workout_performance, compare_progress_photos, list_progress_photos, estimate_duration
+- Analysis: get_workout_performance, estimate_duration
 - One-off workouts: create_workout, delete_workout (only for single sessions, never for weekly plans)`;
 }
 
@@ -334,7 +334,6 @@ export const REFERENCED_TOOLS = [
   "get_recent_feedback", "check_deload", "start_training_block",
   "advance_training_block", "set_goal", "update_goal_progress", "get_goals",
   "report_injury", "resolve_injury", "get_injuries", "estimate_duration",
-  "compare_progress_photos", "list_progress_photos",
 ] as const;
 
 /** Composes all sections into the final prompt string. */

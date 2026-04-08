@@ -3,7 +3,7 @@
 [![CI](https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](tsconfig.json)
-[![Tests](https://img.shields.io/badge/tests-826%20passing-success.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-785%20passing-success.svg)](#testing)
 
 > [!IMPORTANT]
 > **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
@@ -26,7 +26,7 @@ This project is open-source for two reasons: technical users who want to self-ho
 
 ## Features
 
-- AI chat coach powered by Gemini 2.5 Pro with 33 tools - reads your Tonal history, programs workouts, explains decisions
+- AI chat coach powered by Gemini 2.5 Pro with 31 tools - reads your Tonal history, programs workouts, explains decisions
 - Custom weekly training plans with periodization (Building, Deload, and Testing blocks)
 - Exercise selection based on your equipment, goals, and injury history
 - Progressive overload tracking across sessions
@@ -45,7 +45,7 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 | Frontend   | Next.js 16 (App Router), React 19, Tailwind CSS v4   |
 | UI         | shadcn/ui (Base UI), Lucide icons                    |
 | Backend    | Convex (queries, mutations, actions, real-time sync) |
-| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro (33 tools)     |
+| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro (31 tools)     |
 | Auth       | @convex-dev/auth (password + Resend OTP)             |
 | Monitoring | Sentry (web), Vercel Analytics                       |
 | Deployment | Vercel (web), Convex (backend)                       |
@@ -84,7 +84,6 @@ cp .env.example .env.local
 npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
 npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
-npx convex env set PROGRESS_PHOTOS_ENCRYPTION_KEY $(openssl rand -hex 32)
 npx convex env set APP_URL                        http://localhost:3000
 
 # 6. Start the Next.js dev server (in a second terminal)
@@ -99,14 +98,13 @@ npm run dev
 
 ### Convex backend - set via `npx convex env set KEY value`
 
-| Variable                         | Description                                                                 |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `GOOGLE_GENERATIVE_AI_API_KEY`   | Google AI Studio API key. Used by Gemini 2.5 Pro (coach) and Flash (photos) |
-| `AUTH_RESEND_KEY`                | Resend API key (`re_...`). Sends password-reset OTP emails                  |
-| `TOKEN_ENCRYPTION_KEY`           | 64-char hex string. Encrypts Tonal OAuth tokens. `openssl rand -hex 32`     |
-| `PROGRESS_PHOTOS_ENCRYPTION_KEY` | 64-char hex string. Encrypts progress photo keys. `openssl rand -hex 32`    |
-| `APP_URL`                        | Public app URL for OAuth redirects. `http://localhost:3000` locally         |
-| `CONVEX_SITE_URL`                | Set automatically by Convex. Do not set manually                            |
+| Variable                       | Description                                                             |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used by Gemini 2.5 Pro (coach)                |
+| `AUTH_RESEND_KEY`              | Resend API key (`re_...`). Sends password-reset OTP emails              |
+| `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens. `openssl rand -hex 32` |
+| `APP_URL`                      | Public app URL for OAuth redirects. `http://localhost:3000` locally     |
+| `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                        |
 
 ### Next.js - set in `.env.local`
 
@@ -206,7 +204,7 @@ npx convex deploy
 Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
                                                                      |
                                                                      v
-User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads context
+User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads context
                                                                      |
                                                           creates workoutPlans (draft)
                                                                      |
@@ -215,7 +213,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 
 ### AI Coach
 
-The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 33 tools that can:
+The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with 31 tools that can:
 
 - Read Tonal training history, strength scores, and workout data
 - Create and modify weekly workout plans with periodization

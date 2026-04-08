@@ -65,8 +65,6 @@ export default defineSchema({
     ),
     /** Timestamp before which all check-ins are considered read (single-write "mark all read"). */
     checkInsReadAllBeforeAt: v.optional(v.number()),
-    /** Allow AI to analyze progress photos (guardrails apply). */
-    progressPhotoAnalysisEnabled: v.optional(v.boolean()),
     /** Which Tonal accessories the user owns (for exercise filtering). */
     ownedAccessories: v.optional(
       v.object({
@@ -252,15 +250,6 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_weekStartDate", ["userId", "weekStartDate"]),
-
-  /** Progress photos: encrypted storage, user-only access. */
-  progressPhotos: defineTable({
-    userId: v.id("users"),
-    storageId: v.id("_storage"),
-    createdAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_createdAt", ["userId", "createdAt"]),
 
   /** MCP API keys for Claude Desktop/Code integration. */
   mcpApiKeys: defineTable({

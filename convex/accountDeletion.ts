@@ -39,16 +39,6 @@ export const deleteAllUserData = internalMutation({
     await deleteByUserIndex(ctx, "mcpApiKeys", userId);
     await deleteByUserIndex(ctx, "mcpUsage", userId);
 
-    // Delete progressPhotos + their storage files
-    const progressPhotos = await ctx.db
-      .query("progressPhotos")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    for (const doc of progressPhotos) {
-      await ctx.storage.delete(doc.storageId);
-      await ctx.db.delete(doc._id);
-    }
-
     // Delete tonalCache (uses composite index)
     const tonalCache = await ctx.db
       .query("tonalCache")

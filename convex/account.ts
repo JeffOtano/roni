@@ -30,7 +30,6 @@ export const getFullProfile = query({
         : undefined,
       profileData: profile?.profileData ?? null,
       tonalConnectedAt: profile?.tonalConnectedAt ?? null,
-      progressPhotoAnalysisEnabled: profile?.progressPhotoAnalysisEnabled !== false,
       tonalEmail: profile?.tonalEmail,
       hasTonalProfile: !!profile,
       tonalTokenExpired,
@@ -42,7 +41,6 @@ export const getFullProfile = query({
 
 export const updateProfileSettings = mutation({
   args: {
-    progressPhotoAnalysisEnabled: v.optional(v.boolean()),
     ownedAccessories: v.optional(
       v.object({
         smartHandles: v.boolean(),
@@ -66,9 +64,6 @@ export const updateProfileSettings = mutation({
     if (!profile) throw new Error("User profile not found");
 
     const patch: Record<string, unknown> = {};
-    if (args.progressPhotoAnalysisEnabled !== undefined) {
-      patch.progressPhotoAnalysisEnabled = args.progressPhotoAnalysisEnabled;
-    }
     if (args.ownedAccessories !== undefined) {
       patch.ownedAccessories = args.ownedAccessories;
     }
@@ -84,14 +79,12 @@ interface ExportedData {
   profile: {
     profileData: Record<string, unknown> | null;
     tonalConnectedAt: number | null;
-    progressPhotoAnalysisEnabled: boolean | null;
     checkInPreferences: Record<string, unknown> | null;
     lastActiveAt: number;
   } | null;
   workoutPlans: Record<string, unknown>[];
   weekPlans: Record<string, unknown>[];
   checkIns: Record<string, unknown>[];
-  progressPhotos: { createdAt: number }[];
   mcpKeys: { label: string | null; createdAt: number; lastUsedAt: number | null }[];
 }
 
@@ -137,11 +130,6 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
-    const progressPhotos = await ctx.db
-      .query("progressPhotos")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
     const mcpKeys = await ctx.db
       .query("mcpApiKeys")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -157,7 +145,6 @@ export const collectUserData = internalQuery({
         ? {
             profileData: profile.profileData ?? null,
             tonalConnectedAt: profile.tonalConnectedAt ?? null,
-            progressPhotoAnalysisEnabled: profile.progressPhotoAnalysisEnabled ?? null,
             checkInPreferences: profile.checkInPreferences ?? null,
             lastActiveAt: profile.lastActiveAt,
           }
@@ -184,9 +171,6 @@ export const collectUserData = internalQuery({
         readAt: ci.readAt ?? null,
         createdAt: ci.createdAt,
         triggerContext: ci.triggerContext ?? null,
-      })),
-      progressPhotos: progressPhotos.map((pp) => ({
-        createdAt: pp.createdAt,
       })),
       mcpKeys: mcpKeys.map((k) => ({
         label: k.label ?? null,
