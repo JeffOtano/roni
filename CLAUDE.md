@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach (Gemini) reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes completed workouts directly to Tonal.
+Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes approved workouts directly to Tonal.
 
 ## Stack
 
@@ -66,7 +66,7 @@ npx convex deploy              # Deploy to production
 Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
                                                                      |
                                                                      v
-User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads context
+User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads context
                                                                      |
                                                           creates workoutPlans (draft)
                                                                      |
@@ -75,18 +75,17 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 
 ### Backend Domains (`convex/`)
 
-- **`ai/`** -- Coach agent definition, 33 tools (read Tonal data, create/modify workouts, manage goals/injuries), context builder that injects training snapshot as system message, prompt construction
+- **`ai/`** -- Coach agent definition, 31 tools (read Tonal data, create/modify workouts, manage goals/injuries), context builder that injects training snapshot as system message, prompt construction
 - **`coach/`** -- Programming engine: exercise selection, periodization (Building/Deload/Testing blocks), progressive overload tracking
 - **`tonal/`** -- Tonal API integration: OAuth token management (AES-256 encrypted at rest), proxy layer with stale-while-revalidate caching, history sync, movement/workout catalog sync
 - **`mcp/`** -- MCP server for Claude Desktop integration (authenticated via API keys)
 - **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; thin wrapper over `getAuthUserId`
 
-### Auth & Beta Cap
+### Auth & Signup Policy
 
 - Password auth via `@convex-dev/auth` with Resend OTP for password reset
-- Beta capped at 50 users (enforced in both client pre-check via `userProfiles:canSignUp` AND server-side in `auth.ts` `createOrUpdateUser` callback)
-- The server-side check is a safety net only -- if it throws, `@convex-dev/auth` has already created an orphaned auth entry. Clients must check capacity first.
-- `BETA_SPOT_LIMIT` constant must stay in sync between `auth.ts` and `userProfiles.ts`
+- The old 50-user beta cap has been removed. `userProfiles.canSignUp` now always allows signups, and `auth.ts` no longer blocks account creation on capacity.
+- Shared-key versus BYOK enforcement is handled separately in `convex/byok.ts`. The repo currently keeps `BYOK_REQUIRED_AFTER` at a placeholder value until an operator chooses a cutoff.
 
 ### Tonal API Token Management
 
@@ -97,19 +96,23 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 
 ### Scheduled Jobs (`crons.ts`)
 
-- Every 30m: refresh Tonal tokens, refresh active user cache
 - Every 15m: recover stuck workout pushes
+- Every 15m: health check
+- Every 30m: refresh Tonal tokens
+- Every 30m: refresh active user cache
 - Every 1h: activation checks
 - Every 6h: check-in trigger evaluation (missed sessions, milestones)
-- Daily 3 AM: sync movement catalog
-- Weekly Sunday 4 AM: sync Tonal workout catalog
+- Cron `0 3 * * *`: sync movement catalog
+- Cron `0 4 * * 0`: sync Tonal workout catalog
+- Cron `0 2 * * 0`: data retention cleanup
 
 ### Frontend Routes (`src/app/`)
 
-- `(app)/` -- Authenticated area: dashboard, chat, schedule, stats, progress, profile, settings
-- `onboarding/` -- 3-step flow: questionnaire, equipment, training preferences
+- `(app)/` -- Authenticated area: dashboard, chat, schedule, stats, progress, strength, profile, settings, activity, check-ins, exercises
+- `onboarding/` -- connect/preferences flow with an optional Gemini key step when BYOK is required
 - `connect-tonal/` -- Tonal OAuth connection flow
 - `login/`, `reset-password/` -- Auth pages
+- `workouts/`, `features/`, `faq/`, `pricing/`, `how-it-works/`, `contact/`, `privacy/`, `terms/`, `waitlist/` -- Public marketing and library routes
 
 ### Rate Limiting
 

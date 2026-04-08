@@ -10,7 +10,7 @@
 
 ## What this is
 
-Tonal Coach is an AI coaching companion for Tonal fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly workout plans. The AI coach (Gemini 2.5 Pro) selects exercises, manages periodization, and pushes completed workouts directly to your Tonal - no manual entry. It is built on Next.js and Convex with real-time sync.
+Tonal Coach is an AI coaching companion for Tonal fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly workout plans. The coach uses Google Gemini models to select exercises, manage periodization, and push approved workouts directly to Tonal with no manual builder work. It is built on Next.js and Convex with real-time sync.
 
 ## Who it's for
 
@@ -18,21 +18,19 @@ This project is open-source for two reasons: technical users who want to self-ho
 
 ## How the open-source model works
 
-**Self-host (recommended for technical users).** Clone the repo, spin up a free Convex deployment, set a Gemini API key via env var, and run the stack locally or deploy to Vercel. You own every layer. Instructions are in the Self-Host Setup section below.
+**Self-host.** Clone the repo, spin up a Convex deployment, set the required server secrets, and run locally or deploy to Vercel. You control the infrastructure, secrets, and data handling. Instructions are in the Self-Host Setup section below.
 
-**Hosted + BYOK.** The project's hosted instance accepts new signups. New users paste their own Gemini API key during onboarding. The operator pays nothing for AI costs for new users, and users control their own Google AI usage.
-
-**Grandfathered hosted.** Existing beta users (signed up before the open-source launch) continue using the shared hosted AI key at no cost. Nothing changes for them.
+**Operator-managed deployments.** The codebase supports both a shared server-side Gemini key and per-user bring-your-own-key (BYOK) storage. Which mode is enforced is a deployment policy decision, not something the public repo can guarantee for any specific hosted instance.
 
 ## Features
 
-- AI chat coach powered by Gemini 2.5 Pro with Tonal-specific tools - reads your Tonal history, programs workouts, explains decisions
+- AI chat coach powered by Google Gemini with Tonal-specific tools - reads your Tonal history, programs workouts, explains decisions
 - Custom weekly training plans with periodization (Building, Deload, and Testing blocks)
 - Exercise selection based on your equipment, goals, and injury history
 - Progressive overload tracking across sessions
 - Injury and mobility constraint management
 - One-click workout push directly to your Tonal - no manual entry
-- Bring-your-own-key (BYOK) support: self-hosters and new hosted users use their own Gemini key
+- Shared-key and bring-your-own-key (BYOK) support
 
 ## Project status
 
@@ -45,7 +43,7 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 | Frontend   | Next.js 16 (App Router), React 19, Tailwind CSS v4   |
 | UI         | shadcn/ui (Base UI), Lucide icons                    |
 | Backend    | Convex (queries, mutations, actions, real-time sync) |
-| AI Coach   | @convex-dev/agent with Gemini 2.5 Pro                |
+| AI Coach   | `@convex-dev/agent` with Google Gemini models        |
 | Auth       | @convex-dev/auth (password + Resend OTP)             |
 | Monitoring | Sentry (web), Vercel Analytics                       |
 | Deployment | Vercel (web), Convex (backend)                       |
@@ -55,7 +53,7 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 - Node.js 22 (matches `.nvmrc`; Node.js 20+ should also work)
 - npm
 - A [Convex](https://convex.dev) account (free tier works)
-- A [Google AI Studio](https://aistudio.google.com) API key - the coach uses Gemini 2.5 Pro
+- A [Google AI Studio](https://aistudio.google.com) API key for the server-side Gemini integration
 - A [Resend](https://resend.com) account + API key (optional - only needed for password reset OTP emails)
 - A Tonal account to test the integration end-to-end
 
@@ -75,17 +73,17 @@ npx convex dev
 # Follow the prompts to log in and create a project.
 # This updates .env.local with CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL.
 
-# 4. Review .env.local and fill in the remaining values (see table below)
-# Add NEXT_PUBLIC_CONVEX_SITE_URL (same deployment name, .convex.site domain).
+# 4. Review .env.local and fill in any optional values you want to use locally
+# `CONVEX_DEPLOYMENT` and `NEXT_PUBLIC_CONVEX_URL` are written automatically.
 
 # 5. Get a Gemini API key from Google AI Studio (free for personal use)
 # https://aistudio.google.com/app/apikey
 
 # 6. Set Convex backend secrets
 npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
-npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
-npx convex env set APP_URL                        http://localhost:3000
+# Optional: only needed if you want password-reset emails locally
+npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 
 # 7. Start the Next.js dev server (in a second terminal)
 npm run dev
@@ -101,10 +99,9 @@ npm run dev
 
 | Variable                       | Description                                                             |
 | ------------------------------ | ----------------------------------------------------------------------- |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used by Gemini 2.5 Pro (coach)                |
-| `AUTH_RESEND_KEY`              | Resend API key (`re_...`). Sends password-reset OTP emails              |
-| `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens. `openssl rand -hex 32` |
-| `APP_URL`                      | Public app URL for OAuth redirects. `http://localhost:3000` locally     |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used for the shared Gemini key and embeddings |
+| `AUTH_RESEND_KEY`              | Optional Resend API key (`re_...`). Sends password-reset OTP emails     |
+| `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens and BYOK Gemini keys    |
 | `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                        |
 
 ### Next.js - set in `.env.local`
@@ -113,8 +110,9 @@ npm run dev
 | ----------------------------- | ---------------------------------------------------------------------------- |
 | `CONVEX_DEPLOYMENT`           | Written automatically by `npx convex dev`. Do not edit                       |
 | `NEXT_PUBLIC_CONVEX_URL`      | Convex deployment URL (`https://<name>.convex.cloud`). Written automatically |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Convex HTTP URL (`https://<name>.convex.site`). Add manually after step 2    |
-| `NEXT_PUBLIC_GITHUB_REPO_URL` | Public GitHub repo URL. Set once the repo is public. Enables the OSS banner  |
+| `NEXT_PUBLIC_GITHUB_REPO_URL` | Optional public GitHub repo URL. Enables the OSS banner                      |
+
+`.env.example` also includes `NEXT_PUBLIC_CONVEX_SITE_URL`, but the current Next.js app does not read that variable.
 
 ## Project Structure
 
@@ -129,12 +127,12 @@ convex/                Backend (Convex)
 
 src/
   app/                 Next.js pages (App Router)
-    (app)/             Authenticated routes - dashboard, chat, schedule, stats, progress
+    (app)/             Authenticated routes - dashboard, chat, schedule, stats, progress, strength, profile, settings, activity, check-ins, exercises
     connect-tonal/     Tonal OAuth connection flow
     login/             Auth pages
-    onboarding/        New user onboarding (questionnaire, equipment, preferences, BYOK key)
+    onboarding/        New user onboarding (connect, preferences, optional Gemini key step)
     workouts/          Public workout library (SEO)
-    features/          Marketing pages
+    features/          Public marketing routes
   components/          Shared React components
 
 lib/                   Shared TypeScript types and utilities
@@ -172,7 +170,7 @@ npx vitest run convex/stats.test.ts   # single file
 npm run test:e2e                      # Playwright smoke tests
 ```
 
-Coverage is enforced in CI and ratcheted upward over time. Lint is also treated as a hard gate: warnings fail CI.
+Coverage thresholds are enforced in CI. Lint is also treated as a hard gate: warnings fail CI.
 
 ## Deployment
 
@@ -182,7 +180,7 @@ Coverage is enforced in CI and ratcheted upward over time. Lint is also treated 
 npx convex deploy --cmd 'npm run build'
 ```
 
-This deploys the Convex backend first, then builds and deploys the Next.js frontend.
+This is the build-command pattern used for Vercel deployments: deploy the Convex backend first, then run the Next.js production build.
 
 **Setup:**
 
@@ -190,7 +188,7 @@ This deploys the Convex backend first, then builds and deploys the Next.js front
 2. Set the following environment variables in Vercel project settings:
    - `CONVEX_DEPLOY_KEY` - get from Convex dashboard (Settings > Deploy keys)
    - `NEXT_PUBLIC_CONVEX_URL` - your production Convex URL (`https://<name>.convex.cloud`)
-   - `NEXT_PUBLIC_CONVEX_SITE_URL` - your production Convex site URL (`https://<name>.convex.site`)
+   - `NEXT_PUBLIC_GITHUB_REPO_URL` - optional, enables the OSS banner in production
    - Sentry variables if using error tracking (`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`)
 3. Set production secrets in the Convex dashboard (same keys as the env table above, with production values)
 4. Push to `main` - Vercel auto-deploys on every push
@@ -218,7 +216,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, tool-driven) --> reads c
 
 ### AI Coach
 
-The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with tool-driven capabilities that can:
+The coach uses `@convex-dev/agent` with Google Gemini models. In the current codebase the primary model is `gemini-3-flash-preview`, the fallback model is `gemini-2.5-flash`, and embeddings use the server-side Google AI key. Tool-driven capabilities include:
 
 - Read Tonal training history, strength scores, and workout data
 - Create and modify weekly workout plans with periodization
@@ -226,7 +224,7 @@ The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with tool-driven capabilit
 - Manage goals, injuries, and training preferences
 - Push approved workouts directly to Tonal
 
-**BYOK-aware:** The Gemini provider is resolved per request. New hosted users and self-hosters supply their own API key. Grandfathered beta users continue on the shared house key. If a BYOK user's key fails, the request errors with a clear message - it never silently falls back to the house key.
+**Shared key + BYOK:** The Gemini provider is resolved per request. The repo supports both a shared server-side key and encrypted per-user BYOK storage. Whether BYOK is required is controlled by deployment policy in [`convex/byok.ts`](./convex/byok.ts); failed BYOK requests error explicitly instead of silently falling back.
 
 ### Tonal API Integration
 
@@ -238,15 +236,17 @@ The coach uses Gemini 2.5 Pro via `@convex-dev/agent` with tool-driven capabilit
 
 ### Scheduled Jobs
 
-| Interval        | Job                                               |
-| --------------- | ------------------------------------------------- |
-| Every 15 min    | Recover stuck workout pushes                      |
-| Every 30 min    | Refresh Tonal tokens, refresh active user cache   |
-| Every 1 hour    | Activation checks                                 |
-| Every 6 hours   | Check-in evaluation (missed sessions, milestones) |
-| Daily 3 AM      | Sync movement catalog                             |
-| Weekly Sun 4 AM | Sync Tonal workout catalog                        |
-| Weekly Sun 5 AM | Data retention cleanup                            |
+| Schedule         | Job                                                        |
+| ---------------- | ---------------------------------------------------------- |
+| Every 15 minutes | Recover stuck workout pushes                               |
+| Every 15 minutes | Health check (expired tokens, stuck pushes, circuit state) |
+| Every 30 minutes | Refresh Tonal tokens                                       |
+| Every 30 minutes | Refresh active-user cache                                  |
+| Every 1 hour     | Activation checks                                          |
+| Every 6 hours    | Check-in evaluation (missed sessions, milestones)          |
+| Cron `0 3 * * *` | Sync movement catalog                                      |
+| Cron `0 4 * * 0` | Sync Tonal workout catalog                                 |
+| Cron `0 2 * * 0` | Data retention cleanup                                     |
 
 ## Support the project
 

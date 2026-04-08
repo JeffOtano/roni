@@ -1,5 +1,8 @@
 # Workout Library - Implementation Plan
 
+> [!NOTE]
+> Archived planning document written before the public workout library shipped. Parts of this doc describe work that now exists in code under `convex/libraryWorkouts.ts` and `src/app/workouts/`, so treat the codebase as the current source of truth.
+
 ## Context
 
 Build a public workout library at `/workouts` with ~500 programmatically generated Tonal workouts. Each workout gets an SEO-optimized page. Serves as both a content/SEO engine and a conversion funnel to the AI coach.

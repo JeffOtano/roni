@@ -1,5 +1,8 @@
 # iOS App - Implementation Plan
 
+> [!NOTE]
+> Archived proposal, not current repository state. There is no `ios/` directory in this repo today, and [CONTRIBUTING.md](../../CONTRIBUTING.md) is the current source of truth for what is in scope here.
+
 ## Overview
 
 Native SwiftUI app for tonal.coach sharing the existing Convex backend. Lives in `ios/` directory of the monorepo. Connects to the same Convex deployment via `convex-swift`.

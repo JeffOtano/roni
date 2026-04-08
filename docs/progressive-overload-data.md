@@ -10,12 +10,12 @@
 
 ## Set-level weight
 
-- **Today:** We derive sets and reps from `WorkoutActivityDetail.workoutSetActivity` (group by `movementId`). Average weight (lbs) is available only when we have per-movement volume (e.g. from `FormattedWorkoutSummary` when the API accepts `activityId` as `summaryId`).
+- **Current implementation:** We derive sets and reps from `WorkoutActivityDetail.workoutSetActivity` (group by `movementId`). Average weight (lbs) is available only when we have per-movement volume (for example from `FormattedWorkoutSummary` when the API accepts `activityId` as `summaryId`).
 - **If formatted summary is not available:** Document "Last time: 4×10" (sets×reps) and omit weight, or show weight as "—" until we have volume. Optional: cache `totalVolume` per movement per activity in Convex after each fetch (minimal schema: e.g. `exerciseHistoryCache` with `userId`, `activityId`, `movementId`, `totalVolume`, `totalReps`, `sessionDate`).
 
 ## API call volume and cost
 
-**Current behavior:** `getPerMovementHistory` (and thus `getLastTimeAndSuggested`) fetches the activity list, then for each activity calls `fetchWorkoutDetail` and optionally `fetchFormattedSummary`. With default `maxActivities: 20`, that’s **1 + 20 + up to 20 ≈ 41 Tonal API calls** per user per invocation. At scale this can hit rate limits and add latency.
+**Current implementation:** `getPerMovementHistory` (and thus `getLastTimeAndSuggested`) fetches the activity list, then for each activity calls `fetchWorkoutDetail` and optionally `fetchFormattedSummary`. With default `maxActivities: 20`, that’s an upper bound of **1 + 20 + up to 20 ≈ 41 Tonal fetches** per user per invocation on a cold cache. These calls go through the Tonal proxy/cache layer, so warm-cache behavior can be substantially cheaper.
 
 **Recommendations:** (1) Lower the default `maxActivities` (e.g. 10) if you don’t need 20 activities for "last time" display. (2) Add a Convex cache (e.g. `tonalCache` with `dataType: "perMovementHistory"` and TTL 1–6 hours) keyed by `userId`, and refresh on a schedule or when the user completes a workout. (3) Monitor Tonal proxy errors and latency so you can add caching or back off if needed.
 
