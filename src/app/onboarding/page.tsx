@@ -74,7 +74,7 @@ function pickInitialStepIndex(
 }
 
 function OnboardingFlow({
-  steps,
+  steps: initialSteps,
   hasTonalProfile,
   onboardingCompleted,
   needsByokStep,
@@ -86,6 +86,11 @@ function OnboardingFlow({
   readonly needsByokStep: boolean;
   readonly firstName: string | undefined;
 }) {
+  // Freeze steps at mount. Saving the Gemini key mid-flow invalidates the
+  // parent's byokStatus query, which would otherwise shrink steps from 4 to
+  // 3 on the very tick that advance() bumps stepIndex to 3, leaving the
+  // flow rendering BASE_STEPS[3] === undefined (blank screen).
+  const [steps] = useState<readonly StepDef[]>(() => initialSteps);
   const [stepIndex, setStepIndex] = useState<number>(() =>
     pickInitialStepIndex(steps, hasTonalProfile, onboardingCompleted, needsByokStep),
   );
