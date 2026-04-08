@@ -33,7 +33,6 @@ function mockSnapshot(
     recentWorkouts?: string[];
     missedSessions?: string[];
     strengthScores?: Record<string, number>;
-    coachingNotes?: string[];
     ownedAccessories?: string[];
     missingAccessories?: string[];
     savedPreferences?: { split: string; days: number; duration: number } | null;
@@ -58,11 +57,6 @@ function mockSnapshot(
       lines.push(`  Missing: ${overrides.missingAccessories.join(", ")}`);
       lines.push("  (Exercises requiring missing equipment are automatically excluded.)");
     }
-  }
-  if (overrides.coachingNotes?.length) {
-    lines.push("Coaching Notes (learned from past conversations):");
-    for (const note of overrides.coachingNotes) lines.push(`  [\u2713] ${note}`);
-    lines.push("  \u2192 Honor these preferences without asking.");
   }
   if (overrides.injuries?.length) {
     lines.push("Active Injuries/Limitations:");
@@ -289,20 +283,6 @@ const scenarios: EvalScenario[] = [
       patterns: [
         /run|cardio|miles|3 mi|28 min|152|heart rate|HR|get_muscle_readiness|get_workout_history|get_training/i,
       ],
-    },
-  },
-  {
-    name: "Honors avoidance",
-    description: "Respects coaching notes about exercise avoidances",
-    snapshot: mockSnapshot({
-      coachingNotes: [
-        "Avoidance: Does not like Bulgarian split squats (confirmed)",
-        "Prefers barbell movements over cable for legs",
-      ],
-    }),
-    userMessage: "Program my legs today. I have about 40 minutes.",
-    rubric: {
-      mustNotContain: ["bulgarian"],
     },
   },
 ];

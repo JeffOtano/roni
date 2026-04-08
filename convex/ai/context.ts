@@ -56,7 +56,6 @@ export async function buildTrainingSnapshot(
     activeGoals,
     activeInjuries,
     externalActivities,
-    coachingNotes,
     movementCatalog,
   ] = await Promise.all([
     ctx
@@ -89,9 +88,6 @@ export async function buildTrainingSnapshot(
         limit: 20,
       })
       .catch(() => [] as ExternalActivity[]),
-    ctx
-      .runQuery(internal.ai.memory.getNotesForUser, { userId: convexUserId, limit: 10 })
-      .catch(() => []),
     ctx.runQuery(internal.tonal.movementSync.getAllMovements).catch(() => [] as Movement[]),
   ]);
 
@@ -162,20 +158,6 @@ export async function buildTrainingSnapshot(
   // Priority 6.5: Exercise catalog grouped by accessory
   const catalogSection = buildExerciseCatalogSection(movementCatalog, owned);
   if (catalogSection) sections.push(catalogSection);
-
-  // Priority 2.5: Coaching notes (procedural memory — learned preferences)
-  const notes = coachingNotes as Doc<"coachingNotes">[];
-  if (notes.length > 0) {
-    const noteLines: string[] = [`Coaching Notes (learned from past conversations):`];
-    for (const note of notes) {
-      const confidence = note.confidence === "confirmed" ? "\u2713" : "?";
-      noteLines.push(`  [${confidence}] ${note.content}`);
-    }
-    noteLines.push(
-      `  \u2192 Honor these preferences without asking. They came from the user directly.`,
-    );
-    sections.push({ priority: 2.5, lines: noteLines });
-  }
 
   // Priority 3: Active injuries
   const injuries = activeInjuries as Doc<"injuries">[];

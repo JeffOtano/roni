@@ -19,7 +19,6 @@ type UserIndexedTable =
   | "trainingBlocks"
   | "goals"
   | "injuries"
-  | "coachingNotes"
   | "emailChangeRequests"
   | "completedWorkouts"
   | "strengthScoreSnapshots"
@@ -61,7 +60,6 @@ export const deleteAllUserData = internalMutation({
     await deleteByUserIndex(ctx, "trainingBlocks", userId);
     await deleteByUserIndex(ctx, "goals", userId);
     await deleteByUserIndex(ctx, "injuries", userId);
-    await deleteByUserIndex(ctx, "coachingNotes", userId);
     await deleteByUserIndex(ctx, "emailChangeRequests", userId);
     await deleteByUserIndex(ctx, "completedWorkouts", userId);
     await deleteByUserIndex(ctx, "strengthScoreSnapshots", userId);
