@@ -15,7 +15,13 @@ vi.mock("@convex-dev/agent/react", async () => {
 });
 
 vi.mock("next/image", () => ({
-  default: (props: ComponentPropsWithoutRef<"img">) => <img {...props} alt={props.alt ?? ""} />,
+  default: ({
+    alt,
+    unoptimized: _unoptimized,
+    ...props
+  }: ComponentPropsWithoutRef<"img"> & { unoptimized?: boolean }) => (
+    <img {...props} alt={alt ?? ""} />
+  ),
 }));
 
 vi.mock("@/components/chat/MarkdownContent", () => ({

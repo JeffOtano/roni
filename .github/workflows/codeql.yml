@@ -26,13 +26,22 @@ jobs:
         language:
           - javascript-typescript
     steps:
+      - name: Explain skipped CodeQL analysis
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS != 'true' }}
+        run: |
+          echo "Skipping CodeQL."
+          echo "Set ENABLE_GITHUB_SECURITY_SCANS=true and enable code scanning in repository settings to run this workflow."
+
       - uses: actions/checkout@v6
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS == 'true' }}
 
       - name: Initialize CodeQL
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS == 'true' }}
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: none
 
       - name: Perform CodeQL Analysis
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS == 'true' }}
         uses: github/codeql-action/analyze@v4

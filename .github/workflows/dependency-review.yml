@@ -13,9 +13,17 @@ jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
+      - name: Explain skipped dependency review
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS != 'true' }}
+        run: |
+          echo "Skipping dependency review."
+          echo "Set ENABLE_GITHUB_SECURITY_SCANS=true and enable Dependency Graph + GitHub Advanced Security to run this check."
+
       - uses: actions/checkout@v6
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS == 'true' }}
 
       - name: Dependency review
+        if: ${{ vars.ENABLE_GITHUB_SECURITY_SCANS == 'true' }}
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high

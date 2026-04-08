@@ -6,7 +6,13 @@ import type { PendingImage } from "@/hooks/useImageUpload";
 import { ImagePreviewRow } from "./ImagePreviewRow";
 
 vi.mock("next/image", () => ({
-  default: (props: ComponentPropsWithoutRef<"img">) => <img {...props} alt={props.alt ?? ""} />,
+  default: ({
+    alt,
+    unoptimized: _unoptimized,
+    ...props
+  }: ComponentPropsWithoutRef<"img"> & { unoptimized?: boolean }) => (
+    <img {...props} alt={alt ?? ""} />
+  ),
 }));
 
 function createPendingImage(name: string, previewUrl: string): PendingImage {
