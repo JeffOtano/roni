@@ -362,27 +362,6 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_status", ["userId", "status"]),
 
-  /** Procedural memory: coaching observations learned across conversations.
-   *  Examples: "user prefers data-driven feedback", "user dislikes Bulgarian split squats",
-   *  "user responds well to weekly recaps". Extracted by background process after conversations. */
-  coachingNotes: defineTable({
-    userId: v.id("users"),
-    content: v.string(),
-    category: v.union(
-      v.literal("preference"),
-      v.literal("avoidance"),
-      v.literal("response_style"),
-      v.literal("pattern"),
-      v.literal("insight"),
-    ),
-    confidence: v.union(v.literal("observed"), v.literal("confirmed")),
-    sourceThreadId: v.optional(v.string()),
-    createdAt: v.number(),
-    lastReferencedAt: v.optional(v.number()),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_category", ["userId", "category"]),
-
   /** Pending email change requests with verification codes. */
   emailChangeRequests: defineTable({
     userId: v.id("users"),
@@ -471,14 +450,6 @@ export default defineSchema({
   })
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId", ["userId"]),
-
-  /** Beta waitlist: email signups for when spots open. */
-  waitlist: defineTable({
-    email: v.string(),
-    firstName: v.string(),
-    lastName: v.string(),
-    createdAt: v.number(),
-  }).index("by_email", ["email"]),
 
   /** Pre-generated workout library entries for SEO and inspiration. */
   libraryWorkouts: defineTable({
