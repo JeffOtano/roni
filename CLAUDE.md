@@ -112,7 +112,7 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads cont
 - `onboarding/` -- connect/preferences flow with an optional Gemini key step when BYOK is required
 - `connect-tonal/` -- Tonal OAuth connection flow
 - `login/`, `reset-password/` -- Auth pages
-- `workouts/`, `features/`, `faq/`, `pricing/`, `how-it-works/`, `contact/`, `privacy/`, `terms/`, `waitlist/` -- Public marketing and library routes
+- `workouts/`, `features/`, `faq/`, `pricing/`, `how-it-works/`, `contact/`, `privacy/`, `terms/` -- Public marketing and library routes
 
 ### Rate Limiting
 

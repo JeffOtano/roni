@@ -14,7 +14,7 @@ export function WorkoutCtaBanner({ slug }: { readonly slug: string }) {
         strength scores, swaps exercises around injuries, and progresses you week over week.
       </p>
       <Link
-        href="/waitlist"
+        href="/login"
         className="inline-block rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground hover:bg-primary/90"
         onClick={() => track("workout_cta_clicked", { slug })}
       >
