@@ -15,11 +15,9 @@ export { getRecencyLabel } from "./timeDecay";
 import { getRecencyLabel } from "./timeDecay";
 import {
   buildExerciseCatalogSection,
-  buildHealthSection,
   computeAge,
   formatExternalActivityLine,
   getHrIntensityLabel,
-  type HealthSnapshotData,
   SNAPSHOT_MAX_CHARS,
   type SnapshotSection,
   trimSnapshot,
@@ -32,8 +30,6 @@ export {
   getHrIntensityLabel,
   formatExternalActivityLine,
   buildExerciseCatalogSection,
-  buildHealthSection,
-  type HealthSnapshotData,
 };
 
 export async function buildTrainingSnapshot(
@@ -50,7 +46,7 @@ export async function buildTrainingSnapshot(
     return "No Tonal profile linked yet. Ask the user to connect their Tonal account.";
   }
 
-  // Parallel fetch: Tonal data + coaching data + movement catalog + health
+  // Parallel fetch: Tonal data + coaching data + movement catalog
   const [
     scores,
     readiness,
@@ -62,7 +58,6 @@ export async function buildTrainingSnapshot(
     externalActivities,
     coachingNotes,
     movementCatalog,
-    healthSnapshots,
   ] = await Promise.all([
     ctx
       .runAction(internal.tonal.proxy.fetchStrengthScores, {
@@ -98,9 +93,6 @@ export async function buildTrainingSnapshot(
       .runQuery(internal.ai.memory.getNotesForUser, { userId: convexUserId, limit: 10 })
       .catch(() => []),
     ctx.runQuery(internal.tonal.movementSync.getAllMovements).catch(() => [] as Movement[]),
-    ctx
-      .runQuery(internal.health.getRecentSnapshots, { userId: convexUserId, days: 7 })
-      .catch(() => []),
   ]);
 
   const pd = profile.profileData;
@@ -269,10 +261,6 @@ export async function buildTrainingSnapshot(
       .join(", ");
     sections.push({ priority: 8, lines: [`Muscle Readiness (0-100): ${readyParts}`] });
   }
-
-  // Priority 8.5: Health & Recovery (Apple Health data)
-  const healthSection = buildHealthSection(healthSnapshots as HealthSnapshotData[], new Date());
-  if (healthSection) sections.push(healthSection);
 
   // Priority 9: Recent workouts (time-decay: recent = more detail)
   if ((activities as Activity[]).length > 0) {
