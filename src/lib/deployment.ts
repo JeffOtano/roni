@@ -1,6 +1,6 @@
 type OptionalString = string | undefined;
 
-export type SentryRuntimeConfig = {
+type SentryRuntimeConfig = {
   dsn: string;
   tracesSampleRate: number;
   replaysOnErrorSampleRate: number;

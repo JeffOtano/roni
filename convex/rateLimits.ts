@@ -4,6 +4,15 @@ import { components } from "./_generated/api";
 /** Daily message cap per user. Easy to adjust per tier later. */
 export const DAILY_MESSAGE_LIMIT = 30;
 
+/**
+ * Global cap on new account creation to blunt automated signup abuse. Well
+ * above any realistic organic signup rate for a personal-scale hosted
+ * instance and still blocks bulk bot floods.
+ */
+export const NEW_SIGNUP_RATE_PER_HOUR = 20;
+export const NEW_SIGNUP_BURST_CAPACITY = 5;
+const NEW_SIGNUP_PERIOD = 60 * MINUTE;
+
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
   sendMessage: {
     kind: "token bucket",
@@ -70,15 +79,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
-  /**
-   * Global cap on new account creation to blunt automated signup abuse.
-   * 20/hour is well above any realistic organic signup rate for a
-   * personal-scale hosted instance and still blocks bulk bot floods.
-   */
   newSignup: {
     kind: "token bucket",
-    rate: 20,
-    period: 60 * MINUTE,
-    capacity: 5,
+    rate: NEW_SIGNUP_RATE_PER_HOUR,
+    period: NEW_SIGNUP_PERIOD,
+    capacity: NEW_SIGNUP_BURST_CAPACITY,
   },
 });

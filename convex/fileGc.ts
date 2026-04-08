@@ -19,6 +19,17 @@ import type { Id } from "./_generated/dataModel";
 const PAGE_SIZE = 100;
 const MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
+// Convex storage IDs are opaque base32-ish tokens starting with "kg" and
+// have a bounded length. Validating the shape lets us drop the `as`
+// cast at the agent-component boundary (where storageId is typed `string`)
+// without a full Zod dependency for a single field.
+const STORAGE_ID_PATTERN = /^[a-z0-9]{20,}$/;
+
+function asStorageId(value: string): Id<"_storage"> | null {
+  if (!STORAGE_ID_PATTERN.test(value)) return null;
+  return value as Id<"_storage">;
+}
+
 export const vacuumUnusedFiles = internalAction({
   args: {},
   handler: async (ctx) => {
@@ -32,24 +43,32 @@ export const vacuumUnusedFiles = internalAction({
       return { scanned: page.page.length, deleted: 0 };
     }
 
-    // Delete the underlying Convex storage objects first. If the deleteFiles
-    // mutation below succeeds but a storage delete failed, the file row is
-    // gone so we'd lose the reference - unrecoverable. Opposite order lets
-    // a stale file row get retried on the next run.
-    let storageDeleted = 0;
+    // Delete underlying Convex storage objects first, then remove the
+    // agent's tracking rows ONLY for files whose storage delete succeeded.
+    // If we deleted the tracking rows for failed storage deletes too, the
+    // orphaned bytes would become unreachable on the next run (no row
+    // means nothing to retry), stranding storage forever.
+    const succeededFileIds: string[] = [];
     for (const file of oldEnough) {
+      const storageId = asStorageId(file.storageId);
+      if (storageId === null) {
+        console.error(`fileGc: malformed storageId ${file.storageId}, skipping`);
+        continue;
+      }
       try {
-        await ctx.storage.delete(file.storageId as Id<"_storage">);
-        storageDeleted++;
+        await ctx.storage.delete(storageId);
+        succeededFileIds.push(file._id);
       } catch (err) {
         console.error(`fileGc: failed to delete storage ${file.storageId}:`, err);
       }
     }
 
-    await ctx.runMutation(components.agent.files.deleteFiles, {
-      fileIds: oldEnough.map((file) => file._id),
-    });
+    if (succeededFileIds.length > 0) {
+      await ctx.runMutation(components.agent.files.deleteFiles, {
+        fileIds: succeededFileIds,
+      });
+    }
 
-    return { scanned: page.page.length, deleted: storageDeleted };
+    return { scanned: page.page.length, deleted: succeededFileIds.length };
   },
 });
