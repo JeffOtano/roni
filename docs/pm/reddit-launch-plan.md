@@ -1,5 +1,8 @@
 # tonal.coach — Reddit Launch: Product Plan
 
+> [!NOTE]
+> Historical product-planning document dated March 14, 2026. Sections such as "What We Have Today" describe the product at that planning moment, not the current repo state.
+
 **Author:** Jeff Otano
 **Date:** March 14, 2026
 **Goal:** Ship the features required to make the r/tonal Reddit launch post land. Transform from "AI chatbot for Tonal" to "AI personal trainer that programs your week."

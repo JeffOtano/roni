@@ -11,7 +11,7 @@
 
 ## How the metric is computed
 
-1. **Eligible users:** Profiles with Tonal connected and no `firstAiWorkoutCompletedAt`.
+1. **Eligible users:** Profiles with no `firstAiWorkoutCompletedAt`. In practice, `userProfiles` are created when Tonal is connected, so this is the connected-user cohort.
 2. **Pushed AI workouts:** For each user, we take `workoutPlans` with `userId`, `status === "pushed"`, and `source === "tonal_coach"` (or undefined for backward compatibility), and collect their `tonalWorkoutId`s.
 3. **Tonal activities:** We fetch the user’s workout history via the existing Tonal proxy (`fetchWorkoutHistory`). We find activities whose `workoutPreview.workoutId` is in our set of pushed IDs.
 4. **First completion:** The earliest such activity’s `activityTime` is written to `userProfiles.firstAiWorkoutCompletedAt` (only if that field is not already set).
@@ -32,13 +32,13 @@ A Convex cron (`check-activation`) runs hourly and calls `activation.runActivati
 
 ## Querying 72h activation rate
 
-Use the Convex query `activation.getActivationRate72h` to compute activation rate for a cohort.
+Use the internal Convex query `internal.activation.getActivationRate72h` to compute activation rate for a cohort.
 
-- **Function:** `activation.getActivationRate72h`
+- **Function:** `internal.activation.getActivationRate72h`
 - **Args:** `{ days: number }` — cohort = signups in the last `days` days (profiles with `tonalConnectedAt >= now - days * 24h`).
 - **Returns:** `{ total, activated, rate }` where `activated` = users in the cohort who have `firstAiWorkoutCompletedAt` set and `(firstAiWorkoutCompletedAt - tonalConnectedAt) <= 72 * 3600 * 1000` ms; `rate = total > 0 ? activated / total : 0`.
 
-**How to run:** In the Convex dashboard, open your project → Functions → `activation.getActivationRate72h`, set `days` (e.g. `7` or `14`), and run. Or call from app code: `useQuery(api.activation.getActivationRate72h, { days: 7 })`.
+**How to run:** In the Convex dashboard, open your project, run the internal function `activation:getActivationRate72h`, set `days` (for example `7` or `14`), and inspect the result. This function is internal-only, so it is not callable from client app code via `api.activation`.
 
 Target: 40%+ rate. Minimum sample 50 signups before treating the rate as meaningful.
 
