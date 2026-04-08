@@ -472,56 +472,6 @@ export default defineSchema({
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId", ["userId"]),
 
-  /** Daily health snapshots synced from Apple Health (via iOS app). */
-  healthSnapshots: defineTable({
-    userId: v.id("users"),
-    date: v.string(),
-    syncedAt: v.number(),
-
-    // Sleep
-    sleepDurationMinutes: v.optional(v.number()),
-    sleepDeepMinutes: v.optional(v.number()),
-    sleepRemMinutes: v.optional(v.number()),
-    sleepCoreMinutes: v.optional(v.number()),
-    sleepAwakeMinutes: v.optional(v.number()),
-    sleepStartTime: v.optional(v.string()),
-    sleepEndTime: v.optional(v.string()),
-
-    // Heart & Recovery
-    restingHeartRate: v.optional(v.number()),
-    hrvSDNN: v.optional(v.number()),
-    vo2Max: v.optional(v.number()),
-    heartRateRecovery: v.optional(v.number()),
-    oxygenSaturation: v.optional(v.number()),
-
-    // Activity
-    steps: v.optional(v.number()),
-    activeEnergyBurned: v.optional(v.number()),
-    exerciseMinutes: v.optional(v.number()),
-    standHours: v.optional(v.number()),
-    flightsClimbed: v.optional(v.number()),
-
-    // Body
-    bodyMass: v.optional(v.number()),
-    bodyFatPercentage: v.optional(v.number()),
-    leanBodyMass: v.optional(v.number()),
-
-    // Nutrition
-    dietaryCalories: v.optional(v.number()),
-    dietaryProteinGrams: v.optional(v.number()),
-
-    // Respiratory
-    respiratoryRate: v.optional(v.number()),
-
-    // Effort
-    workoutEffortScore: v.optional(v.number()),
-
-    // Coach
-    coachInsight: v.optional(v.string()),
-  })
-    .index("by_userId_date", ["userId", "date"])
-    .index("by_userId", ["userId"]),
-
   /** Beta waitlist: email signups for when spots open. */
   waitlist: defineTable({
     email: v.string(),
@@ -588,16 +538,4 @@ export default defineSchema({
     circuitOpenedAt: v.optional(v.number()),
     lastSuccessAt: v.optional(v.number()),
   }).index("by_service", ["service"]),
-
-  /** Device push tokens for APNs (iOS app). */
-  pushTokens: defineTable({
-    userId: v.id("users"),
-    token: v.string(),
-    platform: v.literal("ios"),
-    deviceName: v.optional(v.string()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_and_platform", ["userId", "platform"]),
 });
