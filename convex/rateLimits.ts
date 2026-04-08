@@ -70,4 +70,15 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
+  /**
+   * Global cap on new account creation to blunt automated signup abuse.
+   * 20/hour is well above any realistic organic signup rate for a
+   * personal-scale hosted instance and still blocks bulk bot floods.
+   */
+  newSignup: {
+    kind: "token bucket",
+    rate: 20,
+    period: 60 * MINUTE,
+    capacity: 5,
+  },
 });
