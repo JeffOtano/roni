@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](tsconfig.json)
 [![Vitest](https://img.shields.io/badge/tests-Vitest-6E9F18.svg)](#testing)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/JeffOtano/tonal-coach?utm_source=oss&utm_medium=github&utm_campaign=JeffOtano%2Ftonal-coach&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 > [!IMPORTANT]
 > **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
