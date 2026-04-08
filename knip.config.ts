@@ -9,9 +9,6 @@ const config: KnipConfig = {
     "shadcn", // CLI tool for adding components
     "tailwindcss", // used via @tailwindcss/postcss
     "postcss", // used via postcss.config.mjs (Knip can't trace)
-    // TODO: remove these unused deps from package.json
-    "@ai-sdk/anthropic",
-    "@ai-sdk/openai",
   ],
 };
 
