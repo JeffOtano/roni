@@ -363,21 +363,6 @@ export function sortForMinimalEquipmentSwitches(
   });
 }
 
-/**
- * @deprecated Use sortForMinimalEquipmentSwitches instead. Kept for backward compatibility.
- */
-export function sortForMinimalArmAdjustments(
-  movementIds: string[],
-  catalog: {
-    id: string;
-    name: string;
-    muscleGroups: string[];
-    onMachineInfo?: { accessory: string };
-  }[],
-): string[] {
-  return sortForMinimalEquipmentSwitches(movementIds, catalog);
-}
-
 export function formatSessionTitle(
   sessionType: SessionType,
   _weekStartDate: string,

@@ -4,7 +4,6 @@ import {
   formatSessionTitle,
   inferArmPosition,
   type SessionType,
-  sortForMinimalArmAdjustments,
   sortForMinimalEquipmentSwitches,
 } from "./weekProgrammingHelpers";
 
@@ -195,23 +194,6 @@ describe("sortForMinimalEquipmentSwitches", () => {
 
   it("handles empty input", () => {
     expect(sortForMinimalEquipmentSwitches([], catalogWithAccessories)).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// sortForMinimalArmAdjustments (deprecated — delegates to new function)
-// ---------------------------------------------------------------------------
-
-describe("sortForMinimalArmAdjustments (backward compatibility)", () => {
-  it("delegates to sortForMinimalEquipmentSwitches", () => {
-    const input = ["curl", "bench", "fly"];
-    const newResult = sortForMinimalEquipmentSwitches(input, catalogWithAccessories);
-    const oldResult = sortForMinimalArmAdjustments(input, catalogWithAccessories);
-    expect(oldResult).toEqual(newResult);
-  });
-
-  it("handles empty input", () => {
-    expect(sortForMinimalArmAdjustments([], catalogWithAccessories)).toEqual([]);
   });
 });
 
