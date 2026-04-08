@@ -4,13 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach (Gemini) reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes completed workouts directly to Tonal. There is also a native iOS app with Apple HealthKit integration.
+Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach (Gemini) reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes completed workouts directly to Tonal.
 
 ## Stack
 
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui (Base UI)
 - **Backend:** Convex (queries, mutations, actions), @convex-dev/agent for AI coach
-- **iOS:** Swift (Xcode), Convex Swift SDK, HealthKit
 - **Language:** TypeScript (strict mode), Zod for runtime validation
 - **Testing:** Vitest, @vitest/coverage-v8
 - **Formatting:** Prettier (auto-enforced via pre-commit hooks)
@@ -66,7 +65,6 @@ npx convex deploy              # Deploy to production
 ```
 Tonal API --> [encrypted tokens] --> Convex proxy/cache layer --> Convex DB
                                                                      |
-Apple HealthKit --> iOS app --> health.syncSnapshot mutation -------->|
                                                                      v
 User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads context
                                                                      |
@@ -106,17 +104,6 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 33 tools) --> reads cont
 - Daily 3 AM: sync movement catalog
 - Weekly Sunday 4 AM: sync Tonal workout catalog
 
-### iOS App (`ios/TonalCoach/`)
-
-Native Swift app sharing the same Convex backend. Key modules:
-
-- `Auth/` -- Convex session management, password auth
-- `Chat/` -- Real-time AI chat with tool approval cards
-- `Health/` -- HealthKit integration (sleep, HRV, steps, weight) synced daily via `health.syncSnapshot`
-- `Tonal/` -- Dashboard cards (strength scores, training load, muscle readiness)
-- `Schedule/` -- Weekly plan display
-- `Shared/Theme.swift` -- Centralized colors, `AnimationConstants.swift` for animation presets
-
 ### Frontend Routes (`src/app/`)
 
 - `(app)/` -- Authenticated area: dashboard, chat, schedule, stats, progress, profile, settings
@@ -129,7 +116,6 @@ Native Swift app sharing the same Convex backend. Key modules:
 Uses `@convex-dev/rate-limiter`. Key limits defined in `convex/rateLimits.ts`:
 
 - `sendMessage` -- burst + daily cap per user
-- `syncHealthSnapshot` -- per-user sync rate
 - `mcpRequest` -- per-user MCP API calls
 
 ## Priority Hierarchy
