@@ -5,12 +5,15 @@ import Link from "next/link";
 import { useAction } from "convex/react";
 import { Check, MessageSquare } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { isContactFormEnabled } from "@/lib/deployment";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { SiteNav } from "../_components/SiteNav";
 import { SiteFooter } from "../_components/SiteFooter";
 
 export default function ContactPage() {
+  const contactFormEnabled = isContactFormEnabled(process.env.NEXT_PUBLIC_CONTACT_FORM_ENABLED);
   const sendMessage = useAction(api.contact.send);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -72,7 +75,7 @@ export default function ContactPage() {
                 &larr; Back to home
               </Link>
             </div>
-          ) : (
+          ) : contactFormEnabled ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex gap-3">
                 <div className="flex-1">
@@ -140,6 +143,34 @@ export default function ContactPage() {
                 {status === "submitting" ? "Sending..." : "Send Message"}
               </Button>
             </form>
+          ) : (
+            <div className="rounded-xl bg-card p-8 ring-1 ring-border">
+              <p className="text-base font-medium text-foreground">
+                This deployment does not accept contact form submissions.
+              </p>
+              <p className="mt-3 text-muted-foreground">
+                Use the support docs for self-hosting help, or open a GitHub issue for bugs and
+                feature requests.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a
+                  href="https://github.com/JeffOtano/tonal-coach/blob/main/SUPPORT.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ size: "lg" }))}
+                >
+                  Support docs
+                </a>
+                <a
+                  href="https://github.com/JeffOtano/tonal-coach/issues"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+                >
+                  GitHub issues
+                </a>
+              </div>
+            </div>
           )}
         </div>
       </main>

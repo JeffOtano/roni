@@ -94,6 +94,8 @@ npm run dev
 
 `npx convex dev` and `npm run dev` need to run concurrently in separate terminals.
 
+By default, self-hosted deployments start with analytics, Sentry, and the public contact form disabled. Those integrations are opt-in and can be enabled later with the optional environment variables below.
+
 ## Environment Variables
 
 ### Convex backend - set via `npx convex env set KEY value`
@@ -103,15 +105,38 @@ npm run dev
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used for the shared Gemini key and embeddings |
 | `AUTH_RESEND_KEY`              | Optional Resend API key (`re_...`). Sends password-reset OTP emails     |
 | `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens and BYOK Gemini keys    |
+| `DISCORD_CONTACT_WEBHOOK`      | Optional Discord webhook for the public `/contact` form                 |
+| `DISCORD_WEBHOOK_URL`          | Optional Discord webhook for operator notifications                     |
+| `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side analytics                |
+| `BYOK_DISABLED`                | Optional kill switch that forces all users onto the shared Gemini key   |
+| `TOKEN_ENCRYPTION_KEY_OLD`     | Optional old key used only during encryption-key rotation               |
 | `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                        |
 
 ### Next.js - set in `.env.local`
 
-| Variable                      | Description                                                                  |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `CONVEX_DEPLOYMENT`           | Written automatically by `npx convex dev`. Do not edit                       |
-| `NEXT_PUBLIC_CONVEX_URL`      | Convex deployment URL (`https://<name>.convex.cloud`). Written automatically |
-| `NEXT_PUBLIC_GITHUB_REPO_URL` | Optional public GitHub repo URL. Enables the OSS banner                      |
+| Variable                                          | Description                                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `CONVEX_DEPLOYMENT`                               | Written automatically by `npx convex dev`. Do not edit                       |
+| `NEXT_PUBLIC_CONVEX_URL`                          | Convex deployment URL (`https://<name>.convex.cloud`). Written automatically |
+| `NEXT_PUBLIC_GITHUB_REPO_URL`                     | Optional public GitHub repo URL. Enables the OSS banner                      |
+| `NEXT_PUBLIC_CONTACT_FORM_ENABLED`                | Optional `true` flag that enables the public `/contact` form UI              |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`               | Optional PostHog token for browser analytics                                 |
+| `NEXT_PUBLIC_POSTHOG_HOST`                        | Optional PostHog host. Defaults to `/ingest`                                 |
+| `NEXT_PUBLIC_SENTRY_DSN`                          | Optional Sentry DSN. Browser/server error reporting is off unless set        |
+| `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`           | Optional trace sample rate from `0` to `1`                                   |
+| `NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE`  | Optional session replay sample rate from `0` to `1`                          |
+| `NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE` | Optional replay-on-error sample rate from `0` to `1`                         |
+
+### Build-time deployment variables
+
+These are only needed if you want Sentry source-map uploads during production builds.
+
+| Variable                    | Description                                            |
+| --------------------------- | ------------------------------------------------------ |
+| `SENTRY_AUTH_TOKEN`         | Sentry auth token used by the Next.js build plugin     |
+| `SENTRY_ORG`                | Sentry organization slug                               |
+| `SENTRY_PROJECT`            | Sentry project slug                                    |
+| `SENTRY_TRACES_SAMPLE_RATE` | Optional server/edge trace sample rate from `0` to `1` |
 
 ## Project Structure
 
@@ -188,7 +213,9 @@ This is the build-command pattern used for Vercel deployments: deploy the Convex
    - `CONVEX_DEPLOY_KEY` - get from Convex dashboard (Settings > Deploy keys)
    - `NEXT_PUBLIC_CONVEX_URL` - your production Convex URL (`https://<name>.convex.cloud`)
    - `NEXT_PUBLIC_GITHUB_REPO_URL` - optional, enables the OSS banner in production
-   - Sentry variables if using error tracking (`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`)
+   - `NEXT_PUBLIC_CONTACT_FORM_ENABLED` - optional, set to `true` only if `DISCORD_CONTACT_WEBHOOK` is configured
+   - PostHog variables if using analytics (`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST`)
+   - Sentry variables if using error tracking (`NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`)
 3. Set production secrets in the Convex dashboard (same keys as the env table above, with production values)
 4. Push to `main` - Vercel auto-deploys on every push
 
