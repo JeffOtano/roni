@@ -13,13 +13,13 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         q: "What is tonal.coach?",
         aText:
-          "tonal.coach is a free (beta) AI personal trainer that connects to your Tonal home gym. It reads your workout history and programs custom workouts that get pushed directly to your machine. Think of it as having a personal trainer who actually knows your training data — your actual lifts, your strength trends, your recovery.",
+          "tonal.coach is a free, open-source AI personal trainer that connects to your Tonal home gym. It reads your workout history and programs custom workouts that get pushed directly to your machine. Think of it as having a personal trainer who actually knows your training data - your actual lifts, your strength trends, your recovery.",
         a: (
           <>
-            tonal.coach is a free (beta) AI personal trainer that connects to your Tonal home gym.
-            It reads your workout history and programs custom workouts that get pushed directly to
-            your machine. Think of it as having a personal trainer who actually knows your training
-            data — your actual lifts, your strength trends, your recovery.
+            tonal.coach is a free, open-source AI personal trainer that connects to your Tonal home
+            gym. It reads your workout history and programs custom workouts that get pushed directly
+            to your machine. Think of it as having a personal trainer who actually knows your
+            training data - your actual lifts, your strength trends, your recovery.
           </>
         ),
       },
@@ -172,46 +172,68 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     ],
   },
   {
-    heading: "Pricing",
+    heading: "Pricing & Open Source",
     items: [
       {
         q: "Is tonal.coach free?",
         aText:
-          "Yes, tonal.coach is completely free during the beta period. No credit card is required to sign up. All features are available to all beta users with no limits or hidden tiers.",
+          "Yes, tonal.coach is completely free and open source. No credit card is required. All features are available to all users with no limits or hidden tiers. You bring your own Google Gemini API key (free from Google AI Studio) so the AI runs on your quota, not ours.",
         a: (
           <>
-            Yes, tonal.coach is completely free during the beta period. No credit card is required
-            to sign up. All features are available to all beta users with no limits or hidden tiers.
+            Yes, tonal.coach is completely free and open source. No credit card is required. All
+            features are available to all users with no limits or hidden tiers. You bring your own{" "}
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              Google Gemini API key
+            </a>{" "}
+            (free from Google AI Studio) so the AI runs on your quota, not ours.
           </>
         ),
       },
       {
-        q: "Will it always be free?",
+        q: "Why do I need a Gemini API key?",
         aText:
-          "Not forever. Every workout your coach programs uses AI that costs real money to run. During beta, that's on us. After beta, there will be a small monthly fee to help cover those costs — the goal is to keep it as affordable as possible. No investors, no ads, no data selling. Just a community tool built by a Tonal owner for Tonal owners.",
+          "Running AI models costs real money per request. Instead of charging a subscription to cover those costs, tonal.coach asks you to paste your own Google Gemini API key during onboarding. The key stays encrypted in our database and is only used to power your coaching sessions. Gemini keys are free from Google AI Studio and the free tier is generous enough for normal use.",
         a: (
           <>
-            Not forever. Every workout your coach programs uses AI that costs real money to run.
-            During beta, that&apos;s on us. After beta, there will be a small monthly fee to help
-            cover those costs &mdash; the goal is to keep it as affordable as possible. No
-            investors, no ads, no data selling. Just a community tool built by a Tonal owner for
-            Tonal owners.{" "}
-            <Link href="/pricing" className="text-primary underline underline-offset-2">
-              The pricing page has more details
-            </Link>
-            .
+            Running AI models costs real money per request. Instead of charging a subscription to
+            cover those costs, tonal.coach asks you to paste your own Google Gemini API key during
+            onboarding. The key stays encrypted in our database and is only used to power your
+            coaching sessions.{" "}
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              Gemini keys are free from Google AI Studio
+            </a>{" "}
+            and the free tier is generous enough for normal use.
           </>
         ),
       },
       {
-        q: "What happens when it's no longer free?",
+        q: "Can I self-host tonal.coach?",
         aText:
-          "Beta users will be notified well in advance before any pricing changes take effect. You will never be charged without explicit opt-in. You can always export or permanently delete your data, regardless of subscription status.",
+          "Yes. tonal.coach is open source under the MIT license. You can clone the repository, deploy it to your own Convex + Vercel setup, and run everything under your control. The README has step-by-step instructions for getting a local or self-hosted deployment running.",
         a: (
           <>
-            Beta users will be notified well in advance before any pricing changes take effect. You
-            will never be charged without explicit opt-in. You can always export or permanently
-            delete your data, regardless of subscription status.
+            Yes. tonal.coach is open source under the MIT license. You can clone the{" "}
+            <a
+              href="https://github.com/JeffOtano/tonal-coach"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              GitHub repository
+            </a>
+            , deploy it to your own Convex + Vercel setup, and run everything under your control.
+            The README has step-by-step instructions for getting a local or self-hosted deployment
+            running.
           </>
         ),
       },

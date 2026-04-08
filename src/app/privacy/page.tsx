@@ -70,7 +70,6 @@ export default function PrivacyPage() {
             <li>Chat conversations with the AI coach</li>
             <li>Workout feedback ratings (RPE, session ratings)</li>
             <li>Injury records you report</li>
-            <li>Progress photos (if you upload them, encrypted at rest)</li>
             <li>Cached Tonal data (strength scores, workout history) with automatic expiration</li>
           </ul>
         </section>
@@ -90,20 +89,11 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2 className="mb-2 text-base font-semibold text-foreground">Progress photos</h2>
-          <p>
-            Photos you upload are stored securely and accessible only to you. They are not used to
-            train AI models. You can delete individual photos or all photos at any time. If you
-            disable photo analysis in Settings, the AI will not analyze your photos.
-          </p>
-        </section>
-
-        <section>
           <h2 className="mb-2 text-base font-semibold text-foreground">Data deletion</h2>
           <p>
             You can disconnect your Tonal account and delete your tonal.coach account at any time.
-            All associated data (conversations, feedback, goals, injuries, cached data, and progress
-            photos) is permanently deleted with no retention period.
+            All associated data (conversations, feedback, goals, injuries, and cached data) is
+            permanently deleted with no retention period.
           </p>
         </section>
 

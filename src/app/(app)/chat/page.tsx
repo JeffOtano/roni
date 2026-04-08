@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { ChatThread } from "@/components/chat/ChatThread";
 import { Button } from "@/components/ui/button";
 import { ImagePreviewRow } from "@/components/chat/ImagePreviewRow";
@@ -47,7 +48,7 @@ function ChatPageInner() {
   const { track } = useAnalytics();
 
   // Wrap sendMessage to track loading state
-  const sendAndWait = async (args: { prompt: string }) => {
+  const sendAndWait = async (args: { prompt: string; imageStorageIds?: Id<"_storage">[] }) => {
     setWaitingForCoach(true);
     try {
       return await sendMessage(args);
@@ -149,7 +150,10 @@ function ChatPageInner() {
 function WelcomeInput({
   sendMessage,
 }: {
-  sendMessage: (args: { prompt: string }) => Promise<{ threadId: string }>;
+  sendMessage: (args: {
+    prompt: string;
+    imageStorageIds?: Id<"_storage">[];
+  }) => Promise<{ threadId: string }>;
 }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -179,17 +183,21 @@ function WelcomeInput({
     const imageCount = pendingImages.length;
 
     try {
-      // Upload images first if any are attached
+      let imageStorageIds: Id<"_storage">[] | undefined;
       if (imageCount > 0) {
-        await uploadAll(async () => {
+        const ids = await uploadAll(async () => {
           const { uploadUrl } = await generateUploadUrl();
           return uploadUrl;
         });
+        // Convex upload endpoint returns branded Id<"_storage"> values at runtime
+        imageStorageIds = ids as Id<"_storage">[];
         clearAll();
       }
 
-      // TODO: pass imageStorageIds once the sendMessage action supports them
-      await sendMessage({ prompt: trimmed || "What do you see in these images?" });
+      await sendMessage({
+        prompt: trimmed || "What do you see in these images?",
+        ...(imageStorageIds && imageStorageIds.length > 0 && { imageStorageIds }),
+      });
       track("message_sent", {
         message_length: trimmed.length,
         has_images: imageCount > 0,

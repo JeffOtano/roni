@@ -4,20 +4,11 @@ import Link from "next/link";
 import { useConvexAuth } from "convex/react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useBetaFull } from "./BetaCounter";
 
-/**
- * Auth-aware CTA button. Shows "Get Started" / "Sign In" for guests,
- * "Go to Chat" for authenticated users, or "Join Waitlist" when beta is full.
- *
- * Kept as a thin client island so the landing page can be a server component.
- */
 export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const betaFull = useBetaFull();
 
-  const showWaitlist = !isAuthenticated && betaFull === true;
-  const href = isAuthenticated ? "/chat" : showWaitlist ? "/waitlist" : "/login";
+  const href = isAuthenticated ? "/chat" : "/login";
 
   if (variant === "nav") {
     return (
@@ -25,12 +16,12 @@ export function AuthCta({ variant }: { variant: "hero" | "bottom" | "nav" }) {
         href={href}
         className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-300 hover:text-foreground"
       >
-        {isAuthenticated ? "Go to Chat" : showWaitlist ? "Join Waitlist" : "Sign In"}
+        {isAuthenticated ? "Go to Chat" : "Sign In"}
       </Link>
     );
   }
 
-  const label = isAuthenticated ? "Go to Chat" : showWaitlist ? "Join Waitlist" : "Get Started";
+  const label = isAuthenticated ? "Go to Chat" : "Get Started";
 
   if (variant === "hero") {
     return (

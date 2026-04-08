@@ -112,8 +112,6 @@ npm run dev
 | `NEXT_PUBLIC_CONVEX_URL`      | Convex deployment URL (`https://<name>.convex.cloud`). Written automatically |
 | `NEXT_PUBLIC_GITHUB_REPO_URL` | Optional public GitHub repo URL. Enables the OSS banner                      |
 
-`.env.example` also includes `NEXT_PUBLIC_CONVEX_SITE_URL`, but the current Next.js app does not read that variable.
-
 ## Project Structure
 
 ```

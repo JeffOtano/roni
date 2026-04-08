@@ -214,7 +214,7 @@ export default function StatsPage() {
           href="/progress"
           className="rounded-xl bg-muted/50 px-4 py-3 text-xs text-muted-foreground ring-1 ring-border transition-all hover:bg-muted/80 hover:text-foreground"
         >
-          Progress photos &rarr;
+          Progress overview &rarr;
         </Link>
         <Link
           href={`/chat?prompt=${encodeURIComponent("Analyze my training over the last month")}`}
