@@ -1,0 +1,20 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives in the tonal-coach repo"
+paths = [
+  # BYOK test fixtures. These strings look like real Gemini API keys because
+  # the tests exercise the format validator in convex/byok.ts, so they have
+  # to match /^AIza[A-Za-z0-9_-]{35}$/. They are alphabet-sequence fakes.
+  '''convex/byok\.test\.ts''',
+
+  # Tonal mobile app's Auth0 client ID. Client IDs are public identifiers by
+  # design and are exposed in every published Auth0 client application. This
+  # is the real value and is required for the Tonal integration to work.
+  '''convex/tonal/auth\.ts''',
+
+  # OpenAPI documentation example JWT. Already expired (exp: 2026-03-15) and
+  # serves only as a sample payload in the /v6/auth endpoint response schema.
+  '''docs/tonal-api\.yaml''',
+]
