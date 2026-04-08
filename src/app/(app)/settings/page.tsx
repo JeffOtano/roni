@@ -22,7 +22,6 @@ import { CheckInPreferences } from "@/components/settings/CheckInPreferences";
 import { ChangePassword } from "@/components/settings/ChangePassword";
 import { EmailChange } from "@/components/settings/EmailChange";
 import { EquipmentSettings } from "@/components/settings/EquipmentSettings";
-import { PhotoAnalysisToggle } from "@/components/settings/PhotoAnalysisToggle";
 import { DataExport } from "@/components/settings/DataExport";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ProfileCard } from "@/components/settings/ProfileCard";
@@ -170,12 +169,6 @@ function SettingsPageInner() {
       <section className="mb-10" id="check-ins">
         <h2 className={SECTION_HEADING}>Check-in Preferences</h2>
         <CheckInPreferences />
-      </section>
-
-      {/* Photo Analysis */}
-      <section className="mb-10">
-        <h2 className={SECTION_HEADING}>Photo Analysis</h2>
-        <PhotoAnalysisToggle />
       </section>
 
       {/* Gemini API Key */}

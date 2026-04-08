@@ -65,12 +65,6 @@ type AnalyticsEvents = {
   settings_viewed: Record<string, never>;
   profile_viewed: Record<string, never>;
 
-  // Progress photos
-  progress_photo_uploaded: Record<string, never>;
-  progress_photo_deleted: Record<string, never>;
-  progress_photo_comparison_viewed: { photo_count: number };
-  photo_analysis_toggled: { enabled: boolean };
-
   // Goals & injuries
   goal_created: { goal_type: string };
   goal_progress_updated: { goal_id: string; progress_pct: number };
