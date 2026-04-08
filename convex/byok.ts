@@ -5,8 +5,9 @@ import type { Doc } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { decrypt, encrypt } from "./tonal/encryption";
 
-// Placeholder: set to Date.now() at launch deploy.
-export const BYOK_REQUIRED_AFTER = 9999999999999;
+// Set at OSS launch (2026-04-08). Users created before this timestamp are
+// grandfathered onto the house key; anyone created after must provide BYOK.
+export const BYOK_REQUIRED_AFTER = 1775675032114;
 
 export function isBYOKRequired(creationTime: number): boolean {
   return creationTime >= BYOK_REQUIRED_AFTER;
