@@ -80,6 +80,22 @@ protect_main_branch() {
 JSON
 }
 
+configure_repo_settings() {
+  gh api \
+    --method PATCH \
+    -H "Accept: application/vnd.github+json" \
+    "repos/$repo" \
+    --input - >/dev/null <<'JSON'
+{
+  "default_branch": "main",
+  "allow_squash_merge": true,
+  "allow_merge_commit": false,
+  "allow_rebase_merge": false,
+  "delete_branch_on_merge": true
+}
+JSON
+}
+
 require_command gh
 require_command git
 
@@ -89,12 +105,7 @@ repo="${repo_arg:-$(infer_repo)}"
 
 echo "Configuring GitHub repository settings for $repo"
 
-gh repo edit "$repo" \
-  --default-branch main \
-  --enable-squash-merge \
-  --disable-merge-commit \
-  --disable-rebase-merge \
-  --delete-branch-on-merge
+configure_repo_settings
 
 sync_label "bug" "d73a4a" "Something is broken"
 sync_label "enhancement" "a2eeef" "Improvement to an existing capability"
