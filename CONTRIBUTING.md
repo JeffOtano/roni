@@ -2,6 +2,8 @@
 
 Thanks for your interest in Tonal Coach. This is a personal project maintained by one person on a best-effort basis. PRs are welcome but may take time to review.
 
+Maintainers should also follow the GitHub repo setup checklist in [docs/github-repo-setup.md](docs/github-repo-setup.md) so the repository settings match the policy documented here.
+
 ## Before you file an issue
 
 Search existing issues first. Then pick the right channel:
@@ -40,6 +42,8 @@ All PRs must pass `npm test`, `npm run typecheck`, and `npm run lint`. CI enforc
 ## Pull request guidelines
 
 - One logical change per PR. Split unrelated work into separate PRs.
+- Open pull requests against `main`. Direct pushes to `main` should stay blocked by GitHub branch protection.
+- Name contributor branches with a short descriptive prefix such as `fix/login-timeout` or `docs/self-host-setup`.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`. Commitlint enforces this.
 - All commit subject lines must be lowercase.
 - Write tests for new behavior. The test pattern in this codebase is Vitest with `vi.mock` for Convex modules (no `convex-test`).
