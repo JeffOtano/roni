@@ -50,8 +50,12 @@ async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<str
       await ctx.runMutation(internal.byok._checkHouseKeyQuota, {
         userId: userId as Id<"users">,
       });
-    } catch {
-      throw new Error("house_key_quota_exhausted");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      if (msg.includes("rate") || msg.includes("limit")) {
+        throw new Error("house_key_quota_exhausted");
+      }
+      throw err;
     }
   }
 

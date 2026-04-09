@@ -44,7 +44,7 @@ export const _checkHouseKeyQuota = internalMutation({
 
 ## Error pipeline
 
-The error code `house_key_quota_exhausted` is thrown directly as a string from `resolveUserGeminiKey`, before Gemini is ever called. It does NOT need to be added to `classifyByokError` in `convex/ai/resilience.ts` because that function only classifies errors that come back from the Gemini API. Our error originates before the API call.
+The error code `house_key_quota_exhausted` is thrown as `new Error("house_key_quota_exhausted")` from `resolveUserGeminiKey`, before Gemini is ever called. It does NOT need to be added to `classifyByokError` in `convex/ai/resilience.ts` because that function only classifies errors that come back from the Gemini API. Our error originates before the API call.
 
 The code propagates through `withByokErrorSanitization` unchanged (the catch only reclassifies Gemini-pattern errors, passes everything else through).
 
