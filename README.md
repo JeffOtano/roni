@@ -145,7 +145,6 @@ convex/                Backend (Convex)
   ai/                  AI coach agent, tool definitions, context builder
   coach/               Programming engine - exercise selection, periodization, progressive overload
   tonal/               Tonal API integration - OAuth, encrypted tokens, proxy with caching
-  mcp/                 MCP server for Claude Desktop / Claude Code integration
   schema.ts            Full data model
   crons.ts             Scheduled jobs (token refresh, cache refresh, data retention)
 

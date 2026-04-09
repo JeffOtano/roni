@@ -9,8 +9,6 @@ const APP_TABLES: TableNames[] = [
   "tonalCache",
   "workoutPlans",
   "weekPlans",
-  "mcpApiKeys",
-  "mcpUsage",
   "emailChangeRequests",
 ];
 

@@ -85,7 +85,6 @@ interface ExportedData {
   workoutPlans: Record<string, unknown>[];
   weekPlans: Record<string, unknown>[];
   checkIns: Record<string, unknown>[];
-  mcpKeys: { label: string | null; createdAt: number; lastUsedAt: number | null }[];
 }
 
 export const exportData = action({
@@ -130,11 +129,6 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
-    const mcpKeys = await ctx.db
-      .query("mcpApiKeys")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
     return {
       exportedAt: new Date().toISOString(),
       user: {
@@ -171,11 +165,6 @@ export const collectUserData = internalQuery({
         readAt: ci.readAt ?? null,
         createdAt: ci.createdAt,
         triggerContext: ci.triggerContext ?? null,
-      })),
-      mcpKeys: mcpKeys.map((k) => ({
-        label: k.label ?? null,
-        createdAt: k.createdAt,
-        lastUsedAt: k.lastUsedAt ?? null,
       })),
     };
   },

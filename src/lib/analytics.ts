@@ -90,8 +90,6 @@ type AnalyticsEvents = {
   // Integrations
   tonal_reconnected: Record<string, never>;
   tonal_reconnect_failed: { error: string };
-  mcp_key_generated: Record<string, never>;
-  mcp_key_revoked: Record<string, never>;
 
   // Public workout library
   workout_cta_clicked: { slug: string };

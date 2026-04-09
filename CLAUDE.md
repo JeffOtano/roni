@@ -78,7 +78,6 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads cont
 - **`ai/`** -- Coach agent definition, 31 tools (read Tonal data, create/modify workouts, manage goals/injuries), context builder that injects training snapshot as system message, prompt construction
 - **`coach/`** -- Programming engine: exercise selection, periodization (Building/Deload/Testing blocks), progressive overload tracking
 - **`tonal/`** -- Tonal API integration: OAuth token management (AES-256 encrypted at rest), proxy layer with stale-while-revalidate caching, history sync, movement/workout catalog sync
-- **`mcp/`** -- MCP server for Claude Desktop integration (authenticated via API keys)
 - **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; thin wrapper over `getAuthUserId`
 
 ### Auth & Signup Policy
@@ -119,7 +118,6 @@ User (chat) --> sendMessage --> AI Coach Agent (Gemini, 31 tools) --> reads cont
 Uses `@convex-dev/rate-limiter`. Key limits defined in `convex/rateLimits.ts`:
 
 - `sendMessage` -- burst + daily cap per user
-- `mcpRequest` -- per-user MCP API calls
 
 ## Priority Hierarchy
 
