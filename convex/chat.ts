@@ -13,7 +13,7 @@ import type { ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { buildCoachAgentForStorageOnly, buildCoachAgents } from "./ai/coach";
-import { resolveGeminiKey } from "./byok";
+import { isBYOKRequired, resolveGeminiKey } from "./byok";
 import { checkDailyBudget, classifyByokError, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 import * as analytics from "./lib/posthog";
@@ -38,7 +38,24 @@ async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<str
     userId: userId as Id<"users">,
   });
   if (!context) throw new Error("byok_user_not_found");
-  return await resolveGeminiKey(context.profile, context.userCreationTime);
+  const key = await resolveGeminiKey(context.profile, context.userCreationTime);
+
+  // Enforce monthly cap on grandfathered house-key users. Skip when the
+  // kill switch is active (emergency mode forces everyone onto the house
+  // key -- capping them would break the app for all users).
+  const isGrandfathered = !isBYOKRequired(context.userCreationTime);
+  const killSwitchActive = process.env.BYOK_DISABLED === "true";
+  if (isGrandfathered && !killSwitchActive) {
+    try {
+      await ctx.runMutation(internal.byok._checkHouseKeyQuota, {
+        userId: userId as Id<"users">,
+      });
+    } catch {
+      throw new Error("house_key_quota_exhausted");
+    }
+  }
+
+  return key;
 }
 
 /**
