@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { internalAction } from "./_generated/server";
 import { components } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -19,15 +20,16 @@ import type { Id } from "./_generated/dataModel";
 const PAGE_SIZE = 100;
 const MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
-// Convex storage IDs are opaque base32-ish tokens starting with "kg" and
-// have a bounded length. Validating the shape lets us drop the `as`
-// cast at the agent-component boundary (where storageId is typed `string`)
-// without a full Zod dependency for a single field.
-const STORAGE_ID_PATTERN = /^[a-z0-9]{20,}$/;
+// Zod-backed validation at the agent-component boundary where storageId
+// arrives as an untyped `string`. Convex storage IDs are opaque
+// lowercase-alphanumeric tokens with a bounded length.
+const storageIdSchema = z.custom<Id<"_storage">>(
+  (value) => typeof value === "string" && /^[a-z0-9]{20,}$/.test(value),
+);
 
 function asStorageId(value: string): Id<"_storage"> | null {
-  if (!STORAGE_ID_PATTERN.test(value)) return null;
-  return value as Id<"_storage">;
+  const parsed = storageIdSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 export const vacuumUnusedFiles = internalAction({
