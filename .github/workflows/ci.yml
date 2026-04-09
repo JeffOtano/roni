@@ -1,0 +1,193 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npx prettier --check .
+
+      - name: Dead code check
+        run: npx knip
+
+      - name: File size check
+        run: |
+          EXIT_CODE=0
+          SOFT_MAX=300
+          HARD_MAX=400
+          while IFS= read -r file; do
+            case "$file" in
+              *_generated*|*docs/reference*|convex/schema.ts) continue ;;
+            esac
+            lines=$(wc -l < "$file" | tr -d ' ')
+            if [ "$lines" -gt "$HARD_MAX" ]; then
+              echo "::error file=$file::File has $lines lines (hard max ${HARD_MAX}). Split by responsibility."
+              EXIT_CODE=1
+            elif [ "$lines" -gt "$SOFT_MAX" ]; then
+              echo "::warning file=$file::File has $lines lines (soft max ${SOFT_MAX}). Consider splitting by responsibility."
+            fi
+          done < <(find src convex -name '*.ts' -o -name '*.tsx' | sort)
+          exit $EXIT_CODE
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test with coverage
+        run: npx vitest run --coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 7
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v5
+        with:
+          path: .next/cache
+          key: nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'convex/**') }}
+          restore-keys: |
+            nextjs-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build
+        run: npm run build
+        env:
+          CONVEX_URL: ${{ secrets.CONVEX_URL || 'https://placeholder.convex.cloud' }}
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://placeholder.convex.cloud' }}
+
+      - name: Check bundle size
+        run: |
+          if [ -d ".next/static/chunks" ]; then
+            TOTAL_KB=$(du -sk .next/static/chunks | cut -f1)
+            echo "JS chunks: ${TOTAL_KB}KB (budget: 1500KB)"
+            if [ "$TOTAL_KB" -gt 1500 ]; then
+              echo "::warning::JS bundle ${TOTAL_KB}KB exceeds 1500KB budget. Run 'ANALYZE=true npm run build' locally to investigate."
+            fi
+          fi
+
+      - name: Upload build artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextjs-build
+          path: .next
+          include-hidden-files: true
+          retention-days: 1
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          CONVEX_URL: ${{ secrets.CONVEX_URL || 'https://placeholder.convex.cloud' }}
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://placeholder.convex.cloud' }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

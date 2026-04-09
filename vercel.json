@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npx convex deploy --cmd 'npm run build'",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
+}

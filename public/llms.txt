@@ -1,0 +1,41 @@
+# tonal.coach
+
+> Free, open-source AI personal trainer for the Tonal home fitness machine. Connects to your Tonal account, analyzes your training history, and programs custom strength workouts using AI coaching. Bring your own Google Gemini API key.
+
+## Pages
+
+- [Home](https://tonal.coach): Landing page with product overview and signup
+- [Features](https://tonal.coach/features): Deep dive on all capabilities - AI coaching, push-to-Tonal, progressive overload, periodization, injury management, muscle readiness, RPE tracking
+- [How It Works](https://tonal.coach/how-it-works): 3-step setup flow - connect Tonal, set goals, train with custom workouts
+- [FAQ](https://tonal.coach/faq): Common questions about safety, privacy, training, and open source
+- [Pricing](https://tonal.coach/pricing): Free and open source - bring your own Google Gemini API key
+- [Privacy Policy](https://tonal.coach/privacy): How user data is handled, stored, and protected
+- [Terms of Service](https://tonal.coach/terms): Usage terms and disclaimers
+- [GitHub Repository](https://github.com/JeffOtano/tonal-coach): Source code, self-hosting instructions, issue tracker
+
+## Key Facts
+
+- tonal.coach is free and open source under the MIT license
+- Independent project, not affiliated with or endorsed by Tonal
+- Requires a Tonal account and active Tonal membership
+- New users provide their own Google Gemini API key (free from Google AI Studio) during onboarding
+- User data accessed only with explicit permission via Tonal account credentials
+- Custom workouts are pushed directly to the user's Tonal machine via the Tonal API
+- AI coaching is powered by the user's real workout history, strength scores, and movement data
+- Can be self-hosted on free-tier Convex and Vercel infrastructure
+
+## Features
+
+- Weekly programming: AI-generated training plans tailored to schedule, goals, and recovery
+- Progressive overload: Automatic weight progression based on performance trends
+- Periodization: Structured training phases (hypertrophy, strength, peaking, deload)
+- RPE tracking: Rate of perceived exertion logging for intensity calibration
+- Goal setting: Strength targets and body composition goals that shape programming
+- Injury management: Avoids contraindicated movements and substitutes alternatives
+- Muscle readiness: Visual recovery map showing which muscle groups are ready to train
+- Direct Tonal sync: Pushes custom workouts to Tonal — no manual entry
+- Proactive check-ins: Nudges when overtraining, slacking, or ready to level up
+
+## Optional
+
+- [Full Documentation](https://tonal.coach/llms-full.txt): Comprehensive product documentation for AI agents

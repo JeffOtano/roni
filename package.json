@@ -1,0 +1,94 @@
+{
+  "name": "tonal-coach",
+  "version": "0.1.0",
+  "description": "Unofficial AI coach for Tonal fitness machines. Not affiliated with Tonal Systems, Inc.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JeffOtano/tonal-coach.git"
+  },
+  "homepage": "https://github.com/JeffOtano/tonal-coach#readme",
+  "bugs": {
+    "url": "https://github.com/JeffOtano/tonal-coach/issues"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:analyze": "ANALYZE=true next build",
+    "start": "next start",
+    "lint": "eslint --max-warnings=0 .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "knip": "knip",
+    "test:e2e": "playwright test",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ],
+    "*.{ts,tsx}": [
+      "bash scripts/check-file-size.sh"
+    ]
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.59",
+    "@ai-sdk/provider-utils": "^4.0.23",
+    "@base-ui/react": "^1.3.0",
+    "@convex-dev/agent": "^0.6.1",
+    "@convex-dev/auth": "^0.0.91",
+    "@convex-dev/rate-limiter": "^0.3.2",
+    "@sentry/nextjs": "^10.47.0",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
+    "ai": "^6.0.151",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "convex": "^1.34.1",
+    "convex-helpers": "^0.1.114",
+    "lucide-react": "^1.7.0",
+    "next": "16.2.2",
+    "posthog-js": "^1.364.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "shadcn": "^4.1.1",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.4",
+    "@commitlint/config-conventional": "^20.4.4",
+    "@next/bundle-analyzer": "^16.2.2",
+    "@playwright/test": "^1.59.1",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^25.5.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.2",
+    "husky": "^9.1.7",
+    "jsdom": "^29.0.2",
+    "knip": "^6.3.0",
+    "lint-staged": "^16.3.3",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5",
+    "vitest": "^4.1.2"
+  }
+}
