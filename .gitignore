@@ -56,5 +56,6 @@ docs/superpowers/
 .factory/*
 .junie/*
 .kiro/*
+.serena/*
 .windsurf/*
 .env.local

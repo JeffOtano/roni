@@ -14,7 +14,4 @@ paths = [
   # is the real value and is required for the Tonal integration to work.
   '''convex/tonal/auth\.ts''',
 
-  # OpenAPI documentation example JWT. Already expired (exp: 2026-03-15) and
-  # serves only as a sample payload in the /v6/auth endpoint response schema.
-  '''docs/tonal-api\.yaml''',
 ]
