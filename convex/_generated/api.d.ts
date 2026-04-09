@@ -51,6 +51,7 @@ import type * as discord from "../discord.js";
 import type * as email from "../email.js";
 import type * as emailChange from "../emailChange.js";
 import type * as emailTemplates from "../emailTemplates.js";
+import type * as fileGc from "../fileGc.js";
 import type * as goals from "../goals.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
@@ -167,6 +168,7 @@ declare const fullApi: ApiFromModules<{
   email: typeof email;
   emailChange: typeof emailChange;
   emailTemplates: typeof emailTemplates;
+  fileGc: typeof fileGc;
   goals: typeof goals;
   healthCheck: typeof healthCheck;
   http: typeof http;

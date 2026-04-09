@@ -41,6 +41,8 @@ crons.cron(
 
 crons.interval("health-check", { minutes: 15 }, internal.healthCheck.runHealthCheck);
 
+crons.interval("vacuum-unused-files", { hours: 6 }, internal.fileGc.vacuumUnusedFiles);
+
 crons.cron("data-retention", "0 2 * * 0", internal.dataRetention.runDataRetention, {});
 
 export default crons;

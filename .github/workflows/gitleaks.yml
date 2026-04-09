@@ -1,0 +1,25 @@
+name: Gitleaks
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Picks up .gitleaks.toml from the repo root (false-positive allowlist
+      # for the BYOK test fixtures, the public Tonal Auth0 client ID, and
+      # the expired example JWT in docs/tonal-api.yaml).
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
