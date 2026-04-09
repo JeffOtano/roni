@@ -45,4 +45,17 @@ describe("parseByokError", () => {
     expect(parseByokError(null)).toBeNull();
     expect(parseByokError(undefined)).toBeNull();
   });
+
+  it("returns house_key_quota_exhausted when the error message contains the code", () => {
+    expect(parseByokError(new Error("house_key_quota_exhausted"))).toBe(
+      "house_key_quota_exhausted",
+    );
+  });
+
+  it("extracts house_key_quota_exhausted even when wrapped by Convex framing", () => {
+    const wrapped = new Error(
+      "[CONVEX A(chat:sendMessage)] Uncaught Error: house_key_quota_exhausted",
+    );
+    expect(parseByokError(wrapped)).toBe("house_key_quota_exhausted");
+  });
 });

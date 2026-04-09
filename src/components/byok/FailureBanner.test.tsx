@@ -47,4 +47,19 @@ describe("FailureBanner", () => {
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
+
+  it("renders the house-key quota message with non-destructive styling", () => {
+    render(<FailureBanner reason="house_key_quota_exhausted" />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/500 free AI messages/i);
+    // Amber/default variant should NOT have the destructive classes
+    expect(screen.getByRole("alert").className).not.toMatch(/destructive/);
+  });
+
+  it("shows 'Add your key' link text for house-key quota exhaustion", () => {
+    render(<FailureBanner reason="house_key_quota_exhausted" />);
+
+    const link = screen.getByRole("link", { name: /add your key/i });
+    expect(link).toHaveAttribute("href", "/settings#gemini-key");
+  });
 });
