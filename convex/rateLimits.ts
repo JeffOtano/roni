@@ -13,6 +13,10 @@ export const NEW_SIGNUP_RATE_PER_HOUR = 20;
 export const NEW_SIGNUP_BURST_CAPACITY = 5;
 const NEW_SIGNUP_PERIOD = 60 * MINUTE;
 
+/** Monthly cap for grandfathered users running on the shared house key. */
+export const HOUSE_KEY_MONTHLY_LIMIT = 500;
+const HOUSE_KEY_MONTHLY_PERIOD = 30 * DAY;
+
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
   sendMessage: {
     kind: "token bucket",
@@ -84,5 +88,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     rate: NEW_SIGNUP_RATE_PER_HOUR,
     period: NEW_SIGNUP_PERIOD,
     capacity: NEW_SIGNUP_BURST_CAPACITY,
+  },
+  houseKeyMonthly: {
+    kind: "fixed window",
+    rate: HOUSE_KEY_MONTHLY_LIMIT,
+    period: HOUSE_KEY_MONTHLY_PERIOD,
   },
 });
