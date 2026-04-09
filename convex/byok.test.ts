@@ -293,6 +293,13 @@ describe("resolveGeminiKey", () => {
   });
 });
 
+describe("_checkHouseKeyQuota", () => {
+  it("is exported as an internalMutation", async () => {
+    const { _checkHouseKeyQuota } = await import("./byok");
+    expect(_checkHouseKeyQuota).toBeDefined();
+  });
+});
+
 describe("maskGeminiKey", () => {
   it("returns the last 4 characters of a full Gemini key", () => {
     const key = "AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R";

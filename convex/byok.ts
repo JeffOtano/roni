@@ -1,8 +1,9 @@
 import { v } from "convex/values";
-import { action, internalQuery, mutation, query } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
+import { rateLimiter } from "./rateLimits";
 import { decrypt, encrypt } from "./tonal/encryption";
 
 // Set at OSS launch (2026-04-08). Users created before this timestamp are
@@ -160,6 +161,13 @@ export const _getKeyResolutionContext = internalQuery({
       userCreationTime: user._creationTime,
       profile,
     };
+  },
+});
+
+export const _checkHouseKeyQuota = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await rateLimiter.limit(ctx, "houseKeyMonthly", { key: userId, throws: true });
   },
 });
 
