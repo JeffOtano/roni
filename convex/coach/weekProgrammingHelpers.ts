@@ -5,6 +5,7 @@
 
 import type { Id } from "../_generated/dataModel";
 import type { BlockInput } from "../tonal/transforms";
+import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
 import { DELOAD_REPS, DELOAD_SET_MULTIPLIER } from "../coach/periodization";
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,10 @@ export const SESSION_TYPE_MUSCLES: Record<string, string[]> = {
 };
 
 export const DEFAULT_REPS = 10;
+
+/** Rest durations in seconds by exercise type. */
+const REST_DURATION_COMPOUND = 90;
+const REST_DURATION_ISOLATION = 60;
 
 /** Warmup/cooldown exercise counts per duration tier. */
 export const WARMUP_COOLDOWN_COUNTS: Record<number, { warmup: number; cooldown: number }> = {
@@ -183,6 +188,7 @@ export function blocksFromMovementIds(
     catalog?: {
       id: string;
       countReps: boolean;
+      muscleGroups?: string[];
       onMachineInfo?: { accessory: string };
     }[];
   },
@@ -231,7 +237,21 @@ export function blocksFromMovementIds(
     const ids = groupedByAccessory.get(accessory)!;
     for (let i = 0; i < ids.length; i += 2) {
       const pair = ids.slice(i, i + 2);
-      blocks.push({ exercises: pair.map(buildExercise) });
+      const exercises = pair.map(buildExercise);
+
+      // Inject rest into straight-set blocks (single exercise).
+      // Supersets provide natural recovery via exercise alternation.
+      if (exercises.length === 1) {
+        const movement = catalogMap.get(pair[0]);
+        const isCompound = (movement?.muscleGroups?.length ?? 0) >= 2;
+        exercises.push({
+          movementId: TONAL_REST_MOVEMENT_ID,
+          sets: exercises[0].sets,
+          duration: isCompound ? REST_DURATION_COMPOUND : REST_DURATION_ISOLATION,
+        });
+      }
+
+      blocks.push({ exercises });
     }
   }
 
