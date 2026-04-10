@@ -1,5 +1,8 @@
 import type { WorkoutSetInput } from "./types";
 
+/** Well-known Tonal movement ID for rest periods between sets. */
+export const TONAL_REST_MOVEMENT_ID = "00000000-0000-0000-0000-000000000005";
+
 export interface ExerciseInput {
   movementId: string;
   sets: number;
