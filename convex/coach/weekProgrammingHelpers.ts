@@ -4,7 +4,7 @@
  */
 
 import type { Id } from "../_generated/dataModel";
-import type { BlockInput } from "../tonal/transforms";
+import type { BlockInput, ExerciseInput, MovementCatalogEntry } from "../tonal/transforms";
 import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
 import { DELOAD_REPS, DELOAD_SET_MULTIPLIER } from "../coach/periodization";
 
@@ -55,6 +55,7 @@ export const DEFAULT_REPS = 10;
 /** Rest durations in seconds by exercise type. */
 const REST_DURATION_COMPOUND = 90;
 const REST_DURATION_ISOLATION = 60;
+const REST_DURATION_WARMUP = 30;
 
 /** Warmup/cooldown exercise counts per duration tier. */
 export const WARMUP_COOLDOWN_COUNTS: Record<number, { warmup: number; cooldown: number }> = {
@@ -185,12 +186,7 @@ export function blocksFromMovementIds(
   options?: {
     isDeload?: boolean;
     /** Catalog lookup — countReps for duration detection, onMachineInfo for accessory grouping. */
-    catalog?: {
-      id: string;
-      countReps: boolean;
-      muscleGroups?: string[];
-      onMachineInfo?: { accessory: string };
-    }[];
+    catalog?: (MovementCatalogEntry & { onMachineInfo?: { accessory: string } })[];
   },
 ): BlockInput[] {
   if (movementIds.length === 0) return [];
@@ -267,23 +263,31 @@ export function warmupBlockFromMovementIds(
 ): BlockInput[] {
   if (movementIds.length === 0) return [];
   const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
-  return [
-    {
-      exercises: movementIds.map((movementId) => {
-        const movement = catalogMap.get(movementId);
-        const isDurationBased = movement ? !movement.countReps : false;
-        if (isDurationBased) {
-          return {
-            movementId,
-            sets: WARMUP_SETS,
-            duration: DEFAULT_DURATION_SECONDS,
-            warmUp: true,
-          };
-        }
-        return { movementId, sets: WARMUP_SETS, reps: WARMUP_REPS, warmUp: true };
-      }),
-    },
-  ];
+  const exercises: ExerciseInput[] = movementIds.map((movementId) => {
+    const movement = catalogMap.get(movementId);
+    const isDurationBased = movement ? !movement.countReps : false;
+    if (isDurationBased) {
+      return {
+        movementId,
+        sets: WARMUP_SETS,
+        duration: DEFAULT_DURATION_SECONDS,
+        warmUp: true,
+      };
+    }
+    return { movementId, sets: WARMUP_SETS, reps: WARMUP_REPS, warmUp: true };
+  });
+
+  // Inject rest into single-exercise warmup blocks.
+  // Multi-exercise blocks are supersets with natural recovery via alternation.
+  if (exercises.length === 1) {
+    exercises.push({
+      movementId: TONAL_REST_MOVEMENT_ID,
+      sets: WARMUP_SETS,
+      duration: REST_DURATION_WARMUP,
+    });
+  }
+
+  return [{ exercises }];
 }
 
 /**

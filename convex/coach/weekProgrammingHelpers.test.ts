@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  cooldownBlockFromMovementIds,
   formatSessionTitle,
   inferArmPosition,
   type SessionType,
   sortForMinimalEquipmentSwitches,
+  warmupBlockFromMovementIds,
 } from "./weekProgrammingHelpers";
+import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
 
 // weekStartDate is accepted by the signature but not used in the output — any string works.
 const ANY_WEEK = "2026-03-09";
@@ -193,5 +196,54 @@ describe("sortForMinimalEquipmentSwitches", () => {
 
   it("handles empty input", () => {
     expect(sortForMinimalEquipmentSwitches([], catalogWithAccessories)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// warmupBlockFromMovementIds / cooldownBlockFromMovementIds - rest injection
+// ---------------------------------------------------------------------------
+
+const warmupCooldownCatalog = [
+  { id: "curl", countReps: true, muscleGroups: ["Biceps"] },
+  { id: "fly", countReps: true, muscleGroups: ["Chest"] },
+  { id: "pushup", countReps: false, muscleGroups: ["Chest", "Triceps"] },
+];
+
+describe("warmupBlockFromMovementIds - rest injection", () => {
+  it("injects 30s rest into single-exercise warmup block", () => {
+    const blocks = warmupBlockFromMovementIds(["curl"], {
+      catalog: warmupCooldownCatalog,
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].exercises).toHaveLength(2);
+    expect(blocks[0].exercises[0].movementId).toBe("curl");
+    expect(blocks[0].exercises[0].warmUp).toBe(true);
+    expect(blocks[0].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
+    expect(blocks[0].exercises[1].duration).toBe(30);
+    expect(blocks[0].exercises[1].sets).toBe(2); // WARMUP_SETS = 2
+  });
+
+  it("does not inject rest into multi-exercise warmup block", () => {
+    const blocks = warmupBlockFromMovementIds(["curl", "fly"], {
+      catalog: warmupCooldownCatalog,
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].exercises).toHaveLength(2);
+    expect(blocks[0].exercises[0].movementId).toBe("curl");
+    expect(blocks[0].exercises[1].movementId).toBe("fly");
+  });
+});
+
+describe("cooldownBlockFromMovementIds - no rest injection", () => {
+  it("does not inject rest into single-exercise cooldown block", () => {
+    const blocks = cooldownBlockFromMovementIds(["curl"], {
+      catalog: warmupCooldownCatalog,
+    });
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].exercises).toHaveLength(1);
+    expect(blocks[0].exercises[0].movementId).toBe("curl");
   });
 });
