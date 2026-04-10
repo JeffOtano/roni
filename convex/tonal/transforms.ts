@@ -25,6 +25,7 @@ export interface MovementCatalogEntry {
   id: string;
   countReps: boolean;
   isAlternating: boolean;
+  muscleGroups?: string[];
 }
 
 interface BuildSetOpts {

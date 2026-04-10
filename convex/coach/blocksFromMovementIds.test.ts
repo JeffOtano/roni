@@ -10,36 +10,43 @@ const blockCatalog = [
   {
     id: "bench",
     countReps: true,
+    isAlternating: false,
     onMachineInfo: { accessory: "Smart Bar" },
   },
   {
     id: "row",
     countReps: true,
+    isAlternating: false,
     onMachineInfo: { accessory: "Smart Bar" },
   },
   {
     id: "curl",
     countReps: true,
+    isAlternating: false,
     onMachineInfo: { accessory: "Handle" },
   },
   {
     id: "fly",
     countReps: true,
+    isAlternating: false,
     onMachineInfo: { accessory: "Handle" },
   },
   {
     id: "extension",
     countReps: true,
+    isAlternating: false,
     onMachineInfo: { accessory: "Handle" },
   },
   {
     id: "pushdown",
     countReps: true,
+    isAlternating: false,
     onMachineInfo: { accessory: "Rope" },
   },
   {
     id: "pushup",
     countReps: false,
+    isAlternating: false,
     // no onMachineInfo — bodyweight/duration-based
   },
 ];
@@ -72,32 +79,44 @@ describe("blocksFromMovementIds", () => {
   });
 
   it("creates separate blocks per accessory group", () => {
-    // Smart Bar x1, Handle x1, Rope x1 = 3 solo blocks
+    // Smart Bar x1, Handle x1, Rope x1 = 3 solo blocks (each gets rest injected)
     const ids = ["bench", "curl", "pushdown"];
     const blocks = blocksFromMovementIds(ids, undefined, { catalog: blockCatalog });
 
     expect(blocks).toHaveLength(3);
+    expect(blocks[0].exercises).toHaveLength(2);
     expect(blocks[0].exercises[0].movementId).toBe("bench");
+    expect(blocks[0].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
+    expect(blocks[1].exercises).toHaveLength(2);
     expect(blocks[1].exercises[0].movementId).toBe("curl");
+    expect(blocks[1].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
+    expect(blocks[2].exercises).toHaveLength(2);
     expect(blocks[2].exercises[0].movementId).toBe("pushdown");
+    expect(blocks[2].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
   });
 
   it("groups bodyweight exercises together", () => {
     const ids = ["pushup", "curl"];
     const blocks = blocksFromMovementIds(ids, undefined, { catalog: blockCatalog });
 
-    // pushup = bodyweight group (1 block), curl = Handle group (1 block)
+    // pushup = bodyweight group (1 solo block + rest), curl = Handle group (1 solo block + rest)
     expect(blocks).toHaveLength(2);
+    expect(blocks[0].exercises).toHaveLength(2);
     expect(blocks[0].exercises[0].movementId).toBe("pushup");
+    expect(blocks[0].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
+    expect(blocks[1].exercises).toHaveLength(2);
     expect(blocks[1].exercises[0].movementId).toBe("curl");
+    expect(blocks[1].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
   });
 
   it("uses duration for non-countReps exercises", () => {
     const ids = ["pushup"];
     const blocks = blocksFromMovementIds(ids, undefined, { catalog: blockCatalog });
 
+    expect(blocks[0].exercises).toHaveLength(2);
     expect(blocks[0].exercises[0].duration).toBe(30);
     expect(blocks[0].exercises[0].reps).toBeUndefined();
+    expect(blocks[0].exercises[1].movementId).toBe(TONAL_REST_MOVEMENT_ID);
   });
 
   it("applies suggested reps from progressive overload", () => {
@@ -135,47 +154,55 @@ const blockCatalogWithMuscles = [
   {
     id: "bench",
     countReps: true,
+    isAlternating: false,
     muscleGroups: ["Chest", "Triceps"],
     onMachineInfo: { accessory: "Smart Bar" },
   },
   {
     id: "row",
     countReps: true,
+    isAlternating: false,
     muscleGroups: ["Back", "Biceps"],
     onMachineInfo: { accessory: "Smart Bar" },
   },
   {
     id: "curl",
     countReps: true,
+    isAlternating: false,
     muscleGroups: ["Biceps"],
     onMachineInfo: { accessory: "Handle" },
   },
   {
     id: "fly",
     countReps: true,
+    isAlternating: false,
     muscleGroups: ["Chest"],
     onMachineInfo: { accessory: "Handle" },
   },
   {
     id: "extension",
     countReps: true,
+    isAlternating: false,
     muscleGroups: ["Triceps"],
     onMachineInfo: { accessory: "Handle" },
   },
   {
     id: "pushdown",
     countReps: true,
+    isAlternating: false,
     muscleGroups: ["Triceps"],
     onMachineInfo: { accessory: "Rope" },
   },
   {
     id: "pushup",
     countReps: false,
+    isAlternating: false,
     muscleGroups: ["Chest", "Triceps"],
   },
   {
     id: TONAL_REST_MOVEMENT_ID,
     countReps: false,
+    isAlternating: false,
     muscleGroups: [],
   },
 ];
@@ -243,6 +270,7 @@ describe("blocksFromMovementIds - rest injection", () => {
 
     const mainSets = blocks[0].exercises[0].sets;
     const restSets = blocks[0].exercises[1].sets;
+    expect(mainSets).toBe(2);
     expect(restSets).toBe(mainSets);
   });
 });
