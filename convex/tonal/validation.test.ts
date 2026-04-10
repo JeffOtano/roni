@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { validateMovementIds, validateWorkoutBlocks } from "./validation";
 import type { BlockInput } from "./transforms";
+import { TONAL_REST_MOVEMENT_ID } from "./transforms";
 
 // ---------------------------------------------------------------------------
 // Test data builders
@@ -10,6 +11,7 @@ const mockCatalog = [
   { id: "uuid-1", name: "Bench Press" },
   { id: "uuid-2", name: "Squat" },
   { id: "uuid-3", name: "Deadlift" },
+  { id: TONAL_REST_MOVEMENT_ID, name: "Rest", countReps: false, onMachine: false },
 ];
 
 function block(movementIds: string[], sets = 3): BlockInput {
@@ -91,6 +93,12 @@ describe("validateWorkoutBlocks — valid blocks", () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
+  });
+
+  it("accepts blocks containing the Rest movement", () => {
+    const blocks = [block(["uuid-1", TONAL_REST_MOVEMENT_ID])];
+    const result = validateWorkoutBlocks(blocks, mockCatalog);
+    expect(result.valid).toBe(true);
   });
 });
 
