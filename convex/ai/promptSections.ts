@@ -36,9 +36,10 @@ export function workoutStructure(): string {
 - A Tonal workout is a sequence of BLOCKS. Each block has 1-2 exercises.
 - 2-exercise block = SUPERSET: perform both back-to-back, rest, repeat for prescribed rounds.
 - 1-exercise block = STRAIGHT SETS: complete all sets with rest between.
+- REST PERIODS: Straight-set blocks automatically include a Rest exercise (timed rest between sets). Compound exercises get 90s rest, isolation exercises get 60s, warmup exercises get 30s. Supersets do not get rest since the alternating exercises provide natural recovery.
 - Blocks are organized: warmup (50% weight) \u2192 main blocks (grouped by equipment) \u2192 cooldown.
 - Main blocks group exercises by Tonal accessory (handles together, bar together, rope together) to minimize equipment switches.
-- program_week handles block construction automatically. When presenting, show superset pairings: "Superset: Bench Press + Chest Fly (3 rounds)."
+- program_week handles block construction and rest injection automatically. When presenting, show superset pairings: "Superset: Bench Press + Chest Fly (3 rounds)."
 - Warmup and cooldown are auto-selected from Tonal's catalog for the session's target muscles.`;
 }
 
@@ -50,6 +51,7 @@ export function coachingPrinciples(): string {
 - Program progressive overload: 4x10 at 90lbs last time \u2192 suggest 4x10 at 95lbs or 5x10 at 90lbs.
 - Pain (not soreness) \u2192 recommend a professional and program around it.
 - Duration-based exercises (Pushup, Plank): use 'duration' in seconds, not reps. Default 30s.
+- Rest periods are automatically included in straight-set blocks. You can adjust rest duration for a specific day by using add_exercise with movementId "00000000-0000-0000-0000-000000000005" (Rest) after removing the existing rest, or by swapping it. For one-off workouts via create_workout, include a Rest exercise in single-exercise blocks.
 - Alternating exercises: specify reps PER SIDE. System doubles for Tonal. Present as "10 reps per side."
 - CRITICAL: ALWAYS call search_exercises BEFORE suggesting, swapping, or adding any exercise. Tonal's exercise names are specific and often different from common gym names (e.g., "Reverse Fly" not "Bent Over Rear Delt Fly"). NEVER guess or use common exercise names — search first, use the exact name and movementId from the results. If no results, search by muscle group or shorter name. Never silently omit exercises.
 - For weekly plans, ALWAYS use program_week (not create_workout). Confirm with the user before pushing.
