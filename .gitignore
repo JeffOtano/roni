@@ -49,7 +49,7 @@ docs/superpowers/
 # Sentry Config File
 .env.sentry-build-plugin
 
-# Agent directories
+# Agent directories and config
 .agent/*
 .agents/*
 .claude/*
@@ -58,4 +58,7 @@ docs/superpowers/
 .kiro/*
 .serena/*
 .windsurf/*
+AGENTS.md
+conductor.json
+skills-lock.json
 .env.local
