@@ -33,6 +33,15 @@ const MAX_IMAGES_PER_MESSAGE = 4;
  * fall back to the house key on failure: the entire BYOK release exists to
  * stop the cost bleed of users running on someone else's key.
  */
+// Like resolveUserGeminiKey but skips the quota check.
+async function validateUserGeminiKey(ctx: ActionCtx, userId: string): Promise<void> {
+  const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
+    userId: userId as Id<"users">,
+  });
+  if (!context) throw new Error("byok_user_not_found");
+  await resolveGeminiKey(context.profile, context.userCreationTime);
+}
+
 async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<string> {
   const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
     userId: userId as Id<"users">,
@@ -149,9 +158,10 @@ export const createThread = mutation({
 });
 
 /**
- * Creates a new thread and sends the first message. Invokes the LLM synchronously
- * so a BYOK key error surfaces before the thread is created. Use for the welcome
- * flow where no thread exists yet; use sendMessageToThread for all other messages.
+ * Creates a new thread and sends the first message. Validates the BYOK key
+ * synchronously so key errors surface before the thread is created. The LLM
+ * response is scheduled asynchronously (same as sendMessageToThread) so the
+ * frontend is never blocked on the full inference roundtrip.
  */
 export const createThreadWithMessage = action({
   args: {
@@ -176,12 +186,9 @@ export const createThreadWithMessage = action({
     const staleHours = await ctx.runQuery(internal.userProfiles.getThreadStaleHours, { userId });
     const staleMs = staleHours * 60 * 60 * 1000;
 
-    // Resolve the user's Gemini key BEFORE doing anything expensive. A BYOK
-    // error here throws out of the action and is surfaced to the frontend,
-    // not silently ignored. The standalone agentCreateThread below does not
-    // invoke the LLM, but we still want the key error to block thread
-    // creation so the user gets a single clean failure.
-    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+    // Validate key early so BYOK errors surface before the thread is created.
+    // Quota is checked later in processMessage.
+    await validateUserGeminiKey(ctx, userId);
 
     let targetThreadId: string;
     if (threadId) {
@@ -206,28 +213,15 @@ export const createThreadWithMessage = action({
       }
     }
 
-    const budgetExceeded = await checkDailyBudget(ctx, userId, targetThreadId);
-    if (budgetExceeded) return { threadId: targetThreadId };
-
-    const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
-
-    const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgents(geminiKey);
-    await withByokErrorSanitization(() =>
-      streamWithRetry(ctx, {
-        primaryAgent: primary,
-        fallbackAgent: fallback,
-        threadId: targetThreadId,
-        userId,
-        prompt: resolvedPrompt,
-      }),
-    );
-
-    analytics.capture(userId, "coach_response_received", {
-      response_time_ms: Date.now() - startTime,
-      has_images: (imageStorageIds?.length ?? 0) > 0,
+    // Schedule the LLM response asynchronously so the frontend gets the
+    // threadId back immediately. processMessage handles BYOK resolution,
+    // budget checks, streaming, retries, and analytics.
+    await ctx.scheduler.runAfter(0, internal.chat.processMessage, {
+      threadId: targetThreadId,
+      userId,
+      prompt,
+      imageStorageIds,
     });
-    await analytics.flush();
 
     return { threadId: targetThreadId };
   },

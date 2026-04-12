@@ -71,7 +71,7 @@ export async function buildTrainingSnapshot(
     ctx
       .runAction(internal.tonal.proxy.fetchWorkoutHistory, {
         userId: convexUserId,
-        limit: 10,
+        limit: 20,
       })
       .catch(() => [] as Activity[]),
     ctx
