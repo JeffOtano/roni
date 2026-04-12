@@ -13,9 +13,9 @@
 - [ ] `npm test` passes (existing + new tests)
 - [ ] New logic has tests (happy path + at least one error/edge case)
 - [ ] No new or materially expanded file exceeds the 300-line soft cap
-- [ ] No file exceeds the 400-line hard cap
-- [ ] No function exceeds 60 lines
-- [ ] No new `any` types or unsafe `as` casts
+- [ ] No file exceeds the 400-line hard cap (enforced by CI)
+- [ ] Functions stay near the 60-line convention
+- [ ] No new `any` types (enforced by ESLint); `as` casts only at deserialization boundaries
 - [ ] Tested in browser (if UI changes)
 - [ ] Commits follow conventional format (`type: description`)
 - [ ] No unused exports or dead code introduced
