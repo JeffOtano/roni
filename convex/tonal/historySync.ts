@@ -265,6 +265,15 @@ export const backfillUserHistory = internalAction({
       synced = await syncActivitiesAndStrength(ctx, userId, activities);
     }
 
+    // Pre-warm the cache keys that buildTrainingSnapshot reads on first
+    // chat so the user doesn't hit cold-cache Tonal API calls.
+    await Promise.all([
+      ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, { userId, limit: 20 }),
+      ctx.runAction(internal.tonal.proxy.fetchExternalActivities, { userId, limit: 20 }),
+      ctx.runAction(internal.tonal.proxy.fetchStrengthScores, { userId }),
+      ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, { userId }),
+    ]);
+
     // Always refresh profile, even for new users with no workouts
     await maybeRefreshProfile(ctx, userId);
 
