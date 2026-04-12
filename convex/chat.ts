@@ -33,6 +33,19 @@ const MAX_IMAGES_PER_MESSAGE = 4;
  * fall back to the house key on failure: the entire BYOK release exists to
  * stop the cost bleed of users running on someone else's key.
  */
+/**
+ * Validate that the user's Gemini key can be resolved without decrementing
+ * quota. Use in createThreadWithMessage to surface BYOK errors early
+ * without double-counting when processMessage resolves the key again.
+ */
+async function validateUserGeminiKey(ctx: ActionCtx, userId: string): Promise<void> {
+  const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
+    userId: userId as Id<"users">,
+  });
+  if (!context) throw new Error("byok_user_not_found");
+  await resolveGeminiKey(context.profile, context.userCreationTime);
+}
+
 async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<string> {
   const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
     userId: userId as Id<"users">,
@@ -177,12 +190,12 @@ export const createThreadWithMessage = action({
     const staleHours = await ctx.runQuery(internal.userProfiles.getThreadStaleHours, { userId });
     const staleMs = staleHours * 60 * 60 * 1000;
 
-    // Resolve the user's Gemini key BEFORE doing anything expensive. A BYOK
-    // error here throws out of the action and is surfaced to the frontend,
-    // not silently ignored. The standalone agentCreateThread below does not
-    // invoke the LLM, but we still want the key error to block thread
-    // creation so the user gets a single clean failure.
-    await resolveUserGeminiKey(ctx, userId);
+    // Validate the Gemini key BEFORE creating the thread. A BYOK error here
+    // throws out of the action and is surfaced to the frontend. This uses
+    // validateUserGeminiKey (not resolveUserGeminiKey) to avoid decrementing
+    // the house-key quota -- processMessage will call resolveUserGeminiKey
+    // which handles both key resolution and quota enforcement.
+    await validateUserGeminiKey(ctx, userId);
 
     let targetThreadId: string;
     if (threadId) {
