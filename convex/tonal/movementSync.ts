@@ -132,20 +132,12 @@ export const updateMovement = internalMutation({
 /**
  * Return all movements from the dedicated table, mapped to the Movement
  * interface shape (tonalId -> id) for backward compatibility.
- * Resolves thumbnailStorageId to a serving URL when thumbnailMediaUrl is absent.
+ * URLs are resolved and persisted at write time by setThumbnailStorageId.
  */
 export const getAllMovements = internalQuery({
   handler: async (ctx): Promise<Movement[]> => {
     const docs = await ctx.db.query("movements").collect();
-    const results: Movement[] = [];
-    for (const doc of docs) {
-      const m = mapDocToMovement(doc);
-      if (!m.thumbnailMediaUrl && doc.thumbnailStorageId) {
-        m.thumbnailMediaUrl = (await ctx.storage.getUrl(doc.thumbnailStorageId)) ?? undefined;
-      }
-      results.push(m);
-    }
-    return results;
+    return docs.map(mapDocToMovement);
   },
 });
 
@@ -159,23 +151,21 @@ export const getByTonalIds = internalQuery({
         .query("movements")
         .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
         .unique();
-      if (doc) {
-        const m = mapDocToMovement(doc);
-        if (!m.thumbnailMediaUrl && doc.thumbnailStorageId) {
-          m.thumbnailMediaUrl = (await ctx.storage.getUrl(doc.thumbnailStorageId)) ?? undefined;
-        }
-        results.push(m);
-      }
+      if (doc) results.push(mapDocToMovement(doc));
     }
     return results;
   },
 });
 
-/** Save a thumbnail storageId to a movement document. */
+/** Save a thumbnail storageId and resolved URL to a movement document. */
 export const setThumbnailStorageId = internalMutation({
   args: { id: v.id("movements"), storageId: v.id("_storage") },
   handler: async (ctx, { id, storageId }) => {
-    await ctx.db.patch(id, { thumbnailStorageId: storageId });
+    const url = await ctx.storage.getUrl(storageId);
+    await ctx.db.patch(id, {
+      thumbnailStorageId: storageId,
+      ...(url ? { thumbnailMediaUrl: url } : {}),
+    });
   },
 });
 
@@ -240,6 +230,23 @@ export const backfillThumbnails = internalAction({
       });
       console.log("[movementSync] Scheduled next thumbnail backfill batch");
     }
+  },
+});
+
+/** One-time migration: resolve thumbnailStorageId to thumbnailMediaUrl for existing documents. */
+export const backfillThumbnailUrls = internalMutation({
+  handler: async (ctx) => {
+    const docs = await ctx.db.query("movements").collect();
+    const needsBackfill = docs.filter((m) => m.thumbnailStorageId && !m.thumbnailMediaUrl);
+    let patched = 0;
+    for (const doc of needsBackfill) {
+      const url = await ctx.storage.getUrl(doc.thumbnailStorageId!);
+      if (url) {
+        await ctx.db.patch(doc._id, { thumbnailMediaUrl: url });
+        patched++;
+      }
+    }
+    console.log(`[backfillThumbnailUrls] ${patched} of ${needsBackfill.length} documents patched`);
   },
 });
 

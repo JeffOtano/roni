@@ -149,9 +149,10 @@ export const createThread = mutation({
 });
 
 /**
- * Creates a new thread and sends the first message. Invokes the LLM synchronously
- * so a BYOK key error surfaces before the thread is created. Use for the welcome
- * flow where no thread exists yet; use sendMessageToThread for all other messages.
+ * Creates a new thread and sends the first message. Validates the BYOK key
+ * synchronously so key errors surface before the thread is created. The LLM
+ * response is scheduled asynchronously (same as sendMessageToThread) so the
+ * frontend is never blocked on the full inference roundtrip.
  */
 export const createThreadWithMessage = action({
   args: {
@@ -181,7 +182,7 @@ export const createThreadWithMessage = action({
     // not silently ignored. The standalone agentCreateThread below does not
     // invoke the LLM, but we still want the key error to block thread
     // creation so the user gets a single clean failure.
-    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+    await resolveUserGeminiKey(ctx, userId);
 
     let targetThreadId: string;
     if (threadId) {
@@ -206,28 +207,15 @@ export const createThreadWithMessage = action({
       }
     }
 
-    const budgetExceeded = await checkDailyBudget(ctx, userId, targetThreadId);
-    if (budgetExceeded) return { threadId: targetThreadId };
-
-    const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
-
-    const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgents(geminiKey);
-    await withByokErrorSanitization(() =>
-      streamWithRetry(ctx, {
-        primaryAgent: primary,
-        fallbackAgent: fallback,
-        threadId: targetThreadId,
-        userId,
-        prompt: resolvedPrompt,
-      }),
-    );
-
-    analytics.capture(userId, "coach_response_received", {
-      response_time_ms: Date.now() - startTime,
-      has_images: (imageStorageIds?.length ?? 0) > 0,
+    // Schedule the LLM response asynchronously so the frontend gets the
+    // threadId back immediately. processMessage handles BYOK resolution,
+    // budget checks, streaming, retries, and analytics.
+    await ctx.scheduler.runAfter(0, internal.chat.processMessage, {
+      threadId: targetThreadId,
+      userId,
+      prompt,
+      imageStorageIds,
     });
-    await analytics.flush();
 
     return { threadId: targetThreadId };
   },
