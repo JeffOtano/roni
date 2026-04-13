@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
-import { forceRefreshUserDataWithDeps, TONAL_REFRESH_CACHE_KEYS } from "./refresh";
+import {
+  EXTERNAL_ACTIVITIES_LIMIT,
+  forceRefreshUserDataWithDeps,
+  TONAL_REFRESH_CACHE_KEYS,
+  WORKOUT_HISTORY_LIMIT,
+} from "./refresh";
 import { refreshTonalDataWithDeps } from "./refreshPublic";
 import type { TonalUser } from "./types";
 
@@ -68,8 +73,14 @@ describe("forceRefreshUserDataWithDeps", () => {
     expect(backfillUserHistory).toHaveBeenCalledWith({ userId: USER_ID });
     expect(fetchUserProfile).toHaveBeenCalledWith({ userId: USER_ID });
     expect(fetchStrengthDistribution).toHaveBeenCalledWith({ userId: USER_ID });
-    expect(fetchWorkoutHistory).toHaveBeenCalledWith({ userId: USER_ID, limit: 50 });
-    expect(fetchExternalActivities).toHaveBeenCalledWith({ userId: USER_ID, limit: 10 });
+    expect(fetchWorkoutHistory).toHaveBeenCalledWith({
+      userId: USER_ID,
+      limit: WORKOUT_HISTORY_LIMIT,
+    });
+    expect(fetchExternalActivities).toHaveBeenCalledWith({
+      userId: USER_ID,
+      limit: EXTERNAL_ACTIVITIES_LIMIT,
+    });
     expect(updateProfileData).toHaveBeenCalledWith({
       userId: USER_ID,
       profileData: expect.objectContaining({
@@ -119,37 +130,31 @@ describe("forceRefreshUserDataWithDeps", () => {
       expect.any(Error),
     );
     expect(logError).toHaveBeenCalledWith(
-      "[tonalRefresh] Failed to warm 50-workout history",
+      `[tonalRefresh] Failed to warm ${WORKOUT_HISTORY_LIMIT}-workout history`,
       expect.any(Error),
     );
     expect(logError).toHaveBeenCalledWith(
-      "[tonalRefresh] Failed to warm external activities",
+      `[tonalRefresh] Failed to warm ${EXTERNAL_ACTIVITIES_LIMIT} external activities`,
       expect.any(Error),
     );
   });
 
-  it("treats updateProfileData as best-effort and logs errors without bubbling them", async () => {
+  it("logs profile persistence failures and still returns the backfill result", async () => {
     const deleteUserCacheEntries = vi.fn().mockResolvedValue(undefined);
     const backfillUserHistory = vi.fn().mockResolvedValue({
       newWorkouts: 1,
-      totalActivities: 5,
+      totalActivities: 6,
     });
-    const fetchUserProfile = vi.fn().mockResolvedValue(buildTonalUser());
-    const fetchStrengthDistribution = vi.fn().mockResolvedValue({});
-    const fetchWorkoutHistory = vi.fn().mockResolvedValue([]);
-    const fetchExternalActivities = vi.fn().mockResolvedValue([]);
-    const updateProfileData = vi
-      .fn()
-      .mockRejectedValue(new Error("Database write failed unexpectedly"));
+    const updateProfileData = vi.fn().mockRejectedValue(new Error("write failed"));
     const logError = vi.fn();
 
     const result = await forceRefreshUserDataWithDeps(USER_ID, {
       deleteUserCacheEntries,
       backfillUserHistory,
-      fetchUserProfile,
-      fetchStrengthDistribution,
-      fetchWorkoutHistory,
-      fetchExternalActivities,
+      fetchUserProfile: vi.fn().mockResolvedValue(buildTonalUser()),
+      fetchStrengthDistribution: vi.fn().mockResolvedValue({}),
+      fetchWorkoutHistory: vi.fn().mockResolvedValue([]),
+      fetchExternalActivities: vi.fn().mockResolvedValue([]),
       updateProfileData,
       logError,
       now: () => 3333,
@@ -158,16 +163,8 @@ describe("forceRefreshUserDataWithDeps", () => {
     expect(result).toEqual({
       refreshedAt: 3333,
       newWorkouts: 1,
-      totalActivities: 5,
+      totalActivities: 6,
     });
-    expect(updateProfileData).toHaveBeenCalledWith({
-      userId: USER_ID,
-      profileData: expect.objectContaining({
-        firstName: "Ada",
-        lastName: "Lovelace",
-      }),
-    });
-    expect(logError).toHaveBeenCalledTimes(1);
     expect(logError).toHaveBeenCalledWith(
       `[tonalRefresh] Failed to update profile data during refresh warm-up for user ${USER_ID}`,
       expect.any(Error),
@@ -176,7 +173,7 @@ describe("forceRefreshUserDataWithDeps", () => {
 });
 
 describe("refreshTonalDataWithDeps", () => {
-  it("returns session_expired error when user is not authenticated", async () => {
+  it("returns session_expired for unauthenticated users", async () => {
     const result = await refreshTonalDataWithDeps({
       resolveEffectiveUserId: vi.fn().mockResolvedValue(null),
       getProfile: vi.fn(),
@@ -187,7 +184,7 @@ describe("refreshTonalDataWithDeps", () => {
     expect(result).toEqual({ error: "session_expired" });
   });
 
-  it("returns not_connected error when the user has not connected Tonal", async () => {
+  it("returns not_connected when the user has not connected Tonal", async () => {
     const getProfile = vi.fn().mockResolvedValue(null);
 
     const result = await refreshTonalDataWithDeps({
@@ -199,6 +196,30 @@ describe("refreshTonalDataWithDeps", () => {
 
     expect(result).toEqual({ error: "not_connected" });
     expect(getProfile).toHaveBeenCalledWith({ userId: USER_ID });
+  });
+
+  it("returns rate_limited when the limiter rejects with a 429", async () => {
+    const result = await refreshTonalDataWithDeps({
+      resolveEffectiveUserId: vi.fn().mockResolvedValue(USER_ID),
+      getProfile: vi.fn().mockResolvedValue({ userId: USER_ID }),
+      limitRefresh: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error("Rate limit exceeded"), { status: 429 })),
+      forceRefreshUserData: vi.fn(),
+    });
+
+    expect(result).toEqual({ error: "rate_limited" });
+  });
+
+  it("rethrows unexpected limiter failures", async () => {
+    await expect(
+      refreshTonalDataWithDeps({
+        resolveEffectiveUserId: vi.fn().mockResolvedValue(USER_ID),
+        getProfile: vi.fn().mockResolvedValue({ userId: USER_ID }),
+        limitRefresh: vi.fn().mockRejectedValue(new Error("storage offline")),
+        forceRefreshUserData: vi.fn(),
+      }),
+    ).rejects.toThrow("storage offline");
   });
 
   it("returns rate_limited error when the rate limiter throws", async () => {

@@ -28,7 +28,11 @@ function buildTonalUser(overrides: Partial<TonalUser> = {}): TonalUser {
 
 describe("toUserProfileData", () => {
   it("maps Tonal profile fields into the userProfiles shape", () => {
-    expect(toUserProfileData(buildTonalUser())).toEqual({
+    const tonalUser = buildTonalUser();
+
+    const result = toUserProfileData(tonalUser);
+
+    expect(result).toEqual({
       firstName: "Ada",
       lastName: "Lovelace",
       heightInches: 65,
@@ -45,16 +49,16 @@ describe("toUserProfileData", () => {
   });
 
   it("fills optional Tonal fields with the stored defaults", () => {
-    expect(
-      toUserProfileData(
-        buildTonalUser({
-          username: "",
-          dateOfBirth: "",
-          createdAt: "",
-          tonalStatus: "",
-        }),
-      ),
-    ).toMatchObject({
+    const tonalUser = buildTonalUser({
+      username: "",
+      dateOfBirth: "",
+      createdAt: "",
+      tonalStatus: "",
+    });
+
+    const result = toUserProfileData(tonalUser);
+
+    expect(result).toMatchObject({
       level: "",
       dateOfBirth: undefined,
       username: undefined,

@@ -9,16 +9,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link2, Loader2, RefreshCw } from "lucide-react";
 
+const TONAL_REFRESH_RATE_LIMIT_MINUTES = 1;
+
+export type TonalConnectionState =
+  | {
+      readonly state: "disconnected";
+    }
+  | {
+      readonly state: "connected";
+      readonly tonalEmail: string;
+      readonly tonalName?: string;
+      readonly tonalTokenExpired: boolean;
+    }
+  | {
+      readonly state: "connectedWithoutEmail";
+      readonly tonalName?: string;
+      readonly tonalTokenExpired: boolean;
+    };
+
 type TonalConnectionCardProps = {
-  readonly me:
-    | {
-        readonly hasTonalProfile: boolean;
-        readonly tonalName?: string;
-        readonly tonalEmail?: string;
-        readonly tonalTokenExpired?: boolean;
-      }
-    | null
-    | undefined;
+  readonly connection: TonalConnectionState;
 };
 
 type RefreshNotice = {
@@ -51,35 +61,41 @@ function buildRefreshNotice(result: {
 }
 
 function buildRefreshErrorMessage(
-  result: { error: "session_expired" | "not_connected" | "rate_limited" } | Error,
+  error: "session_expired" | "not_connected" | "rate_limited",
 ): string {
-  if ("error" in result) {
-    if (result.error === "session_expired") {
-      return "Your Tonal session expired. Reconnect to refresh data.";
-    }
-    if (result.error === "not_connected") {
-      return "No Tonal profile found. Connect your Tonal account first.";
-    }
-    if (result.error === "rate_limited") {
-      return "Refresh is rate-limited. Try again in a minute.";
-    }
-  }
-
-  const message = result instanceof Error ? result.message : "Failed to refresh Tonal data.";
-  const normalized = message.toLowerCase();
-
-  if (normalized.includes("session expired")) {
+  if (error === "session_expired") {
     return "Your Tonal session expired. Reconnect to refresh data.";
   }
 
+  if (error === "not_connected") {
+    return "Connect Tonal before trying to refresh your data.";
+  }
+
+  // Keep this in sync with the refreshTonalData limiter in convex/rateLimits.ts.
+  if (error === "rate_limited") {
+    return `Refresh is rate-limited. Try again in ${TONAL_REFRESH_RATE_LIMIT_MINUTES} minute${TONAL_REFRESH_RATE_LIMIT_MINUTES === 1 ? "" : "s"}.`;
+  }
+
+  const _exhaustive: never = error;
+  return _exhaustive;
+}
+
+function buildUnexpectedRefreshErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Failed to refresh Tonal data.";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("session expired")) {
+    return buildRefreshErrorMessage("session_expired");
+  }
+
   if (normalized.includes("rate limit")) {
-    return "Refresh is rate-limited. Try again in a minute.";
+    return buildRefreshErrorMessage("rate_limited");
   }
 
   return "Failed to refresh Tonal data. Try again or reconnect.";
 }
 
-export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
+export function TonalConnectionCard({ connection }: TonalConnectionCardProps) {
   const refreshTonalData = useAction(api.tonal.refreshPublic.refreshTonalData);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reconnectOpen, setReconnectOpen] = useState(false);
@@ -91,25 +107,27 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
 
     try {
       const result = await refreshTonalData({});
+
       if ("error" in result) {
         setNotice({
           tone: "error",
-          message: buildRefreshErrorMessage(result),
+          message: buildRefreshErrorMessage(result.error),
         });
-      } else {
-        setNotice(buildRefreshNotice(result));
+        return;
       }
+
+      setNotice(buildRefreshNotice(result));
     } catch (error) {
       setNotice({
         tone: "error",
-        message: buildRefreshErrorMessage(error instanceof Error ? error : new Error(String(error))),
+        message: buildUnexpectedRefreshErrorMessage(error),
       });
     } finally {
       setIsRefreshing(false);
     }
   }
 
-  if (!me?.hasTonalProfile) {
+  if (connection.state === "disconnected") {
     return (
       <Card>
         <CardContent className="p-4">
@@ -137,7 +155,7 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
     );
   }
 
-  const refreshDisabled = me.tonalTokenExpired || isRefreshing;
+  const refreshDisabled = connection.tonalTokenExpired || isRefreshing;
 
   return (
     <>
@@ -150,8 +168,8 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
             </span>
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Connected</p>
-              {me.tonalName && (
-                <p className="truncate text-sm text-muted-foreground">{me.tonalName}</p>
+              {connection.tonalName && (
+                <p className="truncate text-sm text-muted-foreground">{connection.tonalName}</p>
               )}
             </div>
           </div>
@@ -176,7 +194,7 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
                 </>
               )}
             </Button>
-            {me.tonalEmail ? (
+            {connection.state === "connected" ? (
               <Button
                 type="button"
                 variant="outline"
@@ -188,6 +206,7 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
             ) : (
               <Button
                 nativeButton={false}
+                type="button"
                 variant="outline"
                 size="sm"
                 render={<Link href="/connect-tonal" />}
@@ -199,7 +218,8 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
 
           <p className="text-xs text-muted-foreground">
             Refresh pulls your latest workouts, volume, and strength history from Tonal.
-            {me.tonalTokenExpired && " Your current Tonal session has expired, so reconnect first."}
+            {connection.tonalTokenExpired &&
+              " Your current Tonal session has expired, so reconnect first."}
           </p>
 
           {notice && (
@@ -218,11 +238,13 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
         </CardContent>
       </Card>
 
-      <ReconnectModal
-        tonalEmail={me.tonalEmail ?? ""}
-        open={reconnectOpen && !!me.tonalEmail}
-        onDismiss={() => setReconnectOpen(false)}
-      />
+      {connection.state === "connected" && (
+        <ReconnectModal
+          tonalEmail={connection.tonalEmail}
+          open={reconnectOpen}
+          onDismiss={() => setReconnectOpen(false)}
+        />
+      )}
     </>
   );
 }

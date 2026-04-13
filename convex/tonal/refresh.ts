@@ -5,6 +5,9 @@ import type { Id } from "../_generated/dataModel";
 import { toUserProfileData } from "./profileData";
 import type { TonalUser } from "./types";
 
+export const WORKOUT_HISTORY_LIMIT = 50;
+export const EXTERNAL_ACTIVITIES_LIMIT = 10;
+
 export const TONAL_REFRESH_CACHE_KEYS = [
   "profile",
   "strengthScores",
@@ -64,8 +67,8 @@ export async function forceRefreshUserDataWithDeps(
     await Promise.allSettled([
       deps.fetchUserProfile({ userId }),
       deps.fetchStrengthDistribution({ userId }),
-      deps.fetchWorkoutHistory({ userId, limit: 50 }),
-      deps.fetchExternalActivities({ userId, limit: 10 }),
+      deps.fetchWorkoutHistory({ userId, limit: WORKOUT_HISTORY_LIMIT }),
+      deps.fetchExternalActivities({ userId, limit: EXTERNAL_ACTIVITIES_LIMIT }),
     ]);
 
   if (profileResult.status === "fulfilled") {
@@ -89,11 +92,17 @@ export async function forceRefreshUserDataWithDeps(
   }
 
   if (workoutHistoryResult.status === "rejected") {
-    logError("[tonalRefresh] Failed to warm 50-workout history", workoutHistoryResult.reason);
+    logError(
+      `[tonalRefresh] Failed to warm ${WORKOUT_HISTORY_LIMIT}-workout history`,
+      workoutHistoryResult.reason,
+    );
   }
 
   if (externalActivitiesResult.status === "rejected") {
-    logError("[tonalRefresh] Failed to warm external activities", externalActivitiesResult.reason);
+    logError(
+      `[tonalRefresh] Failed to warm ${EXTERNAL_ACTIVITIES_LIMIT} external activities`,
+      externalActivitiesResult.reason,
+    );
   }
 
   return {

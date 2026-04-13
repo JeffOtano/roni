@@ -25,7 +25,10 @@ import { EquipmentSettings } from "@/features/settings/EquipmentSettings";
 import { DataExport } from "@/features/settings/DataExport";
 import { DeleteAccount } from "@/features/settings/DeleteAccount";
 import { ProfileCard } from "@/features/settings/ProfileCard";
-import { TonalConnectionCard } from "@/features/settings/TonalConnectionCard";
+import {
+  TonalConnectionCard,
+  type TonalConnectionState,
+} from "@/features/settings/TonalConnectionCard";
 import { GeminiKeySection } from "@/features/byok/GeminiKeySection";
 import { DISCORD_URL, REPO_URL } from "@/lib/urls";
 import { LogOut, MessageSquare } from "lucide-react";
@@ -53,6 +56,21 @@ function SettingsPageInner() {
     await signOut();
     router.replace("/login");
   };
+
+  const tonalConnection: TonalConnectionState = !me?.hasTonalProfile
+    ? { state: "disconnected" }
+    : me.tonalEmail
+      ? {
+          state: "connected",
+          tonalEmail: me.tonalEmail,
+          tonalName: me.tonalName,
+          tonalTokenExpired: me.tonalTokenExpired ?? false,
+        }
+      : {
+          state: "connectedWithoutEmail",
+          tonalName: me.tonalName,
+          tonalTokenExpired: me.tonalTokenExpired ?? false,
+        };
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -118,7 +136,7 @@ function SettingsPageInner() {
       {/* Tonal Connection */}
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Tonal Connection</h2>
-        <TonalConnectionCard me={me} />
+        <TonalConnectionCard connection={tonalConnection} />
       </section>
 
       {/* Equipment */}

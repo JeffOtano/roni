@@ -4,9 +4,8 @@ import type { Id } from "../_generated/dataModel";
 import { rateLimiter } from "../rateLimits";
 import type { ForceRefreshResult } from "./refresh";
 
-export type RefreshResult =
-  | ForceRefreshResult
-  | { error: "session_expired" | "not_connected" | "rate_limited" };
+export type RefreshTonalDataError = "session_expired" | "not_connected" | "rate_limited";
+export type RefreshTonalDataResult = ForceRefreshResult | { error: RefreshTonalDataError };
 
 interface RefreshPublicDeps {
   resolveEffectiveUserId: () => Promise<Id<"users"> | null>;
@@ -15,7 +14,23 @@ interface RefreshPublicDeps {
   forceRefreshUserData: (args: { userId: Id<"users"> }) => Promise<ForceRefreshResult>;
 }
 
-export async function refreshTonalDataWithDeps(deps: RefreshPublicDeps): Promise<RefreshResult> {
+function isRateLimitError(error: unknown): boolean {
+  if (error instanceof Error && error.message.toLowerCase().includes("rate limit")) {
+    return true;
+  }
+
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof error.status === "number" &&
+    error.status === 429
+  );
+}
+
+export async function refreshTonalDataWithDeps(
+  deps: RefreshPublicDeps,
+): Promise<RefreshTonalDataResult> {
   const userId = await deps.resolveEffectiveUserId();
   if (!userId) return { error: "session_expired" };
 
@@ -24,8 +39,12 @@ export async function refreshTonalDataWithDeps(deps: RefreshPublicDeps): Promise
 
   try {
     await deps.limitRefresh(userId);
-  } catch {
-    return { error: "rate_limited" };
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { error: "rate_limited" };
+    }
+
+    throw error;
   }
 
   return await deps.forceRefreshUserData({ userId });
@@ -33,7 +52,7 @@ export async function refreshTonalDataWithDeps(deps: RefreshPublicDeps): Promise
 
 export const refreshTonalData = action({
   args: {},
-  handler: async (ctx): Promise<RefreshResult> =>
+  handler: async (ctx): Promise<RefreshTonalDataResult> =>
     refreshTonalDataWithDeps({
       resolveEffectiveUserId: () => ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {}),
       getProfile: (args) => ctx.runQuery(internal.userProfiles.getByUserId, args),
