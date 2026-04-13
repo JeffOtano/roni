@@ -217,7 +217,6 @@ export function ChatMessage({ message, isGrouped, threadId }: ChatMessageProps) 
                   key={part.toolCallId}
                   toolName={part.toolName}
                   state={part.state}
-                  input={part.input}
                   output={"output" in part ? part.output : undefined}
                 />
               ))}

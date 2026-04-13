@@ -83,7 +83,6 @@ const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
 interface ToolCallIndicatorProps {
   toolName: string;
   state: string;
-  input?: unknown;
   output?: unknown;
 }
 
