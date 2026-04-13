@@ -4,6 +4,7 @@ import { internal } from "../_generated/api";
 import { encryptToken, obtainTonalToken } from "./auth";
 import { tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
+import { toUserProfileData } from "./profileData";
 import type { TonalUser } from "./types";
 
 export const connectTonal = internalAction({
@@ -37,20 +38,7 @@ export const connectTonal = internalAction({
       tonalToken: encryptedToken,
       tonalRefreshToken: encryptedRefresh,
       tonalTokenExpiresAt: expiresAt,
-      profileData: {
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        heightInches: profile.heightInches,
-        weightPounds: profile.weightPounds,
-        gender: profile.gender,
-        level: profile.tonalStatus ?? "",
-        workoutsPerWeek: profile.workoutsPerWeek,
-        workoutDurationMin: profile.workoutDurationMin ?? 0,
-        workoutDurationMax: profile.workoutDurationMax ?? 0,
-        dateOfBirth: profile.dateOfBirth || undefined,
-        username: profile.username || undefined,
-        tonalCreatedAt: profile.createdAt || undefined,
-      },
+      profileData: toUserProfileData(profile),
     });
 
     // 6. Seed movements table if empty (first user connecting)

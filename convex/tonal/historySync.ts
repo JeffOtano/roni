@@ -18,6 +18,7 @@ import type {
   WorkoutActivityDetail,
 } from "./types";
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
+import { toUserProfileData } from "./profileData";
 import * as analytics from "../lib/posthog";
 
 type WorkoutPayload = typeof workoutValidator.type;
@@ -201,20 +202,7 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
     const u = await ctx.runAction(internal.tonal.proxy.fetchUserProfile, { userId });
     await ctx.runMutation(internal.userProfiles.updateProfileData, {
       userId,
-      profileData: {
-        firstName: u.firstName,
-        lastName: u.lastName,
-        heightInches: u.heightInches,
-        weightPounds: u.weightPounds,
-        gender: u.gender,
-        level: u.tonalStatus ?? "",
-        workoutsPerWeek: u.workoutsPerWeek,
-        workoutDurationMin: u.workoutDurationMin ?? 0,
-        workoutDurationMax: u.workoutDurationMax ?? 0,
-        dateOfBirth: u.dateOfBirth || undefined,
-        username: u.username || undefined,
-        tonalCreatedAt: u.createdAt || undefined,
-      },
+      profileData: toUserProfileData(u),
     });
   } catch (err) {
     console.error("[historySync] Profile refresh failed", err);
@@ -254,7 +242,7 @@ export const syncUserHistory = internalAction({
 /** One-shot backfill on Tonal connect. Fetches deeper history. */
 export const backfillUserHistory = internalAction({
   args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  handler: async (ctx, { userId }): Promise<{ newWorkouts: number; totalActivities: number }> => {
     const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
       limit: 100,
@@ -286,5 +274,7 @@ export const backfillUserHistory = internalAction({
       backfill: true,
     });
     await analytics.flush();
+
+    return { newWorkouts: synced, totalActivities: activities.length };
   },
 });

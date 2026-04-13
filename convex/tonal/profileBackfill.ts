@@ -1,6 +1,7 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
+import { toUserProfileData } from "./profileData";
 
 /**
  * One-time backfill: fetch fresh Tonal profile for all users and sync
@@ -29,20 +30,7 @@ export const backfillAllProfiles = internalAction({
         });
         await ctx.runMutation(internal.userProfiles.updateProfileData, {
           userId: profile.userId,
-          profileData: {
-            firstName: u.firstName,
-            lastName: u.lastName,
-            heightInches: u.heightInches,
-            weightPounds: u.weightPounds,
-            gender: u.gender,
-            level: u.tonalStatus ?? "",
-            workoutsPerWeek: u.workoutsPerWeek,
-            workoutDurationMin: u.workoutDurationMin ?? 0,
-            workoutDurationMax: u.workoutDurationMax ?? 0,
-            dateOfBirth: u.dateOfBirth || undefined,
-            username: u.username || undefined,
-            tonalCreatedAt: u.createdAt || undefined,
-          },
+          profileData: toUserProfileData(u),
         });
         success++;
       } catch (err) {

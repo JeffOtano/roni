@@ -78,3 +78,27 @@ export const setCacheEntry = internalMutation({
     }
   },
 });
+
+export const deleteUserCacheEntries = internalMutation({
+  args: {
+    userId: v.id("users"),
+    dataTypes: v.array(v.string()),
+  },
+  handler: async (ctx, { userId, dataTypes }) => {
+    let deleted = 0;
+
+    for (const dataType of dataTypes) {
+      const existing = await ctx.db
+        .query("tonalCache")
+        .withIndex("by_userId_dataType", (q) => q.eq("userId", userId).eq("dataType", dataType))
+        .unique();
+
+      if (!existing) continue;
+
+      await ctx.db.delete(existing._id);
+      deleted++;
+    }
+
+    return deleted;
+  },
+});

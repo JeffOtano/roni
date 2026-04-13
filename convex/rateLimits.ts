@@ -59,6 +59,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 5,
   },
+  refreshTonalData: {
+    kind: "token bucket",
+    rate: 2,
+    period: MINUTE,
+    capacity: 2,
+  },
   imageUpload: {
     kind: "token bucket",
     rate: 10,

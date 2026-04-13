@@ -25,9 +25,10 @@ import { EquipmentSettings } from "@/features/settings/EquipmentSettings";
 import { DataExport } from "@/features/settings/DataExport";
 import { DeleteAccount } from "@/features/settings/DeleteAccount";
 import { ProfileCard } from "@/features/settings/ProfileCard";
+import { TonalConnectionCard } from "@/features/settings/TonalConnectionCard";
 import { GeminiKeySection } from "@/features/byok/GeminiKeySection";
 import { DISCORD_URL, REPO_URL } from "@/lib/urls";
-import { Link2, LogOut, MessageSquare } from "lucide-react";
+import { LogOut, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 const SECTION_HEADING =
@@ -117,42 +118,7 @@ function SettingsPageInner() {
       {/* Tonal Connection */}
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Tonal Connection</h2>
-        <Card>
-          <CardContent className="p-4">
-            {me?.hasTonalProfile ? (
-              <div className="flex items-center gap-3">
-                <span className="relative flex size-2.5">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-400 opacity-60" />
-                  <span className="relative inline-flex size-2.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(74,222,128,0.4)]" />
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Connected</p>
-                  {me.tonalName && <p className="text-sm text-muted-foreground">{me.tonalName}</p>}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Link2 className="size-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Not Connected</p>
-                    <p className="text-sm text-muted-foreground">
-                      Link your Tonal account to get started
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="transition-all duration-200 hover:border-primary/40"
-                  onClick={() => router.push("/connect-tonal")}
-                >
-                  Connect
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <TonalConnectionCard me={me} />
       </section>
 
       {/* Equipment */}
