@@ -14,6 +14,18 @@ import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import { requireUserId, withToolTracking } from "./helpers";
 
+const VALIDATION_PREFIXES = [
+  "Invalid movementId",
+  "Workout plan not found",
+  "Can only swap",
+  "Can only add",
+];
+
+function isValidationError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return VALIDATION_PREFIXES.some((p) => err.message.startsWith(p));
+}
+
 // ---------------------------------------------------------------------------
 // swapExerciseTool
 // ---------------------------------------------------------------------------
@@ -69,7 +81,10 @@ export const swapExerciseTool = createTool({
           newMovementId: input.newMovementId,
         });
       } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : String(err) };
+        if (isValidationError(err)) {
+          return { success: false, error: (err as Error).message };
+        }
+        throw err;
       }
 
       return {
@@ -142,7 +157,10 @@ export const addExerciseTool = createTool({
           ...opts,
         });
       } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : String(err) };
+        if (isValidationError(err)) {
+          return { success: false, error: (err as Error).message };
+        }
+        throw err;
       }
 
       return {

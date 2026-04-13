@@ -77,10 +77,15 @@ export const setCacheEntry = internalMutation({
           expiresAt: args.expiresAt,
         });
       }
-    } catch {
-      // Silently skip if data exceeds Convex's 1 MiB document limit.
-      // The caller (cachedFetch) still returns fresh data to the user.
-      console.warn(`setCacheEntry(${args.dataType}): skipped, data too large`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("too large") || msg.includes("maximum size")) {
+        // Silently skip if data exceeds Convex's 1 MiB document limit.
+        // The caller (cachedFetch) still returns fresh data to the user.
+        console.warn(`setCacheEntry(${args.dataType}): skipped, data too large`);
+        return;
+      }
+      throw err;
     }
   },
 });
