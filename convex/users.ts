@@ -28,6 +28,7 @@ export const getMe = query({
         : undefined,
       tonalEmail: profile?.tonalEmail,
       tonalTokenExpired,
+      syncStatus: profile?.syncStatus,
     };
   },
 });
