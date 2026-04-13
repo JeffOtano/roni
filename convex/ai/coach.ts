@@ -214,19 +214,18 @@ export const coachAgentConfig = {
   }) satisfies UsageHandler,
 
   contextHandler: (async (ctx, args) => {
-    if (!args.userId) return [...args.allMessages];
+    // Normalize regardless of auth: strip stale images, merge consecutive
+    // same-role messages that arise from search + recent concatenation.
+    const messages = mergeConsecutiveSameRole(stripImagesFromOlderMessages(args.allMessages));
+
+    if (!args.userId) return messages;
 
     const snapshot = await buildTrainingSnapshot(ctx, args.userId);
     const snapshotMessage = {
       role: "system" as const,
       content: `<training-data>\n${snapshot}\n</training-data>`,
     };
-    // Strip image parts from all messages except the most recent user message
-    // to prevent OOM from large image data accumulating in context.
-    const messages = stripImagesFromOlderMessages(args.allMessages);
-    // Merge consecutive same-role messages that arise from search + recent
-    // concatenation to satisfy Gemini's turn-alternation requirement.
-    return [snapshotMessage, ...mergeConsecutiveSameRole(messages)];
+    return [snapshotMessage, ...messages];
   }) satisfies ContextHandler,
 };
 
