@@ -108,6 +108,9 @@ export default defineSchema({
     modelOverride: v.optional(v.string()),
     /** Timestamp when a token refresh started. Used to prevent concurrent refreshes. */
     tokenRefreshInProgress: v.optional(v.number()),
+    syncStatus: v.optional(
+      v.union(v.literal("syncing"), v.literal("complete"), v.literal("failed")),
+    ),
   })
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"])
@@ -437,6 +440,45 @@ export default defineSchema({
   })
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId", ["userId"]),
+
+  currentStrengthScores: defineTable({
+    userId: v.id("users"),
+    bodyRegion: v.string(),
+    score: v.number(),
+    fetchedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  muscleReadiness: defineTable({
+    userId: v.id("users"),
+    chest: v.number(),
+    shoulders: v.number(),
+    back: v.number(),
+    triceps: v.number(),
+    biceps: v.number(),
+    abs: v.number(),
+    obliques: v.number(),
+    quads: v.number(),
+    glutes: v.number(),
+    hamstrings: v.number(),
+    calves: v.number(),
+    fetchedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  externalActivities: defineTable({
+    userId: v.id("users"),
+    externalId: v.string(),
+    workoutType: v.string(),
+    beginTime: v.string(),
+    totalDuration: v.number(),
+    activeCalories: v.number(),
+    totalCalories: v.number(),
+    averageHeartRate: v.number(),
+    source: v.string(),
+    distance: v.number(),
+    syncedAt: v.number(),
+  })
+    .index("by_userId_externalId", ["userId", "externalId"])
+    .index("by_userId_beginTime", ["userId", "beginTime"]),
 
   /** Pre-generated workout library entries for SEO and inspiration. */
   libraryWorkouts: defineTable({
