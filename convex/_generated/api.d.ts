@@ -30,6 +30,7 @@ import type * as aiUsage from "../aiUsage.js";
 import type * as auth from "../auth.js";
 import type * as byok from "../byok.js";
 import type * as byokProvider from "../byokProvider.js";
+import type * as byokValidation from "../byokValidation.js";
 import type * as chat from "../chat.js";
 import type * as checkIns from "../checkIns.js";
 import type * as checkIns_content from "../checkIns/content.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   byok: typeof byok;
   byokProvider: typeof byokProvider;
+  byokValidation: typeof byokValidation;
   chat: typeof chat;
   checkIns: typeof checkIns;
   "checkIns/content": typeof checkIns_content;

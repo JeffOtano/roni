@@ -7,6 +7,7 @@ export type FailureReason =
   | "byok_safety_blocked"
   | "byok_unknown_error"
   | "byok_key_missing"
+  | "byok_model_missing"
   | "house_key_quota_exhausted";
 
 interface FailureBannerProps {
@@ -19,6 +20,7 @@ const MESSAGES: Record<FailureReason, string> = {
   byok_safety_blocked: "Gemini declined to answer this one. Try rephrasing.",
   byok_unknown_error: "Something went wrong with Gemini. Try again in a moment.",
   byok_key_missing: "You need to add your Gemini API key to use chat.",
+  byok_model_missing: "The selected provider needs a model name before chat can start.",
   house_key_quota_exhausted:
     "You've used your 500 free AI messages this month. Add your own Gemini key to keep going -- it's free from Google.",
 };

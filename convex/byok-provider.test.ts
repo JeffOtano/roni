@@ -12,6 +12,7 @@ describe("resolveProviderKey", () => {
   const HOUSE_KEY = "AIzaHouseKey00000000000000000000000abcd";
   const GEMINI_USER_KEY = "AIzaSyA1B2C3D4E5F6G7H8I9J0KlMnOpQrStUvW";
   const CLAUDE_USER_KEY = "sk-ant-test-key-for-claude-provider";
+  const OPENROUTER_USER_KEY = "sk-or-v1-test-key-for-openrouter";
 
   beforeEach(() => {
     delete process.env.BYOK_DISABLED;
@@ -215,5 +216,38 @@ describe("resolveProviderKey", () => {
 
     expect(result.provider).toBe("gemini");
     expect(result.apiKey).toBe(GEMINI_USER_KEY);
+  });
+
+  it("throws byok_model_missing when OpenRouter is selected without a model override", async () => {
+    process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+    const ciphertext = await encrypt(OPENROUTER_USER_KEY, TEST_ENCRYPTION_KEY);
+    const profile = makeProfile({
+      selectedProvider: "openrouter",
+      openrouterApiKeyEncrypted: ciphertext,
+    });
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    await expect(resolveProviderKey(profile, byokCreationTime)).rejects.toThrow(
+      "byok_model_missing",
+    );
+  });
+
+  it("returns OpenRouter when the model override is present", async () => {
+    process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+    const ciphertext = await encrypt(OPENROUTER_USER_KEY, TEST_ENCRYPTION_KEY);
+    const profile = makeProfile({
+      selectedProvider: "openrouter",
+      openrouterApiKeyEncrypted: ciphertext,
+      modelOverride: "openai/gpt-4o-mini",
+    });
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    const result = await resolveProviderKey(profile, byokCreationTime);
+
+    expect(result).toEqual({
+      provider: "openrouter",
+      apiKey: OPENROUTER_USER_KEY,
+      modelOverride: "openai/gpt-4o-mini",
+    });
   });
 });

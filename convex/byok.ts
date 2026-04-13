@@ -7,13 +7,14 @@ import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
 import { decrypt, encrypt } from "./tonal/encryption";
 import { getProviderConfig, isValidProvider, type ProviderId } from "./ai/providers";
-
-const providerIdValidator = v.union(
-  v.literal("gemini"),
-  v.literal("claude"),
-  v.literal("openai"),
-  v.literal("openrouter"),
-);
+import {
+  assertProviderHasRequiredModel,
+  KEY_FIELD_MAP,
+  normalizeModelOverride,
+  providerIdValidator,
+} from "./byokShared";
+export type { ProviderKeyInfo, ProviderKeyResult, ProviderSettings } from "./byokShared";
+import type { ProviderKeyResult } from "./byokShared";
 
 // Set at OSS launch. Users created before this timestamp are grandfathered
 // onto the house key; anyone created after must provide BYOK.
@@ -22,28 +23,6 @@ export const BYOK_REQUIRED_AFTER = Date.parse("2026-04-08T19:03:52.114Z");
 export function isBYOKRequired(creationTime: number): boolean {
   return creationTime >= BYOK_REQUIRED_AFTER;
 }
-
-export async function resolveGeminiKey(
-  profile: Doc<"userProfiles"> | null,
-  userCreationTime: number,
-): Promise<string> {
-  const result = await resolveProviderKey(profile, userCreationTime);
-  return result.apiKey;
-}
-
-export type ProviderKeyResult = {
-  provider: ProviderId;
-  apiKey: string;
-  modelOverride?: string;
-  isHouseKey?: boolean;
-};
-
-const KEY_FIELD_MAP: Record<ProviderId, keyof Doc<"userProfiles">> = {
-  gemini: "geminiApiKeyEncrypted",
-  claude: "claudeApiKeyEncrypted",
-  openai: "openaiApiKeyEncrypted",
-  openrouter: "openrouterApiKeyEncrypted",
-};
 
 export async function resolveProviderKey(
   profile: Doc<"userProfiles"> | null,
@@ -62,16 +41,18 @@ export async function resolveProviderKey(
       : "gemini";
   const keyField = KEY_FIELD_MAP[provider];
   const encryptedKey = profile?.[keyField] as string | undefined;
+  const modelOverride = normalizeModelOverride(profile?.modelOverride);
 
   if (encryptedKey) {
     const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
     if (!encryptionKey) throw new Error("byok_misconfigured_no_encryption_key");
 
     const apiKey = await decrypt(encryptedKey, encryptionKey);
+    assertProviderHasRequiredModel(provider, modelOverride);
     return {
       provider,
       apiKey,
-      modelOverride: profile?.modelOverride ?? undefined,
+      modelOverride,
     };
   }
 
@@ -85,10 +66,11 @@ export async function resolveProviderKey(
       if (encrypted) {
         const ek = process.env.TOKEN_ENCRYPTION_KEY;
         if (!ek) throw new Error("byok_misconfigured_no_encryption_key");
+        assertProviderHasRequiredModel(gfProvider, modelOverride);
         return {
           provider: gfProvider,
           apiKey: await decrypt(encrypted, ek),
-          modelOverride: profile?.modelOverride ?? undefined,
+          modelOverride,
         };
       }
     }
@@ -99,6 +81,14 @@ export async function resolveProviderKey(
 
   // BYOK required but no valid key found
   throw new Error("byok_key_missing");
+}
+
+export async function resolveGeminiKey(
+  profile: Doc<"userProfiles"> | null,
+  userCreationTime: number,
+): Promise<string> {
+  const result = await resolveProviderKey(profile, userCreationTime);
+  return result.apiKey;
 }
 
 import { maskGeminiKey, prepareGeminiKeyForStorage } from "./byokValidation";
@@ -112,6 +102,7 @@ export const _saveProviderKeyInternal = internalMutation({
     provider: providerIdValidator,
     apiKey: v.string(),
     encryptionKey: v.string(),
+    modelOverride: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await saveProviderKeyCore(
@@ -120,6 +111,7 @@ export const _saveProviderKeyInternal = internalMutation({
       args.provider as ProviderId,
       args.apiKey,
       args.encryptionKey,
+      args.modelOverride,
     );
   },
 });
@@ -130,6 +122,7 @@ async function saveProviderKeyCore(
   provider: ProviderId,
   apiKey: string,
   encryptionKey: string,
+  modelOverride?: string,
 ): Promise<void> {
   const config = getProviderConfig(provider);
   const trimmed = apiKey.trim();
@@ -147,11 +140,23 @@ async function saveProviderKeyCore(
 
   if (!profile) throw new Error("User profile not found");
 
-  await ctx.db.patch(profile._id, {
+  const nextModelOverride = normalizeModelOverride(modelOverride);
+  const effectiveModelOverride = nextModelOverride ?? normalizeModelOverride(profile.modelOverride);
+
+  // Avoid selecting OpenRouter until we have a usable model name.
+  const autoSwitch = provider !== "openrouter" || effectiveModelOverride !== undefined;
+
+  const patch: Partial<Doc<"userProfiles">> = {
     [config.keyFieldName]: encrypted,
     [config.keyTimestampFieldName]: addedAt,
-    selectedProvider: provider,
-  } as Partial<Doc<"userProfiles">>);
+    ...(autoSwitch ? { selectedProvider: provider } : {}),
+  };
+
+  if (provider === "openrouter" && nextModelOverride !== undefined) {
+    patch.modelOverride = nextModelOverride;
+  }
+
+  await ctx.db.patch(profile._id, patch);
 }
 
 async function removeProviderKeyCore(
@@ -217,7 +222,11 @@ export const removeGeminiKey = mutation({
 });
 
 export const saveProviderKey = action({
-  args: { provider: providerIdValidator, apiKey: v.string() },
+  args: {
+    provider: providerIdValidator,
+    apiKey: v.string(),
+    modelOverride: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
@@ -232,6 +241,7 @@ export const saveProviderKey = action({
       provider: args.provider,
       apiKey: args.apiKey,
       encryptionKey,
+      modelOverride: args.modelOverride,
     });
   },
 });
@@ -265,11 +275,13 @@ export const setSelectedProvider = mutation({
       throw new Error(`No API key on file for ${provider}`);
     }
 
-    const changing = profile.selectedProvider !== provider;
-    await ctx.db.patch(profile._id, {
-      selectedProvider: provider,
-      ...(changing ? { modelOverride: undefined } : {}),
-    });
+    if (provider === "openrouter") {
+      if (!normalizeModelOverride(profile.modelOverride)) {
+        throw new Error("OpenRouter requires a model name. Set one in Advanced first.");
+      }
+    }
+
+    await ctx.db.patch(profile._id, { selectedProvider: provider });
   },
 });
 
@@ -286,8 +298,13 @@ export const setModelOverride = mutation({
 
     if (!profile) throw new Error("User profile not found");
 
+    const nextModelOverride = normalizeModelOverride(args.modelOverride);
+    if (profile.selectedProvider === "openrouter" && !nextModelOverride) {
+      throw new Error("OpenRouter requires a model name while it is selected.");
+    }
+
     await ctx.db.patch(profile._id, {
-      modelOverride: args.modelOverride,
+      modelOverride: nextModelOverride,
     });
   },
 });
@@ -377,13 +394,3 @@ export const getBYOKStatus = query({
     };
   },
 });
-
-export type ProviderKeyInfo =
-  | { hasKey: false }
-  | { hasKey: true; maskedLast4: string; addedAt: number };
-
-export type ProviderSettings = {
-  selectedProvider: ProviderId;
-  modelOverride: string | null;
-  keys: Record<ProviderId, ProviderKeyInfo>;
-};

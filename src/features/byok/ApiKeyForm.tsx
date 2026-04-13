@@ -36,8 +36,9 @@ const PROVIDER_UI_CONFIG: Record<
   },
   openai: {
     label: "OpenAI",
-    keyRegex: /^sk-/,
-    keyFormatError: "Key format looks wrong. OpenAI keys start with 'sk-'.",
+    keyRegex: /^sk-(?!ant-)(?!or-)/,
+    keyFormatError:
+      "Key format looks wrong. OpenAI keys start with 'sk-' (but not 'sk-ant-' or 'sk-or-').",
     keySourceUrl: "https://platform.openai.com/api-keys",
     keyPlaceholder: "sk-...",
   },

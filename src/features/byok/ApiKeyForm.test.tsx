@@ -102,4 +102,18 @@ describe("ApiKeyForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/sk-ant-/i);
     expect(onSave).not.toHaveBeenCalled();
   });
+
+  it("rejects Claude and OpenRouter prefixes when the provider is OpenAI", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+
+    render(<ApiKeyForm provider="openai" onSave={onSave} />);
+
+    const input = screen.getByLabelText(/api key/i);
+    await user.type(input, "sk-ant-not-openai");
+    await user.click(screen.getByRole("button", { name: /save key/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/but not 'sk-ant-' or 'sk-or-'/i);
+    expect(onSave).not.toHaveBeenCalled();
+  });
 });

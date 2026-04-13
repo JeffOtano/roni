@@ -93,10 +93,17 @@ export function ProviderSection() {
   };
 
   const handleSave = async (apiKey: string) => {
+    const needsModelSetup = viewProvider === "openrouter" && !settings?.modelOverride?.trim();
     await saveKey({ provider: viewProvider, apiKey });
     await refreshSettings();
+    if (needsModelSetup) {
+      setViewProvider("openrouter");
+    }
     setIsOptingIn(false);
     toast.success(`${PROVIDER_UI_CONFIG[viewProvider].label} key saved`);
+    if (needsModelSetup) {
+      toast("Set a model name in Advanced below to activate OpenRouter", { duration: 6000 });
+    }
   };
 
   const handleRemove = async () => {
@@ -197,6 +204,14 @@ export function ProviderSection() {
         modelOverride={settings?.modelOverride ?? null}
         onSave={async (args) => {
           await setModelOverrideMut(args);
+          if (
+            viewProvider === "openrouter" &&
+            currentKeyInfo.hasKey &&
+            args.modelOverride?.trim() &&
+            settings?.selectedProvider !== "openrouter"
+          ) {
+            await selectProvider({ provider: "openrouter" });
+          }
           await refreshSettings();
         }}
       />
@@ -288,7 +303,7 @@ function ModelOverrideSection({
                 {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
                 Save
               </Button>
-              {modelOverride && (
+              {modelOverride && provider !== "openrouter" && (
                 <button
                   type="button"
                   onClick={handleReset}

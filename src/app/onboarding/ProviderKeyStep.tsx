@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,13 +20,14 @@ export function ProviderKeyStep({ onComplete }: { readonly onComplete: () => voi
   const [provider, setProvider] = useState<ProviderId>("gemini");
   const [modelName, setModelName] = useState("");
   const saveKey = useAction(api.byok.saveProviderKey);
-  const setModel = useMutation(api.byok.setModelOverride);
 
   const handleSave = async (apiKey: string) => {
-    await saveKey({ provider, apiKey });
-    if (provider === "openrouter" && modelName) {
-      await setModel({ modelOverride: modelName });
-    }
+    const trimmedModelName = modelName.trim();
+    await saveKey({
+      provider,
+      apiKey,
+      ...(provider === "openrouter" && trimmedModelName ? { modelOverride: trimmedModelName } : {}),
+    });
     onComplete();
   };
 
