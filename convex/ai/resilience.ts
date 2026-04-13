@@ -49,16 +49,33 @@ export function classifyByokError(error: unknown): ByokErrorCode | null {
   const lower = error.message.toLowerCase();
 
   if (status === 401 || status === 403) return "byok_key_invalid";
-  if (lower.includes("api key not valid") || lower.includes("api_key_invalid")) {
+  if (
+    lower.includes("api key not valid") ||
+    lower.includes("api_key_invalid") ||
+    lower.includes("authentication_error") ||
+    lower.includes("invalid_api_key") ||
+    lower.includes("incorrect api key")
+  ) {
     return "byok_key_invalid";
   }
 
   if (status === 429) return "byok_quota_exceeded";
-  if (lower.includes("resource_exhausted") || lower.includes("quota")) {
+  if (
+    lower.includes("resource_exhausted") ||
+    lower.includes("quota") ||
+    lower.includes("rate_limit_error") ||
+    lower.includes("rate_limit_exceeded")
+  ) {
     return "byok_quota_exceeded";
   }
 
-  if (lower.includes("safety") || lower.includes("blocked")) {
+  if (
+    lower.includes("safety") ||
+    lower.includes("blocked") ||
+    lower.includes("content_policy") ||
+    lower.includes("output_blocked") ||
+    lower.includes("content_policy_violation")
+  ) {
     return "byok_safety_blocked";
   }
 

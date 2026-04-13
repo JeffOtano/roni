@@ -8,6 +8,8 @@ paths = [
   # the tests exercise the format validator in convex/byok.ts, so they have
   # to match /^AIza[A-Za-z0-9_-]{35}$/. They are alphabet-sequence fakes.
   '''convex/byok\.test\.ts''',
+  '''convex/byok-provider\.test\.ts''',
+  '''convex/ai/providers\.test\.ts''',
 
   # Tonal mobile app's Auth0 client ID. Client IDs are public identifiers by
   # design and are exposed in every published Auth0 client application. This

@@ -10,7 +10,7 @@ describe("ApiKeyForm", () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
 
-    render(<ApiKeyForm onSave={onSave} />);
+    render(<ApiKeyForm provider="gemini" onSave={onSave} />);
 
     await user.type(screen.getByLabelText(/api key/i), VALID_KEY);
     await user.click(screen.getByRole("button", { name: /save key/i }));
@@ -24,7 +24,7 @@ describe("ApiKeyForm", () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
 
-    render(<ApiKeyForm onSave={onSave} />);
+    render(<ApiKeyForm provider="gemini" onSave={onSave} />);
 
     const padded = "  " + VALID_KEY + "\n";
     // user.type interprets `{Enter}` as a key press; paste keeps newlines/whitespace literal.
@@ -41,7 +41,7 @@ describe("ApiKeyForm", () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
 
-    render(<ApiKeyForm onSave={onSave} />);
+    render(<ApiKeyForm provider="gemini" onSave={onSave} />);
 
     await user.type(screen.getByLabelText(/api key/i), "not_a_key");
     await user.click(screen.getByRole("button", { name: /save key/i }));
@@ -54,7 +54,7 @@ describe("ApiKeyForm", () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
 
-    render(<ApiKeyForm onSave={onSave} />);
+    render(<ApiKeyForm provider="gemini" onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: /save key/i }));
 
@@ -62,10 +62,10 @@ describe("ApiKeyForm", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("renders a Google AI Studio link that opens in a new tab", () => {
-    render(<ApiKeyForm onSave={vi.fn()} />);
+  it("renders a link to the provider key source that opens in a new tab", () => {
+    render(<ApiKeyForm provider="gemini" onSave={vi.fn()} />);
 
-    const link = screen.getByRole("link", { name: /get a key from google ai studio/i });
+    const link = screen.getByRole("link", { name: /get a key from google gemini/i });
     expect(link).toHaveAttribute("href", "https://aistudio.google.com/app/apikey");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
@@ -75,7 +75,7 @@ describe("ApiKeyForm", () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockRejectedValue(new Error("some error"));
 
-    render(<ApiKeyForm onSave={onSave} />);
+    render(<ApiKeyForm provider="gemini" onSave={onSave} />);
 
     await user.type(screen.getByLabelText(/api key/i), VALID_KEY);
     const button = screen.getByRole("button", { name: /save key/i });
@@ -85,5 +85,21 @@ describe("ApiKeyForm", () => {
     await waitFor(() => {
       expect(button).not.toBeDisabled();
     });
+  });
+
+  it("uses the correct placeholder and format error for the claude provider", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+
+    render(<ApiKeyForm provider="claude" onSave={onSave} />);
+
+    const input = screen.getByLabelText(/api key/i);
+    expect(input).toHaveAttribute("placeholder", "sk-ant-...");
+
+    await user.type(input, "not_a_claude_key");
+    await user.click(screen.getByRole("button", { name: /save key/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/sk-ant-/i);
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

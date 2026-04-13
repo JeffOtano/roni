@@ -3,6 +3,7 @@ import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
 import type { ModelMessage, UserContent } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { components, internal } from "../_generated/api";
+import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
 import { buildTrainingSnapshot } from "./context";
 import { buildInstructions } from "./promptSections";
@@ -221,6 +222,44 @@ export function buildCoachAgents(apiKey: string): CoachAgentPair {
     languageModel: provider("gemini-2.5-flash"),
     ...coachAgentConfig,
   });
+
+  return { primary, fallback };
+}
+
+export interface ProviderAgentArgs {
+  provider: ProviderId;
+  apiKey: string;
+  modelOverride?: string;
+}
+
+export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgentPair {
+  const { provider, apiKey, modelOverride } = args;
+  const config = getProviderConfig(provider);
+
+  const primaryModelName = modelOverride || config.primaryModel;
+  if (!primaryModelName) {
+    throw new Error(`Provider ${provider} requires a model override (no default model)`);
+  }
+
+  const primaryModel = config.createLanguageModel(apiKey, primaryModelName);
+  const primary = new Agent(components.agent, {
+    name: "Tonal Coach",
+    languageModel: primaryModel,
+    ...coachAgentConfig,
+  });
+
+  let fallback: Agent;
+  if (config.fallbackModel) {
+    const fallbackModel = config.createLanguageModel(apiKey, config.fallbackModel);
+    fallback = new Agent(components.agent, {
+      name: "Tonal Coach (Fallback)",
+      languageModel: fallbackModel,
+      ...coachAgentConfig,
+    });
+  } else {
+    // No fallback (OpenRouter) -- reuse primary so streamWithRetry still works
+    fallback = primary;
+  }
 
   return { primary, fallback };
 }

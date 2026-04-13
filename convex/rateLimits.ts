@@ -77,7 +77,7 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
-  validateGeminiKey: {
+  validateProviderKey: {
     kind: "token bucket",
     rate: 5,
     period: MINUTE,

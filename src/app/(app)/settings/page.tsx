@@ -29,7 +29,7 @@ import {
   TonalConnectionCard,
   type TonalConnectionState,
 } from "@/features/settings/TonalConnectionCard";
-import { GeminiKeySection } from "@/features/byok/GeminiKeySection";
+import { ProviderSection } from "@/features/byok/ProviderSection";
 import { DISCORD_URL, REPO_URL } from "@/lib/urls";
 import { LogOut, MessageSquare } from "lucide-react";
 import Link from "next/link";
@@ -151,10 +151,10 @@ function SettingsPageInner() {
         <CheckInPreferences />
       </section>
 
-      {/* Gemini API Key */}
+      {/* AI Provider */}
       <section className="mb-10">
-        <h2 className={SECTION_HEADING}>Gemini API Key</h2>
-        <GeminiKeySection />
+        <h2 className={SECTION_HEADING}>AI Provider</h2>
+        <ProviderSection />
       </section>
 
       {/* Data Export */}
