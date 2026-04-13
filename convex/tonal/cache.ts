@@ -58,23 +58,29 @@ export const setCacheEntry = internalMutation({
       )
       .unique();
 
-    if (existing) {
-      // Freshness guard: skip write if existing data is already newer.
-      // This makes concurrent cache writers harmless instead of conflicting.
-      if (args.fetchedAt <= existing.fetchedAt) return;
-      await ctx.db.patch(existing._id, {
-        data: args.data,
-        fetchedAt: args.fetchedAt,
-        expiresAt: args.expiresAt,
-      });
-    } else {
-      await ctx.db.insert("tonalCache", {
-        userId: args.userId,
-        dataType: args.dataType,
-        data: args.data,
-        fetchedAt: args.fetchedAt,
-        expiresAt: args.expiresAt,
-      });
+    try {
+      if (existing) {
+        // Freshness guard: skip write if existing data is already newer.
+        // This makes concurrent cache writers harmless instead of conflicting.
+        if (args.fetchedAt <= existing.fetchedAt) return;
+        await ctx.db.patch(existing._id, {
+          data: args.data,
+          fetchedAt: args.fetchedAt,
+          expiresAt: args.expiresAt,
+        });
+      } else {
+        await ctx.db.insert("tonalCache", {
+          userId: args.userId,
+          dataType: args.dataType,
+          data: args.data,
+          fetchedAt: args.fetchedAt,
+          expiresAt: args.expiresAt,
+        });
+      }
+    } catch {
+      // Silently skip if data exceeds Convex's 1 MiB document limit.
+      // The caller (cachedFetch) still returns fresh data to the user.
+      console.warn(`setCacheEntry(${args.dataType}): skipped, data too large`);
     }
   },
 });

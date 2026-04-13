@@ -61,12 +61,16 @@ export const swapExerciseTool = createTool({
         };
       }
 
-      await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
-        userId,
-        workoutPlanId: day.workoutPlanId,
-        oldMovementId: input.oldMovementId,
-        newMovementId: input.newMovementId,
-      });
+      try {
+        await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
+          userId,
+          workoutPlanId: day.workoutPlanId,
+          oldMovementId: input.oldMovementId,
+          newMovementId: input.newMovementId,
+        });
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
 
       return {
         success: true,
@@ -129,13 +133,17 @@ export const addExerciseTool = createTool({
       }
 
       const { dayIndex: _, movementId, sets, ...opts } = input;
-      await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
-        userId,
-        workoutPlanId: day.workoutPlanId,
-        movementId,
-        sets,
-        ...opts,
-      });
+      try {
+        await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
+          userId,
+          workoutPlanId: day.workoutPlanId,
+          movementId,
+          sets,
+          ...opts,
+        });
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
 
       return {
         success: true,
