@@ -123,6 +123,10 @@ const STREAM_OPTIONS = {
   saveStreamDeltas: { chunking: "word" as const, throttleMs: 100 },
 };
 
+// Convex actions have a 600s hard limit. Budget 180s per attempt so all three
+// attempts (primary + retry + fallback) fit within the action lifetime.
+const ATTEMPT_TIMEOUT_MS = 180_000;
+
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
   const { primaryAgent, fallbackAgent, threadId, userId } = args;
   const promptArgs: PromptArgs =
@@ -169,9 +173,18 @@ async function attemptStream(
   userId: string,
   promptArgs: PromptArgs,
 ): Promise<void> {
-  const { thread } = await agent.continueThread(ctx, { threadId, userId });
-  const result = await thread.streamText(promptArgs, STREAM_OPTIONS);
-  await result.text;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("Stream timeout"), ATTEMPT_TIMEOUT_MS);
+  try {
+    const { thread } = await agent.continueThread(ctx, { threadId, userId });
+    const result = await thread.streamText(
+      { ...promptArgs, abortSignal: controller.signal },
+      STREAM_OPTIONS,
+    );
+    await result.text;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function saveErrorAndNotify(
