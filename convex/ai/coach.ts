@@ -67,6 +67,31 @@ import {
   updateGoalProgressTool,
 } from "./coachingTools";
 
+export function mergeConsecutiveSameRole(messages: ModelMessage[]): ModelMessage[] {
+  if (messages.length <= 1) return messages;
+
+  const result: ModelMessage[] = [messages[0]];
+
+  for (let i = 1; i < messages.length; i++) {
+    const prev = result[result.length - 1];
+    const curr = messages[i];
+
+    // Never merge system messages; the provider extracts them separately.
+    if (prev.role !== curr.role || prev.role === "system") {
+      result.push(curr);
+      continue;
+    }
+
+    const toParts = (c: ModelMessage["content"]): Array<Record<string, unknown>> =>
+      typeof c === "string" ? [{ type: "text", text: c }] : (c as Array<Record<string, unknown>>);
+
+    const merged = [...toParts(prev.content), ...toParts(curr.content)];
+    result[result.length - 1] = { ...prev, content: merged } as ModelMessage;
+  }
+
+  return result;
+}
+
 /**
  * Remove image parts from all messages except the most recent user message.
  * Images stored in older messages cause unbounded memory growth when loaded
@@ -189,16 +214,17 @@ export const coachAgentConfig = {
   }) satisfies UsageHandler,
 
   contextHandler: (async (ctx, args) => {
-    if (!args.userId) return [...args.allMessages];
+    // Normalize regardless of auth: strip stale images, merge consecutive
+    // same-role messages that arise from search + recent concatenation.
+    const messages = mergeConsecutiveSameRole(stripImagesFromOlderMessages(args.allMessages));
+
+    if (!args.userId) return messages;
 
     const snapshot = await buildTrainingSnapshot(ctx, args.userId);
     const snapshotMessage = {
       role: "system" as const,
       content: `<training-data>\n${snapshot}\n</training-data>`,
     };
-    // Strip image parts from all messages except the most recent user message
-    // to prevent OOM from large image data accumulating in context.
-    const messages = stripImagesFromOlderMessages(args.allMessages);
     return [snapshotMessage, ...messages];
   }) satisfies ContextHandler,
 };
