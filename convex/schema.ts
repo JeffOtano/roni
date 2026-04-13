@@ -80,7 +80,7 @@ export default defineSchema({
     /** User's training preferences for weekly programming. */
     trainingPreferences: v.optional(
       v.object({
-        preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+        preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body"), v.literal("bro_split")),
         trainingDays: v.array(v.number()), // 0=Mon..6=Sun
         sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
       }),
@@ -229,7 +229,7 @@ export default defineSchema({
   weekPlans: defineTable({
     userId: v.id("users"),
     weekStartDate: v.string(),
-    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body"), v.literal("bro_split")),
     targetDays: v.number(),
     days: v.array(
       v.object({

@@ -1,5 +1,6 @@
 export type LibraryGoal =
   | "build_muscle"
+  | "bodybuilding"
   | "fat_loss"
   | "strength"
   | "endurance"
@@ -44,6 +45,7 @@ export interface RepSetScheme {
 const REP_SET_SCHEMES: Record<LibraryGoal, RepSetScheme> = {
   strength: { sets: 4, reps: 5 },
   build_muscle: { sets: 3, reps: 10 },
+  bodybuilding: { sets: 4, reps: 12 },
   fat_loss: { sets: 3, reps: 12 },
   endurance: { sets: 3, reps: 15 },
   athletic: { sets: 3, reps: 8 },
@@ -103,6 +105,7 @@ export function getExcludedAccessoriesForConfig(config: LibraryEquipmentConfig):
 
 const GOAL_LABELS: Record<LibraryGoal, string> = {
   build_muscle: "Hypertrophy",
+  bodybuilding: "Bodybuilding",
   fat_loss: "Fat Loss",
   strength: "Strength",
   endurance: "Endurance",
@@ -177,6 +180,7 @@ export function generateMetaTitle(title: string): string {
 
 const GOAL_DESCRIPTIONS: Record<LibraryGoal, string> = {
   build_muscle: "maximize muscle growth with hypertrophy-focused rep ranges",
+  bodybuilding: "build aesthetic muscle with high-volume body-part focus and isolation work",
   fat_loss: "burn calories and build lean muscle with high-rep supersets",
   strength: "build raw strength with heavy, low-rep compound movements",
   endurance: "improve muscular endurance with high-rep, low-rest training",

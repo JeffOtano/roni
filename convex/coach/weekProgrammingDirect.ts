@@ -52,7 +52,7 @@ async function createPlanPhase(
   args: {
     userId: Id<"users">;
     weekStartDate?: string;
-    preferredSplit?: "ppl" | "upper_lower" | "full_body";
+    preferredSplit?: "ppl" | "upper_lower" | "full_body" | "bro_split";
     targetDays?: number;
     sessionDurationMinutes?: 30 | 45 | 60;
   },

@@ -170,7 +170,7 @@ export const getUserWithValidToken = internalQuery({
 });
 
 const trainingPreferencesArgs = {
-  preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+  preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body"), v.literal("bro_split")),
   trainingDays: v.array(v.number()),
   sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
 } as const;
@@ -215,7 +215,7 @@ export const completeOnboarding = mutation({
   args: {
     goal: v.string(),
     injuries: v.optional(v.string()),
-    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body"), v.literal("bro_split")),
     trainingDays: v.array(v.number()),
     sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
   },

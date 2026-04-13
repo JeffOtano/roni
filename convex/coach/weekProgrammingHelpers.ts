@@ -85,7 +85,7 @@ export const DAY_NAMES = [
 // Types
 // ---------------------------------------------------------------------------
 
-export type SessionType = "push" | "pull" | "legs" | "upper" | "lower" | "full_body";
+export type SessionType = "push" | "pull" | "legs" | "upper" | "lower" | "full_body" | "chest" | "back" | "shoulders" | "arms";
 
 export interface ExerciseSummary {
   movementId: string;
@@ -133,7 +133,7 @@ export function getTrainingDayIndices(targetDays: number): number[] {
 
 /** Session types for the week for a given split (one per training day in order). */
 export function getSessionTypesForSplit(
-  split: "ppl" | "upper_lower" | "full_body",
+  split: "ppl" | "upper_lower" | "full_body" | "bro_split",
   trainingDayIndices: number[],
 ): { dayIndex: number; sessionType: SessionType }[] {
   if (split === "ppl") {
@@ -148,6 +148,14 @@ export function getSessionTypesForSplit(
     return trainingDayIndices.map((dayIndex, i) => ({
       dayIndex,
       sessionType: types[i % 2],
+    }));
+  }
+  if (split === "bro_split") {
+    // Classic bodybuilding body-part split: chest → back → shoulders → arms → legs
+    const types: SessionType[] = ["chest", "back", "shoulders", "arms", "legs"];
+    return trainingDayIndices.map((dayIndex, i) => ({
+      dayIndex,
+      sessionType: types[i % 5],
     }));
   }
   return trainingDayIndices.map((dayIndex) => ({

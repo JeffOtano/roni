@@ -13,6 +13,10 @@ export const SESSION_TYPES = [
   "upper",
   "lower",
   "full_body",
+  "chest",
+  "back",
+  "shoulders",
+  "arms",
   "recovery",
   "rest",
 ] as const;
@@ -27,6 +31,10 @@ export const sessionTypeValidator = v.union(
   v.literal("upper"),
   v.literal("lower"),
   v.literal("full_body"),
+  v.literal("chest"),
+  v.literal("back"),
+  v.literal("shoulders"),
+  v.literal("arms"),
   v.literal("recovery"),
   v.literal("rest"),
 );
@@ -50,6 +58,7 @@ export const preferredSplitValidator = v.union(
   v.literal("ppl"),
   v.literal("upper_lower"),
   v.literal("full_body"),
+  v.literal("bro_split"),
 );
 
 export const DEFAULT_DAYS = [

@@ -48,7 +48,7 @@ export type { DraftWeekSummary } from "./weekProgrammingHelpers";
 export async function fetchAndComputePlanData(
   ctx: ActionCtx,
   userId: Id<"users">,
-  preferredSplit: "ppl" | "upper_lower" | "full_body",
+  preferredSplit: "ppl" | "upper_lower" | "full_body" | "bro_split",
   targetDays: number,
 ): Promise<{
   catalog: Movement[];

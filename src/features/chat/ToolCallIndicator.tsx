@@ -137,7 +137,7 @@ export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIn
     if (data.success && data.summary) {
       const plan: WeekPlanPresentation = {
         weekStartDate: data.summary.weekStartDate,
-        split: data.summary.preferredSplit as "ppl" | "upper_lower" | "full_body",
+        split: data.summary.preferredSplit as "ppl" | "upper_lower" | "full_body" | "bro_split",
         days: data.summary.days.map((day) => ({
           dayName: day.dayName,
           sessionType: day.sessionType,
