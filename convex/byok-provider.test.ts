@@ -217,27 +217,12 @@ describe("resolveProviderKey", () => {
     expect(result.apiKey).toBe(GEMINI_USER_KEY);
   });
 
-  it("throws byok_model_missing when OpenRouter is selected without a model override", async () => {
+  it("uses the OpenRouter default model when no override is set", async () => {
     process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
     const ciphertext = await encrypt(OPENROUTER_USER_KEY, TEST_ENCRYPTION_KEY);
     const profile = makeProfile({
       selectedProvider: "openrouter",
       openrouterApiKeyEncrypted: ciphertext,
-    });
-    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
-
-    await expect(resolveProviderKey(profile, byokCreationTime)).rejects.toThrow(
-      "byok_model_missing",
-    );
-  });
-
-  it("returns OpenRouter when the model override is present", async () => {
-    process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
-    const ciphertext = await encrypt(OPENROUTER_USER_KEY, TEST_ENCRYPTION_KEY);
-    const profile = makeProfile({
-      selectedProvider: "openrouter",
-      openrouterApiKeyEncrypted: ciphertext,
-      modelOverride: "openai/gpt-4o-mini",
     });
     const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
 
@@ -246,7 +231,25 @@ describe("resolveProviderKey", () => {
     expect(result).toEqual({
       provider: "openrouter",
       apiKey: OPENROUTER_USER_KEY,
-      modelOverride: "openai/gpt-4o-mini",
+    });
+  });
+
+  it("returns OpenRouter when the model override is present", async () => {
+    process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+    const ciphertext = await encrypt(OPENROUTER_USER_KEY, TEST_ENCRYPTION_KEY);
+    const profile = makeProfile({
+      selectedProvider: "openrouter",
+      openrouterApiKeyEncrypted: ciphertext,
+      modelOverride: "openai/gpt-5.4-mini",
+    });
+    const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
+
+    const result = await resolveProviderKey(profile, byokCreationTime);
+
+    expect(result).toEqual({
+      provider: "openrouter",
+      apiKey: OPENROUTER_USER_KEY,
+      modelOverride: "openai/gpt-5.4-mini",
     });
   });
 });

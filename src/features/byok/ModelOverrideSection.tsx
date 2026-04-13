@@ -11,9 +11,9 @@ import { Label } from "@/components/ui/label";
 
 const DEFAULT_MODEL_BY_PROVIDER: Record<ProviderId, string> = {
   gemini: "gemini-3-flash-preview",
-  claude: "claude-sonnet-4-5-20250514",
-  openai: "gpt-4o",
-  openrouter: "",
+  claude: "claude-sonnet-4-6",
+  openai: "gpt-5.4",
+  openrouter: "openrouter/auto",
 };
 
 export function ModelOverrideSection({
@@ -87,9 +87,7 @@ export function ModelOverrideSection({
                 placeholder={defaultModel || "Enter model name"}
                 disabled={saving}
               />
-              <p className="text-xs text-muted-foreground">
-                Default: {defaultModel || "none (OpenRouter requires a model)"}
-              </p>
+              <p className="text-xs text-muted-foreground">Default: {defaultModel}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -101,7 +99,7 @@ export function ModelOverrideSection({
                 {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
                 Save
               </Button>
-              {modelOverride && provider !== "openrouter" && (
+              {modelOverride && (
                 <button
                   type="button"
                   onClick={handleReset}

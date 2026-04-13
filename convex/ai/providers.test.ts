@@ -68,6 +68,15 @@ describe("getProviderConfig", () => {
     expect(config.label).toBe("Google Gemini");
   });
 
+  it("uses the quality-first default models", () => {
+    expect(getProviderConfig("gemini").primaryModel).toBe("gemini-3-flash-preview");
+    expect(getProviderConfig("claude").primaryModel).toBe("claude-sonnet-4-6");
+    expect(getProviderConfig("claude").fallbackModel).toBe("claude-haiku-4-5");
+    expect(getProviderConfig("openai").primaryModel).toBe("gpt-5.4");
+    expect(getProviderConfig("openai").fallbackModel).toBe("gpt-5.4-mini");
+    expect(getProviderConfig("openrouter").primaryModel).toBe("openrouter/auto");
+  });
+
   it("throws for invalid provider", () => {
     expect(() => getProviderConfig("invalid" as ProviderId)).toThrow();
   });

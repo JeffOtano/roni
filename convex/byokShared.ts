@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import type { ProviderId } from "./ai/providers";
+import { getProviderConfig, type ProviderId } from "./ai/providers";
 
 export const providerIdValidator = v.union(
   v.literal("gemini"),
@@ -44,7 +44,7 @@ export function assertProviderHasRequiredModel(
   provider: ProviderId,
   modelOverride: string | undefined,
 ): void {
-  if (provider === "openrouter" && !modelOverride) {
+  if (!modelOverride && !getProviderConfig(provider).primaryModel) {
     throw new Error("byok_model_missing");
   }
 }

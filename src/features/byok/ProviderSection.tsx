@@ -17,9 +17,9 @@ import { ProviderKeyDisplay } from "./ProviderKeyDisplay";
 // Client-side UI metadata only (no server-side createLanguageModel functions)
 const PROVIDER_UI_CONFIG: Record<ProviderId, { label: string; primaryModel: string }> = {
   gemini: { label: "Google Gemini", primaryModel: "gemini-3-flash-preview" },
-  claude: { label: "Anthropic Claude", primaryModel: "claude-sonnet-4-5-20250514" },
-  openai: { label: "OpenAI", primaryModel: "gpt-4o" },
-  openrouter: { label: "OpenRouter", primaryModel: "" },
+  claude: { label: "Anthropic Claude", primaryModel: "claude-sonnet-4-6" },
+  openai: { label: "OpenAI", primaryModel: "gpt-5.4" },
+  openrouter: { label: "OpenRouter", primaryModel: "openrouter/auto" },
 };
 
 const PROVIDER_OPTIONS: { id: ProviderId; label: string }[] = [
@@ -122,17 +122,10 @@ export function ProviderSection() {
   };
 
   const handleSave = async (apiKey: string) => {
-    const needsModelSetup = viewProvider === "openrouter" && !settings?.modelOverride?.trim();
     await saveKey({ provider: viewProvider, apiKey });
     await refreshSettings();
-    if (needsModelSetup) {
-      setViewProvider("openrouter");
-    }
     setIsOptingIn(false);
     toast.success(`${PROVIDER_UI_CONFIG[viewProvider].label} key saved`);
-    if (needsModelSetup) {
-      toast("Set a model name in Advanced below to activate OpenRouter", { duration: 6000 });
-    }
   };
 
   const handleRemove = async () => {

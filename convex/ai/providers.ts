@@ -37,8 +37,8 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
   },
   claude: {
     label: "Anthropic Claude",
-    primaryModel: "claude-sonnet-4-5-20250514",
-    fallbackModel: "claude-haiku-4-5-20251001",
+    primaryModel: "claude-sonnet-4-6",
+    fallbackModel: "claude-haiku-4-5",
     keyRegex: /^sk-ant-/,
     keyFormatError: "Key format looks wrong. Claude keys start with 'sk-ant-'.",
     keySourceUrl: "https://console.anthropic.com/settings/keys",
@@ -52,8 +52,8 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
   },
   openai: {
     label: "OpenAI",
-    primaryModel: "gpt-4o",
-    fallbackModel: "gpt-4o-mini",
+    primaryModel: "gpt-5.4",
+    fallbackModel: "gpt-5.4-mini",
     keyRegex: /^sk-(?!ant-)(?!or-)/,
     keyFormatError:
       "Key format looks wrong. OpenAI keys start with 'sk-' (but not 'sk-ant-' or 'sk-or-').",
@@ -68,7 +68,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
   },
   openrouter: {
     label: "OpenRouter",
-    primaryModel: "",
+    primaryModel: "openrouter/auto",
     fallbackModel: null,
     keyRegex: /^sk-or-/,
     keyFormatError: "Key format looks wrong. OpenRouter keys start with 'sk-or-'.",

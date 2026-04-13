@@ -144,8 +144,7 @@ async function saveProviderKeyCore(
   const nextModelOverride = normalizeModelOverride(modelOverride);
   const effectiveModelOverride = nextModelOverride ?? normalizeModelOverride(profile.modelOverride);
 
-  // Avoid selecting OpenRouter until we have a usable model name.
-  const autoSwitch = provider !== "openrouter" || effectiveModelOverride !== undefined;
+  const autoSwitch = effectiveModelOverride !== undefined || config.primaryModel !== "";
 
   const patch: Partial<Doc<"userProfiles">> = {
     [config.keyFieldName]: encrypted,
@@ -183,8 +182,6 @@ async function removeProviderKeyCore(
     const fallback = (["gemini", "claude", "openai", "openrouter"] as const).find((p) => {
       if (p === provider) return false;
       if (!profile[KEY_FIELD_MAP[p]]) return false;
-      // Skip OpenRouter if no model override is set
-      if (p === "openrouter" && !profile.modelOverride?.trim()) return false;
       return true;
     });
     patch.selectedProvider = fallback ?? undefined;
@@ -276,11 +273,7 @@ export const setSelectedProvider = mutation({
       throw new Error(`No API key on file for ${provider}`);
     }
 
-    if (provider === "openrouter") {
-      if (!normalizeModelOverride(profile.modelOverride)) {
-        throw new Error("OpenRouter requires a model name. Set one in Advanced first.");
-      }
-    }
+    assertProviderHasRequiredModel(provider, normalizeModelOverride(profile.modelOverride));
 
     await ctx.db.patch(profile._id, { selectedProvider: provider });
   },
@@ -300,9 +293,11 @@ export const setModelOverride = mutation({
     if (!profile) throw new Error("User profile not found");
 
     const nextModelOverride = normalizeModelOverride(args.modelOverride);
-    if (profile.selectedProvider === "openrouter" && !nextModelOverride) {
-      throw new Error("OpenRouter requires a model name while it is selected.");
-    }
+    const selectedProvider =
+      profile.selectedProvider && isValidProvider(profile.selectedProvider)
+        ? profile.selectedProvider
+        : "gemini";
+    assertProviderHasRequiredModel(selectedProvider, nextModelOverride);
 
     await ctx.db.patch(profile._id, {
       modelOverride: nextModelOverride,

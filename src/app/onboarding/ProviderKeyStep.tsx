@@ -31,8 +31,6 @@ export function ProviderKeyStep({ onComplete }: { readonly onComplete: () => voi
     onComplete();
   };
 
-  const openrouterMissingModel = provider === "openrouter" && !modelName.trim();
-
   return (
     <Card>
       <CardContent className="pt-6">
@@ -68,20 +66,23 @@ export function ProviderKeyStep({ onComplete }: { readonly onComplete: () => voi
         {provider === "openrouter" && (
           <div className="mb-4 space-y-1.5">
             <Label htmlFor="model-name" className="text-xs text-muted-foreground">
-              Model name (required)
+              Model name (optional)
             </Label>
             <Input
               id="model-name"
               type="text"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
-              placeholder="e.g. anthropic/claude-sonnet-4-5 or openai/gpt-4o"
+              placeholder="e.g. openrouter/auto or anthropic/claude-sonnet-4-6"
               autoComplete="off"
             />
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use the quality-first default: <code>openrouter/auto</code>.
+            </p>
           </div>
         )}
 
-        <ApiKeyForm provider={provider} onSave={handleSave} disabled={openrouterMissingModel} />
+        <ApiKeyForm provider={provider} onSave={handleSave} />
       </CardContent>
     </Card>
   );
