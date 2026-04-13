@@ -9,6 +9,7 @@ import { decrypt, encrypt } from "./tonal/encryption";
 import { getProviderConfig, isValidProvider, type ProviderId } from "./ai/providers";
 import {
   assertProviderHasRequiredModel,
+  getModelOverrideForProvider,
   KEY_FIELD_MAP,
   normalizeModelOverride,
   providerIdValidator,
@@ -52,7 +53,7 @@ export async function resolveProviderKey(
     return {
       provider,
       apiKey,
-      modelOverride,
+      modelOverride: getModelOverrideForProvider(provider, modelOverride),
     };
   }
 
@@ -70,7 +71,7 @@ export async function resolveProviderKey(
         return {
           provider: gfProvider,
           apiKey: await decrypt(encrypted, ek),
-          modelOverride,
+          modelOverride: getModelOverrideForProvider(gfProvider, modelOverride),
         };
       }
     }
@@ -83,7 +84,7 @@ export async function resolveProviderKey(
   throw new Error("byok_key_missing");
 }
 
-export async function resolveGeminiKey(
+export async function resolveProviderApiKey(
   profile: Doc<"userProfiles"> | null,
   userCreationTime: number,
 ): Promise<string> {

@@ -1,6 +1,7 @@
 import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { rateLimiter } from "./rateLimits";
 import { decrypt } from "./tonal/encryption";
 import { isValidProvider, type ProviderId } from "./ai/providers";
 import type { ProviderKeyInfo, ProviderSettings } from "./byok";
@@ -37,6 +38,11 @@ export const _getAllProviderKeysRaw = internalQuery({
 export const getProviderSettings = action({
   args: {},
   handler: async (ctx): Promise<ProviderSettings | null> => {
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    if (!userId) throw new Error("Not authenticated");
+
+    await rateLimiter.limit(ctx, "getProviderSettings", { key: userId, throws: true });
+
     const raw = await ctx.runQuery(internal.byokProvider._getAllProviderKeysRaw, {});
     if (!raw) return null;
 

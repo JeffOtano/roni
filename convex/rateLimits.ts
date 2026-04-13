@@ -83,6 +83,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
+  getProviderSettings: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 10,
+  },
   newSignup: {
     kind: "token bucket",
     rate: NEW_SIGNUP_RATE_PER_HOUR,

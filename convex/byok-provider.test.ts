@@ -144,7 +144,7 @@ describe("resolveProviderKey", () => {
     expect(result.apiKey).toBe(GEMINI_USER_KEY);
   });
 
-  it("includes modelOverride when set on profile", async () => {
+  it("omits modelOverride for non-OpenRouter providers", async () => {
     process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
     const ciphertext = await encrypt(GEMINI_USER_KEY, TEST_ENCRYPTION_KEY);
     const profile = makeProfile({
@@ -158,7 +158,6 @@ describe("resolveProviderKey", () => {
     expect(result).toEqual({
       provider: "gemini",
       apiKey: GEMINI_USER_KEY,
-      modelOverride: "gemini-2.5-pro",
     });
   });
 
@@ -174,7 +173,7 @@ describe("resolveProviderKey", () => {
     expect(result.modelOverride).toBeUndefined();
   });
 
-  it("includes modelOverride for grandfathered user who opted into another provider", async () => {
+  it("omits modelOverride for grandfathered user on a non-OpenRouter provider", async () => {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = HOUSE_KEY;
     process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
     const ciphertext = await encrypt(CLAUDE_USER_KEY, TEST_ENCRYPTION_KEY);
@@ -187,7 +186,7 @@ describe("resolveProviderKey", () => {
 
     const result = await resolveProviderKey(profile, grandfatheredCreationTime);
 
-    expect(result.modelOverride).toBe("claude-opus-4-20250514");
+    expect(result.modelOverride).toBeUndefined();
   });
 
   it("omits modelOverride when kill switch is active", async () => {

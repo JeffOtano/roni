@@ -4,7 +4,7 @@ import {
   isBYOKRequired,
   maskGeminiKey,
   prepareGeminiKeyForStorage,
-  resolveGeminiKey,
+  resolveProviderApiKey,
   validateGeminiKeyAgainstGoogle,
 } from "./byok";
 import { decrypt, encrypt } from "./tonal/encryption";
@@ -126,6 +126,30 @@ describe("validateGeminiKeyAgainstGoogle", () => {
     expect(serialized).not.toContain(leakKey);
     expect(result).toEqual({ valid: false, reason: "network_error" });
   });
+
+  it("returns network_error when the validation request times out", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      });
+
+      const resultPromise = validateGeminiKeyAgainstGoogle(
+        "AIza_test_key",
+        fetchImpl as unknown as typeof fetch,
+      );
+
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      await expect(resultPromise).resolves.toEqual({ valid: false, reason: "network_error" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("prepareGeminiKeyForStorage", () => {
@@ -185,9 +209,9 @@ describe("prepareGeminiKeyForStorage", () => {
   });
 });
 
-describe("resolveGeminiKey", () => {
+describe("resolveProviderApiKey", () => {
   // Save and restore env vars across tests so the suite never leaks state
-  // into other test files. resolveGeminiKey reads three env vars at call time:
+  // into other test files. resolveProviderApiKey reads three env vars at call time:
   // BYOK_DISABLED, GOOGLE_GENERATIVE_AI_API_KEY, and TOKEN_ENCRYPTION_KEY.
   const originalByokDisabled = process.env.BYOK_DISABLED;
   const originalHouseKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -225,7 +249,7 @@ describe("resolveGeminiKey", () => {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = HOUSE_KEY;
     const grandfatheredCreationTime = BYOK_REQUIRED_AFTER - 1;
 
-    const result = await resolveGeminiKey(makeProfile(), grandfatheredCreationTime);
+    const result = await resolveProviderApiKey(makeProfile(), grandfatheredCreationTime);
 
     expect(result).toBe(HOUSE_KEY);
   });
@@ -235,12 +259,12 @@ describe("resolveGeminiKey", () => {
     const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
 
     await expect(
-      resolveGeminiKey(makeProfile({ geminiApiKeyEncrypted: undefined }), byokCreationTime),
+      resolveProviderApiKey(makeProfile({ geminiApiKeyEncrypted: undefined }), byokCreationTime),
     ).rejects.toThrow("byok_key_missing");
 
     // Also covers the null-profile case, which the saveGeminiKey path can
     // produce if the userProfiles row is somehow missing.
-    await expect(resolveGeminiKey(null, byokCreationTime)).rejects.toThrow("byok_key_missing");
+    await expect(resolveProviderApiKey(null, byokCreationTime)).rejects.toThrow("byok_key_missing");
   });
 
   it("decrypts and returns the user's key for a BYOK user with a key on file", async () => {
@@ -252,7 +276,7 @@ describe("resolveGeminiKey", () => {
     });
     const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
 
-    const result = await resolveGeminiKey(profile, byokCreationTime);
+    const result = await resolveProviderApiKey(profile, byokCreationTime);
 
     expect(result).toBe(USER_KEY);
   });
@@ -264,7 +288,7 @@ describe("resolveGeminiKey", () => {
 
     // Even though this user is post-BYOK and has no key on file (which would
     // normally throw byok_key_missing), the kill switch forces the house key.
-    const result = await resolveGeminiKey(
+    const result = await resolveProviderApiKey(
       makeProfile({ geminiApiKeyEncrypted: undefined }),
       byokCreationTime,
     );
@@ -276,7 +300,7 @@ describe("resolveGeminiKey", () => {
     // Composite regression guard: the encrypt-in-save path and the
     // decrypt-in-resolve path must use the same encryption key format.
     // If the save mutation ever uses a different key or encoding than
-    // resolveGeminiKey expects, grandfathered users could be fine while
+    // resolveProviderApiKey expects, grandfathered users could be fine while
     // every BYOK user's key silently becomes unreadable at chat time.
     process.env.TOKEN_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
 
@@ -287,7 +311,7 @@ describe("resolveGeminiKey", () => {
     });
     const byokCreationTime = BYOK_REQUIRED_AFTER + 1000;
 
-    const resolved = await resolveGeminiKey(profile, byokCreationTime);
+    const resolved = await resolveProviderApiKey(profile, byokCreationTime);
 
     expect(resolved).toBe(USER_KEY);
   });

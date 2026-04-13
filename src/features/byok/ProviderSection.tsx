@@ -2,15 +2,15 @@
 
 import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { ChevronDown, ChevronRight, KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { ProviderId } from "../../../convex/ai/providers";
 import type { ProviderSettings } from "../../../convex/byok";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ModelOverrideSection } from "./ModelOverrideSection";
 import { ProviderKeyDisplay } from "./ProviderKeyDisplay";
 
 // Keep in sync with PROVIDERS in convex/ai/providers.ts
@@ -32,6 +32,8 @@ const PROVIDER_OPTIONS: { id: ProviderId; label: string }[] = [
 const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
+const SETTINGS_LOAD_ERROR = "Failed to load provider settings. Try again.";
+
 export function ProviderSection() {
   const byokStatus = useQuery(api.byok.getBYOKStatus, {});
   const getSettings = useAction(api.byokProvider.getProviderSettings);
@@ -44,32 +46,49 @@ export function ProviderSection() {
   const [viewProvider, setViewProvider] = useState<ProviderId>("gemini");
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isOptingIn, setIsOptingIn] = useState(false);
 
   const refreshSettings = useCallback(async () => {
-    const result = await getSettings({});
-    if (result) {
-      setSettings(result);
-      setViewProvider(result.selectedProvider);
+    try {
+      const result = await getSettings({});
+      if (result) {
+        setSettings(result);
+        setViewProvider(result.selectedProvider);
+        setSettingsError(null);
+      } else {
+        setSettings(null);
+        setSettingsError(byokStatus?.hasKey ? SETTINGS_LOAD_ERROR : null);
+      }
+      return result;
+    } catch (err) {
+      setSettings(null);
+      setSettingsError(SETTINGS_LOAD_ERROR);
+      throw err;
     }
-    return result;
-  }, [getSettings]);
+  }, [byokStatus?.hasKey, getSettings]);
 
   useEffect(() => {
     if (byokStatus === undefined) return;
     let cancelled = false;
+    setSettingsError(null);
     getSettings({})
       .then((result) => {
         if (cancelled) return;
         if (result) {
           setSettings(result);
           setViewProvider(result.selectedProvider);
+          setSettingsError(null);
         } else {
           setSettings(null);
+          setSettingsError(byokStatus.hasKey ? SETTINGS_LOAD_ERROR : null);
         }
       })
       .catch(() => {
-        if (!cancelled) setSettings(null);
+        if (!cancelled) {
+          setSettings(null);
+          setSettingsError(SETTINGS_LOAD_ERROR);
+        }
       });
     return () => {
       cancelled = true;
@@ -77,11 +96,21 @@ export function ProviderSection() {
   }, [byokStatus, getSettings]);
 
   const handleProviderChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    if (!Object.prototype.hasOwnProperty.call(PROVIDER_UI_CONFIG, e.target.value)) {
+      toast.error("That provider option is unavailable right now.");
+      return;
+    }
+
+    if (settings === null || !Object.prototype.hasOwnProperty.call(settings.keys, e.target.value)) {
+      toast.error("That provider option is unavailable right now.");
+      return;
+    }
+
     const newProvider = e.target.value as ProviderId;
     setViewProvider(newProvider);
     setRemoveError(null);
 
-    if (settings?.keys[newProvider]?.hasKey) {
+    if (settings.keys[newProvider].hasKey) {
       try {
         await selectProvider({ provider: newProvider });
         await refreshSettings();
@@ -120,7 +149,8 @@ export function ProviderSection() {
     }
   };
 
-  const isLoading = byokStatus === undefined || (byokStatus.hasKey && settings === null);
+  const isLoading =
+    byokStatus === undefined || (byokStatus.hasKey && settings === null && settingsError === null);
   const isGrandfathered = byokStatus !== undefined && !byokStatus.requiresBYOK;
   const currentKeyInfo = settings?.keys[viewProvider] ?? { hasKey: false as const };
 
@@ -132,6 +162,25 @@ export function ProviderSection() {
             <Loader2 className="size-4 animate-spin" />
             Loading...
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (settingsError && settings === null) {
+    return (
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <p className="text-sm text-destructive">{settingsError}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refreshSettings().catch(() => undefined);
+            }}
+          >
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
@@ -199,124 +248,23 @@ export function ProviderSection() {
         removeError={removeError}
       />
 
-      <ModelOverrideSection
-        provider={viewProvider}
-        modelOverride={settings?.modelOverride ?? null}
-        onSave={async (args) => {
-          await setModelOverrideMut(args);
-          if (
-            viewProvider === "openrouter" &&
-            currentKeyInfo.hasKey &&
-            args.modelOverride?.trim() &&
-            settings?.selectedProvider !== "openrouter"
-          ) {
-            await selectProvider({ provider: "openrouter" });
-          }
-          await refreshSettings();
-        }}
-      />
+      {viewProvider === "openrouter" && (
+        <ModelOverrideSection
+          provider={viewProvider}
+          modelOverride={settings?.modelOverride ?? null}
+          onSave={async (args) => {
+            await setModelOverrideMut(args);
+            if (
+              currentKeyInfo.hasKey &&
+              args.modelOverride?.trim() &&
+              settings?.selectedProvider !== "openrouter"
+            ) {
+              await selectProvider({ provider: "openrouter" });
+            }
+            await refreshSettings();
+          }}
+        />
+      )}
     </div>
-  );
-}
-
-function ModelOverrideSection({
-  provider,
-  modelOverride,
-  onSave,
-}: {
-  readonly provider: ProviderId;
-  readonly modelOverride: string | null;
-  readonly onSave: (args: { modelOverride?: string }) => Promise<unknown>;
-}) {
-  const [open, setOpen] = useState(false);
-  const defaultModel = PROVIDER_UI_CONFIG[provider].primaryModel;
-  const [value, setValue] = useState(modelOverride ?? "");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setValue(modelOverride ?? "");
-  }, [modelOverride]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const trimmed = value.trim();
-      await onSave({ modelOverride: trimmed || undefined });
-      toast.success(trimmed ? "Model override saved" : "Reset to default model");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save model override");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleReset = async () => {
-    setSaving(true);
-    try {
-      await onSave({ modelOverride: undefined });
-      setValue("");
-      toast.success("Reset to default model");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to reset model");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-          Advanced
-        </button>
-
-        {open && (
-          <div className="mt-4 space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="model-override" className="text-xs text-muted-foreground">
-                Model override
-              </Label>
-              <Input
-                id="model-override"
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={defaultModel || "Enter model name"}
-                disabled={saving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Default: {defaultModel || "none (OpenRouter requires a model)"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saving || value === (modelOverride ?? "")}
-              >
-                {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-                Save
-              </Button>
-              {modelOverride && provider !== "openrouter" && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={saving}
-                  className="text-sm text-primary underline-offset-4 hover:underline disabled:opacity-50"
-                >
-                  Reset to default
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }

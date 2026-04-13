@@ -48,3 +48,10 @@ export function assertProviderHasRequiredModel(
     throw new Error("byok_model_missing");
   }
 }
+
+export function getModelOverrideForProvider(
+  provider: ProviderId,
+  modelOverride: string | undefined,
+): string | undefined {
+  return provider === "openrouter" ? modelOverride : undefined;
+}
