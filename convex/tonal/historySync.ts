@@ -13,15 +13,13 @@ import type { ActionCtx } from "../_generated/server";
 import { aggregateDetailToSessions } from "../progressiveOverload";
 import type {
   Activity,
-  ExternalActivity,
   FormattedWorkoutSummary,
-  MuscleReadiness,
-  StrengthScore,
   StrengthScoreHistoryEntry,
   WorkoutActivityDetail,
 } from "./types";
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
 import { toUserProfileData } from "./profileData";
+import { persistNewTableData } from "./enrichmentSync";
 import * as analytics from "../lib/posthog";
 
 type WorkoutPayload = typeof workoutValidator.type;
@@ -212,74 +210,6 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
   }
 }
 
-/** Fetch current strength scores, muscle readiness, and external activities, then persist to DB. */
-async function persistNewTableData(ctx: ActionCtx, userId: Id<"users">): Promise<void> {
-  const results = await Promise.allSettled([
-    ctx.runAction(internal.tonal.proxy.fetchStrengthScores, { userId }),
-    ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, { userId }),
-    ctx.runAction(internal.tonal.proxy.fetchExternalActivities, { userId, limit: 20 }),
-  ]);
-
-  // Strength scores
-  if (results[0].status === "fulfilled") {
-    const scores = results[0].value as StrengthScore[];
-    if (scores.length > 0) {
-      await ctx.runMutation(internal.tonal.historySyncMutations.persistCurrentStrengthScores, {
-        userId,
-        scores: scores.map((s) => ({ bodyRegion: s.bodyRegionDisplay, score: s.score })),
-      });
-    }
-  } else {
-    console.error("[historySync] Strength scores fetch failed", results[0].reason);
-  }
-
-  // Muscle readiness
-  if (results[1].status === "fulfilled" && results[1].value) {
-    const mr = results[1].value as MuscleReadiness;
-    await ctx.runMutation(internal.tonal.historySyncMutations.persistMuscleReadiness, {
-      userId,
-      readiness: {
-        chest: mr.Chest,
-        shoulders: mr.Shoulders,
-        back: mr.Back,
-        triceps: mr.Triceps,
-        biceps: mr.Biceps,
-        abs: mr.Abs,
-        obliques: mr.Obliques,
-        quads: mr.Quads,
-        glutes: mr.Glutes,
-        hamstrings: mr.Hamstrings,
-        calves: mr.Calves,
-      },
-    });
-  } else if (results[1].status === "rejected") {
-    console.error("[historySync] Muscle readiness fetch failed", results[1].reason);
-  }
-
-  // External activities
-  if (results[2].status === "fulfilled") {
-    const activities = results[2].value as ExternalActivity[];
-    if (activities.length > 0) {
-      await ctx.runMutation(internal.tonal.historySyncMutations.persistExternalActivities, {
-        userId,
-        activities: activities.map((a) => ({
-          externalId: a.externalId,
-          workoutType: a.workoutType,
-          beginTime: a.beginTime,
-          totalDuration: a.totalDuration,
-          activeCalories: a.activeCalories,
-          totalCalories: a.totalCalories,
-          averageHeartRate: a.averageHeartRate,
-          source: a.source,
-          distance: a.distance,
-        })),
-      });
-    }
-  } else {
-    console.error("[historySync] External activities fetch failed", results[2].reason);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
@@ -341,13 +271,13 @@ export const backfillUserHistory = internalAction({
         synced = await syncActivitiesAndStrength(ctx, userId, activities);
       }
 
-      await persistNewTableData(ctx, userId);
+      const enrichmentFailures = await persistNewTableData(ctx, userId);
 
       await maybeRefreshProfile(ctx, userId);
 
       await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
         userId,
-        syncStatus: "complete",
+        syncStatus: enrichmentFailures >= 3 ? "failed" : "complete",
       });
 
       console.log(

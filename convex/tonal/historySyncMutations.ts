@@ -191,6 +191,20 @@ export const persistMuscleReadiness = internalMutation({
   },
 });
 
+/** Clear muscle readiness data for a user (when API returns null). */
+export const clearMuscleReadiness = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const existing = await ctx.db
+      .query("muscleReadiness")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+  },
+});
+
 /** Upsert external activities by externalId (insert new, update existing). */
 export const persistExternalActivities = internalMutation({
   args: { userId: v.id("users"), activities: v.array(externalActivityValidator) },

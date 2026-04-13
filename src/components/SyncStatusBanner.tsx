@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -10,6 +10,14 @@ export function SyncStatusBanner() {
   const [dismissed, setDismissed] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
+
+  // Reset dismissed when syncStatus changes so the banner can reappear after retry.
+  // Uses render-time ref comparison instead of useEffect to avoid cascading renders.
+  const prevStatus = useRef(me?.syncStatus);
+  if (me?.syncStatus !== prevStatus.current) {
+    prevStatus.current = me?.syncStatus;
+    if (dismissed) setDismissed(false);
+  }
 
   if (!me || !me.syncStatus) return null;
   if (me.syncStatus === "complete") return null;

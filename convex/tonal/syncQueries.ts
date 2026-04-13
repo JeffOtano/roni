@@ -31,12 +31,11 @@ export const getMuscleReadiness = internalQuery({
 export const getRecentCompletedWorkouts = internalQuery({
   args: userIdWithLimitArgsValidator,
   handler: async (ctx, { userId, limit }) => {
-    const all = await ctx.db
+    return await ctx.db
       .query("completedWorkouts")
       .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
-    return all.slice(0, limit);
+      .take(limit);
   },
 });
 
@@ -44,11 +43,10 @@ export const getRecentCompletedWorkouts = internalQuery({
 export const getRecentExternalActivities = internalQuery({
   args: userIdWithLimitArgsValidator,
   handler: async (ctx, { userId, limit }) => {
-    const all = await ctx.db
+    return await ctx.db
       .query("externalActivities")
       .withIndex("by_userId_beginTime", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
-    return all.slice(0, limit);
+      .take(limit);
   },
 });

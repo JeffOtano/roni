@@ -91,4 +91,24 @@ describe("SyncStatusBanner", () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("re-shows failed banner after status transitions through non-failed state", () => {
+    mockUseQuery.mockReturnValue({ syncStatus: "failed", tonalTokenExpired: false });
+
+    const { rerender } = render(<SyncStatusBanner />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    // Dismiss
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+
+    // Transition to syncing (retry triggered)
+    mockUseQuery.mockReturnValue({ syncStatus: "syncing", tonalTokenExpired: false });
+    rerender(<SyncStatusBanner />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+
+    // Fail again
+    mockUseQuery.mockReturnValue({ syncStatus: "failed", tonalTokenExpired: false });
+    rerender(<SyncStatusBanner />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
 });

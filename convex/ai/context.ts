@@ -303,7 +303,7 @@ export async function buildTrainingSnapshot(
     const perfLines: string[] = [];
     const latest = activities[0];
     const previous = activities[1];
-    if (latest.totalVolume > previous.totalVolume * 1.1) {
+    if (previous.totalVolume > 0 && latest.totalVolume > previous.totalVolume * 1.1) {
       perfLines.push(
         `Performance: Last session volume was ${Math.round((latest.totalVolume / previous.totalVolume - 1) * 100)}% higher than previous.`,
       );
