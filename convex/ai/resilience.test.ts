@@ -56,6 +56,16 @@ describe("isTransientError", () => {
     expect(isTransientError(error)).toBe(false);
   });
 
+  it("returns true for AbortError by name", () => {
+    const error = new Error("The operation was aborted");
+    error.name = "AbortError";
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for errors containing 'aborted' in message", () => {
+    expect(isTransientError(new Error("This operation was aborted"))).toBe(true);
+  });
+
   it("returns false for generic errors without status", () => {
     expect(isTransientError(new Error("Something broke"))).toBe(false);
   });

@@ -22,8 +22,9 @@ export function isTransientError(error: unknown): boolean {
   if (error instanceof TypeError && error.message.includes("fetch")) return true;
 
   if (error instanceof Error) {
-    if (error.name === "TimeoutError") return true;
+    if (error.name === "TimeoutError" || error.name === "AbortError") return true;
     if (error.message.toLowerCase().includes("timeout")) return true;
+    if (error.message.toLowerCase().includes("aborted")) return true;
 
     const status = (error as Error & { status?: number }).status;
     if (typeof status === "number" && TRANSIENT_STATUS_CODES.has(status)) return true;
