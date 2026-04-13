@@ -17,6 +17,12 @@ const eslintConfig = defineConfig([
   ]),
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
+    settings: {
+      react: {
+        // eslint-plugin-react's version auto-detection is not ESLint 10 compatible yet.
+        version: "19.2",
+      },
+    },
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "error",
