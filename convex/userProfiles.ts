@@ -366,6 +366,22 @@ export const releaseTokenRefreshLock = internalMutation({
   },
 });
 
+/** Update the syncStatus field on a user's profile. */
+export const updateSyncStatus = internalMutation({
+  args: {
+    userId: v.id("users"),
+    syncStatus: v.union(v.literal("syncing"), v.literal("complete"), v.literal("failed")),
+  },
+  handler: async (ctx, { userId, syncStatus }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (!profile) return;
+    await ctx.db.patch(profile._id, { syncStatus });
+  },
+});
+
 /** Get thread staleness threshold for a user (server-only). */
 export const getThreadStaleHours = internalQuery({
   args: { userId: v.id("users") },
