@@ -12,49 +12,36 @@ import { components, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
-import { buildCoachAgentForStorageOnly, buildCoachAgents } from "./ai/coach";
-import { isBYOKRequired, resolveGeminiKey } from "./byok";
+import { buildCoachAgentForStorageOnly, buildCoachAgentsForProvider } from "./ai/coach";
+import { type ProviderKeyResult, resolveProviderKey } from "./byok";
 import { checkDailyBudget, classifyByokError, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 import * as analytics from "./lib/posthog";
 
 const MAX_IMAGES_PER_MESSAGE = 4;
 
-/**
- * Resolve the Gemini API key for the given userId from inside an action.
- *
- * Wraps resolveGeminiKey() with the action-runtime plumbing: runs the
- * internal query that fetches the user's creation time and profile, then
- * delegates to resolveGeminiKey for the kill-switch / grandfathering /
- * BYOK decision tree.
- *
- * Throws a typed BYOK error code on failure (byok_key_missing,
- * byok_misconfigured_no_encryption_key, etc.). Callers MUST NOT silently
- * fall back to the house key on failure: the entire BYOK release exists to
- * stop the cost bleed of users running on someone else's key.
- */
-// Like resolveUserGeminiKey but skips the quota check.
-async function validateUserGeminiKey(ctx: ActionCtx, userId: string): Promise<void> {
+// Like resolveUserProviderConfig but skips the quota check.
+async function validateUserProviderKey(ctx: ActionCtx, userId: string): Promise<void> {
   const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
     userId: userId as Id<"users">,
   });
   if (!context) throw new Error("byok_user_not_found");
-  await resolveGeminiKey(context.profile, context.userCreationTime);
+  await resolveProviderKey(context.profile, context.userCreationTime);
 }
 
-async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<string> {
+async function resolveUserProviderConfig(
+  ctx: ActionCtx,
+  userId: string,
+): Promise<ProviderKeyResult> {
   const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
     userId: userId as Id<"users">,
   });
   if (!context) throw new Error("byok_user_not_found");
-  const key = await resolveGeminiKey(context.profile, context.userCreationTime);
+  const result = await resolveProviderKey(context.profile, context.userCreationTime);
 
-  // Enforce monthly cap on grandfathered house-key users. Skip when the
-  // kill switch is active (emergency mode forces everyone onto the house
-  // key -- capping them would break the app for all users).
-  const isGrandfathered = !isBYOKRequired(context.userCreationTime);
+  // Enforce monthly cap only when actually using the house key.
   const killSwitchActive = process.env.BYOK_DISABLED === "true";
-  if (isGrandfathered && !killSwitchActive) {
+  if (result.isHouseKey && !killSwitchActive) {
     try {
       await ctx.runMutation(internal.byok._checkHouseKeyQuota, {
         userId: userId as Id<"users">,
@@ -68,7 +55,7 @@ async function resolveUserGeminiKey(ctx: ActionCtx, userId: string): Promise<str
     }
   }
 
-  return key;
+  return result;
 }
 
 /**
@@ -188,7 +175,7 @@ export const createThreadWithMessage = action({
 
     // Validate key early so BYOK errors surface before the thread is created.
     // Quota is checked later in processMessage.
-    await validateUserGeminiKey(ctx, userId);
+    await validateUserProviderKey(ctx, userId);
 
     let targetThreadId: string;
     if (threadId) {
@@ -293,10 +280,10 @@ export const continueAfterApproval = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+    const providerConfig = await resolveUserProviderConfig(ctx, userId);
 
     const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgents(geminiKey);
+    const { primary, fallback } = buildCoachAgentsForProvider(providerConfig);
     await withByokErrorSanitization(() =>
       streamWithRetry(ctx, {
         primaryAgent: primary,
@@ -360,12 +347,12 @@ export const processMessage = internalAction({
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
 
-    const geminiKey = await resolveUserGeminiKey(ctx, userId);
+    const providerConfig = await resolveUserProviderConfig(ctx, userId);
 
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
     const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgents(geminiKey);
+    const { primary, fallback } = buildCoachAgentsForProvider(providerConfig);
     await withByokErrorSanitization(() =>
       streamWithRetry(ctx, {
         primaryAgent: primary,

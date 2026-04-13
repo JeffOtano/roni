@@ -6,6 +6,7 @@ const BYOK_ERROR_CODES: readonly FailureReason[] = [
   "byok_safety_blocked",
   "byok_unknown_error",
   "byok_key_missing",
+  "byok_model_missing",
   "house_key_quota_exhausted",
 ] as const;
 

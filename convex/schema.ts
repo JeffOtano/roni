@@ -98,6 +98,14 @@ export default defineSchema({
     // BYOK Gemini key, encrypted with TOKEN_ENCRYPTION_KEY.
     geminiApiKeyEncrypted: v.optional(v.string()),
     geminiApiKeyAddedAt: v.optional(v.number()),
+    selectedProvider: v.optional(v.string()),
+    claudeApiKeyEncrypted: v.optional(v.string()),
+    claudeApiKeyAddedAt: v.optional(v.number()),
+    openaiApiKeyEncrypted: v.optional(v.string()),
+    openaiApiKeyAddedAt: v.optional(v.number()),
+    openrouterApiKeyEncrypted: v.optional(v.string()),
+    openrouterApiKeyAddedAt: v.optional(v.number()),
+    modelOverride: v.optional(v.string()),
     /** Timestamp when a token refresh started. Used to prevent concurrent refreshes. */
     tokenRefreshInProgress: v.optional(v.number()),
   })

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { ConnectStep } from "./ConnectStep";
 import { PreferencesStep } from "./PreferencesStep";
 import { ReadyStep } from "./ReadyStep";
-import { GeminiKeyStep } from "./GeminiKeyStep";
+import { ProviderKeyStep } from "./ProviderKeyStep";
 
 type StepId = "connect" | "preferences" | "byok" | "ready";
 
@@ -29,7 +29,7 @@ const BASE_STEPS: readonly StepDef[] = [
 const BYOK_STEPS: readonly StepDef[] = [
   { id: "connect", label: "Connect Tonal" },
   { id: "preferences", label: "Preferences" },
-  { id: "byok", label: "Gemini key" },
+  { id: "byok", label: "AI provider" },
   { id: "ready", label: "Ready" },
 ];
 
@@ -124,7 +124,7 @@ function OnboardingFlow({
       <StepIndicator steps={steps} currentIndex={stepIndex} />
       {currentStep?.id === "connect" && <ConnectStep onComplete={advance} />}
       {currentStep?.id === "preferences" && <PreferencesStep onComplete={advance} />}
-      {currentStep?.id === "byok" && <GeminiKeyStep onComplete={advance} />}
+      {currentStep?.id === "byok" && <ProviderKeyStep onComplete={advance} />}
       {currentStep?.id === "ready" && <ReadyStep firstName={firstName} />}
     </div>
   );

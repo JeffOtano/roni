@@ -35,6 +35,12 @@ describe("FailureBanner", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/add your gemini api key/i);
   });
 
+  it("renders the missing-model message when reason is byok_model_missing", () => {
+    render(<FailureBanner reason="byok_model_missing" />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/needs a model name/i);
+  });
+
   it("exposes a Fix it link pointing at the settings gemini-key anchor", () => {
     render(<FailureBanner reason="byok_key_invalid" />);
 

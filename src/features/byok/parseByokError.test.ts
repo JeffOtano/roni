@@ -22,6 +22,10 @@ describe("parseByokError", () => {
     expect(parseByokError(new Error("byok_key_missing"))).toBe("byok_key_missing");
   });
 
+  it("returns byok_model_missing when the error message contains the code", () => {
+    expect(parseByokError(new Error("byok_model_missing"))).toBe("byok_model_missing");
+  });
+
   it("extracts the code even when wrapped by Convex framing around the message", () => {
     const wrapped = new Error(
       "[CONVEX M(chat:sendMessageToThread)] Uncaught Error: byok_key_invalid",
