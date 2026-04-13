@@ -69,10 +69,17 @@ export async function forceRefreshUserDataWithDeps(
     ]);
 
   if (profileResult.status === "fulfilled") {
-    await deps.updateProfileData({
-      userId,
-      profileData: toUserProfileData(profileResult.value),
-    });
+    try {
+      await deps.updateProfileData({
+        userId,
+        profileData: toUserProfileData(profileResult.value),
+      });
+    } catch (error) {
+      logError(
+        `[tonalRefresh] Failed to update profile data during refresh warm-up for user ${userId}`,
+        error,
+      );
+    }
   } else {
     logError("[tonalRefresh] Profile refresh failed", profileResult.reason);
   }

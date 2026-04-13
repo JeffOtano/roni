@@ -124,6 +124,42 @@ describe("TonalConnectionCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("maps session_expired result to reconnect guidance", async () => {
+    mockRefreshTonalData.mockResolvedValueOnce({ error: "session_expired" });
+
+    render(<TonalConnectionCard me={{ hasTonalProfile: true, tonalTokenExpired: false }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh data/i }));
+
+    expect(
+      await screen.findByText("Your Tonal session expired. Reconnect to refresh data."),
+    ).toBeInTheDocument();
+  });
+
+  it("maps not_connected result to connect guidance", async () => {
+    mockRefreshTonalData.mockResolvedValueOnce({ error: "not_connected" });
+
+    render(<TonalConnectionCard me={{ hasTonalProfile: true, tonalTokenExpired: false }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh data/i }));
+
+    expect(
+      await screen.findByText("No Tonal profile found. Connect your Tonal account first."),
+    ).toBeInTheDocument();
+  });
+
+  it("maps rate_limited result to retry-later message", async () => {
+    mockRefreshTonalData.mockResolvedValueOnce({ error: "rate_limited" });
+
+    render(<TonalConnectionCard me={{ hasTonalProfile: true, tonalTokenExpired: false }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh data/i }));
+
+    expect(
+      await screen.findByText("Refresh is rate-limited. Try again in a minute."),
+    ).toBeInTheDocument();
+  });
+
   it("maps session-expired refresh failures to reconnect guidance", async () => {
     mockRefreshTonalData.mockRejectedValueOnce(
       new Error("Tonal session expired — please reconnect"),
@@ -160,5 +196,18 @@ describe("TonalConnectionCard", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /refreshing/i })).toBeDisabled();
     });
+  });
+
+  it("renders a link to /connect-tonal when tonalEmail is missing", () => {
+    render(<TonalConnectionCard me={{ hasTonalProfile: true, tonalTokenExpired: false }} />);
+
+    const reconnectButton = screen.getByRole("button", { name: /reconnect/i });
+    expect(reconnectButton).toHaveAttribute("href", "/connect-tonal");
+  });
+
+  it("does not open reconnect modal when tonalEmail is missing", () => {
+    render(<TonalConnectionCard me={{ hasTonalProfile: true, tonalTokenExpired: false }} />);
+
+    expect(screen.queryByTestId("reconnect-modal")).not.toBeInTheDocument();
   });
 });

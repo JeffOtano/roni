@@ -4,6 +4,10 @@ import type { Id } from "../_generated/dataModel";
 import { rateLimiter } from "../rateLimits";
 import type { ForceRefreshResult } from "./refresh";
 
+export type RefreshResult =
+  | ForceRefreshResult
+  | { error: "session_expired" | "not_connected" | "rate_limited" };
+
 interface RefreshPublicDeps {
   resolveEffectiveUserId: () => Promise<Id<"users"> | null>;
   getProfile: (args: { userId: Id<"users"> }) => Promise<unknown>;
@@ -11,23 +15,25 @@ interface RefreshPublicDeps {
   forceRefreshUserData: (args: { userId: Id<"users"> }) => Promise<ForceRefreshResult>;
 }
 
-export async function refreshTonalDataWithDeps(
-  deps: RefreshPublicDeps,
-): Promise<ForceRefreshResult> {
+export async function refreshTonalDataWithDeps(deps: RefreshPublicDeps): Promise<RefreshResult> {
   const userId = await deps.resolveEffectiveUserId();
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) return { error: "session_expired" };
 
   const profile = await deps.getProfile({ userId });
-  if (!profile) throw new Error("No Tonal profile found — connect Tonal first");
+  if (!profile) return { error: "not_connected" };
 
-  await deps.limitRefresh(userId);
+  try {
+    await deps.limitRefresh(userId);
+  } catch {
+    return { error: "rate_limited" };
+  }
 
   return await deps.forceRefreshUserData({ userId });
 }
 
 export const refreshTonalData = action({
   args: {},
-  handler: async (ctx): Promise<ForceRefreshResult> =>
+  handler: async (ctx): Promise<RefreshResult> =>
     refreshTonalDataWithDeps({
       resolveEffectiveUserId: () => ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {}),
       getProfile: (args) => ctx.runQuery(internal.userProfiles.getByUserId, args),

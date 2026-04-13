@@ -50,8 +50,22 @@ function buildRefreshNotice(result: {
   };
 }
 
-function buildRefreshErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : "Failed to refresh Tonal data.";
+function buildRefreshErrorMessage(
+  result: { error: "session_expired" | "not_connected" | "rate_limited" } | Error,
+): string {
+  if ("error" in result) {
+    if (result.error === "session_expired") {
+      return "Your Tonal session expired. Reconnect to refresh data.";
+    }
+    if (result.error === "not_connected") {
+      return "No Tonal profile found. Connect your Tonal account first.";
+    }
+    if (result.error === "rate_limited") {
+      return "Refresh is rate-limited. Try again in a minute.";
+    }
+  }
+
+  const message = result instanceof Error ? result.message : "Failed to refresh Tonal data.";
   const normalized = message.toLowerCase();
 
   if (normalized.includes("session expired")) {
@@ -77,11 +91,18 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
 
     try {
       const result = await refreshTonalData({});
-      setNotice(buildRefreshNotice(result));
+      if ("error" in result) {
+        setNotice({
+          tone: "error",
+          message: buildRefreshErrorMessage(result),
+        });
+      } else {
+        setNotice(buildRefreshNotice(result));
+      }
     } catch (error) {
       setNotice({
         tone: "error",
-        message: buildRefreshErrorMessage(error),
+        message: buildRefreshErrorMessage(error instanceof Error ? error : new Error(String(error))),
       });
     } finally {
       setIsRefreshing(false);
@@ -155,12 +176,21 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
                 </>
               )}
             </Button>
-            {me.tonalEmail && (
+            {me.tonalEmail ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setReconnectOpen(true)}
+              >
+                Reconnect
+              </Button>
+            ) : (
+              <Button
+                nativeButton={false}
+                variant="outline"
+                size="sm"
+                render={<Link href="/connect-tonal" />}
               >
                 Reconnect
               </Button>
@@ -188,13 +218,11 @@ export function TonalConnectionCard({ me }: TonalConnectionCardProps) {
         </CardContent>
       </Card>
 
-      {me.tonalEmail && (
-        <ReconnectModal
-          tonalEmail={me.tonalEmail}
-          open={reconnectOpen}
-          onDismiss={() => setReconnectOpen(false)}
-        />
-      )}
+      <ReconnectModal
+        tonalEmail={me.tonalEmail ?? ""}
+        open={reconnectOpen && !!me.tonalEmail}
+        onDismiss={() => setReconnectOpen(false)}
+      />
     </>
   );
 }
