@@ -3,7 +3,6 @@ import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@conve
 import { action, internalQuery, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
-import * as analytics from "./lib/posthog";
 
 export const getFullProfile = query({
   args: {},
@@ -70,103 +69,6 @@ export const updateProfileSettings = mutation({
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(profile._id, patch);
     }
-  },
-});
-
-interface ExportedData {
-  exportedAt: string;
-  user: { email: string | null; name: string | null };
-  profile: {
-    profileData: Record<string, unknown> | null;
-    tonalConnectedAt: number | null;
-    checkInPreferences: Record<string, unknown> | null;
-    lastActiveAt: number;
-  } | null;
-  workoutPlans: Record<string, unknown>[];
-  weekPlans: Record<string, unknown>[];
-  checkIns: Record<string, unknown>[];
-}
-
-export const exportData = action({
-  args: {},
-  handler: async (ctx): Promise<ExportedData> => {
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    if (!userId) throw new Error("Not authenticated");
-
-    const data = (await ctx.runQuery(internal.account.collectUserData, {
-      userId,
-    })) as ExportedData;
-
-    analytics.capture(userId, "data_export_requested");
-    await analytics.flush();
-
-    return data;
-  },
-});
-
-export const collectUserData = internalQuery({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const user = await ctx.db.get(userId);
-
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .first();
-
-    const workoutPlans = await ctx.db
-      .query("workoutPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
-    const weekPlans = await ctx.db
-      .query("weekPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
-    const checkIns = await ctx.db
-      .query("checkIns")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
-    return {
-      exportedAt: new Date().toISOString(),
-      user: {
-        email: user?.email ?? null,
-        name: user?.name ?? null,
-      },
-      profile: profile
-        ? {
-            profileData: profile.profileData ?? null,
-            tonalConnectedAt: profile.tonalConnectedAt ?? null,
-            checkInPreferences: profile.checkInPreferences ?? null,
-            lastActiveAt: profile.lastActiveAt,
-          }
-        : null,
-      workoutPlans: workoutPlans.map((wp) => ({
-        title: wp.title,
-        status: wp.status,
-        blocks: wp.blocks,
-        estimatedDuration: wp.estimatedDuration ?? null,
-        createdAt: wp.createdAt,
-        pushedAt: wp.pushedAt ?? null,
-      })),
-      weekPlans: weekPlans.map((wp) => ({
-        weekStartDate: wp.weekStartDate,
-        preferredSplit: wp.preferredSplit,
-        targetDays: wp.targetDays,
-        days: wp.days,
-        createdAt: wp.createdAt,
-        updatedAt: wp.updatedAt,
-      })),
-      checkIns: checkIns.map((ci) => ({
-        trigger: ci.trigger,
-        message: ci.message,
-        readAt: ci.readAt ?? null,
-        createdAt: ci.createdAt,
-        triggerContext: ci.triggerContext ?? null,
-      })),
-    };
   },
 });
 
