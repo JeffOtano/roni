@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { exercisesToCsv, strengthScoresToCsv, workoutsToCsv } from "./csvExport";
+import {
+  exercisesToCsv,
+  externalActivitiesToCsv,
+  strengthScoresToCsv,
+  workoutsToCsv,
+} from "./csvExport";
 
 describe("workoutsToCsv", () => {
   it("produces header row for empty input", () => {
@@ -98,5 +103,32 @@ describe("strengthScoresToCsv", () => {
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe("2024-01-15,500,450,520,480");
     expect(lines[2]).toBe("2024-01-22,510,460,530,490");
+  });
+});
+
+describe("externalActivitiesToCsv", () => {
+  it("produces header row for empty input", () => {
+    const csv = externalActivitiesToCsv([]);
+    expect(csv).toBe(
+      "Time,Type,Source,Duration (sec),Active Calories,Total Calories,Avg Heart Rate,Distance",
+    );
+  });
+
+  it("converts external activity rows", () => {
+    const csv = externalActivitiesToCsv([
+      {
+        workoutType: "Running",
+        beginTime: "2024-01-14T08:00:00Z",
+        totalDuration: 1800,
+        activeCalories: 350,
+        totalCalories: 400,
+        averageHeartRate: 145,
+        source: "Apple Watch",
+        distance: 5000,
+      },
+    ]);
+    const lines = csv.split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toBe("2024-01-14T08:00:00Z,Running,Apple Watch,1800,350,400,145,5000");
   });
 });

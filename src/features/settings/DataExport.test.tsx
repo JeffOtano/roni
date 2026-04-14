@@ -10,8 +10,8 @@ vi.mock("convex/react", () => ({
 
 vi.mock("../../../convex/_generated/api", () => ({
   api: {
-    account: {
-      exportData: "account:exportData",
+    dataExport: {
+      exportData: "dataExport:exportData",
     },
   },
 }));
@@ -46,6 +46,32 @@ const FAKE_EXPORT_DATA = {
     },
   ],
   strengthScoreSnapshots: [{ date: "2024-01-15", overall: 500, upper: 450, lower: 520, core: 480 }],
+  currentStrengthScores: [{ bodyRegion: "Upper", score: 450 }],
+  muscleReadiness: {
+    chest: 80,
+    shoulders: 75,
+    back: 90,
+    triceps: 85,
+    biceps: 70,
+    abs: 65,
+    obliques: 60,
+    quads: 95,
+    glutes: 88,
+    hamstrings: 72,
+    calves: 78,
+  },
+  externalActivities: [
+    {
+      workoutType: "Running",
+      beginTime: "2024-01-14T08:00:00Z",
+      totalDuration: 1800,
+      activeCalories: 350,
+      totalCalories: 400,
+      averageHeartRate: 145,
+      source: "Apple Watch",
+      distance: 5000,
+    },
+  ],
 };
 
 function setupDomMocks() {
@@ -148,6 +174,24 @@ describe("DataExport", () => {
 
     fireEvent.change(screen.getByLabelText("Export format"), {
       target: { value: "csv-strength" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /export/i }));
+
+    await waitFor(() => {
+      expect(URL.createObjectURL).toHaveBeenCalled();
+    });
+
+    const blobArg = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob;
+    expect(blobArg.type).toBe("text/csv");
+  });
+
+  it("creates a CSV download for external activities format", async () => {
+    mockExportData.mockResolvedValueOnce(FAKE_EXPORT_DATA);
+    render(<DataExport />);
+    setupDomMocks();
+
+    fireEvent.change(screen.getByLabelText("Export format"), {
+      target: { value: "csv-activities" },
     });
     fireEvent.click(screen.getByRole("button", { name: /export/i }));
 

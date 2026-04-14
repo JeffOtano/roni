@@ -8,15 +8,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { exercisesToCsv, strengthScoresToCsv, workoutsToCsv } from "./csvExport";
+import {
+  exercisesToCsv,
+  externalActivitiesToCsv,
+  strengthScoresToCsv,
+  workoutsToCsv,
+} from "./csvExport";
 
-type ExportFormat = "json" | "csv-workouts" | "csv-exercises" | "csv-strength";
+type ExportFormat = "json" | "csv-workouts" | "csv-exercises" | "csv-strength" | "csv-activities";
 
 const FORMAT_LABELS: Record<ExportFormat, string> = {
   json: "All Data (JSON)",
   "csv-workouts": "Workout History (CSV)",
   "csv-exercises": "Exercise Details (CSV)",
   "csv-strength": "Strength Scores (CSV)",
+  "csv-activities": "External Activities (CSV)",
 };
 
 const FORMAT_FILENAMES: Record<ExportFormat, (date: string) => string> = {
@@ -24,11 +30,12 @@ const FORMAT_FILENAMES: Record<ExportFormat, (date: string) => string> = {
   "csv-workouts": (d) => `tonal-coach-workouts-${d}.csv`,
   "csv-exercises": (d) => `tonal-coach-exercises-${d}.csv`,
   "csv-strength": (d) => `tonal-coach-strength-scores-${d}.csv`,
+  "csv-activities": (d) => `tonal-coach-external-activities-${d}.csv`,
 };
 
 export function DataExport() {
   const { track } = useAnalytics();
-  const exportData = useAction(api.account.exportData);
+  const exportData = useAction(api.dataExport.exportData);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [format, setFormat] = useState<ExportFormat>("json");
@@ -53,6 +60,10 @@ export function DataExport() {
           break;
         case "csv-strength":
           content = strengthScoresToCsv(data.strengthScoreSnapshots);
+          mimeType = "text/csv";
+          break;
+        case "csv-activities":
+          content = externalActivitiesToCsv(data.externalActivities);
           mimeType = "text/csv";
           break;
         default:

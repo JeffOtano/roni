@@ -89,3 +89,38 @@ export function strengthScoresToCsv(scores: readonly StrengthScoreRow[]): string
   const rows = scores.map((s) => [s.date, s.overall, s.upper, s.lower, s.core]);
   return toCsv(headers, rows);
 }
+
+interface ExternalActivityRow {
+  workoutType: string;
+  beginTime: string;
+  totalDuration: number;
+  activeCalories: number;
+  totalCalories: number;
+  averageHeartRate: number;
+  source: string;
+  distance: number;
+}
+
+export function externalActivitiesToCsv(activities: readonly ExternalActivityRow[]): string {
+  const headers = [
+    "Time",
+    "Type",
+    "Source",
+    "Duration (sec)",
+    "Active Calories",
+    "Total Calories",
+    "Avg Heart Rate",
+    "Distance",
+  ];
+  const rows = activities.map((a) => [
+    a.beginTime,
+    a.workoutType,
+    a.source,
+    a.totalDuration,
+    a.activeCalories,
+    a.totalCalories,
+    a.averageHeartRate,
+    a.distance,
+  ]);
+  return toCsv(headers, rows);
+}
