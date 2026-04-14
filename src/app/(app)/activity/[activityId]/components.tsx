@@ -158,6 +158,8 @@ export function TimeBreakdownBar({
 
 function SetRow({ set, setNumber }: { set: EnrichedSetActivity; setNumber: number }) {
   const side = sideLabel(set.sideNumber);
+  const hasWeight = set.avgWeight != null && set.avgWeight > 0;
+  const reps = set.repCount != null && set.repCount > 0 ? set.repCount : set.repetition;
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2 text-sm">
@@ -166,13 +168,17 @@ function SetRow({ set, setNumber }: { set: EnrichedSetActivity; setNumber: numbe
           {setNumber}
         </span>
         <span className="tabular-nums text-foreground">
-          {set.repetition}/{set.prescribedReps} reps
+          {reps}/{set.prescribedReps} reps
         </span>
-        {set.weightPercentage != null && (
+        {hasWeight ? (
+          <span className="tabular-nums text-muted-foreground">
+            @ {Math.round(set.avgWeight!)} lbs
+          </span>
+        ) : set.weightPercentage != null ? (
           <span className="tabular-nums text-muted-foreground">
             @ {Math.round(set.weightPercentage)}%
           </span>
-        )}
+        ) : null}
         {side && (
           <Badge variant="outline" className="text-[10px]">
             {side}

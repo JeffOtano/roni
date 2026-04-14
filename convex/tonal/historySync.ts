@@ -127,12 +127,17 @@ async function fetchAndBuildPayloads(
 // Shared orchestration: diff, fetch details, persist, sync strength
 // ---------------------------------------------------------------------------
 
-/** Diff activities against DB, fetch details, persist, and sync strength scores. */
+/**
+ * Diff activities against DB, fetch details, persist, and sync strength scores.
+ * When maxNew is set, only processes that many new activities per invocation.
+ * Returns { synced, remaining } so the caller can schedule a continuation.
+ */
 async function syncActivitiesAndStrength(
   ctx: ActionCtx,
   userId: Id<"users">,
   activities: Activity[],
-): Promise<number> {
+  maxNew?: number,
+): Promise<{ synced: number; remaining: number }> {
   const allIds = activities.map((a) => a.activityId);
   const existingIds: string[] = await ctx.runQuery(
     internal.tonal.historySyncMutations.getExistingActivityIds,
@@ -141,8 +146,11 @@ async function syncActivitiesAndStrength(
   const existingSet = new Set(existingIds);
   const newActivities = activities.filter((a) => !existingSet.has(a.activityId));
 
-  if (newActivities.length > 0) {
-    const { workouts, performances } = await fetchAndBuildPayloads(ctx, userId, newActivities);
+  const batch = maxNew != null ? newActivities.slice(0, maxNew) : newActivities;
+  const remaining = newActivities.length - batch.length;
+
+  if (batch.length > 0) {
+    const { workouts, performances } = await fetchAndBuildPayloads(ctx, userId, batch);
     if (workouts.length > 0) {
       await ctx.runMutation(internal.tonal.historySyncMutations.persistCompletedWorkouts, {
         userId,
@@ -157,40 +165,44 @@ async function syncActivitiesAndStrength(
     }
   }
 
-  // Sync strength score history
-  try {
-    const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
-      internal.tonal.proxy.fetchStrengthHistory,
-      {
+  // Sync strength score history (only on final batch or when no batching)
+  if (remaining === 0) {
+    try {
+      const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
+        internal.tonal.proxy.fetchStrengthHistory,
+        {
+          userId,
+        },
+      );
+      if (strengthHistory.length > 0) {
+        const snapshots = strengthHistory.map((entry) => ({
+          date: entry.activityTime.slice(0, 10),
+          overall: entry.overall,
+          upper: entry.upper,
+          lower: entry.lower,
+          core: entry.core,
+          workoutActivityId: entry.workoutActivityId || undefined,
+        }));
+        await ctx.runMutation(internal.tonal.historySyncMutations.persistStrengthSnapshots, {
+          userId,
+          snapshots,
+        });
+      }
+    } catch (err) {
+      console.error("[historySync] Strength history sync failed", err);
+    }
+
+    // Update high-water mark
+    if (activities.length > 0) {
+      const newestDate = activities[activities.length - 1].activityTime.slice(0, 10);
+      await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
         userId,
-      },
-    );
-    if (strengthHistory.length > 0) {
-      const snapshots = strengthHistory.map((entry) => ({
-        date: entry.activityTime.slice(0, 10),
-        overall: entry.overall,
-        upper: entry.upper,
-        lower: entry.lower,
-        core: entry.core,
-        workoutActivityId: entry.workoutActivityId || undefined,
-      }));
-      await ctx.runMutation(internal.tonal.historySyncMutations.persistStrengthSnapshots, {
-        userId,
-        snapshots,
+        date: newestDate,
       });
     }
-  } catch (err) {
-    console.error("[historySync] Strength history sync failed", err);
   }
 
-  // Update high-water mark
-  const newestDate = activities[0].activityTime.slice(0, 10);
-  await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
-    userId,
-    date: newestDate,
-  });
-
-  return newActivities.length;
+  return { synced: batch.length, remaining };
 }
 
 /** Refresh profile data from Tonal API if >24h old. */
@@ -220,12 +232,12 @@ export const syncUserHistory = internalAction({
   handler: async (ctx, { userId }) => {
     const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
-      limit: 20,
     });
 
     let synced = 0;
     if (activities.length > 0) {
-      synced = await syncActivitiesAndStrength(ctx, userId, activities);
+      const result = await syncActivitiesAndStrength(ctx, userId, activities);
+      synced = result.synced;
     }
 
     // Persist strength scores, muscle readiness, and external activities to DB
@@ -245,8 +257,11 @@ export const syncUserHistory = internalAction({
 
 const BACKFILL_MAX_RETRIES = 3;
 const BACKFILL_RETRY_DELAYS = [30_000, 60_000, 120_000];
+const BACKFILL_BATCH_SIZE = 20;
+const BACKFILL_CONTINUATION_DELAY_MS = 5_000;
 
-/** One-shot backfill on Tonal connect. Fetches deeper history. Retries on failure. */
+/** Batched backfill on Tonal connect. Processes up to 20 new workouts per invocation,
+ *  then schedules a continuation if more remain. Retries on failure. */
 export const backfillUserHistory = internalAction({
   args: { userId: v.id("users"), retryCount: v.optional(v.number()) },
   handler: async (
@@ -263,12 +278,31 @@ export const backfillUserHistory = internalAction({
     try {
       const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
         userId,
-        limit: 100,
       });
 
       let synced = 0;
+      let remaining = 0;
       if (activities.length > 0) {
-        synced = await syncActivitiesAndStrength(ctx, userId, activities);
+        const result = await syncActivitiesAndStrength(
+          ctx,
+          userId,
+          activities,
+          BACKFILL_BATCH_SIZE,
+        );
+        synced = result.synced;
+        remaining = result.remaining;
+      }
+
+      if (remaining > 0) {
+        console.log(
+          `[historySync] Backfilled batch of ${synced} workouts, ${remaining} remaining for user ${userId}`,
+        );
+        await ctx.scheduler.runAfter(
+          BACKFILL_CONTINUATION_DELAY_MS,
+          internal.tonal.historySync.backfillUserHistory,
+          { userId, retryCount },
+        );
+        return { newWorkouts: synced, totalActivities: activities.length };
       }
 
       const enrichmentFailures = await persistNewTableData(ctx, userId);
@@ -281,7 +315,7 @@ export const backfillUserHistory = internalAction({
       });
 
       console.log(
-        `[historySync] Backfilled ${synced}/${activities.length} workouts for user ${userId}`,
+        `[historySync] Backfill complete: ${synced}/${activities.length} workouts for user ${userId}`,
       );
 
       analytics.capture(userId, "history_sync_completed", {
