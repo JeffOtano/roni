@@ -77,6 +77,7 @@ import type * as tonal_client from "../tonal/client.js";
 import type * as tonal_connect from "../tonal/connect.js";
 import type * as tonal_connectPublic from "../tonal/connectPublic.js";
 import type * as tonal_encryption from "../tonal/encryption.js";
+import type * as tonal_enrichmentSync from "../tonal/enrichmentSync.js";
 import type * as tonal_hardware from "../tonal/hardware.js";
 import type * as tonal_historySync from "../tonal/historySync.js";
 import type * as tonal_historySyncMutations from "../tonal/historySyncMutations.js";
@@ -184,6 +185,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/connect": typeof tonal_connect;
   "tonal/connectPublic": typeof tonal_connectPublic;
   "tonal/encryption": typeof tonal_encryption;
+  "tonal/enrichmentSync": typeof tonal_enrichmentSync;
   "tonal/hardware": typeof tonal_hardware;
   "tonal/historySync": typeof tonal_historySync;
   "tonal/historySyncMutations": typeof tonal_historySyncMutations;
