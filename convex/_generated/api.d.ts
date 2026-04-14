@@ -49,6 +49,7 @@ import type * as coach_weekProgrammingHelpers from "../coach/weekProgrammingHelp
 import type * as contact from "../contact.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as dataExport from "../dataExport.js";
 import type * as dataRetention from "../dataRetention.js";
 import type * as discord from "../discord.js";
 import type * as email from "../email.js";
@@ -156,6 +157,7 @@ declare const fullApi: ApiFromModules<{
   contact: typeof contact;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  dataExport: typeof dataExport;
   dataRetention: typeof dataRetention;
   discord: typeof discord;
   email: typeof email;
