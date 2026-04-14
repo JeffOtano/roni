@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -81,26 +81,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setReconnectDismissed = (v: boolean) =>
     setDismissState({ key: tokenExpiredKey, dismissed: v });
 
-  if (authLoading || (isAuthenticated && me === undefined)) {
+  const needsLogin = !authLoading && !isAuthenticated;
+  const needsOnboarding = !!me && (!me.hasTonalProfile || !me.onboardingCompleted);
+
+  useEffect(() => {
+    if (needsLogin) router.replace("/login");
+    else if (needsOnboarding) router.replace("/onboarding");
+  }, [needsLogin, needsOnboarding, router]);
+
+  if (authLoading || (isAuthenticated && me === undefined) || needsLogin || needsOnboarding) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    router.replace("/login");
-    return null;
-  }
-
-  if (me && (!me.hasTonalProfile || !me.onboardingCompleted)) {
-    router.replace("/onboarding");
-    return null;
-  }
-
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar -- darker than main content */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">

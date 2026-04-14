@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -37,14 +37,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Redirect if already authenticated
-  if (authLoading) {
-    return <PageLoader />;
-  }
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/chat");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
-  if (isAuthenticated) {
-    router.replace("/chat");
-    return null;
+  if (authLoading || isAuthenticated) {
+    return <PageLoader />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

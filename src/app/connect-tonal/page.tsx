@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -33,13 +33,14 @@ export default function ConnectTonalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<"idle" | "authenticating" | "syncing" | "done">("idle");
 
-  if (authLoading) {
-    return <PageLoader />;
-  }
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
-  if (!isAuthenticated) {
-    router.replace("/login");
-    return null;
+  if (authLoading || !isAuthenticated) {
+    return <PageLoader />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
