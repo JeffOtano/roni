@@ -29,6 +29,22 @@ describe("workoutsToCsv", () => {
     expect(lines[1]).toBe("2024-01-15,Upper Body Strength,Upper Body,2100,12500,45000,strength");
   });
 
+  it("escapes values containing quotes", () => {
+    const csv = workoutsToCsv([
+      {
+        date: "2024-01-15",
+        title: 'Workout "Intense"',
+        targetArea: "Upper Body",
+        totalDuration: 2100,
+        totalVolume: 12500,
+        totalWork: 45000,
+        workoutType: "strength",
+      },
+    ]);
+    const lines = csv.split("\n");
+    expect(lines[1]).toContain('"Workout ""Intense"""');
+  });
+
   it("escapes values containing commas", () => {
     const csv = workoutsToCsv([
       {

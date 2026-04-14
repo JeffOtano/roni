@@ -74,7 +74,7 @@ interface ExportedData {
 function activityToExportRow(a: Activity) {
   const p = a.workoutPreview;
   return {
-    date: a.activityTime?.split("T")[0] ?? "",
+    date: a.activityTime.split("T")[0],
     title: p?.workoutTitle ?? "Unknown",
     targetArea: p?.targetArea ?? "",
     totalDuration: p?.totalDuration ?? 0,
@@ -114,8 +114,8 @@ export const exportData = action({
         }
         // Sort merged results chronologically
         data.completedWorkouts.sort((a, b) => a.date.localeCompare(b.date));
-      } catch {
-        // Tonal API unavailable — continue with DB data only
+      } catch (err) {
+        console.warn("Tonal API unavailable during export — continuing with DB data only", err);
       }
     }
 
@@ -193,15 +193,12 @@ export const collectUserData = internalQuery({
       .collect();
 
     // Build movement ID → name lookup for exercise performance
-    const movementIds = [...new Set(exercisePerformanceRows.map((ep) => ep.movementId))];
+    const movementIds = new Set(exercisePerformanceRows.map((ep) => ep.movementId));
+    const allMovements = await ctx.db.query("movements").collect();
     const movementNames = new Map<string, string>();
-    for (const movementId of movementIds) {
-      const movement = await ctx.db
-        .query("movements")
-        .withIndex("by_tonalId", (q) => q.eq("tonalId", movementId))
-        .first();
-      if (movement) {
-        movementNames.set(movementId, movement.name);
+    for (const m of allMovements) {
+      if (movementIds.has(m.tonalId)) {
+        movementNames.set(m.tonalId, m.name);
       }
     }
 

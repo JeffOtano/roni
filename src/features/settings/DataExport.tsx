@@ -50,6 +50,10 @@ export function DataExport() {
       let content: string;
       let mimeType: string;
       switch (format) {
+        case "json":
+          content = JSON.stringify(data, null, 2);
+          mimeType = "application/json";
+          break;
         case "csv-workouts":
           content = workoutsToCsv(data.completedWorkouts);
           mimeType = "text/csv";
@@ -66,9 +70,10 @@ export function DataExport() {
           content = externalActivitiesToCsv(data.externalActivities);
           mimeType = "text/csv";
           break;
-        default:
-          content = JSON.stringify(data, null, 2);
-          mimeType = "application/json";
+        default: {
+          const _exhaustive: never = format;
+          throw new Error(`Unknown export format: ${_exhaustive}`);
+        }
       }
 
       const blob = new Blob([content], { type: mimeType });
