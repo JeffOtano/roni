@@ -254,12 +254,15 @@ export const generateDraftWeekPlan = internalAction({
         const movement = catalog.find((m) => m.id === mid);
         const suggestion = suggestions.find((s) => s.movementId === mid);
         const exercise = allMainExercises.find((e) => e.movementId === mid);
+        const isDurationBased = movement ? !movement.countReps : false;
         return {
           movementId: mid,
           name: movement?.name ?? mid,
           muscleGroups: movement?.muscleGroups ?? [],
           sets: exercise?.sets ?? 3,
-          reps: exercise?.reps ?? 10,
+          ...(isDurationBased
+            ? { durationSeconds: exercise?.duration ?? 30 }
+            : { reps: exercise?.reps ?? 10 }),
           lastTime: suggestion?.lastTimeText,
           suggestedTarget: suggestion?.suggestedText,
           lastWeight: suggestion?.lastWeightLbs,
