@@ -59,6 +59,7 @@ import type * as fileGc from "../fileGc.js";
 import type * as goals from "../goals.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
+import type * as impersonation from "../impersonation.js";
 import type * as injuries from "../injuries.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_posthog from "../lib/posthog.js";
@@ -168,6 +169,7 @@ declare const fullApi: ApiFromModules<{
   goals: typeof goals;
   healthCheck: typeof healthCheck;
   http: typeof http;
+  impersonation: typeof impersonation;
   injuries: typeof injuries;
   "lib/auth": typeof lib_auth;
   "lib/posthog": typeof lib_posthog;
