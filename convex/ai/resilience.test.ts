@@ -11,13 +11,24 @@ describe("isTransientError", () => {
     expect(isTransientError(new TypeError("fetch failed"))).toBe(true);
   });
 
-  it("returns false for 429 rate limit (treated as BYOK quota_exceeded, not transient)", () => {
-    // With BYOK, a 429 from Google AI means the user's per-key quota is
-    // exhausted. Retrying does not help, and it must surface as a typed
-    // BYOK error rather than be retried as a generic transient failure.
-    // See classifyByokError below for the routing.
+  it("returns true for 429 rate limit (retryable; BYOK routing handled upstream)", () => {
+    // For house-key users, 429 from Gemini "high demand" should be retried.
+    // BYOK users' 429s are caught by throwIfByokError before isTransientError
+    // is ever called, so this classification is safe for both paths.
     const error = Object.assign(new Error("Rate limited"), { status: 429 });
-    expect(isTransientError(error)).toBe(false);
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for Gemini high demand message", () => {
+    const error = new Error(
+      "This model is currently experiencing high demand. Please try again later.",
+    );
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for service unavailable message", () => {
+    const error = new Error("The service is currently unavailable.");
+    expect(isTransientError(error)).toBe(true);
   });
 
   it("returns true for 500 server error", () => {

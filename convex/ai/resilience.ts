@@ -10,21 +10,32 @@ const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a mo
 const BUDGET_EXCEEDED_MESSAGE =
   "I've hit my daily thinking limit -- let's pick this up tomorrow. Your limit resets at midnight UTC.";
 const MAX_OUTPUT_TOKENS = 4096;
-const RETRY_DELAY_MS = 1000;
+const RETRY_DELAY_MS = 3000;
 
 // ---------------------------------------------------------------------------
 // Error classification
 // ---------------------------------------------------------------------------
 
-const TRANSIENT_STATUS_CODES = new Set([500, 502, 503]);
+const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
+
+const TRANSIENT_MESSAGE_PATTERNS = [
+  "high demand",
+  "unavailable",
+  "overloaded",
+  "try again later",
+  "rate limit",
+  "resource_exhausted",
+];
 
 export function isTransientError(error: unknown): boolean {
   if (error instanceof TypeError && error.message.includes("fetch")) return true;
 
   if (error instanceof Error) {
     if (error.name === "TimeoutError" || error.name === "AbortError") return true;
-    if (error.message.toLowerCase().includes("timeout")) return true;
-    if (error.message.toLowerCase().includes("aborted")) return true;
+
+    const lower = error.message.toLowerCase();
+    if (lower.includes("timeout") || lower.includes("aborted")) return true;
+    if (TRANSIENT_MESSAGE_PATTERNS.some((p) => lower.includes(p))) return true;
 
     const status = (error as Error & { status?: number }).status;
     if (typeof status === "number" && TRANSIENT_STATUS_CODES.has(status)) return true;
