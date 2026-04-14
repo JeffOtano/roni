@@ -19,6 +19,7 @@ import type {
 } from "./types";
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
 import { toUserProfileData } from "./profileData";
+import { persistNewTableData } from "./enrichmentSync";
 import * as analytics from "../lib/posthog";
 
 type WorkoutPayload = typeof workoutValidator.type;
@@ -227,6 +228,9 @@ export const syncUserHistory = internalAction({
       synced = await syncActivitiesAndStrength(ctx, userId, activities);
     }
 
+    // Persist strength scores, muscle readiness, and external activities to DB
+    await persistNewTableData(ctx, userId);
+
     // Always refresh profile (catches weight changes, etc.)
     await maybeRefreshProfile(ctx, userId);
 
@@ -239,42 +243,78 @@ export const syncUserHistory = internalAction({
   },
 });
 
-/** One-shot backfill on Tonal connect. Fetches deeper history. */
-export const backfillUserHistory = internalAction({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }): Promise<{ newWorkouts: number; totalActivities: number }> => {
-    const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: 100,
-    });
+const BACKFILL_MAX_RETRIES = 3;
+const BACKFILL_RETRY_DELAYS = [30_000, 60_000, 120_000];
 
-    let synced = 0;
-    if (activities.length > 0) {
-      synced = await syncActivitiesAndStrength(ctx, userId, activities);
+/** One-shot backfill on Tonal connect. Fetches deeper history. Retries on failure. */
+export const backfillUserHistory = internalAction({
+  args: { userId: v.id("users"), retryCount: v.optional(v.number()) },
+  handler: async (
+    ctx,
+    { userId, retryCount = 0 },
+  ): Promise<{ newWorkouts: number; totalActivities: number }> => {
+    if (retryCount === 0) {
+      await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
+        userId,
+        syncStatus: "syncing",
+      });
     }
 
-    // Pre-warm the cache keys that buildTrainingSnapshot reads on first
-    // chat so the user doesn't hit cold-cache Tonal API calls.
-    await Promise.all([
-      ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, { userId, limit: 20 }),
-      ctx.runAction(internal.tonal.proxy.fetchExternalActivities, { userId, limit: 20 }),
-      ctx.runAction(internal.tonal.proxy.fetchStrengthScores, { userId }),
-      ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, { userId }),
-    ]);
+    try {
+      const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+        userId,
+        limit: 100,
+      });
 
-    // Always refresh profile, even for new users with no workouts
-    await maybeRefreshProfile(ctx, userId);
+      let synced = 0;
+      if (activities.length > 0) {
+        synced = await syncActivitiesAndStrength(ctx, userId, activities);
+      }
 
-    console.log(
-      `[historySync] Backfilled ${synced}/${activities.length} workouts for user ${userId}`,
-    );
+      const enrichmentFailures = await persistNewTableData(ctx, userId);
 
-    analytics.capture(userId, "history_sync_completed", {
-      new_workouts: synced,
-      backfill: true,
-    });
-    await analytics.flush();
+      await maybeRefreshProfile(ctx, userId);
 
-    return { newWorkouts: synced, totalActivities: activities.length };
+      await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
+        userId,
+        syncStatus: enrichmentFailures >= 3 ? "failed" : "complete",
+      });
+
+      console.log(
+        `[historySync] Backfilled ${synced}/${activities.length} workouts for user ${userId}`,
+      );
+
+      analytics.capture(userId, "history_sync_completed", {
+        new_workouts: synced,
+        backfill: true,
+      });
+      await analytics.flush();
+
+      return { newWorkouts: synced, totalActivities: activities.length };
+    } catch (err) {
+      console.error(`[historySync] Backfill failed (attempt ${retryCount + 1})`, err);
+
+      if (retryCount < BACKFILL_MAX_RETRIES) {
+        const delay = BACKFILL_RETRY_DELAYS[retryCount] ?? 120_000;
+        await ctx.scheduler.runAfter(delay, internal.tonal.historySync.backfillUserHistory, {
+          userId,
+          retryCount: retryCount + 1,
+        });
+        return { newWorkouts: 0, totalActivities: 0 };
+      }
+
+      await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
+        userId,
+        syncStatus: "failed",
+      });
+
+      void ctx.runAction(internal.discord.notifyError, {
+        source: "backfillUserHistory",
+        message: `Backfill failed after ${BACKFILL_MAX_RETRIES + 1} attempts for user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
+        userId,
+      });
+
+      return { newWorkouts: 0, totalActivities: 0 };
+    }
   },
 });

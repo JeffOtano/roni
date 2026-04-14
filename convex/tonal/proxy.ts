@@ -98,7 +98,7 @@ export async function cachedFetch<T>(
     }
 
     // Record success for circuit breaker
-    void ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
+    await ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
 
     return data;
   } catch (error) {
@@ -107,7 +107,7 @@ export async function cachedFetch<T>(
     if (error instanceof Error && error.message.includes("session expired")) throw error;
 
     // Record failure for circuit breaker (non-auth errors only)
-    void ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
+    await ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
 
     // For non-auth errors, fall back to stale data if available
     if (cached) {
@@ -210,13 +210,22 @@ export const fetchWorkoutHistory = internalAction({
     ),
 });
 
+// Convex caps array fields at 8192 elements. Tonal can return thousands of
+// set entries for some activities. Apply after every return path (fresh + cached).
+const MAX_SETS_RETURN = 4000;
+function truncateWorkoutDetail(detail: WorkoutActivityDetail | null): WorkoutActivityDetail | null {
+  if (!detail?.workoutSetActivity || detail.workoutSetActivity.length <= MAX_SETS_RETURN)
+    return detail;
+  return { ...detail, workoutSetActivity: detail.workoutSetActivity.slice(0, MAX_SETS_RETURN) };
+}
+
 export const fetchWorkoutDetail = internalAction({
   args: {
     userId: v.id("users"),
     activityId: v.string(),
   },
-  handler: async (ctx, { userId, activityId }): Promise<WorkoutActivityDetail | null> =>
-    withTokenRetry(ctx, userId, (token, tonalUserId) =>
+  handler: async (ctx, { userId, activityId }): Promise<WorkoutActivityDetail | null> => {
+    const result = await withTokenRetry(ctx, userId, (token, tonalUserId) =>
       cachedFetch<WorkoutActivityDetail | null>(ctx, {
         userId,
         dataType: `workoutDetail:${activityId}`,
@@ -227,17 +236,7 @@ export const fetchWorkoutDetail = internalAction({
               token,
               `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
             );
-            // Tonal can return thousands of set entries for some activities,
-            // exceeding Convex's 8192 array element limit. Truncate to a safe
-            // ceiling -- no realistic single workout has more than 500 sets.
-            const MAX_SETS = 4000;
-            if (detail.workoutSetActivity && detail.workoutSetActivity.length > MAX_SETS) {
-              console.warn(
-                `fetchWorkoutDetail(${activityId}): truncating workoutSetActivity from ${detail.workoutSetActivity.length} to ${MAX_SETS}`,
-              );
-              detail.workoutSetActivity = detail.workoutSetActivity.slice(0, MAX_SETS);
-            }
-            return detail;
+            return truncateWorkoutDetail(detail);
           } catch (error) {
             if (error instanceof TonalApiError && error.status === 404) {
               return null;
@@ -246,7 +245,10 @@ export const fetchWorkoutDetail = internalAction({
           }
         },
       }),
-    ),
+    );
+    // Truncate after cachedFetch too: stale cache may predate the truncation.
+    return truncateWorkoutDetail(result);
+  },
 });
 
 export const fetchFormattedSummary = internalAction({

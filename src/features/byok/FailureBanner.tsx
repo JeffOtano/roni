@@ -15,14 +15,14 @@ interface FailureBannerProps {
 }
 
 const MESSAGES: Record<FailureReason, string> = {
-  byok_key_invalid: "Your Gemini API key isn't working anymore.",
-  byok_quota_exceeded: "You've hit Gemini's free daily limit. It resets at midnight UTC.",
-  byok_safety_blocked: "Gemini declined to answer this one. Try rephrasing.",
-  byok_unknown_error: "Something went wrong with Gemini. Try again in a moment.",
-  byok_key_missing: "You need to add your Gemini API key to use chat.",
+  byok_key_invalid: "Your API key isn't working anymore. Check that it's still valid.",
+  byok_quota_exceeded: "Your AI provider quota or credits are exhausted. Check your billing.",
+  byok_safety_blocked: "The AI provider declined to answer this one. Try rephrasing.",
+  byok_unknown_error: "Something went wrong with the AI provider. Try again in a moment.",
+  byok_key_missing: "You need to add an API key to use chat.",
   byok_model_missing: "The selected provider needs a model name before chat can start.",
   house_key_quota_exhausted:
-    "You've used your 500 free AI messages this month. Add your own Gemini key to keep going -- it's free from Google.",
+    "You've used your 500 free AI messages this month. Add your own API key to keep going.",
 };
 
 const isInfoReason = (reason: FailureReason): boolean => reason === "house_key_quota_exhausted";

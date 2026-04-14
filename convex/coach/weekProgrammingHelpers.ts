@@ -87,7 +87,8 @@ export interface ExerciseSummary {
   name: string;
   muscleGroups: string[];
   sets: number;
-  reps: number;
+  reps?: number;
+  durationSeconds?: number;
   lastTime?: string;
   suggestedTarget?: string;
   lastWeight?: number;

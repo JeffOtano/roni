@@ -23,10 +23,27 @@ export default defineConfig({
     projects: [
       {
         test: {
+          name: "backend-integration",
+          globals: true,
+          environment: "edge-runtime",
+          include: [
+            "convex/**/backfillIntegration.test.ts",
+            "convex/**/historySyncMutations.test.ts",
+            "convex/**/syncQueries.test.ts",
+          ],
+        },
+      },
+      {
+        test: {
           name: "backend",
           globals: true,
           environment: "node",
           include: ["convex/**/*.test.ts"],
+          exclude: [
+            "convex/**/backfillIntegration.test.ts",
+            "convex/**/historySyncMutations.test.ts",
+            "convex/**/syncQueries.test.ts",
+          ],
         },
       },
       {

@@ -187,6 +187,11 @@ export const coachAgentConfig = {
 
   maxSteps: 25,
 
+  // Disable the AI SDK's built-in retry (default maxRetries: 2 = 3 attempts).
+  // streamWithRetry already handles retries with primary -> retry -> fallback.
+  // Without this, a terminal error like quota exhaustion triggers 9 API calls.
+  callSettings: { maxRetries: 0 },
+
   usageHandler: (async (ctx, { userId, threadId, agentName, usage, model, provider }) => {
     await ctx.runMutation(internal.aiUsage.record, {
       userId: userId as Id<"users"> | undefined,

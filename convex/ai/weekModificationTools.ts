@@ -14,6 +14,18 @@ import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import { requireUserId, withToolTracking } from "./helpers";
 
+const VALIDATION_PREFIXES = [
+  "Invalid movementId",
+  "Workout plan not found",
+  "Can only swap",
+  "Can only add",
+];
+
+function isValidationError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return VALIDATION_PREFIXES.some((p) => err.message.startsWith(p));
+}
+
 // ---------------------------------------------------------------------------
 // swapExerciseTool
 // ---------------------------------------------------------------------------
@@ -61,12 +73,19 @@ export const swapExerciseTool = createTool({
         };
       }
 
-      await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
-        userId,
-        workoutPlanId: day.workoutPlanId,
-        oldMovementId: input.oldMovementId,
-        newMovementId: input.newMovementId,
-      });
+      try {
+        await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
+          userId,
+          workoutPlanId: day.workoutPlanId,
+          oldMovementId: input.oldMovementId,
+          newMovementId: input.newMovementId,
+        });
+      } catch (err) {
+        if (isValidationError(err)) {
+          return { success: false, error: (err as Error).message };
+        }
+        throw err;
+      }
 
       return {
         success: true,
@@ -129,13 +148,20 @@ export const addExerciseTool = createTool({
       }
 
       const { dayIndex: _, movementId, sets, ...opts } = input;
-      await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
-        userId,
-        workoutPlanId: day.workoutPlanId,
-        movementId,
-        sets,
-        ...opts,
-      });
+      try {
+        await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
+          userId,
+          workoutPlanId: day.workoutPlanId,
+          movementId,
+          sets,
+          ...opts,
+        });
+      } catch (err) {
+        if (isValidationError(err)) {
+          return { success: false, error: (err as Error).message };
+        }
+        throw err;
+      }
 
       return {
         success: true,

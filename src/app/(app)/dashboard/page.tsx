@@ -1,16 +1,16 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { usePageView } from "@/lib/analytics";
 import type {
-  Activity,
-  ExternalActivity,
   MuscleReadiness,
   StrengthDistribution,
   StrengthScore,
 } from "../../../../convex/tonal/types";
+import type { DashboardExternalActivity, DashboardWorkout } from "../../../../convex/dashboard";
 import { StrengthScoreCard } from "@/features/dashboard/StrengthScoreCard";
 import { MuscleReadinessMap } from "@/features/dashboard/MuscleReadinessMap";
 import { TrainingFrequencyChart } from "@/features/dashboard/TrainingFrequencyChart";
@@ -19,6 +19,39 @@ import { ExternalActivitiesList } from "@/features/dashboard/ExternalActivitiesL
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
 import { ArrowRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardCardSkeleton } from "@/features/dashboard/DashboardCardSkeleton";
+
+// ---------------------------------------------------------------------------
+// QueryCard -- lightweight wrapper for reactive Convex query data
+// ---------------------------------------------------------------------------
+
+function QueryCard<T>({
+  data,
+  title,
+  tall,
+  children,
+}: {
+  data: T | undefined;
+  title: string;
+  tall?: boolean;
+  children: (data: T) => React.ReactNode;
+}) {
+  if (data === undefined) return <DashboardCardSkeleton tall={tall} />;
+
+  return (
+    <Card className="animate-in fade-in duration-300">
+      <CardHeader>
+        <CardTitle>
+          <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            {title}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={tall ? "min-h-[220px]" : ""}>{children(data)}</CardContent>
+    </Card>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Dashboard page
@@ -54,19 +87,31 @@ const NAV_PILLS = [
 export default function DashboardPage() {
   usePageView("dashboard_viewed");
 
+  // Strength data stays as action (needs distribution from Tonal API)
   const strength = useActionData<{
     scores: StrengthScore[];
     distribution: StrengthDistribution;
   }>(useAction(api.dashboard.getStrengthData));
-  const readiness = useActionData<MuscleReadiness>(useAction(api.dashboard.getMuscleReadiness));
-  const workouts = useActionData<Activity[]>(useAction(api.dashboard.getWorkoutHistory));
-  const frequency = useActionData<FrequencyEntry[]>(useAction(api.dashboard.getTrainingFrequency));
-  const externalActivities = useActionData<ExternalActivity[]>(
-    useAction(api.dashboard.getExternalActivities),
-  );
+
+  // These 4 are now reactive queries reading from sync tables
+  const readiness = useQuery(api.dashboard.getMuscleReadiness);
+  const workouts = useQuery(api.dashboard.getWorkoutHistory);
+  const frequency = useQuery(api.dashboard.getTrainingFrequency);
+  const externalActivities = useQuery(api.dashboard.getExternalActivities);
 
   const me = useQuery(api.users.getMe);
   const firstName = me?.tonalName?.split(" ")[0] ?? "there";
+
+  // Trigger backfill for users who connected before the sync feature
+  const triggerBackfill = useMutation(api.dashboard.triggerBackfillIfNeeded);
+  const backfillTriggered = useRef(false);
+  useEffect(() => {
+    if (backfillTriggered.current) return;
+    if (me?.hasTonalProfile && workouts !== undefined && workouts.length === 0) {
+      backfillTriggered.current = true;
+      triggerBackfill();
+    }
+  }, [me, workouts, triggerBackfill]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 lg:px-6 lg:py-10">
@@ -119,39 +164,24 @@ export default function DashboardPage() {
         >
           {(d) => <StrengthScoreCard scores={d.scores} distribution={d.distribution} />}
         </AsyncCard>
-        <AsyncCard
-          state={readiness.state}
-          refetch={readiness.refetch}
-          lastUpdatedAt={readiness.lastUpdatedAt}
-          title="Muscle Readiness"
-        >
-          {(d) => <MuscleReadinessMap readiness={d} />}
-        </AsyncCard>
-        <AsyncCard
-          state={frequency.state}
-          refetch={frequency.refetch}
-          lastUpdatedAt={frequency.lastUpdatedAt}
-          title="Training Frequency"
-        >
+        <QueryCard<MuscleReadiness | null> data={readiness} title="Muscle Readiness">
+          {(d) =>
+            d ? (
+              <MuscleReadinessMap readiness={d} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No readiness data yet.</p>
+            )
+          }
+        </QueryCard>
+        <QueryCard<FrequencyEntry[]> data={frequency} title="Training Frequency">
           {(d) => <TrainingFrequencyChart data={d} />}
-        </AsyncCard>
-        <AsyncCard
-          state={workouts.state}
-          refetch={workouts.refetch}
-          lastUpdatedAt={workouts.lastUpdatedAt}
-          title="Recent Workouts"
-          tall
-        >
+        </QueryCard>
+        <QueryCard<DashboardWorkout[]> data={workouts} title="Recent Workouts" tall>
           {(d) => <RecentWorkoutsList workouts={d} />}
-        </AsyncCard>
-        <AsyncCard
-          state={externalActivities.state}
-          refetch={externalActivities.refetch}
-          lastUpdatedAt={externalActivities.lastUpdatedAt}
-          title="Other Activities"
-        >
+        </QueryCard>
+        <QueryCard<DashboardExternalActivity[]> data={externalActivities} title="Other Activities">
           {(d) => <ExternalActivitiesList activities={d} />}
-        </AsyncCard>
+        </QueryCard>
       </div>
     </div>
   );

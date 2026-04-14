@@ -6,15 +6,19 @@ describe("FailureBanner", () => {
   it("renders the invalid-key message when reason is byok_key_invalid", () => {
     render(<FailureBanner reason="byok_key_invalid" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      /your gemini api key isn't working anymore/i,
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/api key isn't working anymore/i);
   });
 
   it("renders the quota message when reason is byok_quota_exceeded", () => {
     render(<FailureBanner reason="byok_quota_exceeded" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/free daily limit/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/quota or credits are exhausted/i);
+  });
+
+  it("renders the quota message without provider-specific branding", () => {
+    render(<FailureBanner reason="byok_quota_exceeded" />);
+
+    expect(screen.getByRole("alert").textContent).not.toMatch(/gemini/i);
   });
 
   it("renders the safety message when reason is byok_safety_blocked", () => {
@@ -26,13 +30,15 @@ describe("FailureBanner", () => {
   it("renders the unknown-error message when reason is byok_unknown_error", () => {
     render(<FailureBanner reason="byok_unknown_error" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/something went wrong with gemini/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /something went wrong with the ai provider/i,
+    );
   });
 
   it("renders the missing-key message when reason is byok_key_missing", () => {
     render(<FailureBanner reason="byok_key_missing" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/add your gemini api key/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/add an api key/i);
   });
 
   it("renders the missing-model message when reason is byok_model_missing", () => {
@@ -57,7 +63,7 @@ describe("FailureBanner", () => {
   it("renders the house-key quota message with non-destructive styling", () => {
     render(<FailureBanner reason="house_key_quota_exhausted" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/500 free AI messages/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/500 free ai messages/i);
     // Amber/default variant should NOT have the destructive classes
     expect(screen.getByRole("alert").className).not.toMatch(/destructive/);
   });

@@ -10,21 +10,32 @@ const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a mo
 const BUDGET_EXCEEDED_MESSAGE =
   "I've hit my daily thinking limit -- let's pick this up tomorrow. Your limit resets at midnight UTC.";
 const MAX_OUTPUT_TOKENS = 4096;
-const RETRY_DELAY_MS = 1000;
+const RETRY_DELAY_MS = 3000;
 
 // ---------------------------------------------------------------------------
 // Error classification
 // ---------------------------------------------------------------------------
 
-const TRANSIENT_STATUS_CODES = new Set([500, 502, 503]);
+const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
+
+const TRANSIENT_MESSAGE_PATTERNS = [
+  "high demand",
+  "unavailable",
+  "overloaded",
+  "try again later",
+  "rate limit",
+  "resource_exhausted",
+];
 
 export function isTransientError(error: unknown): boolean {
   if (error instanceof TypeError && error.message.includes("fetch")) return true;
 
   if (error instanceof Error) {
     if (error.name === "TimeoutError" || error.name === "AbortError") return true;
-    if (error.message.toLowerCase().includes("timeout")) return true;
-    if (error.message.toLowerCase().includes("aborted")) return true;
+
+    const lower = error.message.toLowerCase();
+    if (lower.includes("timeout") || lower.includes("aborted")) return true;
+    if (TRANSIENT_MESSAGE_PATTERNS.some((p) => lower.includes(p))) return true;
 
     const status = (error as Error & { status?: number }).status;
     if (typeof status === "number" && TRANSIENT_STATUS_CODES.has(status)) return true;
@@ -65,7 +76,9 @@ export function classifyByokError(error: unknown): ByokErrorCode | null {
     lower.includes("resource_exhausted") ||
     lower.includes("quota") ||
     lower.includes("rate_limit_error") ||
-    lower.includes("rate_limit_exceeded")
+    lower.includes("rate_limit_exceeded") ||
+    lower.includes("credits are depleted") ||
+    lower.includes("billing")
   ) {
     return "byok_quota_exceeded";
   }
@@ -123,6 +136,10 @@ const STREAM_OPTIONS = {
   saveStreamDeltas: { chunking: "word" as const, throttleMs: 100 },
 };
 
+// Convex actions have a 600s hard limit. Budget 180s per attempt so all three
+// attempts (primary + retry + fallback) fit within the action lifetime.
+const ATTEMPT_TIMEOUT_MS = 180_000;
+
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
   const { primaryAgent, fallbackAgent, threadId, userId } = args;
   const promptArgs: PromptArgs =
@@ -169,9 +186,18 @@ async function attemptStream(
   userId: string,
   promptArgs: PromptArgs,
 ): Promise<void> {
-  const { thread } = await agent.continueThread(ctx, { threadId, userId });
-  const result = await thread.streamText(promptArgs, STREAM_OPTIONS);
-  await result.text;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("Stream timeout"), ATTEMPT_TIMEOUT_MS);
+  try {
+    const { thread } = await agent.continueThread(ctx, { threadId, userId });
+    const result = await thread.streamText(
+      { ...promptArgs, abortSignal: controller.signal },
+      STREAM_OPTIONS,
+    );
+    await result.text;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function saveErrorAndNotify(

@@ -1,7 +1,8 @@
 "use client";
 
-import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekPlanCard } from "./WeekPlanCard";
+import { ActionConfirmationBanner } from "./ActionConfirmationBanner";
+import { extractBannerProps } from "./bannerExtractors";
 import type { WeekPlanPresentation } from "../../../convex/ai/schemas";
 
 const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
@@ -82,11 +83,10 @@ const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
 interface ToolCallIndicatorProps {
   toolName: string;
   state: string;
-  input?: unknown;
   output?: unknown;
 }
 
-export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIndicatorProps) {
+export function ToolCallIndicator({ toolName, state, output }: ToolCallIndicatorProps) {
   const messages = TOOL_MESSAGES[toolName] ?? {
     running: `Running ${toolName}...`,
     done: `Ran ${toolName}`,
@@ -94,20 +94,6 @@ export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIn
 
   const isRunning = state === "input-streaming" || state === "input-available";
   const isDone = state === "output-available";
-
-  // Special case: create_workout shows WorkoutCard when done
-  if (toolName === "create_workout" && isDone && input) {
-    const data = input as {
-      name?: string;
-      exercises?: Array<{
-        exerciseName?: string;
-        name?: string;
-        sets?: number;
-        reps?: number;
-      }>;
-    };
-    return <WorkoutCard title={data.name} exercises={data.exercises} />;
-  }
 
   // Special case: program_week shows WeekPlanCard when done
   if (toolName === "program_week" && isDone && output) {
@@ -159,7 +145,15 @@ export function ToolCallIndicator({ toolName, state, input, output }: ToolCallIn
     }
   }
 
-  // Unified chip layout for both running and done (prevents layout shift during transitions)
+  // State-changing tools: show confirmation banner when done
+  if (isDone) {
+    const bannerProps = extractBannerProps(toolName, output);
+    if (bannerProps) {
+      return <ActionConfirmationBanner {...bannerProps} />;
+    }
+  }
+
+  // Unified chip layout for both running and done
   if (isRunning) {
     return (
       <span

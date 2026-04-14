@@ -122,3 +122,106 @@ export const persistStrengthSnapshots = internalMutation({
     }
   },
 });
+
+// ---------------------------------------------------------------------------
+// Validators for new tables
+// ---------------------------------------------------------------------------
+
+export const strengthScoreValidator = v.object({
+  bodyRegion: v.string(),
+  score: v.number(),
+});
+
+export const muscleReadinessValidator = v.object({
+  chest: v.number(),
+  shoulders: v.number(),
+  back: v.number(),
+  triceps: v.number(),
+  biceps: v.number(),
+  abs: v.number(),
+  obliques: v.number(),
+  quads: v.number(),
+  glutes: v.number(),
+  hamstrings: v.number(),
+  calves: v.number(),
+});
+
+export const externalActivityValidator = v.object({
+  externalId: v.string(),
+  workoutType: v.string(),
+  beginTime: v.string(),
+  totalDuration: v.number(),
+  activeCalories: v.number(),
+  totalCalories: v.number(),
+  averageHeartRate: v.number(),
+  source: v.string(),
+  distance: v.number(),
+});
+
+/** Replace all current strength scores for a user (delete old, insert fresh). */
+export const persistCurrentStrengthScores = internalMutation({
+  args: { userId: v.id("users"), scores: v.array(strengthScoreValidator) },
+  handler: async (ctx, { userId, scores }) => {
+    const existing = await ctx.db
+      .query("currentStrengthScores")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of existing) {
+      await ctx.db.delete(row._id);
+    }
+    const now = Date.now();
+    for (const s of scores) {
+      await ctx.db.insert("currentStrengthScores", { userId, ...s, fetchedAt: now });
+    }
+  },
+});
+
+/** Replace the muscle readiness snapshot for a user (single row). */
+export const persistMuscleReadiness = internalMutation({
+  args: { userId: v.id("users"), readiness: muscleReadinessValidator },
+  handler: async (ctx, { userId, readiness }) => {
+    const existing = await ctx.db
+      .query("muscleReadiness")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+    await ctx.db.insert("muscleReadiness", { userId, ...readiness, fetchedAt: Date.now() });
+  },
+});
+
+/** Clear muscle readiness data for a user (when API returns null). */
+export const clearMuscleReadiness = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const existing = await ctx.db
+      .query("muscleReadiness")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+  },
+});
+
+/** Upsert external activities by externalId (insert new, update existing). */
+export const persistExternalActivities = internalMutation({
+  args: { userId: v.id("users"), activities: v.array(externalActivityValidator) },
+  handler: async (ctx, { userId, activities }) => {
+    const now = Date.now();
+    for (const a of activities) {
+      const existing = await ctx.db
+        .query("externalActivities")
+        .withIndex("by_userId_externalId", (q) =>
+          q.eq("userId", userId).eq("externalId", a.externalId),
+        )
+        .first();
+      if (existing) {
+        await ctx.db.replace(existing._id, { userId, ...a, syncedAt: now });
+      } else {
+        await ctx.db.insert("externalActivities", { userId, ...a, syncedAt: now });
+      }
+    }
+  },
+});

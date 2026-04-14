@@ -36,12 +36,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const authenticatedRedirectPath = flow === "signUp" ? "/onboarding" : "/chat";
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace("/chat");
+      router.replace(authenticatedRedirectPath);
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated,authenticatedRedirectPath, router]);
 
   if (authLoading) {
     return <PageLoader />;
@@ -59,7 +60,7 @@ export default function LoginPage() {
     try {
       await signIn("password", { email, password, flow });
       track(flow === "signIn" ? "login_completed" : "signup_completed", { method: "password" });
-      router.replace(flow === "signUp" ? "/onboarding" : "/chat");
+      router.replace(authenticatedRedirectPath);
     } catch {
       if (flow === "signIn") {
         track("login_failed", { error: "invalid_credentials" });

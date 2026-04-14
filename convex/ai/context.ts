@@ -1,13 +1,7 @@
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type {
-  Activity,
-  ExternalActivity,
-  Movement,
-  MuscleReadiness,
-  StrengthScore,
-} from "../tonal/types";
+import type { Movement } from "../tonal/types";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
@@ -33,7 +27,7 @@ export {
 };
 
 export async function buildTrainingSnapshot(
-  ctx: Pick<ActionCtx, "runQuery" | "runAction">,
+  ctx: Pick<ActionCtx, "runQuery">,
   userId: string,
 ): Promise<string> {
   const convexUserId = userId as Id<"users">;
@@ -59,21 +53,17 @@ export async function buildTrainingSnapshot(
     movementCatalog,
   ] = await Promise.all([
     ctx
-      .runAction(internal.tonal.proxy.fetchStrengthScores, {
-        userId: convexUserId,
-      })
-      .catch(() => [] as StrengthScore[]),
+      .runQuery(internal.tonal.syncQueries.getCurrentStrengthScores, { userId: convexUserId })
+      .catch(() => []),
     ctx
-      .runAction(internal.tonal.proxy.fetchMuscleReadiness, {
-        userId: convexUserId,
-      })
-      .catch(() => null as MuscleReadiness | null),
+      .runQuery(internal.tonal.syncQueries.getMuscleReadiness, { userId: convexUserId })
+      .catch(() => null),
     ctx
-      .runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+      .runQuery(internal.tonal.syncQueries.getRecentCompletedWorkouts, {
         userId: convexUserId,
         limit: 20,
       })
-      .catch(() => [] as Activity[]),
+      .catch(() => []),
     ctx
       .runQuery(internal.coach.periodization.getActiveBlock, { userId: convexUserId })
       .catch(() => null),
@@ -83,11 +73,11 @@ export async function buildTrainingSnapshot(
     ctx.runQuery(internal.goals.getActiveInternal, { userId: convexUserId }).catch(() => []),
     ctx.runQuery(internal.injuries.getActiveInternal, { userId: convexUserId }).catch(() => []),
     ctx
-      .runAction(internal.tonal.proxy.fetchExternalActivities, {
+      .runQuery(internal.tonal.syncQueries.getRecentExternalActivities, {
         userId: convexUserId,
         limit: 20,
       })
-      .catch(() => [] as ExternalActivity[]),
+      .catch(() => []),
     ctx.runQuery(internal.tonal.movementSync.getAllMovements).catch(() => [] as Movement[]),
   ]);
 
@@ -223,10 +213,8 @@ export async function buildTrainingSnapshot(
   }
 
   // Priority 7: Strength scores
-  if ((scores as StrengthScore[]).length > 0) {
-    const scoreLines = (scores as StrengthScore[])
-      .map((s) => `${s.bodyRegionDisplay}: ${s.score}`)
-      .join(", ");
+  if (scores.length > 0) {
+    const scoreLines = scores.map((s) => `${s.bodyRegion}: ${s.score}`).join(", ");
     sections.push({
       priority: 7,
       lines: [
@@ -237,40 +225,63 @@ export async function buildTrainingSnapshot(
 
   // Priority 8: Muscle readiness
   if (readiness) {
-    const mr = readiness as MuscleReadiness;
-    const readyParts = Object.entries(mr)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(", ");
+    const readyParts = [
+      `Chest: ${readiness.chest}`,
+      `Shoulders: ${readiness.shoulders}`,
+      `Back: ${readiness.back}`,
+      `Triceps: ${readiness.triceps}`,
+      `Biceps: ${readiness.biceps}`,
+      `Abs: ${readiness.abs}`,
+      `Obliques: ${readiness.obliques}`,
+      `Quads: ${readiness.quads}`,
+      `Glutes: ${readiness.glutes}`,
+      `Hamstrings: ${readiness.hamstrings}`,
+      `Calves: ${readiness.calves}`,
+    ].join(", ");
     sections.push({ priority: 8, lines: [`Muscle Readiness (0-100): ${readyParts}`] });
   }
 
   // Priority 9: Recent workouts (time-decay: recent = more detail)
-  if ((activities as Activity[]).length > 0) {
+  if (activities.length > 0) {
     const now = new Date();
     const wl = [`Recent Workouts:`];
-    for (const a of activities as Activity[]) {
-      const wp = a.workoutPreview;
-      const r = getRecencyLabel(a.activityTime, now);
-      const date = a.activityTime.split("T")[0];
+    for (const a of activities) {
+      const r = getRecencyLabel(a.date + "T00:00:00Z", now);
       const recent = r === "today" || r === "yesterday";
       const tag = recent ? `[${r.toUpperCase()}] ` : "";
-      const vol = r !== "last week" && r !== "older" ? ` | ${wp.totalVolume}lbs vol` : "";
-      const dur = recent ? ` | ${Math.round(wp.totalDuration / 60)}min` : "";
-      wl.push(`  ${tag}${date} | ${wp.workoutTitle} | ${wp.targetArea}${vol}${dur}`);
+      const vol = r !== "last week" && r !== "older" ? ` | ${a.totalVolume}lbs vol` : "";
+      const dur = recent ? ` | ${Math.round(a.totalDuration / 60)}min` : "";
+      wl.push(`  ${tag}${a.date} | ${a.title} | ${a.targetArea}${vol}${dur}`);
     }
     sections.push({ priority: 9, lines: wl });
   }
 
   // Priority 10: External activities (time-decay: highlight recent high-intensity)
-  const extActs = externalActivities as ExternalActivity[];
-  if (extActs.length > 0) {
+  if (externalActivities.length > 0) {
     const now = new Date();
     const el: string[] = [`External Activities (non-Tonal):`];
     let vigorousThisWeek = 0;
-    for (const ext of extActs) {
+    for (const ext of externalActivities) {
       const r = getRecencyLabel(ext.beginTime, now);
       const tag = r === "today" || r === "yesterday" ? `  [${r.toUpperCase()}] ` : "  ";
-      el.push(tag + formatExternalActivityLine(ext).trimStart());
+      const type = ext.workoutType
+        .replace(/([A-Z])/g, " $1")
+        .trim()
+        .split(" ")
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      const mins = Math.round(ext.totalDuration / 60);
+      const cal = Math.round(ext.totalCalories);
+      let line = `${ext.beginTime.split("T")[0]} — ${type} (${ext.source}) | ${mins}min | ${cal} cal`;
+      if (ext.distance > 0) {
+        const miles = (ext.distance / 1609.34).toFixed(1);
+        line += ` | ${miles} mi`;
+      }
+      const hrLabel = getHrIntensityLabel(ext.averageHeartRate);
+      if (hrLabel) {
+        line += ` | Avg HR ${Math.round(ext.averageHeartRate)} (${hrLabel})`;
+      }
+      el.push(tag + line);
       if (
         r !== "last week" &&
         r !== "older" &&
@@ -288,13 +299,13 @@ export async function buildTrainingSnapshot(
   }
 
   // Priority 11: Performance notes
-  if ((activities as Activity[]).length >= 2) {
+  if (activities.length >= 2) {
     const perfLines: string[] = [];
-    const latest = (activities as Activity[])[0];
-    const previous = (activities as Activity[])[1];
-    if (latest.workoutPreview.totalVolume > previous.workoutPreview.totalVolume * 1.1) {
+    const latest = activities[0];
+    const previous = activities[1];
+    if (previous.totalVolume > 0 && latest.totalVolume > previous.totalVolume * 1.1) {
       perfLines.push(
-        `Performance: Last session volume was ${Math.round((latest.workoutPreview.totalVolume / previous.workoutPreview.totalVolume - 1) * 100)}% higher than previous.`,
+        `Performance: Last session volume was ${Math.round((latest.totalVolume / previous.totalVolume - 1) * 100)}% higher than previous.`,
       );
     }
     perfLines.push(
@@ -332,7 +343,7 @@ export async function buildTrainingSnapshot(
       }
 
       const completedTonalIds = new Set(
-        (activities as Activity[]).map((a) => a.workoutPreview.workoutId),
+        activities.map((a) => a.tonalWorkoutId).filter((id): id is string => id !== undefined),
       );
 
       const now = new Date();
@@ -344,7 +355,7 @@ export async function buildTrainingSnapshot(
         todayDayIndex,
         completedTonalIds,
         tonalWorkoutIdByPlanId,
-        activityDates: (activities as Activity[]).map((a) => a.activityTime.slice(0, 10)),
+        activityDates: activities.map((a) => a.date),
         todayDate,
       });
 

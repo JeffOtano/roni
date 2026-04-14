@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBanner } from "@/components/StatusBanner";
+import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { OpenSourceBanner } from "@/components/OpenSourceBanner";
 import { CheckInBell } from "@/components/CheckInBell";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (authLoading || (isAuthenticated && me === undefined)) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -105,7 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar -- darker than main content */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
@@ -170,6 +171,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <OpenSourceBanner />
           <StatusBanner />
+          <SyncStatusBanner />
 
           {/* Content — min-h-0 constrains flex height so child scroll containers work */}
           <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0">
