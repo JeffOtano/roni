@@ -17,9 +17,9 @@ const DEFAULT_DURATION_SECONDS = 30;
 /** Sentinel for exercises without onMachineInfo (bodyweight/off-machine). */
 const BODYWEIGHT_ACCESSORY = "__bodyweight__";
 
-/** Rest durations in seconds by exercise type. */
-const REST_DURATION_COMPOUND = 90;
-const REST_DURATION_ISOLATION = 60;
+/** Fallback rest durations (seconds) when no goalScheme is provided. */
+const DEFAULT_REST_COMPOUND = 90;
+const DEFAULT_REST_ISOLATION = 60;
 const REST_DURATION_WARMUP = 30;
 
 const WARMUP_REPS = 15;
@@ -100,10 +100,15 @@ export function blocksFromMovementIds(
       if (exercises.length === 1) {
         const movement = catalogMap.get(pair[0]);
         const isCompound = (movement?.muscleGroups?.length ?? 0) >= 2;
+        // Goal-aware rest: compound gets full goal rest, isolation gets 30s less (min 30s).
+        const goalRest = options?.goalScheme?.restSeconds;
+        const compoundRest = goalRest ?? DEFAULT_REST_COMPOUND;
+        const isolationRest =
+          goalRest != null ? Math.max(30, goalRest - 30) : DEFAULT_REST_ISOLATION;
         exercises.push({
           movementId: TONAL_REST_MOVEMENT_ID,
           sets: exercises[0].sets,
-          duration: isCompound ? REST_DURATION_COMPOUND : REST_DURATION_ISOLATION,
+          duration: isCompound ? compoundRest : isolationRest,
         });
       }
 

@@ -159,7 +159,7 @@ export function bodybuilding(): string {
 - Eccentric and drop set modes are standard tools here, not advanced options. Use eccentric on isolation finishers (curls, extensions, flys), drop sets on the last set of a key lift when RPE is high.
 - Symmetry framing: reference weak points and balance. "Your back volume is trailing chest by 4 sets — let's fix that asymmetry."
 - Progressive overload still applies: track compound weights and push them. Bodybuilding isn't just chasing the pump.
-- No deload guilt: bodybuilders often push closer to 4-week cycles before deloading. Check RPE trends before suggesting deload.`;
+- Deload cadence: follow the standard 3-build / 1-deload mesocycle policy — never skip deloads. Check RPE trends to frame the deload as earned recovery, not lost momentum.`;
 }
 
 /** Returns the equipment constraints. */

@@ -147,11 +147,13 @@ export function getSessionTypesForSplit(
     }));
   }
   if (split === "bro_split") {
-    // Classic bodybuilding body-part split: chest → back → shoulders → arms → legs
+    // Classic bodybuilding body-part split: chest → back → shoulders → arms → legs.
+    // Bro split has exactly 5 distinct days; clamp to first 5 indices to avoid
+    // repeating body parts when >5 training days are requested.
     const types: SessionType[] = ["chest", "back", "shoulders", "arms", "legs"];
-    return trainingDayIndices.map((dayIndex, i) => ({
+    return trainingDayIndices.slice(0, 5).map((dayIndex, i) => ({
       dayIndex,
-      sessionType: types[i % 5],
+      sessionType: types[i],
     }));
   }
   return trainingDayIndices.map((dayIndex) => ({

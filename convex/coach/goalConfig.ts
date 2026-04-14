@@ -40,20 +40,26 @@ export interface RepSetScheme {
   sets: number;
   reps?: number;
   duration?: number;
+  /** Rest between sets in seconds. Applies to straight-set blocks; supersets use alternation. */
+  restSeconds: number;
 }
 
 const REP_SET_SCHEMES: Record<LibraryGoal, RepSetScheme> = {
-  strength: { sets: 4, reps: 5 },
-  build_muscle: { sets: 3, reps: 10 },
-  bodybuilding: { sets: 4, reps: 12 },
-  fat_loss: { sets: 3, reps: 12 },
-  endurance: { sets: 3, reps: 15 },
-  athletic: { sets: 3, reps: 8 },
-  general_fitness: { sets: 3, reps: 10 },
-  power: { sets: 4, reps: 3 },
-  functional: { sets: 3, reps: 12 },
-  mobility_flexibility: { sets: 2, duration: 35 },
-  sport_complement: { sets: 3, reps: 8 },
+  // Heavy / low-rep goals need full CNS recovery between sets.
+  strength: { sets: 4, reps: 5, restSeconds: 180 },
+  power: { sets: 4, reps: 3, restSeconds: 180 },
+  // Moderate load — standard hypertrophy rest windows.
+  build_muscle: { sets: 3, reps: 10, restSeconds: 90 },
+  bodybuilding: { sets: 4, reps: 12, restSeconds: 60 },
+  athletic: { sets: 3, reps: 8, restSeconds: 90 },
+  general_fitness: { sets: 3, reps: 10, restSeconds: 90 },
+  sport_complement: { sets: 3, reps: 8, restSeconds: 90 },
+  functional: { sets: 3, reps: 12, restSeconds: 60 },
+  // High-rep / metabolic — shorter rest keeps intensity up.
+  fat_loss: { sets: 3, reps: 12, restSeconds: 45 },
+  endurance: { sets: 3, reps: 15, restSeconds: 30 },
+  // Duration-based — minimal rest between holds.
+  mobility_flexibility: { sets: 2, duration: 35, restSeconds: 30 },
 };
 
 export function getRepSetScheme(goal: LibraryGoal): RepSetScheme {
