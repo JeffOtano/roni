@@ -14,7 +14,7 @@ describe("FailureBanner", () => {
   it("renders the quota message when reason is byok_quota_exceeded", () => {
     render(<FailureBanner reason="byok_quota_exceeded" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/free daily limit/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/quota or credits are exhausted/i);
   });
 
   it("renders the safety message when reason is byok_safety_blocked", () => {

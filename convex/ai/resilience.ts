@@ -76,7 +76,9 @@ export function classifyByokError(error: unknown): ByokErrorCode | null {
     lower.includes("resource_exhausted") ||
     lower.includes("quota") ||
     lower.includes("rate_limit_error") ||
-    lower.includes("rate_limit_exceeded")
+    lower.includes("rate_limit_exceeded") ||
+    lower.includes("credits are depleted") ||
+    lower.includes("billing")
   ) {
     return "byok_quota_exceeded";
   }

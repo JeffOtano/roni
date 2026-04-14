@@ -16,7 +16,8 @@ interface FailureBannerProps {
 
 const MESSAGES: Record<FailureReason, string> = {
   byok_key_invalid: "Your Gemini API key isn't working anymore.",
-  byok_quota_exceeded: "You've hit Gemini's free daily limit. It resets at midnight UTC.",
+  byok_quota_exceeded:
+    "Your Gemini API quota or credits are exhausted. Check your billing in Google AI Studio.",
   byok_safety_blocked: "Gemini declined to answer this one. Try rephrasing.",
   byok_unknown_error: "Something went wrong with Gemini. Try again in a moment.",
   byok_key_missing: "You need to add your Gemini API key to use chat.",

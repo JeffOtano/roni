@@ -105,6 +105,13 @@ describe("classifyByokError", () => {
     expect(classifyByokError(error)).toBe("byok_quota_exceeded");
   });
 
+  it("classifies 'credits are depleted' as byok_quota_exceeded", () => {
+    const error = new Error(
+      "Your prepayment credits are depleted. Please go to AI Studio to manage your billing.",
+    );
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
   it("classifies a 'quota' substring as byok_quota_exceeded", () => {
     const error = new Error("RESOURCE_EXHAUSTED: Quota exceeded for model.");
     expect(classifyByokError(error)).toBe("byok_quota_exceeded");
