@@ -98,7 +98,7 @@ export async function cachedFetch<T>(
     }
 
     // Record success for circuit breaker
-    void ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
+    await ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
 
     return data;
   } catch (error) {
@@ -107,7 +107,7 @@ export async function cachedFetch<T>(
     if (error instanceof Error && error.message.includes("session expired")) throw error;
 
     // Record failure for circuit breaker (non-auth errors only)
-    void ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
+    await ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
 
     // For non-auth errors, fall back to stale data if available
     if (cached) {

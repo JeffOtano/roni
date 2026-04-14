@@ -1,8 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 
+const PHASES = [
+  { delay: 0, text: null },
+  { delay: 3000, text: "Reviewing your training data..." },
+  { delay: 8000, text: "Building your workout context..." },
+  { delay: 15000, text: "Generating response..." },
+];
+
 export function ThinkingIndicator() {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const timers = PHASES.slice(1).map((p, i) => setTimeout(() => setPhase(i + 1), p.delay));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const phaseText = PHASES[phase].text;
+
   return (
     <div
       className="animate-in fade-in slide-in-from-bottom-2 px-4 pt-4 pb-2 duration-300 sm:px-6"
@@ -31,6 +48,11 @@ export function ThinkingIndicator() {
               aria-hidden="true"
             />
           </div>
+          {phaseText && (
+            <span className="animate-in fade-in text-xs text-muted-foreground duration-300">
+              {phaseText}
+            </span>
+          )}
         </div>
         <span className="sr-only">Coach is thinking</span>
       </div>
