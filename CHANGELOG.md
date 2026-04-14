@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0](https://github.com/JeffOtano/tonal-coach/compare/v0.3.0...v0.4.0) (2026-04-14)
+
+
+### Features
+
+* background data sync + bug fixes ([#118](https://github.com/JeffOtano/tonal-coach/issues/118), [#119](https://github.com/JeffOtano/tonal-coach/issues/119), [#120](https://github.com/JeffOtano/tonal-coach/issues/120)) ([#121](https://github.com/JeffOtano/tonal-coach/issues/121)) ([9e18ea3](https://github.com/JeffOtano/tonal-coach/commit/9e18ea3a6a7f79a61305a1879ca820bd323c6a57))
+
+
+### Bug Fixes
+
+* classify depleted Gemini credits as BYOK quota error ([#125](https://github.com/JeffOtano/tonal-coach/issues/125)) ([9ecd59a](https://github.com/JeffOtano/tonal-coach/commit/9ecd59aee3cd03c7b29a442e3c4ba68265aefeea))
+* dashboard reads from sync tables instead of Tonal API proxy ([#123](https://github.com/JeffOtano/tonal-coach/issues/123)) ([ab568db](https://github.com/JeffOtano/tonal-coach/commit/ab568db1484ee32395f338380a1bd19bd0ccd54c))
+* retry on 429 rate limit and Gemini high demand errors ([#124](https://github.com/JeffOtano/tonal-coach/issues/124)) ([90247e9](https://github.com/JeffOtano/tonal-coach/commit/90247e96fd182683a3851259e69d279a0afa3fc6))
+* switch workout history to /workout-activities endpoint ([#128](https://github.com/JeffOtano/tonal-coach/issues/128)) ([5c75ed3](https://github.com/JeffOtano/tonal-coach/commit/5c75ed356f52e313ccc908e2cdbc208b26224baf))
+
 ## [0.3.0](https://github.com/JeffOtano/tonal-coach/compare/v0.2.0...v0.3.0) (2026-04-14)
 
 ### Features
