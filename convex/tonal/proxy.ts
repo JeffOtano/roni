@@ -203,6 +203,7 @@ const WORKOUT_META_BATCH_SIZE = 10;
 
 /** Batch-fetch workout metadata for unique workoutIds. Failures are silently skipped. */
 async function fetchWorkoutMetaBatch(
+  ctx: ActionCtx,
   token: string,
   workoutIds: string[],
 ): Promise<Map<string, WorkoutMeta>> {
@@ -211,7 +212,11 @@ async function fetchWorkoutMetaBatch(
     const batch = workoutIds.slice(i, i + WORKOUT_META_BATCH_SIZE);
     const results = await Promise.allSettled(
       batch.map(async (id) => {
-        const data = await tonalFetch<WorkoutMeta>(token, `/v6/workouts/${id}`);
+        const data = await cachedFetch<WorkoutMeta>(ctx, {
+          dataType: `workoutMeta:${id}`,
+          ttl: CACHE_TTLS.profile,
+          fetcher: () => tonalFetch<WorkoutMeta>(token, `/v6/workouts/${id}`),
+        });
         return { id, data };
       }),
     );
@@ -260,7 +265,7 @@ export const fetchWorkoutHistory = internalAction({
     withTokenRetry(ctx, userId, async (token, tonalUserId) => {
       const items = await cachedFetch<WorkoutActivityDetail[]>(ctx, {
         userId,
-        dataType: `workoutHistory:${limit}`,
+        dataType: `workoutHistory_v2:${limit}`,
         ttl: CACHE_TTLS.workoutHistory,
         fetcher: () =>
           tonalFetch<WorkoutActivityDetail[]>(
@@ -273,7 +278,7 @@ export const fetchWorkoutHistory = internalAction({
 
       // Enrich with title/targetArea from workout catalog
       const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
-      const meta = await fetchWorkoutMetaBatch(token, uniqueWorkoutIds);
+      const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
 
       return items.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
     }),
