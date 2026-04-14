@@ -60,6 +60,21 @@ export function getRepSetScheme(goal: LibraryGoal): RepSetScheme {
   return REP_SET_SCHEMES[goal];
 }
 
+// Maps free-text goal strings stored in onboardingData.goal to a RepSetScheme.
+// UI values like "get_stronger" and "lose_fat" don't match LibraryGoal exactly.
+const GOAL_STRING_TO_LIBRARY: Record<string, LibraryGoal> = {
+  build_muscle: "build_muscle",
+  bodybuilding: "bodybuilding",
+  get_stronger: "strength",
+  lose_fat: "fat_loss",
+  general_fitness: "general_fitness",
+};
+
+export function goalStringToRepSetScheme(goal: string | undefined): RepSetScheme {
+  const libraryGoal = GOAL_STRING_TO_LIBRARY[goal ?? ""] ?? "general_fitness";
+  return REP_SET_SCHEMES[libraryGoal];
+}
+
 const DURATION_TO_MAX_EXERCISES: Record<LibraryDuration, number> = {
   20: 4,
   30: 6,

@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  cooldownBlockFromMovementIds,
   formatSessionTitle,
   inferArmPosition,
   type SessionType,
   sortForMinimalEquipmentSwitches,
-  warmupBlockFromMovementIds,
 } from "./weekProgrammingHelpers";
+import { cooldownBlockFromMovementIds, warmupBlockFromMovementIds } from "./workoutBlocks";
 import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
 
 // weekStartDate is accepted by the signature but not used in the output — any string works.

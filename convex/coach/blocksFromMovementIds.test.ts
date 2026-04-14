@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocksFromMovementIds } from "./weekProgrammingHelpers";
+import { blocksFromMovementIds } from "./workoutBlocks";
 import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
 
 // ---------------------------------------------------------------------------
@@ -272,5 +272,51 @@ describe("blocksFromMovementIds - rest injection", () => {
     const restSets = blocks[0].exercises[1].sets;
     expect(mainSets).toBe(2);
     expect(restSets).toBe(mainSets);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// blocksFromMovementIds - goalScheme option
+// ---------------------------------------------------------------------------
+
+describe("blocksFromMovementIds - goalScheme", () => {
+  it("uses goalScheme sets when no suggestion exists", () => {
+    const ids = ["bench"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: { sets: 4, reps: 5 }, // strength
+    });
+
+    expect(blocks[0].exercises[0].sets).toBe(4);
+  });
+
+  it("uses goalScheme reps as fallback when no progressive overload suggestion", () => {
+    const ids = ["bench"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: { sets: 4, reps: 5 }, // strength
+    });
+
+    expect(blocks[0].exercises[0].reps).toBe(5);
+  });
+
+  it("progressive overload suggestion takes priority over goalScheme reps", () => {
+    const ids = ["bench"];
+    const suggestions = [{ movementId: "bench", suggestedReps: 6 }];
+    const blocks = blocksFromMovementIds(ids, suggestions, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: { sets: 4, reps: 5 },
+    });
+
+    expect(blocks[0].exercises[0].reps).toBe(6);
+  });
+
+  it("falls back to DEFAULT_REPS (10) when no goalScheme and no suggestion", () => {
+    const ids = ["bench"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+    });
+
+    expect(blocks[0].exercises[0].reps).toBe(10);
   });
 });

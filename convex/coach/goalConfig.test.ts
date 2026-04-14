@@ -8,6 +8,7 @@ import {
   getGoalLabel,
   getMaxExercises,
   getRepSetScheme,
+  goalStringToRepSetScheme,
 } from "./goalConfig";
 
 describe("getRepSetScheme", () => {
@@ -126,5 +127,31 @@ describe("generateMetaDescription", () => {
     expect(meta.length).toBeLessThan(160);
     expect(meta).toContain("Tonal");
     expect(meta).toContain("45min");
+  });
+});
+
+describe("goalStringToRepSetScheme", () => {
+  it("maps get_stronger to strength scheme (4 sets, 5 reps)", () => {
+    expect(goalStringToRepSetScheme("get_stronger")).toEqual({ sets: 4, reps: 5 });
+  });
+
+  it("maps lose_fat to fat_loss scheme (3 sets, 12 reps)", () => {
+    expect(goalStringToRepSetScheme("lose_fat")).toEqual({ sets: 3, reps: 12 });
+  });
+
+  it("maps bodybuilding directly", () => {
+    expect(goalStringToRepSetScheme("bodybuilding")).toEqual({ sets: 4, reps: 12 });
+  });
+
+  it("maps build_muscle directly", () => {
+    expect(goalStringToRepSetScheme("build_muscle")).toEqual({ sets: 3, reps: 10 });
+  });
+
+  it("defaults to general_fitness for unknown goal string", () => {
+    expect(goalStringToRepSetScheme("unknown_goal")).toEqual({ sets: 3, reps: 10 });
+  });
+
+  it("defaults to general_fitness for undefined", () => {
+    expect(goalStringToRepSetScheme(undefined)).toEqual({ sets: 3, reps: 10 });
   });
 });

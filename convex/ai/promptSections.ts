@@ -151,8 +151,8 @@ export function volumeAndRotation(): string {
 
 /** Returns bodybuilding-specific coaching guidelines. */
 export function bodybuilding(): string {
-  return `BODYBUILDING MODE (when onboarding goal is "bodybuilding"):
-- Use bro_split: dedicated days for Chest, Back, Shoulders, Arms, Legs. Each session hammers one muscle group with high volume.
+  return `BODYBUILDING MODE:
+- Apply this mode when the user's onboarding goal is "bodybuilding". Use bro_split: dedicated days for Chest, Back, Shoulders, Arms, Legs. Each session hammers one muscle group with high volume.
 - Rep scheme: 4 sets. Compounds at 6-10 reps (bench, row, squat), isolation finishers at 12-15 reps (curls, extensions, flys, lateral raises).
 - Volume targets: 15-20 working sets per muscle group per week. Flag anything below 12 as under-training.
 - Isolation emphasis: after 2-3 compound movements, include 2-3 isolation exercises per session. Don't just stop at compounds.
