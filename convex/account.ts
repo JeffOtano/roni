@@ -85,6 +85,31 @@ interface ExportedData {
   workoutPlans: Record<string, unknown>[];
   weekPlans: Record<string, unknown>[];
   checkIns: Record<string, unknown>[];
+  completedWorkouts: {
+    date: string;
+    title: string;
+    targetArea: string;
+    totalDuration: number;
+    totalVolume: number;
+    totalWork: number;
+    workoutType: string;
+  }[];
+  exercisePerformance: {
+    date: string;
+    exerciseName: string;
+    movementId: string;
+    sets: number;
+    totalReps: number;
+    avgWeightLbs: number | null;
+    totalVolume: number | null;
+  }[];
+  strengthScoreSnapshots: {
+    date: string;
+    overall: number;
+    upper: number;
+    lower: number;
+    core: number;
+  }[];
 }
 
 export const exportData = action({
@@ -129,6 +154,34 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
 
+    const completedWorkouts = await ctx.db
+      .query("completedWorkouts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const exercisePerformanceRows = await ctx.db
+      .query("exercisePerformance")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+      .collect();
+
+    const strengthScoreSnapshots = await ctx.db
+      .query("strengthScoreSnapshots")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Build movement ID → name lookup for exercise performance
+    const movementIds = [...new Set(exercisePerformanceRows.map((ep) => ep.movementId))];
+    const movementNames = new Map<string, string>();
+    for (const movementId of movementIds) {
+      const movement = await ctx.db
+        .query("movements")
+        .withIndex("by_tonalId", (q) => q.eq("tonalId", movementId))
+        .first();
+      if (movement) {
+        movementNames.set(movementId, movement.name);
+      }
+    }
+
     return {
       exportedAt: new Date().toISOString(),
       user: {
@@ -165,6 +218,31 @@ export const collectUserData = internalQuery({
         readAt: ci.readAt ?? null,
         createdAt: ci.createdAt,
         triggerContext: ci.triggerContext ?? null,
+      })),
+      completedWorkouts: completedWorkouts.map((cw) => ({
+        date: cw.date,
+        title: cw.title,
+        targetArea: cw.targetArea,
+        totalDuration: cw.totalDuration,
+        totalVolume: cw.totalVolume,
+        totalWork: cw.totalWork,
+        workoutType: cw.workoutType,
+      })),
+      exercisePerformance: exercisePerformanceRows.map((ep) => ({
+        date: ep.date,
+        exerciseName: movementNames.get(ep.movementId) ?? ep.movementId,
+        movementId: ep.movementId,
+        sets: ep.sets,
+        totalReps: ep.totalReps,
+        avgWeightLbs: ep.avgWeightLbs ?? null,
+        totalVolume: ep.totalVolume ?? null,
+      })),
+      strengthScoreSnapshots: strengthScoreSnapshots.map((ss) => ({
+        date: ss.date,
+        overall: ss.overall,
+        upper: ss.upper,
+        lower: ss.lower,
+        core: ss.core,
       })),
     };
   },
