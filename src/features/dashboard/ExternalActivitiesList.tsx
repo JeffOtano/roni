@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExternalActivity } from "../../../convex/tonal/types";
+import type { DashboardExternalActivity } from "../../../convex/dashboard";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ function capitalizeType(workoutType: string): string {
 // Row component
 // ---------------------------------------------------------------------------
 
-function ExternalActivityRow({ activity }: { activity: ExternalActivity }) {
+function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity }) {
   const showCalories = activity.totalCalories > 0;
   const showHr = activity.averageHeartRate > 0;
 
@@ -97,7 +97,7 @@ function ExternalActivityRow({ activity }: { activity: ExternalActivity }) {
 // ---------------------------------------------------------------------------
 
 interface ExternalActivitiesListProps {
-  activities: ExternalActivity[];
+  activities: DashboardExternalActivity[];
 }
 
 export function ExternalActivitiesList({ activities }: ExternalActivitiesListProps) {
