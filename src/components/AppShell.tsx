@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -80,6 +80,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setReconnectDismissed = (v: boolean) =>
     setDismissState({ key: tokenExpiredKey, dismissed: v });
 
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (me && (!me.hasTonalProfile || !me.onboardingCompleted)) {
+      router.replace("/onboarding");
+    }
+  }, [me, router]);
+
   if (authLoading || (isAuthenticated && me === undefined)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -88,13 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) {
-    router.replace("/login");
-    return null;
-  }
-
-  if (me && (!me.hasTonalProfile || !me.onboardingCompleted)) {
-    router.replace("/onboarding");
+  if (!isAuthenticated || (me && (!me.hasTonalProfile || !me.onboardingCompleted))) {
     return null;
   }
 

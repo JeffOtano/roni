@@ -39,11 +39,14 @@ export default function OnboardingPage() {
   const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
   const byokStatus = useQuery(api.byok.getBYOKStatus, isAuthenticated ? {} : "skip");
 
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
   if (authLoading) return <PageLoader />;
-  if (!isAuthenticated) {
-    router.replace("/login");
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   if (me === undefined || byokStatus === undefined) return <PageLoader />;
 

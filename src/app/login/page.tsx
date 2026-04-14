@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -37,13 +37,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/chat");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
   if (authLoading) {
     return <PageLoader />;
   }
 
   if (isAuthenticated) {
-    router.replace("/chat");
     return null;
   }
 
@@ -55,7 +59,7 @@ export default function LoginPage() {
     try {
       await signIn("password", { email, password, flow });
       track(flow === "signIn" ? "login_completed" : "signup_completed", { method: "password" });
-      router.replace("/chat");
+      router.replace(flow === "signUp" ? "/onboarding" : "/chat");
     } catch {
       if (flow === "signIn") {
         track("login_failed", { error: "invalid_credentials" });
