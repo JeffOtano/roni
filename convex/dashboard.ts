@@ -1,20 +1,26 @@
-import { action } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type {
-  Activity,
-  ExternalActivity,
-  MuscleReadiness,
-  StrengthDistribution,
-  StrengthScore,
-} from "./tonal/types";
+import { getEffectiveUserId } from "./lib/auth";
+import type { MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
 
 // ---------------------------------------------------------------------------
-// Return types — explicit to avoid TS7022 circular inference
+// Return types
 // ---------------------------------------------------------------------------
 
 interface StrengthData {
   scores: StrengthScore[];
   distribution: StrengthDistribution;
+}
+
+export interface DashboardWorkout {
+  activityId: string;
+  date: string;
+  title: string;
+  targetArea: string;
+  totalVolume: number;
+  totalDuration: number;
+  totalWork: number;
+  workoutType: string;
 }
 
 interface TrainingFrequencyEntry {
@@ -23,8 +29,18 @@ interface TrainingFrequencyEntry {
   lastTrainedDate: string;
 }
 
+export interface DashboardExternalActivity {
+  id: string;
+  workoutType: string;
+  beginTime: string;
+  totalDuration: number;
+  totalCalories: number;
+  averageHeartRate: number;
+  source: string;
+}
+
 // ---------------------------------------------------------------------------
-// 1. getStrengthData — scores + distribution (percentile)
+// 1. getStrengthData -- stays as action (needs distribution from Tonal API)
 // ---------------------------------------------------------------------------
 
 export const getStrengthData = action({
@@ -43,74 +59,94 @@ export const getStrengthData = action({
 });
 
 // ---------------------------------------------------------------------------
-// 2. getMuscleReadiness
+// 2. getMuscleReadiness -- query from sync table
 // ---------------------------------------------------------------------------
 
-export const getMuscleReadiness = action({
+export const getMuscleReadiness = query({
   args: {},
-  handler: async (ctx): Promise<MuscleReadiness> => {
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+  handler: async (ctx): Promise<MuscleReadiness | null> => {
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    return ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, { userId });
+    const row = await ctx.db
+      .query("muscleReadiness")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (!row) return null;
+
+    return {
+      Chest: row.chest,
+      Shoulders: row.shoulders,
+      Back: row.back,
+      Triceps: row.triceps,
+      Biceps: row.biceps,
+      Abs: row.abs,
+      Obliques: row.obliques,
+      Quads: row.quads,
+      Glutes: row.glutes,
+      Hamstrings: row.hamstrings,
+      Calves: row.calves,
+    };
   },
 });
 
 // ---------------------------------------------------------------------------
-// 3. getWorkoutHistory — recent workouts for the list
+// 3. getWorkoutHistory -- query from sync table
 // ---------------------------------------------------------------------------
 
-export function isTonalWorkout(a: Activity): boolean {
-  const wp = a.workoutPreview;
-  if (!wp) return false;
-  return a.activityType !== "External" && wp.totalVolume > 0;
-}
-
-export const getWorkoutHistory = action({
+export const getWorkoutHistory = query({
   args: {},
-  handler: async (ctx): Promise<Activity[]> => {
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+  handler: async (ctx): Promise<DashboardWorkout[]> => {
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const all: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: 20,
-    });
-    return all.filter(isTonalWorkout).slice(0, 5);
+    const rows = await ctx.db
+      .query("completedWorkouts")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(5);
+
+    return rows.map((r) => ({
+      activityId: r.activityId,
+      date: r.date,
+      title: r.title,
+      targetArea: r.targetArea,
+      totalVolume: r.totalVolume,
+      totalDuration: r.totalDuration,
+      totalWork: r.totalWork,
+      workoutType: r.workoutType,
+    }));
   },
 });
 
 // ---------------------------------------------------------------------------
-// 4. getTrainingFrequency — aggregated workout counts by target area (30 days)
+// 4. getTrainingFrequency -- query from sync table (last 30 days)
 // ---------------------------------------------------------------------------
 
-export const getTrainingFrequency = action({
+export const getTrainingFrequency = query({
   args: {},
   handler: async (ctx): Promise<TrainingFrequencyEntry[]> => {
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: 50,
-    });
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
 
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const rows = await ctx.db
+      .query("completedWorkouts")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", thirtyDaysAgo))
+      .collect();
+
     const counts: Record<string, number> = {};
     const lastDates: Record<string, string> = {};
 
-    for (const activity of activities) {
-      if (!isTonalWorkout(activity)) continue;
-      const activityTime = new Date(activity.activityTime).getTime();
-      if (activityTime < thirtyDaysAgo) continue;
-
-      const area = activity.workoutPreview?.targetArea;
+    for (const row of rows) {
+      const area = row.targetArea;
       if (!area) continue;
       counts[area] = (counts[area] ?? 0) + 1;
-
-      // Track most recent date per area
-      if (!lastDates[area] || activity.activityTime > lastDates[area]) {
-        lastDates[area] = activity.activityTime;
+      if (!lastDates[area] || row.date > lastDates[area]) {
+        lastDates[area] = row.date;
       }
     }
 
@@ -125,18 +161,51 @@ export const getTrainingFrequency = action({
 });
 
 // ---------------------------------------------------------------------------
-// 5. getExternalActivities — recent non-Tonal activities (Apple Watch, etc.)
+// 5. getExternalActivities -- query from sync table
 // ---------------------------------------------------------------------------
 
-export const getExternalActivities = action({
+export const getExternalActivities = query({
   args: {},
-  handler: async (ctx): Promise<ExternalActivity[]> => {
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+  handler: async (ctx): Promise<DashboardExternalActivity[]> => {
+    const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    return ctx.runAction(internal.tonal.proxy.fetchExternalActivities, {
-      userId,
-      limit: 10,
-    });
+    const rows = await ctx.db
+      .query("externalActivities")
+      .withIndex("by_userId_beginTime", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(10);
+
+    return rows.map((r) => ({
+      id: r.externalId,
+      workoutType: r.workoutType,
+      beginTime: r.beginTime,
+      totalDuration: r.totalDuration,
+      totalCalories: r.totalCalories,
+      averageHeartRate: r.averageHeartRate,
+      source: r.source,
+    }));
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 6. Backfill trigger -- schedules sync for users with no sync data
+// ---------------------------------------------------------------------------
+
+/** Trigger a backfill for users who connected before the sync feature existed. */
+export const triggerBackfillIfNeeded = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) return;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+    if (!profile || profile.syncStatus) return;
+
+    await ctx.db.patch(profile._id, { syncStatus: "syncing" });
+    await ctx.scheduler.runAfter(0, internal.tonal.historySync.backfillUserHistory, { userId });
   },
 });
