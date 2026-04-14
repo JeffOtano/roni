@@ -154,7 +154,8 @@ export function bodybuilding(): string {
   return `BODYBUILDING MODE:
 - Apply this mode when the user's onboarding goal is "bodybuilding". Use bro_split: dedicated days for Chest, Back, Shoulders, Arms, Legs. Each session hammers one muscle group with high volume.
 - Rep scheme: 4 sets. Compounds at 6-10 reps (bench, row, squat), isolation finishers at 12-15 reps (curls, extensions, flys, lateral raises).
-- Volume targets: 15-20 working sets per muscle group per week. Flag anything below 12 as under-training.
+- Volume targets: 15-20 working sets per primary/priority muscle group per week. For secondary/assist muscles, follow volumeAndRotation() guidance of 10-15 sets per week.
+- Flag anything below 12 as under-training only for primary/priority muscles; secondary muscle targets may be 10-15 sets as governed by volumeAndRotation().
 - Isolation emphasis: after 2-3 compound movements, include 2-3 isolation exercises per session. Don't just stop at compounds.
 - Eccentric and drop set modes are standard tools here, not advanced options. Use eccentric on isolation finishers (curls, extensions, flys), drop sets on the last set of a key lift when RPE is high.
 - Symmetry framing: reference weak points and balance. "Your back volume is trailing chest by 4 sets — let's fix that asymmetry."

@@ -148,10 +148,10 @@ export function getSessionTypesForSplit(
   }
   if (split === "bro_split") {
     // Classic bodybuilding body-part split: chest → back → shoulders → arms → legs.
-    // Bro split has exactly 5 distinct days; clamp to first 5 indices to avoid
-    // repeating body parts when >5 training days are requested.
+    // Capped at 5 days — there are only 5 distinct body parts, so days beyond that
+    // become rest days rather than cycling back to chest.
     const types: SessionType[] = ["chest", "back", "shoulders", "arms", "legs"];
-    return trainingDayIndices.slice(0, 5).map((dayIndex, i) => ({
+    return trainingDayIndices.slice(0, types.length).map((dayIndex, i) => ({
       dayIndex,
       sessionType: types[i],
     }));
