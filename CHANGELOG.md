@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0](https://github.com/JeffOtano/tonal-coach/compare/v0.2.0...v0.3.0) (2026-04-14)
+
+
+### Features
+
+* full workout history data export (CSV + JSON) ([#116](https://github.com/JeffOtano/tonal-coach/issues/116)) ([8ec5a91](https://github.com/JeffOtano/tonal-coach/commit/8ec5a91cbc692f998f27a2d923b0e6d25d36cfc9))
+
 ## [0.2.0](https://github.com/JeffOtano/tonal-coach/compare/v0.1.1...v0.2.0) (2026-04-13)
 
 ### Features
