@@ -22,8 +22,8 @@ export const isCircuitOpen = internalQuery({
   },
 });
 
-/** Record a successful API call. Only writes when state changes (circuit was
- *  open or no record exists) to avoid OCC contention under concurrent load. */
+/** Record a successful API call. Skips the write in steady state (circuit
+ *  closed, no failures) to avoid OCC contention under concurrent load. */
 export const recordSuccess = internalMutation({
   args: { service: v.string() },
   handler: async (ctx, { service }) => {

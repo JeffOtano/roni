@@ -97,14 +97,12 @@ export async function cachedFetch<T>(
         expiresAt: now + ttl,
       });
     } catch (cacheErr) {
-      // If caching fails (e.g., data still too large), log and continue.
-      // The caller still gets fresh data; it just won't be cached.
       console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
     }
 
     await ctx
       .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
-      .catch(() => {});
+      .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
 
     return data;
   } catch (error) {
@@ -114,7 +112,7 @@ export async function cachedFetch<T>(
 
     await ctx
       .runMutation(internal.systemHealth.recordFailure, { service: "tonal" })
-      .catch(() => {});
+      .catch((err: unknown) => console.warn("[circuitBreaker] recordFailure failed", err));
 
     // For non-auth errors, fall back to stale data if available
     if (cached) {
