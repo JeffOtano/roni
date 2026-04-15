@@ -353,7 +353,7 @@ export const sendMessageToThread = mutation({
 export const processMessage = internalAction({
   args: {
     threadId: v.string(),
-    userId: v.string(),
+    userId: v.id("users"),
     prompt: v.string(),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     userTimezone: v.optional(v.string()),
