@@ -1,4 +1,4 @@
-import { DAY, MINUTE, RateLimiter, SECOND } from "@convex-dev/rate-limiter";
+import { DAY, HOUR, MINUTE, RateLimiter, SECOND } from "@convex-dev/rate-limiter";
 import { components } from "./_generated/api";
 
 /** Daily message cap per user. Easy to adjust per tier later. */
@@ -99,5 +99,26 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     kind: "fixed window",
     rate: HOUSE_KEY_MONTHLY_LIMIT,
     period: HOUSE_KEY_MONTHLY_PERIOD,
+  },
+  // Global bucket -- no authenticated user or IP to key on.
+  contactForm: {
+    kind: "token bucket",
+    rate: 30,
+    period: HOUR,
+    capacity: 5,
+  },
+  // Each request sends an email, so this gates Resend spend.
+  emailChangeRequest: {
+    kind: "token bucket",
+    rate: 3,
+    period: HOUR,
+    capacity: 2,
+  },
+  // Guards against brute-forcing the 8-digit code within its 15-min TTL.
+  emailChangeConfirm: {
+    kind: "token bucket",
+    rate: 10,
+    period: HOUR,
+    capacity: 5,
   },
 });
