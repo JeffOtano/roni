@@ -1,6 +1,7 @@
 import { action, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { normalizeTargetArea } from "./lib/targetArea";
 import type { MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
 
 // ---------------------------------------------------------------------------
@@ -145,8 +146,8 @@ export const getTrainingFrequency = query({
     const lastDates: Record<string, string> = {};
 
     for (const row of rows) {
-      const area = row.targetArea;
-      if (!area) continue;
+      if (!row.targetArea) continue;
+      const area = normalizeTargetArea(row.targetArea);
       counts[area] = (counts[area] ?? 0) + 1;
       if (!lastDates[area] || row.date > lastDates[area]) {
         lastDates[area] = row.date;
