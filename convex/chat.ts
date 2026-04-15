@@ -7,118 +7,20 @@ import {
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
-import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { action, internalAction, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
-import type { ActionCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
 import { buildCoachAgentForStorageOnly, buildCoachAgentsForProvider } from "./ai/coach";
-import { type ProviderKeyResult, resolveProviderKey } from "./byok";
-import { checkDailyBudget, classifyByokError, streamWithRetry } from "./ai/resilience";
+import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 import * as analytics from "./lib/posthog";
-
-const MAX_IMAGES_PER_MESSAGE = 4;
-
-// Like resolveUserProviderConfig but skips the quota check.
-async function validateUserProviderKey(ctx: ActionCtx, userId: string): Promise<void> {
-  const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
-    userId: userId as Id<"users">,
-  });
-  if (!context) throw new Error("byok_user_not_found");
-  await resolveProviderKey(context.profile, context.userCreationTime);
-}
-
-async function resolveUserProviderConfig(
-  ctx: ActionCtx,
-  userId: string,
-): Promise<ProviderKeyResult> {
-  const context = await ctx.runQuery(internal.byok._getKeyResolutionContext, {
-    userId: userId as Id<"users">,
-  });
-  if (!context) throw new Error("byok_user_not_found");
-  const result = await resolveProviderKey(context.profile, context.userCreationTime);
-
-  // Enforce monthly cap only when actually using the house key.
-  const killSwitchActive = process.env.BYOK_DISABLED === "true";
-  if (result.isHouseKey && !killSwitchActive) {
-    try {
-      await ctx.runMutation(internal.byok._checkHouseKeyQuota, {
-        userId: userId as Id<"users">,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      if (msg.includes("rate") || msg.includes("limit")) {
-        throw new Error("house_key_quota_exhausted");
-      }
-      throw err;
-    }
-  }
-
-  return result;
-}
-
-/**
- * Run an action body that calls the Gemini language model and sanitize any
- * raw error message into a typed BYOK error code before re-throwing. The
- * sanitization is critical because Google AI error bodies can echo the
- * decrypted API key back to us (for example "API key AIza... is invalid"),
- * and we MUST NOT log or surface that.
- *
- * If the underlying error is not BYOK-classifiable, it is re-thrown
- * unchanged so the existing transient-error handling can take over.
- */
-async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    const code = classifyByokError(err);
-    if (code !== null) {
-      // Throw the sanitized code only. Never log or rethrow the raw message.
-      throw new Error(code);
-    }
-    throw err;
-  }
-}
-
-/**
- * Resolves storage IDs to URLs and builds a multimodal ModelMessage array.
- * Returns the plain text string when no images are provided.
- */
-async function buildPrompt(
-  ctx: ActionCtx,
-  text: string,
-  imageStorageIds?: Id<"_storage">[],
-): Promise<string | Array<ModelMessage>> {
-  if (!imageStorageIds || imageStorageIds.length === 0) return text;
-
-  if (imageStorageIds.length > MAX_IMAGES_PER_MESSAGE) {
-    throw new Error(`Maximum ${MAX_IMAGES_PER_MESSAGE} images per message`);
-  }
-
-  const imageUrls = await Promise.all(
-    imageStorageIds.map(async (storageId) => {
-      const url = await ctx.storage.getUrl(storageId);
-      if (!url) throw new Error(`Image not found: ${storageId}`);
-      return url;
-    }),
-  );
-
-  return [
-    {
-      role: "user" as const,
-      content: [
-        { type: "text" as const, text },
-        ...imageUrls.map((url) => ({
-          type: "image" as const,
-          image: new URL(url),
-          mimeType: "image/jpeg" as const,
-        })),
-      ],
-    },
-  ];
-}
+import {
+  assertThreadOwnership,
+  buildPrompt,
+  resolveUserProviderConfig,
+  validateUserProviderKey,
+  withByokErrorSanitization,
+} from "./chatHelpers";
 
 export const generateImageUploadUrl = mutation({
   args: {},
@@ -180,6 +82,7 @@ export const createThreadWithMessage = action({
 
     let targetThreadId: string;
     if (threadId) {
+      await assertThreadOwnership(ctx, threadId, userId);
       targetThreadId = threadId;
     } else {
       // Auto-resolve to active thread if not stale
@@ -222,6 +125,10 @@ export const listMessages = query({
     streamArgs: vStreamArgs,
   },
   handler: async (ctx, args) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await assertThreadOwnership(ctx, args.threadId, userId);
+
     const paginated = await listUIMessages(ctx, components.agent, {
       threadId: args.threadId,
       paginationOpts: args.paginationOpts,
@@ -244,6 +151,7 @@ export const respondToToolApproval = mutation({
   handler: async (ctx, { threadId, approvalId, approved, reason }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    await assertThreadOwnership(ctx, threadId, userId);
 
     // approveToolCall and denyToolCall only write a tool-approval-response
     // message into the agent component's storage. They do not invoke the
@@ -280,6 +188,7 @@ export const continueAfterApproval = action({
   handler: async (ctx, { threadId, messageId }) => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
+    await assertThreadOwnership(ctx, threadId, userId);
 
     const providerConfig = await resolveUserProviderConfig(ctx, userId);
 
@@ -317,6 +226,7 @@ export const sendMessageToThread = mutation({
   handler: async (ctx, { prompt, threadId, imageStorageIds }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    await assertThreadOwnership(ctx, threadId, userId);
 
     await rateLimiter.limit(ctx, "sendMessage", {
       key: userId,
