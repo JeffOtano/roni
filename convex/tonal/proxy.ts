@@ -4,7 +4,12 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
-import { fetchAllWorkoutActivities, TonalApiError, tonalFetch } from "./client";
+import {
+  fetchAllWorkoutActivities,
+  fetchRecentWorkoutActivities,
+  TonalApiError,
+  tonalFetch,
+} from "./client";
 import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
@@ -260,24 +265,33 @@ export const fetchWorkoutHistory = internalAction({
   args: {
     userId: v.id("users"),
     limit: v.optional(v.number()),
+    // "recent" (default): fetches newest page only (1-2 API calls). For cron sync.
+    // "full": paginates through all history (N API calls). For backfill.
+    mode: v.optional(v.union(v.literal("recent"), v.literal("full"))),
   },
-  handler: async (ctx, { userId, limit }): Promise<Activity[]> =>
+  handler: async (ctx, { userId, limit, mode = "recent" }): Promise<Activity[]> =>
     withTokenRetry(ctx, userId, async (token, tonalUserId) => {
-      // Cache the lightweight Activity[] (no per-set data) instead of the
-      // raw WorkoutActivityDetail[] which can exceed 16 MiB for heavy users.
+      const cacheKey = mode === "full" ? "workoutHistory_v3_full" : "workoutHistory_v3";
+
       const activities = await cachedFetch<Activity[]>(ctx, {
         userId,
-        dataType: "workoutHistory_v3",
+        dataType: cacheKey,
         ttl: CACHE_TTLS.workoutHistory,
         fetcher: async () => {
-          const items = await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
+          const items =
+            mode === "full"
+              ? await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId)
+              : await fetchRecentWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
+
           if (items.length === 0) return [];
 
           const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
           const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
 
-          // API returns oldest-first; reverse so callers get newest-first
-          return items.map((wa) => toActivity(wa, meta.get(wa.workoutId))).reverse();
+          // fetchRecentWorkoutActivities already returns newest-first;
+          // fetchAllWorkoutActivities returns oldest-first, so reverse it
+          const mapped = items.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
+          return mode === "full" ? mapped.reverse() : mapped;
         },
       });
 

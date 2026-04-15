@@ -16,6 +16,7 @@ import type { Id } from "../_generated/dataModel";
 /** Cache keys to clear before a resync (old per-limit keys + current key). */
 const STALE_CACHE_KEYS = [
   "workoutHistory_v3",
+  "workoutHistory_v3_full",
   "workoutHistory_v2",
   "workoutHistory_v2:1",
   "workoutHistory_v2:5",

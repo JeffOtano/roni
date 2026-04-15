@@ -45,9 +45,40 @@ export async function tonalFetch<T = unknown>(
 const PG_PAGE_SIZE = 200;
 
 /**
- * Paginated fetch from /workout-activities.
- * The Tonal API uses request headers (not query params) for pagination:
- *   pg-offset: starting index, pg-limit: page size, pg-total: response header with count.
+ * Fetch a single page of /workout-activities using pg-offset/pg-limit headers.
+ * Returns { items, pgTotal } so callers can decide whether to continue.
+ */
+async function fetchWorkoutActivitiesPage<T>(
+  token: string,
+  tonalUserId: string,
+  offset: number,
+  limit: number = PG_PAGE_SIZE,
+): Promise<{ items: T[]; pgTotal: number }> {
+  const res = await fetch(`${TONAL_API_BASE}/v6/users/${tonalUserId}/workout-activities`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "pg-offset": String(offset),
+      "pg-limit": String(limit),
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (res.status === 401) {
+    throw new TonalApiError(401, await res.text().catch(() => "Unauthorized"));
+  }
+  if (!res.ok) {
+    throw new TonalApiError(res.status, await res.text().catch(() => res.statusText));
+  }
+
+  const items = (await res.json()) as T[];
+  const pgTotal = parseInt(res.headers.get("pg-total") ?? "0", 10);
+  return { items, pgTotal };
+}
+
+/**
+ * Paginated fetch of ALL /workout-activities (oldest to newest).
+ * Used by backfill to get complete history.
  */
 export async function fetchAllWorkoutActivities<T>(
   token: string,
@@ -57,31 +88,38 @@ export async function fetchAllWorkoutActivities<T>(
   let offset = 0;
 
   while (true) {
-    const res = await fetch(`${TONAL_API_BASE}/v6/users/${tonalUserId}/workout-activities`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "pg-offset": String(offset),
-        "pg-limit": String(PG_PAGE_SIZE),
-      },
-      signal: AbortSignal.timeout(30_000),
-    });
-
-    if (res.status === 401) {
-      throw new TonalApiError(401, await res.text().catch(() => "Unauthorized"));
-    }
-    if (!res.ok) {
-      throw new TonalApiError(res.status, await res.text().catch(() => res.statusText));
-    }
-
-    const page = (await res.json()) as T[];
-    all.push(...page);
-
-    const pgTotal = parseInt(res.headers.get("pg-total") ?? "0", 10);
-    offset += page.length;
-
-    if (page.length < PG_PAGE_SIZE || offset >= pgTotal) break;
+    const { items, pgTotal } = await fetchWorkoutActivitiesPage<T>(token, tonalUserId, offset);
+    all.push(...items);
+    offset += items.length;
+    if (items.length < PG_PAGE_SIZE || offset >= pgTotal) break;
   }
 
   return all;
+}
+
+/**
+ * Fetch the most recent workout activities (newest first) by reading from the
+ * end of the paginated list. Returns up to `count` items, newest first.
+ * Used by incremental sync - typically 1 API call instead of 5+.
+ */
+export async function fetchRecentWorkoutActivities<T>(
+  token: string,
+  tonalUserId: string,
+  count: number = PG_PAGE_SIZE,
+): Promise<T[]> {
+  // Fetch a full page from offset 0. If pgTotal fits in one page, we're done.
+  // Otherwise use pgTotal to jump to the end for the newest items.
+  const { items: firstPage, pgTotal } = await fetchWorkoutActivitiesPage<T>(
+    token,
+    tonalUserId,
+    0,
+    count,
+  );
+
+  if (pgTotal <= count) return firstPage.reverse();
+
+  // User has more than `count` items - fetch the last page from the end
+  const startOffset = Math.max(0, pgTotal - count);
+  const { items } = await fetchWorkoutActivitiesPage<T>(token, tonalUserId, startOffset, count);
+  return items.reverse();
 }
