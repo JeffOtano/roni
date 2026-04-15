@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -36,13 +36,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const authenticatedRedirectPath = flow === "signUp" ? "/onboarding" : "/chat";
+  const pendingRedirectRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace(authenticatedRedirectPath);
+      router.replace(pendingRedirectRef.current ?? "/chat");
     }
-  }, [authLoading, isAuthenticated,authenticatedRedirectPath, router]);
+  }, [authLoading, isAuthenticated, router]);
 
   if (authLoading) {
     return <PageLoader />;
@@ -57,10 +57,13 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
 
+    const redirectPath = flow === "signUp" ? "/onboarding" : "/chat";
+    pendingRedirectRef.current = redirectPath;
+
     try {
       await signIn("password", { email, password, flow });
       track(flow === "signIn" ? "login_completed" : "signup_completed", { method: "password" });
-      router.replace(authenticatedRedirectPath);
+      router.replace(redirectPath);
     } catch {
       if (flow === "signIn") {
         track("login_failed", { error: "invalid_credentials" });

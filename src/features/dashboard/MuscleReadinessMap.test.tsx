@@ -142,6 +142,17 @@ describe("MuscleReadinessMap", () => {
     expect(screen.queryByText(/is fresh/i)).toBeNull();
   });
 
+  it("fresh muscle prompt link does not contain HTML entities in the href", () => {
+    const readiness: MuscleReadiness = { ...BASE_READINESS, Chest: 85 };
+
+    render(<MuscleReadinessMap readiness={readiness} />);
+
+    const freshLink = screen.getByRole("link", { name: /fresh/i });
+    const href = freshLink.getAttribute("href") ?? "";
+
+    expect(decodeURIComponent(href)).not.toContain("&nbsp;");
+  });
+
   it("shows a rest day tips link when a muscle is fatigued (<= 30%)", () => {
     // Override all originally-fatigued muscles above 30 so Hamstrings is the first fatigued entry
     const readiness: MuscleReadiness = {

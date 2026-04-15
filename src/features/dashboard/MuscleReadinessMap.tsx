@@ -71,7 +71,7 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
           const fresh = entries.find((e) => e.value > 80);
           if (!fresh) return null;
           const prompt = encodeURIComponent(
-            `My ${fresh.muscle.toLowerCase()}&nbsp;${isOrAre(fresh.muscle)}&nbsp; at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()}&nbsp; workout?`,
+            `My ${fresh.muscle.toLowerCase()} ${isOrAre(fresh.muscle)} at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()} workout?`,
           );
           return (
             <Link
@@ -87,7 +87,7 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
           const fatigued = entries.find((e) => e.value <= 30);
           if (!fatigued) return null;
           const prompt = encodeURIComponent(
-            `My ${fatigued.muscle.toLowerCase()}&nbsp;${isOrAre(fatigued.muscle)}&nbsp;fatigued at ${fatigued.value}% readiness. What should I do for recovery?`,
+            `My ${fatigued.muscle.toLowerCase()} ${isOrAre(fatigued.muscle)} fatigued at ${fatigued.value}% readiness. What should I do for recovery?`,
           );
           return (
             <Link

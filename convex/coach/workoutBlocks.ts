@@ -76,7 +76,11 @@ export function blocksFromMovementIds(
     const movement = catalogMap.get(movementId);
     const isDurationBased = movement ? !movement.countReps : false;
     if (isDurationBased) {
-      return { movementId, sets: baseSets, duration: DEFAULT_DURATION_SECONDS };
+      return {
+        movementId,
+        sets: baseSets,
+        duration: options?.goalScheme?.duration ?? DEFAULT_DURATION_SECONDS,
+      };
     }
     return {
       movementId,
