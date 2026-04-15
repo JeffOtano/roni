@@ -14,6 +14,7 @@ export const TONAL_REFRESH_CACHE_KEYS = [
   "strengthDistribution",
   "strengthHistory",
   "muscleReadiness",
+  "workoutHistory_v3",
   "workoutHistory:1",
   "workoutHistory:20",
   "workoutHistory:50",

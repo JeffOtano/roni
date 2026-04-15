@@ -127,12 +127,8 @@ async function fetchAndBuildPayloads(
 // Shared orchestration: diff, fetch details, persist, sync strength
 // ---------------------------------------------------------------------------
 
-/** Sync strength scores and update high-water mark. */
-async function syncStrengthAndHighWaterMark(
-  ctx: ActionCtx,
-  userId: Id<"users">,
-  activities: Activity[],
-): Promise<void> {
+/** Sync strength score history from the Tonal API. */
+async function syncStrengthOnly(ctx: ActionCtx, userId: Id<"users">): Promise<void> {
   try {
     const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
       internal.tonal.proxy.fetchStrengthHistory,
@@ -154,14 +150,6 @@ async function syncStrengthAndHighWaterMark(
     }
   } catch (err) {
     console.error("[historySync] Strength history sync failed", err);
-  }
-
-  if (activities.length > 0) {
-    const newestDate = activities[activities.length - 1].activityTime.slice(0, 10);
-    await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
-      userId,
-      date: newestDate,
-    });
   }
 }
 
@@ -207,7 +195,14 @@ async function syncActivitiesAndStrength(
   // high-water mark in its own finalize step. Only run them here for
   // unbatched callers (incremental sync).
   if (remaining === 0 && maxNew == null) {
-    await syncStrengthAndHighWaterMark(ctx, userId, activities);
+    await syncStrengthOnly(ctx, userId);
+    if (activities.length > 0) {
+      const newestDate = activities[activities.length - 1].activityTime.slice(0, 10);
+      await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
+        userId,
+        date: newestDate,
+      });
+    }
   }
 
   return { synced: batch.length, remaining };
@@ -278,10 +273,11 @@ export const backfillUserHistory = internalAction({
     userId: v.id("users"),
     retryCount: v.optional(v.number()),
     pgOffset: v.optional(v.number()),
+    newestActivityDate: v.optional(v.string()),
   },
   handler: async (
     ctx,
-    { userId, retryCount = 0, pgOffset = 0 },
+    { userId, retryCount = 0, pgOffset = 0, newestActivityDate },
   ): Promise<{ newWorkouts: number; totalActivities: number }> => {
     if (retryCount === 0 && pgOffset === 0) {
       await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
@@ -301,6 +297,13 @@ export const backfillUserHistory = internalAction({
           ? await syncActivitiesAndStrength(ctx, userId, activities, BACKFILL_BATCH_SIZE)
           : { synced: 0, remaining: 0 };
 
+      // Track the newest date seen across all pages (API returns oldest-first)
+      const pageNewestDate =
+        activities.length > 0
+          ? activities[activities.length - 1].activityTime.slice(0, 10)
+          : undefined;
+      const bestDate = pageNewestDate ?? newestActivityDate;
+
       // More new workouts on this page to process
       if (remaining > 0) {
         console.log(
@@ -309,7 +312,7 @@ export const backfillUserHistory = internalAction({
         await ctx.scheduler.runAfter(
           BACKFILL_CONTINUATION_DELAY_MS,
           internal.tonal.historySync.backfillUserHistory,
-          { userId, retryCount, pgOffset },
+          { userId, retryCount, pgOffset, newestActivityDate: bestDate },
         );
         return { newWorkouts: synced, totalActivities: pgTotal };
       }
@@ -323,13 +326,19 @@ export const backfillUserHistory = internalAction({
         await ctx.scheduler.runAfter(
           BACKFILL_CONTINUATION_DELAY_MS,
           internal.tonal.historySync.backfillUserHistory,
-          { userId, retryCount, pgOffset: nextOffset },
+          { userId, retryCount, pgOffset: nextOffset, newestActivityDate: bestDate },
         );
         return { newWorkouts: synced, totalActivities: pgTotal };
       }
 
       // All pages processed - finalize
-      await syncStrengthAndHighWaterMark(ctx, userId, activities);
+      if (bestDate) {
+        await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
+          userId,
+          date: bestDate,
+        });
+      }
+      await syncStrengthOnly(ctx, userId);
       const enrichmentFailures = await persistNewTableData(ctx, userId);
       await maybeRefreshProfile(ctx, userId);
       await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
@@ -351,6 +360,7 @@ export const backfillUserHistory = internalAction({
           userId,
           retryCount: retryCount + 1,
           pgOffset,
+          newestActivityDate,
         });
         return { newWorkouts: 0, totalActivities: 0 };
       }
