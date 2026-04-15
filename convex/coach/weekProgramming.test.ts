@@ -78,6 +78,23 @@ describe("getSessionTypesForSplit", () => {
       { dayIndex: 5, sessionType: "legs" },
     ]);
   });
+
+  it("assigns chest, back, shoulders, arms, legs for bro_split with 5 days", () => {
+    const result = getSessionTypesForSplit("bro_split", [0, 1, 2, 3, 4]);
+    expect(result).toEqual([
+      { dayIndex: 0, sessionType: "chest" },
+      { dayIndex: 1, sessionType: "back" },
+      { dayIndex: 2, sessionType: "shoulders" },
+      { dayIndex: 3, sessionType: "arms" },
+      { dayIndex: 4, sessionType: "legs" },
+    ]);
+  });
+
+  it("clamps bro_split to 5 days when >5 training days are requested", () => {
+    const result = getSessionTypesForSplit("bro_split", [0, 1, 2, 3, 4, 5, 6]);
+    expect(result).toHaveLength(5);
+    expect(result[4].sessionType).toBe("legs");
+  });
 });
 
 /**

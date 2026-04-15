@@ -9,6 +9,7 @@ const SPLIT_NAMES: Record<string, string> = {
   ppl: "Push/Pull/Legs",
   upper_lower: "Upper/Lower",
   full_body: "Full Body",
+  bro_split: "Bro Split",
 };
 
 export interface ReasoningContext {

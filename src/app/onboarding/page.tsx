@@ -45,7 +45,8 @@ export default function OnboardingPage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  if (authLoading || !isAuthenticated) return <PageLoader />;
+  if (authLoading) return <PageLoader />;
+  if (!isAuthenticated) return null;
 
   if (me === undefined || byokStatus === undefined) return <PageLoader />;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocksFromMovementIds } from "./weekProgrammingHelpers";
+import { blocksFromMovementIds } from "./workoutBlocks";
 import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
 
 // ---------------------------------------------------------------------------
@@ -272,5 +272,89 @@ describe("blocksFromMovementIds - rest injection", () => {
     const restSets = blocks[0].exercises[1].sets;
     expect(mainSets).toBe(2);
     expect(restSets).toBe(mainSets);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// blocksFromMovementIds - goalScheme option
+// ---------------------------------------------------------------------------
+
+const STRENGTH_SCHEME = { sets: 4, reps: 5, restSeconds: 180 };
+const FAT_LOSS_SCHEME = { sets: 3, reps: 12, restSeconds: 45 };
+
+describe("blocksFromMovementIds - goalScheme", () => {
+  it("uses goalScheme sets when no suggestion exists", () => {
+    const ids = ["bench"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: STRENGTH_SCHEME,
+    });
+
+    expect(blocks[0].exercises[0].sets).toBe(4);
+  });
+
+  it("uses goalScheme reps as fallback when no progressive overload suggestion", () => {
+    const ids = ["bench"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: STRENGTH_SCHEME,
+    });
+
+    expect(blocks[0].exercises[0].reps).toBe(5);
+  });
+
+  it("progressive overload suggestion takes priority over goalScheme reps", () => {
+    const ids = ["bench"];
+    const suggestions = [{ movementId: "bench", suggestedReps: 6 }];
+    const blocks = blocksFromMovementIds(ids, suggestions, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: STRENGTH_SCHEME,
+    });
+
+    expect(blocks[0].exercises[0].reps).toBe(6);
+  });
+
+  it("falls back to DEFAULT_REPS (10) when no goalScheme and no suggestion", () => {
+    const ids = ["bench"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+    });
+
+    expect(blocks[0].exercises[0].reps).toBe(10);
+  });
+
+  it("uses goalScheme restSeconds for compound rest (straight-set block)", () => {
+    const ids = ["bench"]; // bench has 2 muscle groups → compound
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: STRENGTH_SCHEME,
+    });
+
+    const rest = blocks[0].exercises[1];
+    expect(rest.movementId).toBe(TONAL_REST_MOVEMENT_ID);
+    expect(rest.duration).toBe(180);
+  });
+
+  it("uses goalScheme restSeconds minus 30 for isolation rest", () => {
+    const ids = ["curl"]; // curl has 1 muscle group → isolation
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: STRENGTH_SCHEME,
+    });
+
+    const rest = blocks[0].exercises[1];
+    expect(rest.movementId).toBe(TONAL_REST_MOVEMENT_ID);
+    expect(rest.duration).toBe(150); // 180 - 30
+  });
+
+  it("clamps isolation rest to 30s minimum", () => {
+    const ids = ["curl"];
+    const blocks = blocksFromMovementIds(ids, undefined, {
+      catalog: blockCatalogWithMuscles,
+      goalScheme: FAT_LOSS_SCHEME, // restSeconds: 45 → isolation = max(30, 45-30) = 30
+    });
+
+    const rest = blocks[0].exercises[1];
+    expect(rest.duration).toBe(30);
   });
 });
