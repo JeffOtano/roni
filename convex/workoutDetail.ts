@@ -30,6 +30,11 @@ export interface EnrichedSetActivity {
   beginTime: string;
   sideNumber: number;
   weightPercentage?: number;
+  avgWeight?: number;
+  baseWeight?: number;
+  volume?: number;
+  repCount?: number;
+  oneRepMax?: number;
 }
 
 export interface MovementSummary {
@@ -235,7 +240,6 @@ export const getWorkoutHistoryFull = action({
 
     const all = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
       userId,
-      limit: limit + 10,
     })) as Activity[];
 
     return all.filter((a) => a.workoutPreview?.totalVolume > 0).slice(0, limit);

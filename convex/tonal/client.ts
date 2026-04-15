@@ -41,3 +41,47 @@ export async function tonalFetch<T = unknown>(
 
   return res.json() as Promise<T>;
 }
+
+const PG_PAGE_SIZE = 200;
+
+/**
+ * Paginated fetch from /workout-activities.
+ * The Tonal API uses request headers (not query params) for pagination:
+ *   pg-offset: starting index, pg-limit: page size, pg-total: response header with count.
+ */
+export async function fetchAllWorkoutActivities<T>(
+  token: string,
+  tonalUserId: string,
+): Promise<T[]> {
+  const all: T[] = [];
+  let offset = 0;
+
+  while (true) {
+    const res = await fetch(`${TONAL_API_BASE}/v6/users/${tonalUserId}/workout-activities`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "pg-offset": String(offset),
+        "pg-limit": String(PG_PAGE_SIZE),
+      },
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (res.status === 401) {
+      throw new TonalApiError(401, await res.text().catch(() => "Unauthorized"));
+    }
+    if (!res.ok) {
+      throw new TonalApiError(res.status, await res.text().catch(() => res.statusText));
+    }
+
+    const page = (await res.json()) as T[];
+    all.push(...page);
+
+    const pgTotal = parseInt(res.headers.get("pg-total") ?? "0", 10);
+    offset += page.length;
+
+    if (page.length < PG_PAGE_SIZE || offset >= pgTotal) break;
+  }
+
+  return all;
+}

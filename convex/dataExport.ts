@@ -103,7 +103,6 @@ export const exportData = action({
           ctx.runQuery(internal.dataExport.getKnownActivityIds, { userId }) as Promise<string[]>,
           ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
             userId,
-            limit: 500,
           }) as Promise<Activity[]>,
         ]);
         const knownSet = new Set(knownIds);
