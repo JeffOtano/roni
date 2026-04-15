@@ -96,10 +96,10 @@ export default function LoginPage() {
             backgroundClip: "text",
           }}
         >
-          tonal.coach
+          roni.coach
         </Link>
         <h1 className="sr-only">
-          {flow === "signIn" ? "Sign in to tonal.coach" : "Create a tonal.coach account"}
+          {flow === "signIn" ? "Sign in to roni.coach" : "Create a roni.coach account"}
         </h1>
 
         {/* Glassmorphic card */}

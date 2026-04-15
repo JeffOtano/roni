@@ -107,10 +107,10 @@ describe("emailChangeHtml", () => {
     expect(html).toContain("15 minutes");
   });
 
-  it("contains the tonal.coach brand name", () => {
+  it("contains the roni.coach brand name", () => {
     const html = emailChangeHtml("00000000");
 
-    expect(html.toLowerCase()).toContain("tonal.coach");
+    expect(html.toLowerCase()).toContain("roni.coach");
   });
 
   it("returns a non-empty string", () => {

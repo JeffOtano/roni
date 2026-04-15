@@ -243,13 +243,13 @@ export function buildCoachAgents(apiKey: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
 
   const primary = new Agent(components.agent, {
-    name: "Tonal Coach",
+    name: "Roni",
     languageModel: provider("gemini-3-flash-preview"),
     ...coachAgentConfig,
   });
 
   const fallback = new Agent(components.agent, {
-    name: "Tonal Coach (Fallback)",
+    name: "Roni (Fallback)",
     languageModel: provider("gemini-2.5-flash"),
     ...coachAgentConfig,
   });
@@ -274,7 +274,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
 
   const primaryModel = config.createLanguageModel(apiKey, primaryModelName);
   const primary = new Agent(components.agent, {
-    name: "Tonal Coach",
+    name: "Roni",
     languageModel: primaryModel,
     ...coachAgentConfig,
   });
@@ -283,7 +283,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
   if (config.fallbackModel) {
     const fallbackModel = config.createLanguageModel(apiKey, config.fallbackModel);
     fallback = new Agent(components.agent, {
-      name: "Tonal Coach (Fallback)",
+      name: "Roni (Fallback)",
       languageModel: fallbackModel,
       ...coachAgentConfig,
     });
@@ -298,7 +298,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
 // Never pass to streamText/generateText; storage-only.
 export function buildCoachAgentForStorageOnly(): Agent {
   return new Agent(components.agent, {
-    name: "Tonal Coach (Storage Only)",
+    name: "Roni (Storage Only)",
     languageModel: serverProvider("gemini-2.5-flash"),
     ...coachAgentConfig,
   });

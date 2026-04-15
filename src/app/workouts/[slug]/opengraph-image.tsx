@@ -10,7 +10,7 @@ import {
   type LibrarySessionType,
 } from "../../../../convex/coach/goalConfig";
 
-export const alt = "Tonal workout — tonal.coach";
+export const alt = "Tonal workout — roni.coach";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -58,7 +58,7 @@ export default async function WorkoutOgImage({ params }: { params: Promise<{ slu
 
       {/* Top: branding */}
       <div style={{ display: "flex", fontSize: "28px", fontFamily: "DM Sans", fontWeight: 700 }}>
-        <span style={{ color: "#ffffff" }}>tonal</span>
+        <span style={{ color: "#ffffff" }}>roni</span>
         <span style={{ color: "#00cacb" }}>.</span>
         <span style={{ color: "#ffffff" }}>coach</span>
       </div>

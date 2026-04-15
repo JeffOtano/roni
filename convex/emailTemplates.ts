@@ -32,7 +32,7 @@ export function wrapEmail(body: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>tonal.coach</title>
+  <title>roni.coach</title>
 </head>
 <body style="margin: 0; padding: 0; background: ${BRAND.background}; font-family: ${BRAND.fontStack}; -webkit-font-smoothing: antialiased;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: ${BRAND.background};">
@@ -44,7 +44,7 @@ export function wrapEmail(body: string): string {
           <tr>
             <td style="padding-bottom: 32px;">
               <span style="font-size: 20px; font-weight: 700; color: ${BRAND.primary}; letter-spacing: -0.3px;">
-                tonal.coach
+                roni.coach
               </span>
             </td>
           </tr>
@@ -60,7 +60,7 @@ export function wrapEmail(body: string): string {
           <tr>
             <td style="padding-top: 28px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: ${BRAND.muted}; line-height: 1.5;">
-                tonal.coach &mdash; your AI strength coach
+                roni.coach &mdash; your AI strength coach
               </p>
             </td>
           </tr>

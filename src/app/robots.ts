@@ -56,6 +56,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: APP_ROUTES,
       },
     ],
-    sitemap: "https://tonal.coach/sitemap.xml",
+    sitemap: "https://roni.coach/sitemap.xml",
   };
 }

@@ -11,7 +11,7 @@ export function JsonLd() {
             {
               "@type": "SoftwareApplication",
               "@id": `${SITE_URL}/#app`,
-              name: "tonal.coach",
+              name: "roni.coach",
               applicationCategory: "HealthApplication",
               operatingSystem: "Web",
               description:
@@ -37,7 +37,7 @@ export function JsonLd() {
             {
               "@type": "Organization",
               "@id": `${SITE_URL}/#org`,
-              name: "tonal.coach",
+              name: "roni.coach",
               url: SITE_URL,
               logo: `${SITE_URL}/icon.svg`,
               sameAs: [DISCORD_URL],
@@ -50,7 +50,7 @@ export function JsonLd() {
             {
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
-              name: "tonal.coach",
+              name: "roni.coach",
               url: SITE_URL,
               publisher: { "@id": `${SITE_URL}/#org` },
             },

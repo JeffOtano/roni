@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "tonal.coach — AI Personal Trainer for Tonal";
+export const alt = "roni.coach — AI Personal Trainer for Tonal";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -37,7 +37,7 @@ export default async function OgImage() {
       />
       {/* Wordmark */}
       <div style={{ display: "flex", fontSize: "72px", fontFamily: "DM Sans", fontWeight: 700 }}>
-        <span style={{ color: "#ffffff" }}>tonal</span>
+        <span style={{ color: "#ffffff" }}>roni</span>
         <span style={{ color: "#00cacb" }}>.</span>
         <span style={{ color: "#ffffff" }}>coach</span>
       </div>

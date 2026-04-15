@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Sign In",
-  description: "Sign in to your tonal.coach account",
+  description: "Sign in to your roni.coach account",
   robots: {
     index: false,
     follow: false,

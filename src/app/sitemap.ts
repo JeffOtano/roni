@@ -9,55 +9,55 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticUrls: MetadataRoute.Sitemap = [
     {
-      url: "https://tonal.coach",
+      url: "https://roni.coach",
       lastModified: now,
       changeFrequency: "weekly",
       priority: 1.0,
     },
     {
-      url: "https://tonal.coach/features",
+      url: "https://roni.coach/features",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: "https://tonal.coach/how-it-works",
+      url: "https://roni.coach/how-it-works",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: "https://tonal.coach/workouts",
+      url: "https://roni.coach/workouts",
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
-      url: "https://tonal.coach/faq",
+      url: "https://roni.coach/faq",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: "https://tonal.coach/pricing",
+      url: "https://roni.coach/pricing",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: "https://tonal.coach/contact",
+      url: "https://roni.coach/contact",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
-      url: "https://tonal.coach/privacy",
+      url: "https://roni.coach/privacy",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: "https://tonal.coach/terms",
+      url: "https://roni.coach/terms",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
@@ -81,7 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       cursor = result.continueCursor;
     }
     workoutUrls = allSlugs.map((slug: string) => ({
-      url: `https://tonal.coach/workouts/${slug}`,
+      url: `https://roni.coach/workouts/${slug}`,
       lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.8,

@@ -217,7 +217,7 @@ export const createWorkout = internalAction({
       const planId = await ctx.runMutation(internal.workoutPlans.create, {
         userId,
         tonalWorkoutId: id,
-        source: "tonal_coach",
+        source: "roni",
         title,
         blocks,
         status: "pushed",

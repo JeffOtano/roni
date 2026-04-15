@@ -27,12 +27,12 @@ const TRUST_SIGNALS = [
 const productJsonLd = {
   "@context": "https://schema.org",
   "@type": "Product",
-  name: "tonal.coach",
+  name: "roni.coach",
   description: "Free, open-source AI-powered custom workout programming for Tonal home gym owners.",
-  url: "https://tonal.coach/pricing",
+  url: "https://roni.coach/pricing",
   brand: {
     "@type": "Organization",
-    name: "tonal.coach",
+    name: "roni.coach",
   },
   offers: {
     "@type": "Offer",
@@ -132,7 +132,7 @@ export default function PricingPage() {
               </p>
               <p className="mt-3 text-2xl font-bold tracking-tight">You run the AI, not us</p>
               <p className="mt-4 leading-relaxed text-muted-foreground">
-                tonal.coach is open source and free to use forever. When you sign up, you paste your
+                roni.coach is open source and free to use forever. When you sign up, you paste your
                 own Google Gemini API key during onboarding. The AI coach runs on your key, which
                 means you control usage and never get a bill from us. Gemini keys are free from
                 Google AI Studio and the free tier is generous enough for normal use.

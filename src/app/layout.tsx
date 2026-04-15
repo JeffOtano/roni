@@ -28,16 +28,16 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tonal.coach"),
+  metadataBase: new URL("https://roni.coach"),
   title: {
-    default: "tonal.coach — AI Personal Trainer for Tonal",
-    template: "%s | tonal.coach",
+    default: "roni.coach — AI Personal Trainer for Tonal",
+    template: "%s | roni.coach",
   },
   description:
     "AI coaching powered by your real Tonal training data. Get personalized advice, push custom workouts, and track your progress.",
   openGraph: {
-    siteName: "tonal.coach",
-    url: "https://tonal.coach",
+    siteName: "roni.coach",
+    url: "https://roni.coach",
     locale: "en_US",
     type: "website",
   },

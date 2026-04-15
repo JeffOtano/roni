@@ -171,7 +171,7 @@ export const createDraftWorkoutInternal = internalMutation({
       title: args.title,
       blocks: args.blocks,
       status: "draft",
-      source: "tonal_coach",
+      source: "roni",
       estimatedDuration: args.estimatedDuration,
       createdAt: Date.now(),
     });

@@ -54,7 +54,7 @@ export const getPushedAiWorkoutIds = internalQuery({
         (p) =>
           p.status === "pushed" &&
           p.tonalWorkoutId !== undefined &&
-          (p.source === "tonal_coach" || p.source === undefined),
+          (p.source === "roni" || p.source === "tonal_coach" || p.source === undefined),
       )
       .map((p) => p.tonalWorkoutId as string);
   },

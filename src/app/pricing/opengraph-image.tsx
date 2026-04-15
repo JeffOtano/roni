@@ -1,6 +1,6 @@
 import { createOgImage, ogContentType, ogSize } from "../_components/createOgImage";
 
-export const alt = "tonal.coach Pricing — Free and Open Source";
+export const alt = "roni.coach Pricing — Free and Open Source";
 export const size = ogSize;
 export const contentType = ogContentType;
 

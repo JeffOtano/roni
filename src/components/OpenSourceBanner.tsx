@@ -3,7 +3,7 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { Sparkles, X } from "lucide-react";
 
-const STORAGE_KEY = "tonal-coach-oss-banner-dismissed";
+const STORAGE_KEY = "roni-oss-banner-dismissed";
 
 function subscribe() {
   return () => {};
@@ -48,7 +48,7 @@ export function OpenSourceBanner() {
     >
       <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
       <span className="flex-1">
-        Tonal Coach is now open source. Your account is unchanged.{" "}
+        Roni is now open source. Your account is unchanged.{" "}
         <a
           href={repoUrl}
           target="_blank"
