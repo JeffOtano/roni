@@ -1,6 +1,7 @@
 import { action, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { normalizeTargetArea } from "./lib/targetArea";
 import type { MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
 
 // ---------------------------------------------------------------------------
@@ -121,15 +122,6 @@ export const getWorkoutHistory = query({
       }));
   },
 });
-
-function normalizeTargetArea(area: string): string {
-  return area
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 // ---------------------------------------------------------------------------
 // 4. getTrainingFrequency -- query from sync table (last 30 days)
