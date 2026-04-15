@@ -65,6 +65,7 @@ import type * as injuries from "../injuries.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_posthog from "../lib/posthog.js";
+import type * as lib_targetArea from "../lib/targetArea.js";
 import type * as libraryWorkouts from "../libraryWorkouts.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
@@ -182,6 +183,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/env": typeof lib_env;
   "lib/posthog": typeof lib_posthog;
+  "lib/targetArea": typeof lib_targetArea;
   libraryWorkouts: typeof libraryWorkouts;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   progressiveOverload: typeof progressiveOverload;

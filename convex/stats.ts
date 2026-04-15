@@ -1,5 +1,6 @@
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { normalizeTargetArea } from "./lib/targetArea";
 import type { Activity, StrengthScoreHistoryEntry } from "./tonal/types";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +56,8 @@ export function computeProgressMetrics(activities: readonly Activity[]): Progres
     totalVolume += preview.totalVolume;
     totalDuration += preview.totalDuration;
 
-    const area = preview.targetArea ?? "Unknown";
+    const rawArea = preview.targetArea;
+    const area = rawArea ? normalizeTargetArea(rawArea) : "Unknown";
     workoutsByTargetArea[area] = (workoutsByTargetArea[area] ?? 0) + 1;
   }
 
