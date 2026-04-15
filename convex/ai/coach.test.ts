@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { mergeConsecutiveSameRole, stripOrphanedToolCalls } from "./coach";
+import { coachAgentConfig, mergeConsecutiveSameRole, stripOrphanedToolCalls } from "./coach";
+
+type ContextHandlerArgs = Parameters<typeof coachAgentConfig.contextHandler>[1];
+
+async function runContextHandler(allMessages: ModelMessage[]): Promise<ModelMessage[]> {
+  const args: ContextHandlerArgs = {
+    allMessages,
+    search: [],
+    recent: [],
+    inputMessages: [],
+    inputPrompt: [],
+    existingResponses: [],
+    userId: undefined,
+    threadId: undefined,
+  };
+
+  return coachAgentConfig.contextHandler(undefined as never, args);
+}
 
 describe("mergeConsecutiveSameRole", () => {
   it("returns empty array unchanged", () => {
@@ -127,6 +144,26 @@ describe("stripOrphanedToolCalls", () => {
     expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
   });
 
+  it("keeps tool-calls that were resolved by an approval response", () => {
+    const msgs: ModelMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Approve this push?" },
+          { type: "tool-call", toolCallId: "tc1", toolName: "approve_week_plan", input: {} },
+          { type: "tool-approval-request", approvalId: "ap1", toolCallId: "tc1" },
+        ],
+      },
+      {
+        role: "tool",
+        content: [{ type: "tool-approval-response", approvalId: "ap1", approved: true }],
+      },
+      { role: "user", content: "Looks good" },
+    ];
+
+    expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
+  });
+
   it("removes orphaned tool-call with no matching tool-result", () => {
     const msgs: ModelMessage[] = [
       { role: "user", content: "check scores" },
@@ -180,5 +217,51 @@ describe("stripOrphanedToolCalls", () => {
   it("handles string content on assistant messages", () => {
     const msgs: ModelMessage[] = [{ role: "assistant", content: "just text" }];
     expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
+  });
+});
+
+describe("coachAgentConfig.contextHandler", () => {
+  it("normalizes orphaned tool calls before stripping old images and merging messages", async () => {
+    const latestImage = new URL("https://example.com/latest.jpg");
+
+    const result = await runContextHandler([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "older image note" },
+          {
+            type: "image",
+            image: new URL("https://example.com/older.jpg"),
+            mediaType: "image/jpeg",
+          },
+        ],
+      },
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "tc-orphan", toolName: "search_exercises", input: {} },
+        ],
+      },
+      { role: "user", content: "retry after failure" },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "latest image note" },
+          { type: "image", image: latestImage, mediaType: "image/jpeg" },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "older image note" },
+          { type: "text", text: "retry after failure" },
+          { type: "text", text: "latest image note" },
+          { type: "image", image: latestImage, mediaType: "image/jpeg" },
+        ],
+      },
+    ]);
   });
 });

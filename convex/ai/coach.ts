@@ -93,12 +93,32 @@ export function mergeConsecutiveSameRole(messages: ModelMessage[]): ModelMessage
 }
 
 export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[] {
-  const answeredToolCallIds = new Set<string>();
+  const approvalIdToToolCallId = new Map<string, string>();
+  const resolvedToolCallIds = new Set<string>();
   for (const msg of messages) {
     if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
-    for (const part of msg.content as Array<{ type: string; toolCallId?: string }>) {
+    for (const part of msg.content as Array<{
+      type: string;
+      approvalId?: string;
+      toolCallId?: string;
+    }>) {
+      if (part.type === "tool-approval-request" && part.approvalId && part.toolCallId) {
+        approvalIdToToolCallId.set(part.approvalId, part.toolCallId);
+      }
       if (part.type === "tool-result" && part.toolCallId) {
-        answeredToolCallIds.add(part.toolCallId);
+        resolvedToolCallIds.add(part.toolCallId);
+      }
+    }
+  }
+
+  for (const msg of messages) {
+    if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
+    for (const part of msg.content as Array<{ type: string; approvalId?: string }>) {
+      if (part.type === "tool-approval-response" && part.approvalId) {
+        const toolCallId = approvalIdToToolCallId.get(part.approvalId);
+        if (toolCallId) {
+          resolvedToolCallIds.add(toolCallId);
+        }
       }
     }
   }
@@ -113,7 +133,7 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
       if (!hasToolCalls) return msg;
 
       const filtered = parts.filter(
-        (p) => p.type !== "tool-call" || answeredToolCallIds.has(p.toolCallId!),
+        (p) => p.type !== "tool-call" || (p.toolCallId && resolvedToolCallIds.has(p.toolCallId)),
       );
 
       if (filtered.length === 0) return null;
