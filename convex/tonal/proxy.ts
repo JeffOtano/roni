@@ -97,13 +97,12 @@ export async function cachedFetch<T>(
         expiresAt: now + ttl,
       });
     } catch (cacheErr) {
-      // If caching fails (e.g., data still too large), log and continue.
-      // The caller still gets fresh data; it just won't be cached.
       console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
     }
 
-    // Record success for circuit breaker
-    await ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
+    await ctx
+      .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
+      .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
 
     return data;
   } catch (error) {
@@ -111,8 +110,9 @@ export async function cachedFetch<T>(
     if (error instanceof TonalApiError && error.status === 401) throw error;
     if (error instanceof Error && error.message.includes("session expired")) throw error;
 
-    // Record failure for circuit breaker (non-auth errors only)
-    await ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
+    await ctx
+      .runMutation(internal.systemHealth.recordFailure, { service: "tonal" })
+      .catch((err: unknown) => console.warn("[circuitBreaker] recordFailure failed", err));
 
     // For non-auth errors, fall back to stale data if available
     if (cached) {
