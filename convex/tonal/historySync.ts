@@ -230,9 +230,12 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
 export const syncUserHistory = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-    });
+    const activities: Activity[] = await ctx.runAction(
+      internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
+      {
+        userId,
+      },
+    );
 
     let synced = 0;
     if (activities.length > 0) {
@@ -260,15 +263,19 @@ const BACKFILL_RETRY_DELAYS = [30_000, 60_000, 120_000];
 const BACKFILL_BATCH_SIZE = 20;
 const BACKFILL_CONTINUATION_DELAY_MS = 5_000;
 
-/** Batched backfill on Tonal connect. Processes up to 20 new workouts per invocation,
- *  then schedules a continuation if more remain. Retries on failure. */
+/** Page-by-page backfill. Each invocation fetches one API page (200 items),
+ *  diffs against DB, processes up to 20 new workouts, then continues. */
 export const backfillUserHistory = internalAction({
-  args: { userId: v.id("users"), retryCount: v.optional(v.number()) },
+  args: {
+    userId: v.id("users"),
+    retryCount: v.optional(v.number()),
+    pgOffset: v.optional(v.number()),
+  },
   handler: async (
     ctx,
-    { userId, retryCount = 0 },
+    { userId, retryCount = 0, pgOffset = 0 },
   ): Promise<{ newWorkouts: number; totalActivities: number }> => {
-    if (retryCount === 0) {
+    if (retryCount === 0 && pgOffset === 0) {
       await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
         userId,
         syncStatus: "syncing",
@@ -276,56 +283,56 @@ export const backfillUserHistory = internalAction({
     }
 
     try {
-      const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-        userId,
-        mode: "full",
-      });
+      const { activities, pgTotal } = (await ctx.runAction(
+        internal.tonal.workoutHistoryProxy.fetchWorkoutHistoryPage,
+        { userId, offset: pgOffset },
+      )) as { activities: Activity[]; pgTotal: number };
 
-      let synced = 0;
-      let remaining = 0;
-      if (activities.length > 0) {
-        const result = await syncActivitiesAndStrength(
-          ctx,
-          userId,
-          activities,
-          BACKFILL_BATCH_SIZE,
-        );
-        synced = result.synced;
-        remaining = result.remaining;
-      }
+      const { synced, remaining } =
+        activities.length > 0
+          ? await syncActivitiesAndStrength(ctx, userId, activities, BACKFILL_BATCH_SIZE)
+          : { synced: 0, remaining: 0 };
 
+      // More new workouts on this page to process
       if (remaining > 0) {
         console.log(
-          `[historySync] Backfilled batch of ${synced} workouts, ${remaining} remaining for user ${userId}`,
+          `[historySync] Backfill page offset=${pgOffset}: ${synced} synced, ${remaining} remaining`,
         );
         await ctx.scheduler.runAfter(
           BACKFILL_CONTINUATION_DELAY_MS,
           internal.tonal.historySync.backfillUserHistory,
-          { userId, retryCount },
+          { userId, retryCount, pgOffset },
         );
-        return { newWorkouts: synced, totalActivities: activities.length };
+        return { newWorkouts: synced, totalActivities: pgTotal };
       }
 
+      // More pages to fetch
+      const nextOffset = pgOffset + activities.length;
+      if (nextOffset < pgTotal) {
+        console.log(
+          `[historySync] Backfill page offset=${pgOffset}: ${synced} synced, advancing to offset=${nextOffset}/${pgTotal}`,
+        );
+        await ctx.scheduler.runAfter(
+          BACKFILL_CONTINUATION_DELAY_MS,
+          internal.tonal.historySync.backfillUserHistory,
+          { userId, retryCount, pgOffset: nextOffset },
+        );
+        return { newWorkouts: synced, totalActivities: pgTotal };
+      }
+
+      // All pages processed - finalize
       const enrichmentFailures = await persistNewTableData(ctx, userId);
-
       await maybeRefreshProfile(ctx, userId);
-
       await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
         userId,
         syncStatus: enrichmentFailures >= 3 ? "failed" : "complete",
       });
 
-      console.log(
-        `[historySync] Backfill complete: ${synced}/${activities.length} workouts for user ${userId}`,
-      );
-
-      analytics.capture(userId, "history_sync_completed", {
-        new_workouts: synced,
-        backfill: true,
-      });
+      console.log(`[historySync] Backfill complete for user ${userId} (${pgTotal} total)`);
+      analytics.capture(userId, "history_sync_completed", { new_workouts: synced, backfill: true });
       await analytics.flush();
 
-      return { newWorkouts: synced, totalActivities: activities.length };
+      return { newWorkouts: synced, totalActivities: pgTotal };
     } catch (err) {
       console.error(`[historySync] Backfill failed (attempt ${retryCount + 1})`, err);
 

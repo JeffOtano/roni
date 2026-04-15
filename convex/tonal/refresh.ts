@@ -123,7 +123,8 @@ export const forceRefreshUserData = internalAction({
       fetchUserProfile: (args) => ctx.runAction(internal.tonal.proxy.fetchUserProfile, args),
       fetchStrengthDistribution: (args) =>
         ctx.runAction(internal.tonal.proxy.fetchStrengthDistribution, args),
-      fetchWorkoutHistory: (args) => ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, args),
+      fetchWorkoutHistory: (args) =>
+        ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, args),
       fetchExternalActivities: (args) =>
         ctx.runAction(internal.tonal.proxy.fetchExternalActivities, args),
       updateProfileData: (args) => ctx.runMutation(internal.userProfiles.updateProfileData, args),

@@ -48,7 +48,7 @@ const PG_PAGE_SIZE = 200;
  * Fetch a single page of /workout-activities using pg-offset/pg-limit headers.
  * Returns { items, pgTotal } so callers can decide whether to continue.
  */
-async function fetchWorkoutActivitiesPage<T>(
+export async function fetchWorkoutActivitiesPage<T>(
   token: string,
   tonalUserId: string,
   offset: number,
@@ -74,27 +74,6 @@ async function fetchWorkoutActivitiesPage<T>(
   const items = (await res.json()) as T[];
   const pgTotal = parseInt(res.headers.get("pg-total") ?? "0", 10);
   return { items, pgTotal };
-}
-
-/**
- * Paginated fetch of ALL /workout-activities (oldest to newest).
- * Used by backfill to get complete history.
- */
-export async function fetchAllWorkoutActivities<T>(
-  token: string,
-  tonalUserId: string,
-): Promise<T[]> {
-  const all: T[] = [];
-  let offset = 0;
-
-  while (true) {
-    const { items, pgTotal } = await fetchWorkoutActivitiesPage<T>(token, tonalUserId, offset);
-    all.push(...items);
-    offset += items.length;
-    if (items.length < PG_PAGE_SIZE || offset >= pgTotal) break;
-  }
-
-  return all;
 }
 
 /**

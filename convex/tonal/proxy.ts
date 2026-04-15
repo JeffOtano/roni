@@ -4,12 +4,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
-import {
-  fetchAllWorkoutActivities,
-  fetchRecentWorkoutActivities,
-  TonalApiError,
-  tonalFetch,
-} from "./client";
+import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
@@ -199,7 +194,7 @@ export const fetchMuscleReadiness = internalAction({
 });
 
 /** Minimal shape from GET /v6/workouts/{id} for enrichment. */
-interface WorkoutMeta {
+export interface WorkoutMeta {
   title?: string;
   targetArea?: string;
 }
@@ -207,7 +202,7 @@ interface WorkoutMeta {
 const WORKOUT_META_BATCH_SIZE = 10;
 
 /** Batch-fetch workout metadata for unique workoutIds. Failures are silently skipped. */
-async function fetchWorkoutMetaBatch(
+export async function fetchWorkoutMetaBatch(
   ctx: ActionCtx,
   token: string,
   workoutIds: string[],
@@ -235,7 +230,7 @@ async function fetchWorkoutMetaBatch(
 }
 
 /** Map a WorkoutActivityDetail list item to the Activity shape the sync pipeline expects. */
-function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
+export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
   return {
     activityId: wa.id,
     userId: wa.userId,
@@ -261,48 +256,8 @@ function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
   };
 }
 
-export const fetchWorkoutHistory = internalAction({
-  args: {
-    userId: v.id("users"),
-    limit: v.optional(v.number()),
-    mode: v.optional(v.union(v.literal("recent"), v.literal("full"))),
-  },
-  handler: async (ctx, { userId, limit, mode = "recent" }): Promise<Activity[]> =>
-    withTokenRetry(ctx, userId, async (token, tonalUserId) => {
-      const cacheKey = mode === "full" ? "workoutHistory_v3_full" : "workoutHistory_v3";
-
-      const activities = await cachedFetch<Activity[]>(ctx, {
-        userId,
-        dataType: cacheKey,
-        ttl: CACHE_TTLS.workoutHistory,
-        fetcher: async () => {
-          const items =
-            mode === "full"
-              ? await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId)
-              : await fetchRecentWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
-
-          // Filter ghost entries (null-UUID workoutId + zero volume/work)
-          const realItems = items.filter(
-            (wa) =>
-              wa.workoutId !== "00000000-0000-0000-0000-000000000000" ||
-              wa.totalVolume > 0 ||
-              wa.totalConcentricWork > 0,
-          );
-          if (realItems.length === 0) return [];
-
-          const uniqueWorkoutIds = [...new Set(realItems.map((w) => w.workoutId))];
-          const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
-
-          // fetchRecentWorkoutActivities already returns newest-first;
-          // fetchAllWorkoutActivities returns oldest-first, so reverse it
-          const mapped = realItems.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
-          return mode === "full" ? mapped.reverse() : mapped;
-        },
-      });
-
-      return limit != null ? activities.slice(0, limit) : activities;
-    }),
-});
+// fetchWorkoutHistory and fetchWorkoutHistoryPage live in workoutHistoryProxy.ts
+// to keep this file under the 400-line cap.
 
 // Convex caps array fields at 8192 elements. Tonal can return thousands of
 // set entries for some activities. Apply after every return path (fresh + cached).
