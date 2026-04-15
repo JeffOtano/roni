@@ -52,19 +52,31 @@ export const fetchWorkoutHistory = internalAction({
 
 /** Fetch one page of workout history at the given offset. Used by backfill to
  *  avoid loading all 1000+ workouts into one action's 64MB memory limit. */
+interface PageResult {
+  activities: Activity[];
+  pageSize: number;
+  pgTotal: number;
+}
+
+/** Fetch one page of workout history at the given offset. Cached by userId+offset
+ *  so backfill batching (20 items/invocation from a 200-item page) doesn't re-fetch. */
 export const fetchWorkoutHistoryPage = internalAction({
   args: { userId: v.id("users"), offset: v.number() },
-  handler: async (
-    ctx,
-    { userId, offset },
-  ): Promise<{ activities: Activity[]; pageSize: number; pgTotal: number }> =>
-    withTokenRetry(ctx, userId, async (token, tonalUserId) => {
-      const { items, pgTotal } = await fetchWorkoutActivitiesPage<WorkoutActivityDetail>(
-        token,
-        tonalUserId,
-        offset,
-      );
-      const activities = await enrichWorkoutActivities(ctx, token, items);
-      return { activities, pageSize: items.length, pgTotal };
-    }),
+  handler: async (ctx, { userId, offset }): Promise<PageResult> =>
+    withTokenRetry(ctx, userId, async (token, tonalUserId) =>
+      cachedFetch<PageResult>(ctx, {
+        userId,
+        dataType: `workoutPage:${offset}`,
+        ttl: CACHE_TTLS.workoutHistory,
+        fetcher: async () => {
+          const { items, pgTotal } = await fetchWorkoutActivitiesPage<WorkoutActivityDetail>(
+            token,
+            tonalUserId,
+            offset,
+          );
+          const activities = await enrichWorkoutActivities(ctx, token, items);
+          return { activities, pageSize: items.length, pgTotal };
+        },
+      }),
+    ),
 });
