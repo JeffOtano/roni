@@ -21,4 +21,9 @@ describe("normalizeTargetArea", () => {
   it("handles single word", () => {
     expect(normalizeTargetArea("core")).toBe("Core");
   });
+
+  it("returns Unknown for whitespace-only input", () => {
+    expect(normalizeTargetArea("   ")).toBe("Unknown");
+    expect(normalizeTargetArea("")).toBe("Unknown");
+  });
 });

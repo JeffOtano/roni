@@ -1,8 +1,9 @@
 export function normalizeTargetArea(area: string): string {
-  return area
+  const trimmed = area.trim();
+  if (!trimmed) return "Unknown";
+  return trimmed
     .toLowerCase()
     .split(/\s+/)
-    .filter(Boolean)
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(" ");
 }
