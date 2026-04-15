@@ -37,11 +37,17 @@ export default function NotFound() {
           <Button
             size="lg"
             className="shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
+            nativeButton={false}
             render={<Link href="/chat" />}
           >
             Go to Chat
           </Button>
-          <Button variant="outline" size="lg" render={<Link href="/dashboard" />}>
+          <Button
+            variant="outline"
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/dashboard" />}
+          >
             Dashboard
           </Button>
         </div>
