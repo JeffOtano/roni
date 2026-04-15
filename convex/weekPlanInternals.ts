@@ -14,6 +14,7 @@ import {
   preferredSplitValidator,
 } from "./weekPlanHelpers";
 import { blockInputValidator } from "./validators";
+import { normalizeBlocksAgainstCatalog } from "./coach/normalizeBlocks";
 
 /** Internal: get week plan by userId and weekStartDate (for cron/check-ins). */
 export const getByUserIdAndWeekStartInternal = internalQuery({
@@ -166,10 +167,11 @@ export const createDraftWorkoutInternal = internalMutation({
     estimatedDuration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, args.blocks);
     return await ctx.db.insert("workoutPlans", {
       userId: args.userId,
       title: args.title,
-      blocks: args.blocks,
+      blocks: normalizedBlocks,
       status: "draft",
       source: "tonal_coach",
       estimatedDuration: args.estimatedDuration,

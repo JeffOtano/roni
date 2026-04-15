@@ -10,6 +10,7 @@ import type { Doc } from "./_generated/dataModel";
 import type { EnrichedWeekPlan } from "./weekPlanEnriched";
 import type { Movement } from "./tonal/types";
 import { DAY_NAMES } from "./coach/weekProgrammingHelpers";
+import { TONAL_REST_MOVEMENT_ID } from "./tonal/transforms";
 
 // ---------------------------------------------------------------------------
 // Return types
@@ -19,6 +20,14 @@ export interface ScheduleExercise {
   name: string;
   sets: number;
   reps?: number;
+  durationSeconds?: number;
+  eccentric?: boolean;
+  chains?: boolean;
+  burnout?: boolean;
+  dropSet?: boolean;
+  spotter?: boolean;
+  /** Index (1-based) identifying the superset group this exercise belongs to. Undefined for straight sets. */
+  supersetGroup?: number;
 }
 
 export interface ScheduleDay {
@@ -97,11 +106,11 @@ export const getScheduleData = action({
       }
     }
 
-    // 4. Fetch movement catalog for name resolution
-    let movementMap = new Map<string, string>();
+    // 4. Fetch movement catalog for name + duration/rep resolution
+    let movementMap = new Map<string, { name: string; countReps: boolean }>();
     if (allMovementIds.size > 0) {
       const movements: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
-      movementMap = new Map(movements.map((m) => [m.id, m.name]));
+      movementMap = new Map(movements.map((m) => [m.id, { name: m.name, countReps: m.countReps }]));
     }
 
     // 5. Build schedule days
@@ -109,13 +118,36 @@ export const getScheduleData = action({
       const wp = day.workoutPlanId ? workoutPlans.get(day.workoutPlanId) : undefined;
       const exercises: ScheduleExercise[] = [];
 
+      let supersetCounter = 0;
       if (wp) {
         for (const block of wp.blocks) {
-          for (const ex of block.exercises) {
+          const nonRestExercises = block.exercises.filter(
+            (e) => e.movementId !== TONAL_REST_MOVEMENT_ID,
+          );
+          const supersetGroup = nonRestExercises.length >= 2 ? ++supersetCounter : undefined;
+          for (const ex of nonRestExercises) {
+            const movement = movementMap.get(ex.movementId);
+            // Prefer the stored field; fall back to catalog countReps only when both are absent.
+            const shape: { reps?: number; durationSeconds?: number } =
+              ex.duration != null
+                ? { durationSeconds: ex.duration }
+                : ex.reps != null
+                  ? { reps: ex.reps }
+                  : movement && !movement.countReps
+                    ? { durationSeconds: 30 }
+                    : movement && movement.countReps
+                      ? { reps: 10 }
+                      : {};
             exercises.push({
-              name: movementMap.get(ex.movementId) ?? ex.movementId,
+              name: movement?.name ?? ex.movementId,
               sets: ex.sets,
-              reps: ex.reps,
+              ...shape,
+              ...(ex.eccentric && { eccentric: true }),
+              ...(ex.chains && { chains: true }),
+              ...(ex.burnout && { burnout: true }),
+              ...(ex.dropSet && { dropSet: true }),
+              ...(ex.spotter && { spotter: true }),
+              ...(supersetGroup != null && { supersetGroup }),
             });
           }
         }
