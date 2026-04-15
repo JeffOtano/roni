@@ -101,6 +101,16 @@ export function throwIfByokError(error: unknown): void {
   if (code !== null) throw new Error(code);
 }
 
+export function isByokQuotaError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const status = (error as Error & { status?: number }).status;
+  if (status === 429) return true;
+  const lower = error.message.toLowerCase();
+  return (
+    lower.includes("resource_exhausted") || lower.includes("quota") || lower.includes("rate_limit")
+  );
+}
+
 // Sanitization is mandatory: Google AI error bodies can echo the decrypted key.
 export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
   try {
