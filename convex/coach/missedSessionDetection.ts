@@ -21,7 +21,19 @@ const EXTENDED_ABSENCE_THRESHOLD_DAYS = 7;
 // ---------------------------------------------------------------------------
 
 export interface DaySlot {
-  sessionType: "push" | "pull" | "legs" | "upper" | "lower" | "full_body" | "recovery" | "rest";
+  sessionType:
+    | "push"
+    | "pull"
+    | "legs"
+    | "upper"
+    | "lower"
+    | "full_body"
+    | "chest"
+    | "back"
+    | "shoulders"
+    | "arms"
+    | "recovery"
+    | "rest";
   status: "programmed" | "completed" | "missed" | "rescheduled";
   workoutPlanId?: string;
   estimatedDuration?: number;

@@ -87,7 +87,7 @@ export function weeklyProgramming(): string {
 - Rest guidance (manual, not in API): compounds 90-120s, isolation 60s, supersets 0s between exercises + 90s between rounds, warmup 30-45s.
 - Returning users: call program_week without params. Start over: delete_week_plan then program_week.
 - If the user changes their split, days, or duration mid-conversation, call program_week again with the updated parameters. NEVER try to manually construct a workout plan — program_week handles exercise selection, catalog validation, block grouping, progressive overload, and warmup/cooldown. You cannot replicate this.
-- program_week supports 1-7 training days and all split types (ppl, upper_lower, full_body). Any number of days works.`;
+- program_week supports 1-7 training days and all split types (ppl, upper_lower, full_body, bro_split). Any number of days works.`;
 }
 
 /** Returns the two-pass programming explanation guidelines. */
@@ -144,8 +144,23 @@ export function injuryManagement(): string {
 export function volumeAndRotation(): string {
   return `VOLUME & ROTATION:
 - Use get_weekly_volume: 10-20 sets/muscle/week for hypertrophy. Flag under/over-training.
+- For bodybuilding goals, target the upper end: 15-20 sets/muscle/week on priority groups, 10-15 on secondary groups.
 - Exercises auto-rotate across weeks (deprioritize last 2-3 weeks). Explain rotations when asked.
 - User preferences override rotation. If they want an exercise, include it.`;
+}
+
+/** Returns bodybuilding-specific coaching guidelines. */
+export function bodybuilding(): string {
+  return `BODYBUILDING MODE:
+- Apply this mode when the user's onboarding goal is "bodybuilding". Use bro_split: dedicated days for Chest, Back, Shoulders, Arms, Legs. Each session hammers one muscle group with high volume.
+- Rep scheme: 4 sets. Compounds at 6-10 reps (bench, row, squat), isolation finishers at 12-15 reps (curls, extensions, flys, lateral raises).
+- Volume targets: 15-20 working sets per primary/priority muscle group per week. For secondary/assist muscles, follow volumeAndRotation() guidance of 10-15 sets per week.
+- Flag anything below 12 as under-training only for primary/priority muscles; secondary muscle targets may be 10-15 sets as governed by volumeAndRotation().
+- Isolation emphasis: after 2-3 compound movements, include 2-3 isolation exercises per session. Don't just stop at compounds.
+- Eccentric and drop set modes are standard tools here, not advanced options. Use eccentric on isolation finishers (curls, extensions, flys), drop sets on the last set of a key lift when RPE is high.
+- Symmetry framing: reference weak points and balance. "Your back volume is trailing chest by 4 sets — let's fix that asymmetry."
+- Progressive overload still applies: track compound weights and push them. Bodybuilding isn't just chasing the pump.
+- Deload cadence: follow the standard 3-build / 1-deload mesocycle policy — never skip deloads. Check RPE trends to frame the deload as earned recovery, not lost momentum.`;
 }
 
 /** Returns the equipment constraints. */
@@ -284,6 +299,7 @@ export const ALL_SECTIONS = [
   goalTracking,
   injuryManagement,
   volumeAndRotation,
+  bodybuilding,
   equipment,
   trainingModes,
   imageAnalysis,
@@ -302,7 +318,7 @@ export const SECTION_NAMES = [
   "COACHING PRINCIPLES", "TOOL USAGE", "WEEKLY PROGRAMMING",
   "TWO-PASS PROGRAMMING", "PROGRESSIVE OVERLOAD", "POST-WORKOUT FEEDBACK",
   "PERIODIZATION", "GOAL TRACKING", "INJURY MANAGEMENT", "VOLUME & ROTATION",
-  "EQUIPMENT", "TRAINING MODES", "IMAGE ANALYSIS",
+  "BODYBUILDING MODE", "EQUIPMENT", "TRAINING MODES", "IMAGE ANALYSIS",
   "ACTIVATION FLOW (First Conversation)", "MISSED SESSIONS",
   "CONVERSATION PACING", "MEMORY", "WEEKLY PLAN PRESENTATION", "EXAMPLES",
 ] as const;

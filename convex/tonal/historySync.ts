@@ -20,6 +20,8 @@ import type {
 import type { performanceValidator, workoutValidator } from "./historySyncMutations";
 import { toUserProfileData } from "./profileData";
 import { persistNewTableData } from "./enrichmentSync";
+import { finalizeSuccessfulBackfill } from "./backfillCompletion";
+import { type BackfillUserHistoryArgs, backfillUserHistoryWithDeps } from "./backfillRunner";
 import * as analytics from "../lib/posthog";
 
 type WorkoutPayload = typeof workoutValidator.type;
@@ -127,8 +129,34 @@ async function fetchAndBuildPayloads(
 // Shared orchestration: diff, fetch details, persist, sync strength
 // ---------------------------------------------------------------------------
 
+/** Sync strength score history from the Tonal API. */
+async function syncStrengthOnly(ctx: ActionCtx, userId: Id<"users">): Promise<void> {
+  try {
+    const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
+      internal.tonal.proxy.fetchStrengthHistory,
+      { userId },
+    );
+    if (strengthHistory.length > 0) {
+      const snapshots = strengthHistory.map((entry) => ({
+        date: entry.activityTime.slice(0, 10),
+        overall: entry.overall,
+        upper: entry.upper,
+        lower: entry.lower,
+        core: entry.core,
+        workoutActivityId: entry.workoutActivityId || undefined,
+      }));
+      await ctx.runMutation(internal.tonal.historySyncMutations.persistStrengthSnapshots, {
+        userId,
+        snapshots,
+      });
+    }
+  } catch (err) {
+    console.error("[historySync] Strength history sync failed", err);
+  }
+}
+
 /**
- * Diff activities against DB, fetch details, persist, and sync strength scores.
+ * Diff activities against DB, fetch details, and persist.
  * When maxNew is set, only processes that many new activities per invocation.
  * Returns { synced, remaining } so the caller can schedule a continuation.
  */
@@ -165,34 +193,11 @@ async function syncActivitiesAndStrength(
     }
   }
 
-  // Sync strength score history (only on final batch or when no batching)
-  if (remaining === 0) {
-    try {
-      const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
-        internal.tonal.proxy.fetchStrengthHistory,
-        {
-          userId,
-        },
-      );
-      if (strengthHistory.length > 0) {
-        const snapshots = strengthHistory.map((entry) => ({
-          date: entry.activityTime.slice(0, 10),
-          overall: entry.overall,
-          upper: entry.upper,
-          lower: entry.lower,
-          core: entry.core,
-          workoutActivityId: entry.workoutActivityId || undefined,
-        }));
-        await ctx.runMutation(internal.tonal.historySyncMutations.persistStrengthSnapshots, {
-          userId,
-          snapshots,
-        });
-      }
-    } catch (err) {
-      console.error("[historySync] Strength history sync failed", err);
-    }
-
-    // Update high-water mark
+  // When maxNew is set, the caller (backfill) handles strength sync and
+  // high-water mark in its own finalize step. Only run them here for
+  // unbatched callers (incremental sync).
+  if (remaining === 0 && maxNew == null) {
+    await syncStrengthOnly(ctx, userId);
     if (activities.length > 0) {
       const newestDate = activities[activities.length - 1].activityTime.slice(0, 10);
       await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
@@ -230,9 +235,13 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
 export const syncUserHistory = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-    });
+    if (await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId })) return;
+    const activities: Activity[] = await ctx.runAction(
+      internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
+      {
+        userId,
+      },
+    );
 
     let synced = 0;
     if (activities.length > 0) {
@@ -255,101 +264,74 @@ export const syncUserHistory = internalAction({
   },
 });
 
-const BACKFILL_MAX_RETRIES = 3;
-const BACKFILL_RETRY_DELAYS = [30_000, 60_000, 120_000];
-const BACKFILL_BATCH_SIZE = 20;
-const BACKFILL_CONTINUATION_DELAY_MS = 5_000;
+/** Page-by-page backfill. Each invocation fetches one API page (200 items),
+ *  diffs against DB, processes up to 20 new workouts, then continues. */
+export async function backfillUserHistoryHandler(
+  ctx: ActionCtx,
+  { userId, retryCount = 0, pgOffset = 0, newestActivityDate }: BackfillUserHistoryArgs,
+): Promise<{ newWorkouts: number; totalActivities: number }> {
+  if (await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId })) {
+    return { newWorkouts: 0, totalActivities: 0 };
+  }
 
-/** Batched backfill on Tonal connect. Processes up to 20 new workouts per invocation,
- *  then schedules a continuation if more remain. Retries on failure. */
+  return backfillUserHistoryWithDeps(
+    {
+      userId,
+      retryCount,
+      pgOffset,
+      newestActivityDate,
+    },
+    {
+      setSyncingStatus: () =>
+        ctx.runMutation(internal.userProfiles.updateSyncStatus, {
+          userId,
+          syncStatus: "syncing",
+        }),
+      fetchWorkoutHistoryPage: ({ userId, offset }) =>
+        ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistoryPage, {
+          userId,
+          offset,
+        }) as Promise<{ activities: Activity[]; pageSize: number; pgTotal: number }>,
+      syncActivitiesAndStrength: (activities, maxNew) =>
+        syncActivitiesAndStrength(ctx, userId, activities, maxNew),
+      scheduleBackfill: (delayMs, args) =>
+        ctx.scheduler.runAfter(delayMs, internal.tonal.historySync.backfillUserHistory, args),
+      finalizeSuccessfulBackfill: (args) =>
+        finalizeSuccessfulBackfill(args, {
+          updateLastSyncedActivityDate: (args) =>
+            ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, args),
+          syncStrengthOnly: () => syncStrengthOnly(ctx, userId),
+          persistNewTableData: () => persistNewTableData(ctx, userId),
+          maybeRefreshProfile: () => maybeRefreshProfile(ctx, userId),
+          updateSyncStatus: (args) => ctx.runMutation(internal.userProfiles.updateSyncStatus, args),
+          captureHistorySyncCompleted: (props) =>
+            analytics.capture(userId, "history_sync_completed", props),
+          flushAnalytics: () => analytics.flush(),
+          logWarning: (message) => console.warn(message),
+        }),
+      markFailed: () =>
+        ctx.runMutation(internal.userProfiles.updateSyncStatus, {
+          userId,
+          syncStatus: "failed",
+        }),
+      notifyBackfillFailed: (message) =>
+        ctx.runAction(internal.discord.notifyError, {
+          source: "backfillUserHistory",
+          message,
+          userId,
+        }),
+      logInfo: (message) => console.log(message),
+      logError: (message, error) => console.error(message, error),
+    },
+  );
+}
+
 export const backfillUserHistory = internalAction({
-  args: { userId: v.id("users"), retryCount: v.optional(v.number()) },
-  handler: async (
-    ctx,
-    { userId, retryCount = 0 },
-  ): Promise<{ newWorkouts: number; totalActivities: number }> => {
-    if (retryCount === 0) {
-      await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
-        userId,
-        syncStatus: "syncing",
-      });
-    }
-
-    try {
-      const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-        userId,
-        mode: "full",
-      });
-
-      let synced = 0;
-      let remaining = 0;
-      if (activities.length > 0) {
-        const result = await syncActivitiesAndStrength(
-          ctx,
-          userId,
-          activities,
-          BACKFILL_BATCH_SIZE,
-        );
-        synced = result.synced;
-        remaining = result.remaining;
-      }
-
-      if (remaining > 0) {
-        console.log(
-          `[historySync] Backfilled batch of ${synced} workouts, ${remaining} remaining for user ${userId}`,
-        );
-        await ctx.scheduler.runAfter(
-          BACKFILL_CONTINUATION_DELAY_MS,
-          internal.tonal.historySync.backfillUserHistory,
-          { userId, retryCount },
-        );
-        return { newWorkouts: synced, totalActivities: activities.length };
-      }
-
-      const enrichmentFailures = await persistNewTableData(ctx, userId);
-
-      await maybeRefreshProfile(ctx, userId);
-
-      await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
-        userId,
-        syncStatus: enrichmentFailures >= 3 ? "failed" : "complete",
-      });
-
-      console.log(
-        `[historySync] Backfill complete: ${synced}/${activities.length} workouts for user ${userId}`,
-      );
-
-      analytics.capture(userId, "history_sync_completed", {
-        new_workouts: synced,
-        backfill: true,
-      });
-      await analytics.flush();
-
-      return { newWorkouts: synced, totalActivities: activities.length };
-    } catch (err) {
-      console.error(`[historySync] Backfill failed (attempt ${retryCount + 1})`, err);
-
-      if (retryCount < BACKFILL_MAX_RETRIES) {
-        const delay = BACKFILL_RETRY_DELAYS[retryCount] ?? 120_000;
-        await ctx.scheduler.runAfter(delay, internal.tonal.historySync.backfillUserHistory, {
-          userId,
-          retryCount: retryCount + 1,
-        });
-        return { newWorkouts: 0, totalActivities: 0 };
-      }
-
-      await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
-        userId,
-        syncStatus: "failed",
-      });
-
-      void ctx.runAction(internal.discord.notifyError, {
-        source: "backfillUserHistory",
-        message: `Backfill failed after ${BACKFILL_MAX_RETRIES + 1} attempts for user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
-        userId,
-      });
-
-      return { newWorkouts: 0, totalActivities: 0 };
-    }
+  args: {
+    userId: v.id("users"),
+    retryCount: v.optional(v.number()),
+    pgOffset: v.optional(v.number()),
+    newestActivityDate: v.optional(v.string()),
   },
+  handler: async (ctx, args) => backfillUserHistoryHandler(ctx, args),
 });

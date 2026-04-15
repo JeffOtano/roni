@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { preferredSplitValidator } from "./weekPlanHelpers";
 
 const profileDataValidator = v.object({
   firstName: v.string(),
@@ -170,7 +171,7 @@ export const getUserWithValidToken = internalQuery({
 });
 
 const trainingPreferencesArgs = {
-  preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+  preferredSplit: preferredSplitValidator,
   trainingDays: v.array(v.number()),
   sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
 } as const;
@@ -215,7 +216,7 @@ export const completeOnboarding = mutation({
   args: {
     goal: v.string(),
     injuries: v.optional(v.string()),
-    preferredSplit: v.union(v.literal("ppl"), v.literal("upper_lower"), v.literal("full_body")),
+    preferredSplit: preferredSplitValidator,
     trainingDays: v.array(v.number()),
     sessionDurationMinutes: v.union(v.literal(30), v.literal(45), v.literal(60)),
   },

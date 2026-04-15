@@ -6,6 +6,7 @@ export const SPLIT_OPTIONS = [
   { value: "ppl", label: "Push / Pull / Legs" },
   { value: "upper_lower", label: "Upper / Lower" },
   { value: "full_body", label: "Full Body" },
+  { value: "bro_split", label: "Bro Split (Chest / Back / Shoulders / Arms / Legs)" },
 ] as const;
 
 export type SplitValue = (typeof SPLIT_OPTIONS)[number]["value"];

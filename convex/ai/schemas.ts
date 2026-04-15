@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const weekPlanPresentationSchema = z.object({
   weekStartDate: z.string(),
-  split: z.enum(["ppl", "upper_lower", "full_body"]),
+  split: z.enum(["ppl", "upper_lower", "full_body", "bro_split"]),
   days: z.array(
     z.object({
       dayName: z.string(),

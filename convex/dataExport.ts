@@ -3,8 +3,9 @@ import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import * as analytics from "./lib/posthog";
 import type { Activity } from "./tonal/types";
+import type { JsonExportSectionKey } from "./userData";
 
-interface ExportedData {
+interface ExportedData extends Record<JsonExportSectionKey | "exportedAt" | "user", unknown> {
   exportedAt: string;
   user: { email: string | null; name: string | null };
   profile: {
@@ -101,7 +102,7 @@ export const exportData = action({
       try {
         const [knownIds, activities] = await Promise.all([
           ctx.runQuery(internal.dataExport.getKnownActivityIds, { userId }) as Promise<string[]>,
-          ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+          ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
             userId,
           }) as Promise<Activity[]>,
         ]);

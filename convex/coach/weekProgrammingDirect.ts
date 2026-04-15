@@ -16,13 +16,14 @@ import {
 import { selectExercises } from "./exerciseSelection";
 import type { Movement } from "../tonal/types";
 import {
-  blocksFromMovementIds,
   DEFAULT_MAX_EXERCISES,
   SESSION_DURATION_TO_MAX_EXERCISES,
   SESSION_TYPE_MUSCLES,
 } from "./weekProgrammingHelpers";
+import { blocksFromMovementIds } from "./workoutBlocks";
 import type { SessionType } from "./weekProgrammingHelpers";
 import { fetchAndComputePlanData } from "./weekProgramming";
+import type { RepSetScheme } from "./goalConfig";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +42,7 @@ type CreatePlanResult =
       sessionDurationMinutes: number;
       weekStartDate: string;
       userId: Id<"users">;
+      goalScheme: RepSetScheme;
     };
 
 // ---------------------------------------------------------------------------
@@ -52,7 +54,7 @@ async function createPlanPhase(
   args: {
     userId: Id<"users">;
     weekStartDate?: string;
-    preferredSplit?: "ppl" | "upper_lower" | "full_body";
+    preferredSplit?: "ppl" | "upper_lower" | "full_body" | "bro_split";
     targetDays?: number;
     sessionDurationMinutes?: 30 | 45 | 60;
   },
@@ -98,6 +100,7 @@ async function createPlanPhase(
     sessionDurationMinutes,
     weekStartDate,
     userId: args.userId,
+    goalScheme: data.goalScheme,
   };
 }
 
@@ -116,6 +119,7 @@ async function fillWorkoutsPhase(
     sessionDurationMinutes,
     weekStartDate,
     userId,
+    goalScheme,
   } = plan;
 
   for (const { dayIndex, sessionType } of daySessions) {
@@ -147,6 +151,7 @@ async function fillWorkoutsPhase(
 
     const blocks = blocksFromMovementIds(movementIds, suggestions, {
       catalog,
+      goalScheme,
     });
     const title = `${sessionType.replaceAll("_", " ")} – ${weekStartDate} day ${dayIndex + 1}`;
     const result = (await ctx.runAction(internal.tonal.mutations.createWorkout, {

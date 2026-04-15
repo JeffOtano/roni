@@ -84,10 +84,13 @@ export const getProgressMetrics = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: 50,
-    })) as Activity[];
+    const activities = (await ctx.runAction(
+      internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
+      {
+        userId,
+        limit: 50,
+      },
+    )) as Activity[];
 
     return computeProgressMetrics(activities);
   },

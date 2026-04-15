@@ -92,13 +92,15 @@ export const getWorkoutDetail = action({
       }
     }
 
-    // Enrich sets with movement name and muscle groups
+    // StraightBar avgWeight is per-motor; double it to get the actual bar weight.
     const enrichedSets = (typedDetail.workoutSetActivity ?? []).map((set) => {
       const movement = movementMap.get(set.movementId);
+      const isStraightBar = movement?.onMachineInfo?.accessory === "StraightBar";
       return {
         ...set,
         movementName: movement?.name ?? null,
         muscleGroups: movement?.muscleGroups ?? [],
+        avgWeight: isStraightBar && set.avgWeight != null ? set.avgWeight * 2 : set.avgWeight,
       };
     });
 
@@ -238,7 +240,7 @@ export const getWorkoutHistoryFull = action({
 
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
 
-    const all = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+    const all = (await ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
       userId,
     })) as Activity[];
 

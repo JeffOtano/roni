@@ -65,7 +65,7 @@ async function evaluateGap3Days(
   userId: Id<"users">,
   now: number,
 ): Promise<TriggerResult | null> {
-  const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+  const activities = (await ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
     userId,
     limit: 5,
   })) as Activity[];
@@ -218,7 +218,7 @@ async function evaluateConsistencyStreak(
 ): Promise<TriggerResult | null> {
   const threeWeeksAgo = new Date(now - 21 * 24 * 60 * 60 * 1000);
 
-  const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+  const activities = (await ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
     userId,
     limit: 30,
   })) as Activity[];
@@ -284,7 +284,7 @@ export const evaluateTriggersForUser = internalAction({
     // Performance triggers share one expensive call
     const [summary, activities] = await Promise.all([
       ctx.runAction(internal.progressiveOverload.getWorkoutPerformanceSummary, { userId }),
-      ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, { userId, limit: 1 }),
+      ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, { userId, limit: 1 }),
     ]);
     const latestActivity =
       (activities as Activity[]).length > 0 ? (activities as Activity[])[0] : null;

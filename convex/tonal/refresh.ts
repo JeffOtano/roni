@@ -14,6 +14,7 @@ export const TONAL_REFRESH_CACHE_KEYS = [
   "strengthDistribution",
   "strengthHistory",
   "muscleReadiness",
+  "workoutHistory_v3",
   "workoutHistory:1",
   "workoutHistory:20",
   "workoutHistory:50",
@@ -123,7 +124,8 @@ export const forceRefreshUserData = internalAction({
       fetchUserProfile: (args) => ctx.runAction(internal.tonal.proxy.fetchUserProfile, args),
       fetchStrengthDistribution: (args) =>
         ctx.runAction(internal.tonal.proxy.fetchStrengthDistribution, args),
-      fetchWorkoutHistory: (args) => ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, args),
+      fetchWorkoutHistory: (args) =>
+        ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, args),
       fetchExternalActivities: (args) =>
         ctx.runAction(internal.tonal.proxy.fetchExternalActivities, args),
       updateProfileData: (args) => ctx.runMutation(internal.userProfiles.updateProfileData, args),

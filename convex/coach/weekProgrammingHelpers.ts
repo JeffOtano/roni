@@ -4,9 +4,6 @@
  */
 
 import type { Id } from "../_generated/dataModel";
-import type { BlockInput, ExerciseInput, MovementCatalogEntry } from "../tonal/transforms";
-import { TONAL_REST_MOVEMENT_ID } from "../tonal/transforms";
-import { DELOAD_REPS, DELOAD_SET_MULTIPLIER } from "../coach/periodization";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -50,13 +47,6 @@ export const SESSION_TYPE_MUSCLES: Record<string, string[]> = {
   recovery: [],
 };
 
-export const DEFAULT_REPS = 10;
-
-/** Rest durations in seconds by exercise type. */
-const REST_DURATION_COMPOUND = 90;
-const REST_DURATION_ISOLATION = 60;
-const REST_DURATION_WARMUP = 30;
-
 /** Warmup/cooldown exercise counts per duration tier. */
 export const WARMUP_COOLDOWN_COUNTS: Record<number, { warmup: number; cooldown: number }> = {
   30: { warmup: 1, cooldown: 1 },
@@ -65,11 +55,6 @@ export const WARMUP_COOLDOWN_COUNTS: Record<number, { warmup: number; cooldown: 
 };
 
 export const DEFAULT_WARMUP_COOLDOWN = { warmup: 2, cooldown: 1 };
-
-const WARMUP_REPS = 15;
-const WARMUP_SETS = 2;
-const COOLDOWN_REPS = 12;
-const COOLDOWN_SETS = 2;
 
 export const DAY_NAMES = [
   "Monday",
@@ -85,7 +70,17 @@ export const DAY_NAMES = [
 // Types
 // ---------------------------------------------------------------------------
 
-export type SessionType = "push" | "pull" | "legs" | "upper" | "lower" | "full_body";
+export type SessionType =
+  | "push"
+  | "pull"
+  | "legs"
+  | "upper"
+  | "lower"
+  | "full_body"
+  | "chest"
+  | "back"
+  | "shoulders"
+  | "arms";
 
 export interface ExerciseSummary {
   movementId: string;
@@ -134,7 +129,7 @@ export function getTrainingDayIndices(targetDays: number): number[] {
 
 /** Session types for the week for a given split (one per training day in order). */
 export function getSessionTypesForSplit(
-  split: "ppl" | "upper_lower" | "full_body",
+  split: "ppl" | "upper_lower" | "full_body" | "bro_split",
   trainingDayIndices: number[],
 ): { dayIndex: number; sessionType: SessionType }[] {
   if (split === "ppl") {
@@ -149,6 +144,16 @@ export function getSessionTypesForSplit(
     return trainingDayIndices.map((dayIndex, i) => ({
       dayIndex,
       sessionType: types[i % 2],
+    }));
+  }
+  if (split === "bro_split") {
+    // Classic bodybuilding body-part split: chest → back → shoulders → arms → legs.
+    // Capped at 5 days — there are only 5 distinct body parts, so days beyond that
+    // become rest days rather than cycling back to chest.
+    const types: SessionType[] = ["chest", "back", "shoulders", "arms", "legs"];
+    return trainingDayIndices.slice(0, types.length).map((dayIndex, i) => ({
+      dayIndex,
+      sessionType: types[i],
     }));
   }
   return trainingDayIndices.map((dayIndex) => ({
@@ -166,152 +171,13 @@ export function parseUserLevel(level: string | undefined): number {
   return 1;
 }
 
-/**
- * Build blocks for Tonal, grouped by accessory type with 2-exercise superset blocks.
- *
- * Exercises are grouped by their onMachineInfo.accessory value so the user minimizes
- * equipment switching. Within each accessory group, exercises are paired into 2-exercise
- * superset blocks. An odd exercise in a group gets its own straight-set block.
- * Accessory groups are ordered to match the input exercise order (which is already sorted
- * by accessory via sortForMinimalEquipmentSwitches).
- */
-/** Default duration (seconds) for timed/isometric exercises. */
-const DEFAULT_DURATION_SECONDS = 30;
-
-/** Sentinel for exercises without onMachineInfo (bodyweight/off-machine). */
-const BODYWEIGHT_ACCESSORY = "__bodyweight__";
-
-export function blocksFromMovementIds(
-  movementIds: string[],
-  suggestions?: { movementId: string; suggestedReps?: number }[],
-  options?: {
-    isDeload?: boolean;
-    /** Catalog lookup — countReps for duration detection, onMachineInfo for accessory grouping. */
-    catalog?: (MovementCatalogEntry & { onMachineInfo?: { accessory: string } })[];
-  },
-): BlockInput[] {
-  if (movementIds.length === 0) return [];
-
-  const repsByMovement = new Map<string, number>();
-  for (const s of suggestions ?? []) {
-    if (s.suggestedReps != null) {
-      repsByMovement.set(s.movementId, s.suggestedReps);
-    }
-  }
-  const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
-  const normalSets = 3;
-  const baseSets = options?.isDeload ? Math.round(normalSets * DELOAD_SET_MULTIPLIER) : normalSets;
-
-  // Group movement IDs by accessory, preserving input order for group ordering.
-  const groupOrder: string[] = [];
-  const groupedByAccessory = new Map<string, string[]>();
-  for (const movementId of movementIds) {
-    const movement = catalogMap.get(movementId);
-    const accessory = movement?.onMachineInfo?.accessory ?? BODYWEIGHT_ACCESSORY;
-    if (!groupedByAccessory.has(accessory)) {
-      groupOrder.push(accessory);
-      groupedByAccessory.set(accessory, []);
-    }
-    groupedByAccessory.get(accessory)!.push(movementId);
-  }
-
-  const buildExercise = (movementId: string) => {
-    const movement = catalogMap.get(movementId);
-    const isDurationBased = movement ? !movement.countReps : false;
-    if (isDurationBased) {
-      return { movementId, sets: baseSets, duration: DEFAULT_DURATION_SECONDS };
-    }
-    return {
-      movementId,
-      sets: baseSets,
-      reps: options?.isDeload ? DELOAD_REPS : (repsByMovement.get(movementId) ?? DEFAULT_REPS),
-    };
-  };
-
-  // Build 2-exercise superset blocks within each accessory group.
-  const blocks: BlockInput[] = [];
-  for (const accessory of groupOrder) {
-    const ids = groupedByAccessory.get(accessory)!;
-    for (let i = 0; i < ids.length; i += 2) {
-      const pair = ids.slice(i, i + 2);
-      const exercises = pair.map(buildExercise);
-
-      // Inject rest into straight-set blocks (single exercise).
-      // Supersets provide natural recovery via exercise alternation.
-      if (exercises.length === 1) {
-        const movement = catalogMap.get(pair[0]);
-        const isCompound = (movement?.muscleGroups?.length ?? 0) >= 2;
-        exercises.push({
-          movementId: TONAL_REST_MOVEMENT_ID,
-          sets: exercises[0].sets,
-          duration: isCompound ? REST_DURATION_COMPOUND : REST_DURATION_ISOLATION,
-        });
-      }
-
-      blocks.push({ exercises });
-    }
-  }
-
-  return blocks;
-}
-
-/**
- * Build a warmup block. Each exercise gets warmUp: true flag (Tonal renders at 50% weight).
- */
-export function warmupBlockFromMovementIds(
-  movementIds: string[],
-  options?: { catalog?: { id: string; countReps: boolean }[] },
-): BlockInput[] {
-  if (movementIds.length === 0) return [];
-  const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
-  const exercises: ExerciseInput[] = movementIds.map((movementId) => {
-    const movement = catalogMap.get(movementId);
-    const isDurationBased = movement ? !movement.countReps : false;
-    if (isDurationBased) {
-      return {
-        movementId,
-        sets: WARMUP_SETS,
-        duration: DEFAULT_DURATION_SECONDS,
-        warmUp: true,
-      };
-    }
-    return { movementId, sets: WARMUP_SETS, reps: WARMUP_REPS, warmUp: true };
-  });
-
-  // Inject rest into single-exercise warmup blocks.
-  // Multi-exercise blocks are supersets with natural recovery via alternation.
-  if (exercises.length === 1) {
-    exercises.push({
-      movementId: TONAL_REST_MOVEMENT_ID,
-      sets: WARMUP_SETS,
-      duration: REST_DURATION_WARMUP,
-    });
-  }
-
-  return [{ exercises }];
-}
-
-/**
- * Build a cooldown block. Lower sets, moderate reps, no warmUp flag.
- */
-export function cooldownBlockFromMovementIds(
-  movementIds: string[],
-  options?: { catalog?: { id: string; countReps: boolean }[] },
-): BlockInput[] {
-  if (movementIds.length === 0) return [];
-  const catalogMap = new Map((options?.catalog ?? []).map((m) => [m.id, m]));
-  return [
-    {
-      exercises: movementIds.map((movementId) => {
-        const movement = catalogMap.get(movementId);
-        const isDurationBased = movement ? !movement.countReps : false;
-        if (isDurationBased) {
-          return { movementId, sets: COOLDOWN_SETS, duration: DEFAULT_DURATION_SECONDS };
-        }
-        return { movementId, sets: COOLDOWN_SETS, reps: COOLDOWN_REPS };
-      }),
-    },
-  ];
+export function formatSessionTitle(
+  sessionType: SessionType,
+  _weekStartDate: string,
+  dayIndex: number,
+): string {
+  const label = sessionType.replaceAll("_", " ");
+  return `${label.charAt(0).toUpperCase() + label.slice(1)} – ${DAY_NAMES[dayIndex]}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -325,6 +191,9 @@ const ARM_POSITION_ORDER: Record<ArmPosition, number> = { low: 0, mid: 1, high: 
 
 const HIGH_PATTERNS = /pulldown|face pull|overhead|skull.?crush|high.?pull|lat.?raise/i;
 const LOW_PATTERNS = /deadlift|rdl|squat|lunge|calf|leg press|hip|step.?up|goblet/i;
+
+/** Sentinel for exercises without onMachineInfo (bodyweight/off-machine). */
+const BODYWEIGHT_ACCESSORY = "__bodyweight__";
 
 /**
  * Infer arm position from exercise name and muscle groups.
@@ -386,13 +255,4 @@ export function sortForMinimalEquipmentSwitches(
     const posB = mb ? ARM_POSITION_ORDER[inferArmPosition(mb)] : 1;
     return posA - posB;
   });
-}
-
-export function formatSessionTitle(
-  sessionType: SessionType,
-  _weekStartDate: string,
-  dayIndex: number,
-): string {
-  const label = sessionType.replaceAll("_", " ");
-  return `${label.charAt(0).toUpperCase() + label.slice(1)} – ${DAY_NAMES[dayIndex]}`;
 }

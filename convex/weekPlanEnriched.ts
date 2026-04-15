@@ -170,7 +170,7 @@ export const getWeekPlanEnriched = action({
     // (schedule still renders, just without live completion-status updates).
     const activities = await safeActivities(
       () =>
-        ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+        ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
           userId,
           limit: 20,
         }) as Promise<Activity[]>,

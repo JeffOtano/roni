@@ -159,6 +159,20 @@ const FAQ_CATEGORIES: FaqCategory[] = [
         ),
       },
       {
+        q: "Can the coach program dynamic weight modes (eccentric, chains, burnout)?",
+        aText:
+          'Yes. Just ask. The coach can add Tonal\'s dynamic modes — eccentric (slow negatives), chains (progressive resistance), spotter, burnout (AMRAP), and drop sets — to any exercise it programs. Try something like "add eccentrics to my next leg day" or "put chains on bench this week." SmartFlex is handled automatically by the Tonal hardware and can\'t be toggled via the API.',
+        a: (
+          <>
+            Yes. Just ask. The coach can add Tonal&apos;s dynamic modes — eccentric (slow
+            negatives), chains (progressive resistance), spotter, burnout (AMRAP), and drop sets —
+            to any exercise it programs. Try something like &ldquo;add eccentrics to my next leg
+            day&rdquo; or &ldquo;put chains on bench this week.&rdquo; SmartFlex is handled
+            automatically by the Tonal hardware and can&apos;t be toggled via the API.
+          </>
+        ),
+      },
+      {
         q: "Does it handle injuries?",
         aText:
           "Yes. Flag any injuries or physical limitations during onboarding and the AI will avoid contraindicated movements and substitute safe alternatives. You can update your injury list at any time from settings, and the coach will adjust immediately.",

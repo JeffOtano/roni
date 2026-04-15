@@ -27,10 +27,10 @@ export const programWeekTool = createTool({
   description: `Program the user's full training week. Creates draft workouts for each training day based on their split, available days, and session duration. Returns a summary of the full week plan with exercises, sets, reps, and progressive overload targets. The plan is NOT pushed to Tonal yet — present it to the user for approval first, then use approve_week_plan. If the user already has saved preferences, you can omit the parameters to use their saved preferences.`,
   inputSchema: z.object({
     preferredSplit: z
-      .enum(["ppl", "upper_lower", "full_body"])
+      .enum(["ppl", "upper_lower", "full_body", "bro_split"])
       .optional()
       .describe(
-        "Training split. ppl = Push/Pull/Legs, upper_lower = Upper/Lower, full_body = Full Body. Omit to use saved preferences.",
+        "Training split. ppl = Push/Pull/Legs, upper_lower = Upper/Lower, full_body = Full Body, bro_split = Bodybuilding body-part split (Chest/Back/Shoulders/Arms/Legs). Omit to use saved preferences.",
       ),
     trainingDays: z
       .array(z.number().int().min(0).max(6))
@@ -71,7 +71,7 @@ export const programWeekTool = createTool({
       const saved = (await ctx.runQuery(internal.userProfiles.getTrainingPreferencesInternal, {
         userId,
       })) as {
-        preferredSplit?: "ppl" | "upper_lower" | "full_body";
+        preferredSplit?: "ppl" | "upper_lower" | "full_body" | "bro_split";
         trainingDays?: number[];
         sessionDurationMinutes?: number;
       } | null;

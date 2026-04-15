@@ -81,20 +81,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setReconnectDismissed = (v: boolean) =>
     setDismissState({ key: tokenExpiredKey, dismissed: v });
 
-  const needsLogin = !authLoading && !isAuthenticated;
-  const needsOnboarding = !!me && (!me.hasTonalProfile || !me.onboardingCompleted);
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (needsLogin) router.replace("/login");
-    else if (needsOnboarding) router.replace("/onboarding");
-  }, [needsLogin, needsOnboarding, router]);
+    if (me && (!me.hasTonalProfile || !me.onboardingCompleted)) {
+      router.replace("/onboarding");
+    }
+  }, [me, router]);
 
-  if (authLoading || (isAuthenticated && me === undefined) || needsLogin || needsOnboarding) {
+  if (authLoading || (isAuthenticated && me === undefined)) {
     return (
       <div className="flex h-dvh items-center justify-center bg-background">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (!isAuthenticated || (me && (!me.hasTonalProfile || !me.onboardingCompleted))) {
+    return null;
   }
 
   return (

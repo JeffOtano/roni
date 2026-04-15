@@ -22,8 +22,6 @@ import type { ExerciseSelectionInput } from "./exerciseSelection";
 import type { Movement } from "../tonal/types";
 import { computeExcludedAccessories } from "../tonal/accessories";
 import {
-  blocksFromMovementIds,
-  cooldownBlockFromMovementIds,
   DAY_NAMES,
   DEFAULT_MAX_EXERCISES,
   DEFAULT_WARMUP_COOLDOWN,
@@ -35,9 +33,15 @@ import {
   SESSION_TYPE_MUSCLES,
   sortForMinimalEquipmentSwitches,
   WARMUP_COOLDOWN_COUNTS,
-  warmupBlockFromMovementIds,
 } from "./weekProgrammingHelpers";
+import {
+  blocksFromMovementIds,
+  cooldownBlockFromMovementIds,
+  warmupBlockFromMovementIds,
+} from "./workoutBlocks";
 import type { DraftDaySummary, DraftWeekSummary, SessionType } from "./weekProgrammingHelpers";
+import { goalStringToRepSetScheme } from "./goalConfig";
+import type { RepSetScheme } from "./goalConfig";
 
 export type { DraftWeekSummary } from "./weekProgrammingHelpers";
 
@@ -48,7 +52,7 @@ export type { DraftWeekSummary } from "./weekProgrammingHelpers";
 export async function fetchAndComputePlanData(
   ctx: ActionCtx,
   userId: Id<"users">,
-  preferredSplit: "ppl" | "upper_lower" | "full_body",
+  preferredSplit: "ppl" | "upper_lower" | "full_body" | "bro_split",
   targetDays: number,
 ): Promise<{
   catalog: Movement[];
@@ -57,6 +61,7 @@ export async function fetchAndComputePlanData(
   constraints: ExerciseSelectionInput["constraints"];
   daySessions: { dayIndex: number; sessionType: SessionType }[];
   initialDays: { sessionType: SessionType | "rest"; status: "programmed" }[];
+  goalScheme: RepSetScheme;
 }> {
   const [profile, catalog, lastUsedMovementIds, activeInjuries]: [
     Doc<"userProfiles"> | null,
@@ -94,6 +99,7 @@ export async function fetchAndComputePlanData(
     },
     daySessions,
     initialDays,
+    goalScheme: goalStringToRepSetScheme(profile?.onboardingData?.goal),
   };
 }
 
@@ -226,7 +232,10 @@ export const generateDraftWeekPlan = internalAction({
       }
 
       const warmupBlocks = warmupBlockFromMovementIds(warmupIds, { catalog });
-      const mainBlocks = blocksFromMovementIds(movementIds, suggestions, { catalog });
+      const mainBlocks = blocksFromMovementIds(movementIds, suggestions, {
+        catalog,
+        goalScheme: data.goalScheme,
+      });
       const cooldownBlocks = cooldownBlockFromMovementIds(cooldownIds, { catalog });
       const blocks = [...warmupBlocks, ...mainBlocks, ...cooldownBlocks];
       const title = formatSessionTitle(sessionType, weekStartDate, dayIndex);
