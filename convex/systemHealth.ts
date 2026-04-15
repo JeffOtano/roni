@@ -22,7 +22,8 @@ export const isCircuitOpen = internalQuery({
   },
 });
 
-/** Record a successful API call. Resets failure count and closes circuit. */
+/** Record a successful API call. Only writes when state changes (circuit was
+ *  open or no record exists) to avoid OCC contention under concurrent load. */
 export const recordSuccess = internalMutation({
   args: { service: v.string() },
   handler: async (ctx, { service }) => {
@@ -31,29 +32,28 @@ export const recordSuccess = internalMutation({
       .withIndex("by_service", (q) => q.eq("service", service))
       .unique();
 
-    const now = Date.now();
-
     if (!health) {
       await ctx.db.insert("systemHealth", {
         service,
         consecutiveFailures: 0,
         circuitOpen: false,
-        lastSuccessAt: now,
+        lastSuccessAt: Date.now(),
       });
       return;
     }
 
-    const updates: Record<string, unknown> = {
+    // Skip write when circuit is already closed and healthy
+    if (!health.circuitOpen && health.consecutiveFailures === 0) return;
+
+    await ctx.db.patch(health._id, {
       consecutiveFailures: 0,
-      lastSuccessAt: now,
-    };
+      circuitOpen: false,
+      lastSuccessAt: Date.now(),
+    });
 
     if (health.circuitOpen) {
-      updates.circuitOpen = false;
       console.log(`[circuitBreaker] Circuit CLOSED for ${service} - API recovered`);
     }
-
-    await ctx.db.patch(health._id, updates);
   },
 });
 
