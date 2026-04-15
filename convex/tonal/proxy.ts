@@ -263,21 +263,24 @@ export const fetchWorkoutHistory = internalAction({
   },
   handler: async (ctx, { userId, limit }): Promise<Activity[]> =>
     withTokenRetry(ctx, userId, async (token, tonalUserId) => {
-      const items = await cachedFetch<WorkoutActivityDetail[]>(ctx, {
+      // Cache the lightweight Activity[] (no per-set data) instead of the
+      // raw WorkoutActivityDetail[] which can exceed 16 MiB for heavy users.
+      const activities = await cachedFetch<Activity[]>(ctx, {
         userId,
         dataType: "workoutHistory_v3",
         ttl: CACHE_TTLS.workoutHistory,
-        fetcher: () => fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId),
+        fetcher: async () => {
+          const items = await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
+          if (items.length === 0) return [];
+
+          const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
+          const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
+
+          // API returns oldest-first; reverse so callers get newest-first
+          return items.map((wa) => toActivity(wa, meta.get(wa.workoutId))).reverse();
+        },
       });
 
-      if (items.length === 0) return [];
-
-      // Enrich with title/targetArea from workout catalog
-      const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
-      const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
-
-      // API returns oldest-first; reverse so callers get newest-first
-      const activities = items.map((wa) => toActivity(wa, meta.get(wa.workoutId))).reverse();
       return limit != null ? activities.slice(0, limit) : activities;
     }),
 });
