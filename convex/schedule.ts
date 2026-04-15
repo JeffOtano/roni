@@ -113,15 +113,18 @@ export const getScheduleData = action({
       movementMap = new Map(movements.map((m) => [m.id, { name: m.name, countReps: m.countReps }]));
     }
 
-    // 5. Resolve display shape for an exercise (reps vs duration)
+    // 5. Resolve display shape for an exercise (reps vs duration).
+    //    Catalog countReps is authoritative (matches push path in transforms.ts).
     function resolveShape(
       ex: { reps?: number; duration?: number },
       movement?: { countReps: boolean },
     ): { reps?: number; durationSeconds?: number } {
+      if (movement) {
+        if (!movement.countReps) return { durationSeconds: ex.duration ?? 30 };
+        return { reps: ex.reps ?? 10 };
+      }
       if (ex.duration != null) return { durationSeconds: ex.duration };
       if (ex.reps != null) return { reps: ex.reps };
-      if (movement && !movement.countReps) return { durationSeconds: 30 };
-      if (movement && movement.countReps) return { reps: 10 };
       return {};
     }
 
