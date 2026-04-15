@@ -4,6 +4,7 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 import { Sparkles, X } from "lucide-react";
 
 const STORAGE_KEY = "roni-oss-banner-dismissed";
+const LEGACY_STORAGE_KEY = "tonal-coach-oss-banner-dismissed";
 
 function subscribe() {
   return () => {};
@@ -11,7 +12,10 @@ function subscribe() {
 
 function getClientSnapshot(): boolean {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "true";
+    return (
+      window.localStorage.getItem(STORAGE_KEY) === "true" ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY) === "true"
+    );
   } catch {
     return false;
   }

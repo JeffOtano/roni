@@ -5,6 +5,7 @@ import { OpenSourceBanner } from "./OpenSourceBanner";
 
 const REPO_URL = "https://github.com/example/roni";
 const STORAGE_KEY = "roni-oss-banner-dismissed";
+const LEGACY_STORAGE_KEY = "tonal-coach-oss-banner-dismissed";
 
 describe("OpenSourceBanner", () => {
   beforeEach(() => {
@@ -63,6 +64,17 @@ describe("OpenSourceBanner", () => {
       expect(screen.queryByText(/roni is now open source/i)).not.toBeInTheDocument();
     });
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("true");
+  });
+
+  it("renders nothing when legacy localStorage key marks the banner dismissed", async () => {
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, "true");
+
+    const { container } = render(<OpenSourceBanner />);
+
+    await waitFor(() => {
+      expect(container).toBeEmptyDOMElement();
+    });
+    expect(screen.queryByText(/roni is now open source/i)).not.toBeInTheDocument();
   });
 
   it("opens the repo link in a new tab with safe rel attributes", async () => {
