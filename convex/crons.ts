@@ -51,7 +51,7 @@ if (cronsEnabled()) {
 
   crons.interval("vacuum-unused-files", { hours: 6 }, internal.fileGc.vacuumUnusedFiles);
 
-  crons.cron("data-retention", "0 2 * * 0", internal.dataRetention.runDataRetention, {});
+  crons.cron("data-retention", "0 2 * * *", internal.dataRetention.runDataRetention, {});
 }
 
 export default crons;
