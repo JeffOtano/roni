@@ -187,6 +187,7 @@ function TrainingDayCard({
             variant="ghost"
             size="xs"
             className="h-7 gap-1.5"
+            nativeButton={false}
             render={<Link href={`/activity/${day.tonalWorkoutId}`} />}
           >
             <Eye className="size-3" aria-hidden="true" />
@@ -197,6 +198,7 @@ function TrainingDayCard({
             variant="outline"
             size="xs"
             className="h-7 gap-1.5"
+            nativeButton={false}
             render={
               <Link
                 href={`/chat?prompt=${encodeURIComponent(`Tell me about my ${sessionLabel} workout on ${day.dayName}`)}`}
