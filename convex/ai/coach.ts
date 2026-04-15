@@ -357,11 +357,12 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
   return { primary, fallback };
 }
 
-// Never pass to streamText/generateText; storage-only.
+// Never pass to streamText/generateText; storage-only (tool approvals).
+// Uses coachAgentConfig directly -- no contextHandler needed since no LLM call runs.
 export function buildCoachAgentForStorageOnly(): Agent {
   return new Agent(components.agent, {
     name: "Tonal Coach (Storage Only)",
     languageModel: serverProvider("gemini-2.5-flash"),
-    ...makeCoachAgentConfig(),
+    ...coachAgentConfig,
   });
 }
