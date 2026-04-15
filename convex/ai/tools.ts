@@ -133,10 +133,13 @@ export const getWorkoutHistoryTool = createTool({
   }),
   execute: withToolTracking("get_workout_history", async (ctx, input, _options) => {
     const userId = requireUserId(ctx);
-    const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: input.limit,
-    })) as Activity[];
+    const activities = (await ctx.runAction(
+      internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
+      {
+        userId,
+        limit: input.limit,
+      },
+    )) as Activity[];
 
     return activities.map((a) => ({
       activityId: a.activityId,
@@ -173,10 +176,13 @@ export const getTrainingFrequencyTool = createTool({
   inputSchema: z.object({}),
   execute: withToolTracking("get_training_frequency", async (ctx, _input, _options) => {
     const userId = requireUserId(ctx);
-    const activities = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-      userId,
-      limit: 30,
-    })) as Activity[];
+    const activities = (await ctx.runAction(
+      internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
+      {
+        userId,
+        limit: 30,
+      },
+    )) as Activity[];
 
     const muscleGroupCounts: Record<string, number> = {};
     const lastTrained: Record<string, string> = {};

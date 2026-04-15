@@ -56,6 +56,9 @@ npm run build               # Production build
 # Convex
 npx convex env set KEY value   # Set backend environment variable
 npx convex deploy              # Deploy to production
+
+# Silence cron jobs on dev (optional, recommended)
+npx convex env set DISABLE_CRONS true
 ```
 
 ## Architecture
@@ -105,6 +108,7 @@ User (chat) --> send message --> AI Coach Agent (Gemini, 31 tools) --> reads con
 - Cron `0 3 * * *`: sync movement catalog
 - Cron `0 4 * * 0`: sync Tonal workout catalog
 - Cron `0 2 * * 0`: data retention cleanup
+- All crons are disabled when `DISABLE_CRONS=true` is set (see `convex/lib/env.ts`)
 
 ### Frontend Routes (`src/app/`)
 

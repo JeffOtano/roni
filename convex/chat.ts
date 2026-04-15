@@ -3,6 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import {
   createThread as agentCreateThread,
   listUIMessages,
+  saveMessage,
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
@@ -291,6 +292,7 @@ export const continueAfterApproval = action({
         threadId,
         userId,
         promptMessageId: messageId,
+        isByok: !providerConfig.isHouseKey,
       }),
     );
 
@@ -351,6 +353,14 @@ export const processMessage = internalAction({
 
     const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
 
+    // Pre-save the user message once so retries use promptMessageId
+    // instead of re-saving, re-embedding, and duplicating the message.
+    const { messageId } = await saveMessage(ctx, components.agent, {
+      threadId,
+      userId,
+      message: { role: "user" as const, content: prompt },
+    });
+
     const startTime = Date.now();
     const { primary, fallback } = buildCoachAgentsForProvider(providerConfig);
     await withByokErrorSanitization(() =>
@@ -359,7 +369,9 @@ export const processMessage = internalAction({
         fallbackAgent: fallback,
         threadId,
         userId,
-        prompt: resolvedPrompt,
+        promptMessageId: messageId,
+        prompt: typeof resolvedPrompt === "string" ? undefined : resolvedPrompt,
+        isByok: !providerConfig.isHouseKey,
       }),
     );
 

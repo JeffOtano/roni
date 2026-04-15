@@ -101,7 +101,7 @@ export const exportData = action({
       try {
         const [knownIds, activities] = await Promise.all([
           ctx.runQuery(internal.dataExport.getKnownActivityIds, { userId }) as Promise<string[]>,
-          ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+          ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
             userId,
           }) as Promise<Activity[]>,
         ]);

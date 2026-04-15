@@ -132,6 +132,7 @@ By default, self-hosted deployments start with analytics, Sentry, and the public
 | `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side analytics                |
 | `BYOK_DISABLED`                | Optional kill switch that forces all users onto the shared Gemini key   |
 | `TOKEN_ENCRYPTION_KEY_OLD`     | Optional old key used only during encryption-key rotation               |
+| `DISABLE_CRONS`                | Optional `true` to silence all cron jobs. Useful on dev deployments     |
 | `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                        |
 
 ### Next.js - set in `.env.local`

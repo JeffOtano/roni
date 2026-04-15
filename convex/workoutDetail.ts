@@ -238,7 +238,7 @@ export const getWorkoutHistoryFull = action({
 
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
 
-    const all = (await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+    const all = (await ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
       userId,
     })) as Activity[];
 

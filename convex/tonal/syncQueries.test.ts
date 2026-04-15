@@ -205,6 +205,46 @@ describe("getRecentCompletedWorkouts", () => {
     });
     expect(result).toHaveLength(2);
   });
+
+  test("filters out ghost entries with empty title", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("completedWorkouts", {
+        userId,
+        ...baseWorkout,
+        activityId: "real-1",
+        date: "2024-01-15",
+        title: "Push Day",
+      });
+      await ctx.db.insert("completedWorkouts", {
+        userId,
+        ...baseWorkout,
+        activityId: "ghost-1",
+        date: "2024-01-14",
+        title: "",
+        workoutType: "",
+        totalVolume: 0,
+        totalWork: 0,
+      });
+      await ctx.db.insert("completedWorkouts", {
+        userId,
+        ...baseWorkout,
+        activityId: "real-2",
+        date: "2024-01-13",
+        title: "Pull Day",
+      });
+    });
+
+    const result = await t.query(internal.tonal.syncQueries.getRecentCompletedWorkouts, {
+      userId,
+      limit: 10,
+    });
+    expect(result).toHaveLength(2);
+    expect(result[0].activityId).toBe("real-1");
+    expect(result[1].activityId).toBe("real-2");
+  });
 });
 
 // ---------------------------------------------------------------------------

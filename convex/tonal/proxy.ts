@@ -4,7 +4,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
-import { fetchAllWorkoutActivities, TonalApiError, tonalFetch } from "./client";
+import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
@@ -92,13 +92,12 @@ export async function cachedFetch<T>(
         expiresAt: now + ttl,
       });
     } catch (cacheErr) {
-      // If caching fails (e.g., data still too large), log and continue.
-      // The caller still gets fresh data; it just won't be cached.
       console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
     }
 
-    // Record success for circuit breaker
-    await ctx.runMutation(internal.systemHealth.recordSuccess, { service: "tonal" });
+    await ctx
+      .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
+      .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
 
     return data;
   } catch (error) {
@@ -106,8 +105,9 @@ export async function cachedFetch<T>(
     if (error instanceof TonalApiError && error.status === 401) throw error;
     if (error instanceof Error && error.message.includes("session expired")) throw error;
 
-    // Record failure for circuit breaker (non-auth errors only)
-    await ctx.runMutation(internal.systemHealth.recordFailure, { service: "tonal" });
+    await ctx
+      .runMutation(internal.systemHealth.recordFailure, { service: "tonal" })
+      .catch((err: unknown) => console.warn("[circuitBreaker] recordFailure failed", err));
 
     // For non-auth errors, fall back to stale data if available
     if (cached) {
@@ -194,7 +194,7 @@ export const fetchMuscleReadiness = internalAction({
 });
 
 /** Minimal shape from GET /v6/workouts/{id} for enrichment. */
-interface WorkoutMeta {
+export interface WorkoutMeta {
   title?: string;
   targetArea?: string;
 }
@@ -202,7 +202,7 @@ interface WorkoutMeta {
 const WORKOUT_META_BATCH_SIZE = 10;
 
 /** Batch-fetch workout metadata for unique workoutIds. Failures are silently skipped. */
-async function fetchWorkoutMetaBatch(
+export async function fetchWorkoutMetaBatch(
   ctx: ActionCtx,
   token: string,
   workoutIds: string[],
@@ -230,7 +230,7 @@ async function fetchWorkoutMetaBatch(
 }
 
 /** Map a WorkoutActivityDetail list item to the Activity shape the sync pipeline expects. */
-function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
+export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
   return {
     activityId: wa.id,
     userId: wa.userId,
@@ -256,34 +256,8 @@ function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
   };
 }
 
-export const fetchWorkoutHistory = internalAction({
-  args: {
-    userId: v.id("users"),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { userId, limit }): Promise<Activity[]> =>
-    withTokenRetry(ctx, userId, async (token, tonalUserId) => {
-      // Cache the lightweight Activity[] (no per-set data) instead of the
-      // raw WorkoutActivityDetail[] which can exceed 16 MiB for heavy users.
-      const activities = await cachedFetch<Activity[]>(ctx, {
-        userId,
-        dataType: "workoutHistory_v3",
-        ttl: CACHE_TTLS.workoutHistory,
-        fetcher: async () => {
-          const items = await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
-          if (items.length === 0) return [];
-
-          const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
-          const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
-
-          // API returns oldest-first; reverse so callers get newest-first
-          return items.map((wa) => toActivity(wa, meta.get(wa.workoutId))).reverse();
-        },
-      });
-
-      return limit != null ? activities.slice(0, limit) : activities;
-    }),
-});
+// fetchWorkoutHistory and fetchWorkoutHistoryPage live in workoutHistoryProxy.ts
+// to keep this file under the 400-line cap.
 
 // Convex caps array fields at 8192 elements. Tonal can return thousands of
 // set entries for some activities. Apply after every return path (fresh + cached).
