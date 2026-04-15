@@ -27,9 +27,15 @@ export function MessageList({
   return (
     <>
       {messages.map((message, i) => {
-        // Hide empty assistant messages (no text, no tool calls) — ThinkingIndicator covers this state
+        // Hide empty assistant messages (no text, no tool calls) unless failed
         const hasToolParts = message.parts.some((p) => p.type === "dynamic-tool");
-        if (message.role === "assistant" && !message.text.trim() && !hasToolParts) return null;
+        if (
+          message.role === "assistant" &&
+          !message.text.trim() &&
+          !hasToolParts &&
+          message.status !== "failed"
+        )
+          return null;
 
         const prev = i > 0 ? messages[i - 1] : null;
         const showDateDivider = isDifferentDay(message._creationTime, prev?._creationTime ?? null);

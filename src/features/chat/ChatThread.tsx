@@ -81,7 +81,8 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
   const lastIsRecentUser =
     lastMessage?.role === "user" && lastMessage._creationTime > mountTime - STALE_MS;
   const lastIsAssistantWithoutText = lastMessage?.role === "assistant" && !lastMessage.text.trim();
-  const isThinking = lastIsRecentUser || lastIsAssistantWithoutText;
+  const lastIsFailed = lastMessage?.status === "failed";
+  const isThinking = !lastIsFailed && (lastIsRecentUser || lastIsAssistantWithoutText);
 
   // Track whether the user has scrolled away from the bottom.
   const [showScrollButton, setShowScrollButton] = useState(false);
