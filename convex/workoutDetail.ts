@@ -92,13 +92,15 @@ export const getWorkoutDetail = action({
       }
     }
 
-    // Enrich sets with movement name and muscle groups
+    // StraightBar avgWeight is per-motor; double it to get the actual bar weight.
     const enrichedSets = (typedDetail.workoutSetActivity ?? []).map((set) => {
       const movement = movementMap.get(set.movementId);
+      const isStraightBar = movement?.onMachineInfo?.accessory === "StraightBar";
       return {
         ...set,
         movementName: movement?.name ?? null,
         muscleGroups: movement?.muscleGroups ?? [],
+        avgWeight: isStraightBar && set.avgWeight != null ? set.avgWeight * 2 : set.avgWeight,
       };
     });
 

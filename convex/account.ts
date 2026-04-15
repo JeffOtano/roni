@@ -3,6 +3,7 @@ import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@conve
 import { action, internalQuery, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { BY_USER_ID_BATCH_TABLES } from "./userData";
 
 export const getFullProfile = query({
   args: {},
@@ -78,7 +79,7 @@ export const changePassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, { oldPassword, newPassword }): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const user = await ctx.runQuery(internal.account.getUserEmail, { userId });
@@ -116,13 +117,43 @@ export const deleteAccount = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // Purge the @convex-dev/agent component's threads and messages first.
-    // Its tables live outside our schema, so deleteAllUserData can't touch
-    // them - we have to call the component's own purge action. Running it
-    // before the user row is deleted keeps the foreign-key target alive
-    // for any internal cascades the component performs.
-    await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
+    await ctx.runMutation(internal.accountDeletion.markDeletionInProgress, { userId });
 
-    await ctx.runMutation(internal.accountDeletion.deleteAllUserData, { userId });
+    try {
+      await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
+
+      // Drain each table in batches of 500 to stay under the 4096 read limit
+      for (const table of BY_USER_ID_BATCH_TABLES) {
+        let hasMore = true;
+        while (hasMore) {
+          hasMore = await ctx.runMutation(internal.accountDeletion.deleteUserTableBatch, {
+            userId,
+            table,
+          });
+        }
+      }
+
+      for (const mutation of [
+        internal.accountDeletion.deleteExercisePerformanceBatch,
+        internal.accountDeletion.deleteTonalCacheBatch,
+        internal.accountDeletion.deleteExternalActivitiesBatch,
+      ] as const) {
+        let hasMore = true;
+        while (hasMore) {
+          hasMore = await ctx.runMutation(mutation, { userId });
+        }
+      }
+
+      let hasMoreAuthData = true;
+      while (hasMoreAuthData) {
+        hasMoreAuthData = await ctx.runMutation(internal.accountDeletion.deleteAuthData, {
+          userId,
+        });
+      }
+      await ctx.runMutation(internal.accountDeletion.deleteUserRecord, { userId });
+    } catch (error) {
+      await ctx.runMutation(internal.accountDeletion.clearDeletionInProgress, { userId });
+      throw error;
+    }
   },
 });
