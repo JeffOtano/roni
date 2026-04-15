@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_NAME, SITE_URL } from "@/lib/urls";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { JsonLd } from "./JsonLd";
@@ -28,16 +29,16 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://roni.coach"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "roni.coach — AI Personal Trainer for Tonal",
-    template: "%s | roni.coach",
+    default: `${SITE_NAME} — AI Personal Trainer for Tonal`,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
     "AI coaching powered by your real Tonal training data. Get personalized advice, push custom workouts, and track your progress.",
   openGraph: {
-    siteName: "roni.coach",
-    url: "https://roni.coach",
+    siteName: SITE_NAME,
+    url: SITE_URL,
     locale: "en_US",
     type: "website",
   },

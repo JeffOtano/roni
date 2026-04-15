@@ -1,3 +1,5 @@
+import { SITE_NAME, SITE_URL } from "@/lib/urls";
+
 interface FaqItem {
   question: string;
   answer: string;
@@ -29,7 +31,7 @@ export function WorkoutJsonLd({ workout, sessionLabel, goalLabel }: WorkoutJsonL
       "@type": "ExercisePlan",
       name: workout.title,
       description: workout.description,
-      url: `https://roni.coach/workouts/${workout.slug}`,
+      url: `${SITE_URL}/workouts/${workout.slug}`,
       exerciseType: workout.sessionType,
       activityDuration: `PT${workout.durationMinutes}M`,
       intensity: workout.level,
@@ -44,13 +46,13 @@ export function WorkoutJsonLd({ workout, sessionLabel, goalLabel }: WorkoutJsonL
       datePublished: new Date(workout.createdAt).toISOString(),
       author: {
         "@type": "Organization",
-        name: "roni.coach",
-        url: "https://roni.coach",
+        name: SITE_NAME,
+        url: SITE_URL,
       },
       provider: {
         "@type": "Organization",
-        name: "roni.coach",
-        url: "https://roni.coach",
+        name: SITE_NAME,
+        url: SITE_URL,
       },
     },
   ];
@@ -63,19 +65,19 @@ export function WorkoutJsonLd({ workout, sessionLabel, goalLabel }: WorkoutJsonL
         "@type": "ListItem",
         position: 1,
         name: "Workouts",
-        item: "https://roni.coach/workouts",
+        item: `${SITE_URL}/workouts`,
       },
       {
         "@type": "ListItem",
         position: 2,
         name: sessionLabel,
-        item: `https://roni.coach/workouts?sessionType=${workout.sessionType}`,
+        item: `${SITE_URL}/workouts?sessionType=${workout.sessionType}`,
       },
       {
         "@type": "ListItem",
         position: 3,
         name: goalLabel,
-        item: `https://roni.coach/workouts?goal=${workout.goal}`,
+        item: `${SITE_URL}/workouts?goal=${workout.goal}`,
       },
       {
         "@type": "ListItem",

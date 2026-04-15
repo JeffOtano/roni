@@ -4,7 +4,7 @@ import { SiteNav } from "@/app/_components/SiteNav";
 import { SiteFooter } from "@/app/_components/SiteFooter";
 import { AuthCta } from "@/app/_components/AuthCta";
 import { Badge } from "@/components/ui/badge";
-import { REPO_URL } from "@/lib/urls";
+import { REPO_URL, SITE_NAME, SITE_URL } from "@/lib/urls";
 
 const FEATURES = [
   "AI coaching powered by your training data",
@@ -27,12 +27,12 @@ const TRUST_SIGNALS = [
 const productJsonLd = {
   "@context": "https://schema.org",
   "@type": "Product",
-  name: "roni.coach",
+  name: SITE_NAME,
   description: "Free, open-source AI-powered custom workout programming for Tonal home gym owners.",
-  url: "https://roni.coach/pricing",
+  url: `${SITE_URL}/pricing`,
   brand: {
     "@type": "Organization",
-    name: "roni.coach",
+    name: SITE_NAME,
   },
   offers: {
     "@type": "Offer",

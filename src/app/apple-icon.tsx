@@ -30,7 +30,7 @@ export default async function AppleIcon() {
           letterSpacing: "-3px",
         }}
       >
-        tc
+        rc
       </span>
     </div>,
     {

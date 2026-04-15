@@ -1,4 +1,4 @@
-import { DISCORD_URL, SITE_URL } from "@/lib/urls";
+import { DISCORD_URL, SITE_NAME, SITE_URL } from "@/lib/urls";
 
 export function JsonLd() {
   return (
@@ -11,7 +11,7 @@ export function JsonLd() {
             {
               "@type": "SoftwareApplication",
               "@id": `${SITE_URL}/#app`,
-              name: "roni.coach",
+              name: SITE_NAME,
               applicationCategory: "HealthApplication",
               operatingSystem: "Web",
               description:
@@ -37,7 +37,7 @@ export function JsonLd() {
             {
               "@type": "Organization",
               "@id": `${SITE_URL}/#org`,
-              name: "roni.coach",
+              name: SITE_NAME,
               url: SITE_URL,
               logo: `${SITE_URL}/icon.svg`,
               sameAs: [DISCORD_URL],
@@ -50,7 +50,7 @@ export function JsonLd() {
             {
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
-              name: "roni.coach",
+              name: SITE_NAME,
               url: SITE_URL,
               publisher: { "@id": `${SITE_URL}/#org` },
             },

@@ -14,6 +14,7 @@ import {
   preferredSplitValidator,
 } from "./weekPlanHelpers";
 import { blockInputValidator } from "./validators";
+import { WORKOUT_SOURCE } from "./workoutPlans";
 
 /** Internal: get week plan by userId and weekStartDate (for cron/check-ins). */
 export const getByUserIdAndWeekStartInternal = internalQuery({
@@ -171,7 +172,7 @@ export const createDraftWorkoutInternal = internalMutation({
       title: args.title,
       blocks: args.blocks,
       status: "draft",
-      source: "roni",
+      source: WORKOUT_SOURCE,
       estimatedDuration: args.estimatedDuration,
       createdAt: Date.now(),
     });

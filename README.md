@@ -84,7 +84,7 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 
 ```bash
 # 1. Clone and install
-git clone <repo-url> roni
+git clone https://github.com/JeffOtano/roni.git roni
 cd roni
 npm install
 
