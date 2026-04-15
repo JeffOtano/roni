@@ -10,10 +10,11 @@ import { useAnalytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { ConnectStep } from "./ConnectStep";
 import { PreferencesStep } from "./PreferencesStep";
+import { CheckInsStep } from "./CheckInsStep";
 import { ReadyStep } from "./ReadyStep";
 import { ProviderKeyStep } from "./ProviderKeyStep";
 
-type StepId = "connect" | "preferences" | "byok" | "ready";
+type StepId = "connect" | "preferences" | "checkins" | "byok" | "ready";
 
 interface StepDef {
   id: StepId;
@@ -23,12 +24,14 @@ interface StepDef {
 const BASE_STEPS: readonly StepDef[] = [
   { id: "connect", label: "Connect Tonal" },
   { id: "preferences", label: "Preferences" },
+  { id: "checkins", label: "Check-ins" },
   { id: "ready", label: "Ready" },
 ];
 
 const BYOK_STEPS: readonly StepDef[] = [
   { id: "connect", label: "Connect Tonal" },
   { id: "preferences", label: "Preferences" },
+  { id: "checkins", label: "Check-ins" },
   { id: "byok", label: "AI provider" },
   { id: "ready", label: "Ready" },
 ];
@@ -127,6 +130,7 @@ function OnboardingFlow({
       <StepIndicator steps={steps} currentIndex={stepIndex} />
       {currentStep?.id === "connect" && <ConnectStep onComplete={advance} />}
       {currentStep?.id === "preferences" && <PreferencesStep onComplete={advance} />}
+      {currentStep?.id === "checkins" && <CheckInsStep onComplete={advance} />}
       {currentStep?.id === "byok" && <ProviderKeyStep onComplete={advance} />}
       {currentStep?.id === "ready" && <ReadyStep firstName={firstName} />}
     </div>

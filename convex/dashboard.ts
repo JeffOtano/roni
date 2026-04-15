@@ -122,6 +122,15 @@ export const getWorkoutHistory = query({
   },
 });
 
+function normalizeTargetArea(area: string): string {
+  return area
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 // ---------------------------------------------------------------------------
 // 4. getTrainingFrequency -- query from sync table (last 30 days)
 // ---------------------------------------------------------------------------
@@ -145,8 +154,8 @@ export const getTrainingFrequency = query({
     const lastDates: Record<string, string> = {};
 
     for (const row of rows) {
-      const area = row.targetArea;
-      if (!area) continue;
+      if (!row.targetArea) continue;
+      const area = normalizeTargetArea(row.targetArea);
       counts[area] = (counts[area] ?? 0) + 1;
       if (!lastDates[area] || row.date > lastDates[area]) {
         lastDates[area] = row.date;
