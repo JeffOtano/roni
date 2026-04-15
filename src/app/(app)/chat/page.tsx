@@ -44,27 +44,48 @@ function ChatPageInner() {
   const createThreadWithMessage = useAction(api.chat.createThreadWithMessage);
   const me = useQuery(api.users.getMe);
   const autoSentRef = useRef(false);
+  const mountedRef = useRef(true);
   const [waitingForCoach, setWaitingForCoach] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const { track } = useAnalytics();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Wrap createThreadWithMessage to track loading state for the welcome flow.
   const sendAndWait = async (args: { prompt: string; imageStorageIds?: Id<"_storage">[] }) => {
-    setWaitingForCoach(true);
+    if (mountedRef.current) setWaitingForCoach(true);
     try {
       return await createThreadWithMessage(args);
     } finally {
-      setWaitingForCoach(false);
+      if (mountedRef.current) setWaitingForCoach(false);
     }
   };
 
   // Auto-send from ?prompt= query param (once only)
   const promptParam = searchParams.get("prompt");
   useEffect(() => {
-    if (promptParam && !autoSentRef.current) {
-      autoSentRef.current = true;
-      router.replace("/chat");
-      sendAndWait({ prompt: promptParam });
-    }
+    if (!promptParam || autoSentRef.current) return;
+    autoSentRef.current = true;
+    router.replace("/chat");
+
+    void (async () => {
+      try {
+        await sendAndWait({ prompt: promptParam });
+      } catch (err) {
+        // Reset so the user can manually retry the same prompt from the input.
+        autoSentRef.current = false;
+        if (mountedRef.current) {
+          setSendError(
+            err instanceof Error ? err.message : "Could not send your message. Please try again.",
+          );
+        }
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptParam, router]);
 
@@ -114,7 +135,15 @@ function ChatPageInner() {
                 key={text}
                 onClick={() => {
                   track("suggestion_tapped", { suggestion_text: text });
-                  sendAndWait({ prompt: text });
+                  sendAndWait({ prompt: text }).catch((err: unknown) => {
+                    if (mountedRef.current) {
+                      setSendError(
+                        err instanceof Error
+                          ? err.message
+                          : "Could not send your message. Please try again.",
+                      );
+                    }
+                  });
                 }}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-foreground transition-colors duration-150 hover:bg-accent active:scale-[0.98]"
               >
@@ -123,6 +152,12 @@ function ChatPageInner() {
               </button>
             ))}
           </div>
+
+          {sendError && (
+            <p className="mt-4 text-sm text-destructive" role="alert">
+              {sendError}
+            </p>
+          )}
         </div>
 
         {/* Input always visible even on welcome screen */}

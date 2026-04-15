@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { emailChangeHtml, generateNumericCode, hashCode } from "./emailChange";
+
+beforeAll(() => {
+  process.env.EMAIL_CHANGE_CODE_PEPPER = "test-pepper-do-not-use-in-prod";
+});
 
 // ---------------------------------------------------------------------------
 // generateNumericCode

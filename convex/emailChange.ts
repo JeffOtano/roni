@@ -2,6 +2,15 @@ import { v } from "convex/values";
 import { action, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { sendEmail } from "./email";
+import { rateLimiter } from "./rateLimits";
+import { timingSafeEqual } from "crypto";
+
+function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 const EMAIL_CHANGE_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -10,6 +19,8 @@ export const requestEmailChange = action({
   handler: async (ctx, { newEmail }): Promise<void> => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
+
+    await rateLimiter.limit(ctx, "emailChangeRequest", { key: userId, throws: true });
 
     const normalizedEmail = newEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -58,6 +69,8 @@ export const confirmEmailChange = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
+    await rateLimiter.limit(ctx, "emailChangeConfirm", { key: userId, throws: true });
+
     // Find the pending request
     const request = await ctx.runQuery(internal.emailChange.getPendingRequest, { userId });
     if (!request) {
@@ -70,7 +83,7 @@ export const confirmEmailChange = action({
 
     // Verify code
     const codeHash = await hashCode(code.trim());
-    if (codeHash !== request.codeHash) {
+    if (!safeCompare(codeHash, request.codeHash)) {
       throw new Error("Invalid verification code");
     }
 
@@ -183,12 +196,31 @@ export function generateNumericCode(length: number): string {
   return String(num % mod).padStart(length, "0");
 }
 
+/**
+ * HMAC-SHA-256 of the verification code, keyed by a server-side pepper.
+ *
+ * Plain SHA-256 of an 8-digit code is trivially brute-forceable offline if
+ * the emailChangeRequests table ever leaks — the entire 10^8 keyspace fits
+ * in a precomputed table. The pepper forces any offline attacker to also
+ * steal the Convex environment. Same pepper must be used for hashing at
+ * request time and comparison at confirm time.
+ */
 export async function hashCode(code: string): Promise<string> {
+  const pepper = process.env.EMAIL_CHANGE_CODE_PEPPER;
+  if (!pepper) {
+    throw new Error("EMAIL_CHANGE_CODE_PEPPER is not configured");
+  }
   const encoder = new TextEncoder();
-  const data = encoder.encode(code);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(pepper),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(code));
+  const bytes = Array.from(new Uint8Array(signature));
+  return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 import { codeBlock, expiryBadge, finePrint, heading, paragraph, wrapEmail } from "./emailTemplates";
