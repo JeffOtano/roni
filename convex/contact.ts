@@ -8,7 +8,7 @@ const MAX_MESSAGE_LENGTH = 4000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Strip Discord mention syntax so the webhook can't @-flood the channel. */
-function sanitizeForDiscord(input: string): string {
+export function sanitizeForDiscord(input: string): string {
   return input.replace(/@(everyone|here)/gi, "@\u200b$1");
 }
 

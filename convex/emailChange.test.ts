@@ -62,7 +62,7 @@ describe("hashCode", () => {
     process.env.EMAIL_CHANGE_CODE_PEPPER = saved;
   });
 
-  it("returns a 64-character lowercase hex string (SHA-256)", async () => {
+  it("returns a 64-character lowercase hex string (HMAC-SHA-256)", async () => {
     const hash = await hashCode("12345678");
 
     expect(hash).toHaveLength(64);

@@ -3,13 +3,18 @@ import { action, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { sendEmail } from "./email";
 import { rateLimiter } from "./rateLimits";
-import { timingSafeEqual } from "crypto";
 
+/** Constant-time string comparison using only Web APIs (no Node.js built-ins). */
 function safeCompare(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  let result = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    result |= bufA[i] ^ bufB[i];
+  }
+  return result === 0;
 }
 
 const EMAIL_CHANGE_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
