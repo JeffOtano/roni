@@ -94,6 +94,7 @@ export function mergeConsecutiveSameRole(messages: ModelMessage[]): ModelMessage
 
 export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[] {
   const approvalIdToToolCallId = new Map<string, string>();
+  const toolCallIdsWithApprovalRequests = new Set<string>();
   const resolvedToolCallIds = new Set<string>();
   for (const msg of messages) {
     if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
@@ -104,6 +105,7 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
     }>) {
       if (part.type === "tool-approval-request" && part.approvalId && part.toolCallId) {
         approvalIdToToolCallId.set(part.approvalId, part.toolCallId);
+        toolCallIdsWithApprovalRequests.add(part.toolCallId);
       }
       if (part.type === "tool-result" && part.toolCallId) {
         resolvedToolCallIds.add(part.toolCallId);
@@ -133,7 +135,11 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
       if (!hasToolCalls) return msg;
 
       const filtered = parts.filter(
-        (p) => p.type !== "tool-call" || (p.toolCallId && resolvedToolCallIds.has(p.toolCallId)),
+        (p) =>
+          p.type !== "tool-call" ||
+          (p.toolCallId &&
+            (resolvedToolCallIds.has(p.toolCallId) ||
+              toolCallIdsWithApprovalRequests.has(p.toolCallId))),
       );
 
       if (filtered.length === 0) return null;

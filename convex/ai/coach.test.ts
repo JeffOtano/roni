@@ -164,6 +164,22 @@ describe("stripOrphanedToolCalls", () => {
     expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
   });
 
+  it("keeps tool-calls that have a pending approval request", () => {
+    const msgs: ModelMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Approve this push?" },
+          { type: "tool-call", toolCallId: "tc1", toolName: "approve_week_plan", input: {} },
+          { type: "tool-approval-request", approvalId: "ap1", toolCallId: "tc1" },
+        ],
+      },
+      { role: "user", content: "What does this change?" },
+    ];
+
+    expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
+  });
+
   it("removes orphaned tool-call with no matching tool-result", () => {
     const msgs: ModelMessage[] = [
       { role: "user", content: "check scores" },
@@ -221,6 +237,22 @@ describe("stripOrphanedToolCalls", () => {
 });
 
 describe("coachAgentConfig.contextHandler", () => {
+  it("preserves pending approval-requested tool calls", async () => {
+    const messages: ModelMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Approve this push?" },
+          { type: "tool-call", toolCallId: "tc1", toolName: "approve_week_plan", input: {} },
+          { type: "tool-approval-request", approvalId: "ap1", toolCallId: "tc1" },
+        ],
+      },
+      { role: "user", content: "What does this change?" },
+    ];
+
+    await expect(runContextHandler(messages)).resolves.toEqual(messages);
+  });
+
   it("normalizes orphaned tool calls before stripping old images and merging messages", async () => {
     const latestImage = new URL("https://example.com/latest.jpg");
 
