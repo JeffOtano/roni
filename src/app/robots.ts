@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/urls";
 
 const APP_ROUTES = [
   "/api",
@@ -56,6 +57,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: APP_ROUTES,
       },
     ],
-    sitemap: "https://roni.coach/sitemap.xml",
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }
