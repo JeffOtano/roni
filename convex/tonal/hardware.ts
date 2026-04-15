@@ -215,10 +215,13 @@ export function createTonalHardware(ctx: ActionCtx, userId: Id<"users">): Hardwa
 
     async getHistory(opts) {
       const limit = opts?.limit ?? 20;
-      const activities = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
-        userId,
-        limit,
-      });
+      const activities = await ctx.runAction(
+        internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
+        {
+          userId,
+          limit,
+        },
+      );
       return {
         workouts: activities.map(activityToCompletedEntry),
       };

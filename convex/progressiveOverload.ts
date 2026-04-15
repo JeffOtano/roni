@@ -130,7 +130,7 @@ export const getPerMovementHistory = internalAction({
   handler: async (ctx, args): Promise<PerMovementHistoryEntry[]> => {
     const { userId } = args;
     const maxActivities = args.maxActivities ?? 20;
-    const activities = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
+    const activities = await ctx.runAction(internal.tonal.workoutHistoryProxy.fetchWorkoutHistory, {
       userId,
       limit: maxActivities,
     });
