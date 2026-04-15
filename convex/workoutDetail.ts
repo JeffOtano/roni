@@ -92,9 +92,7 @@ export const getWorkoutDetail = action({
       }
     }
 
-    // Enrich sets with movement name and muscle groups.
-    // Tonal's API reports per-motor avgWeight. For StraightBar (Smart Bar)
-    // exercises both motors share the load, so the actual weight is 2x.
+    // StraightBar avgWeight is per-motor; double it to get the actual bar weight.
     const enrichedSets = (typedDetail.workoutSetActivity ?? []).map((set) => {
       const movement = movementMap.get(set.movementId);
       const isStraightBar = movement?.onMachineInfo?.accessory === "StraightBar";
