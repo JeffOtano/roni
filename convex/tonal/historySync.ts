@@ -278,6 +278,7 @@ export const backfillUserHistory = internalAction({
     try {
       const activities: Activity[] = await ctx.runAction(internal.tonal.proxy.fetchWorkoutHistory, {
         userId,
+        mode: "full",
       });
 
       let synced = 0;
