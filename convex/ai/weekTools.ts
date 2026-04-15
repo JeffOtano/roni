@@ -28,11 +28,7 @@ type SessionDuration = (typeof ALLOWED_SESSION_DURATIONS)[number];
 
 function validateSessionDuration(value: unknown): SessionDuration | undefined {
   const parsed =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? parseInt(value, 10)
-        : undefined;
+    typeof value === "number" ? value : typeof value === "string" ? parseInt(value, 10) : undefined;
   if (Number.isInteger(parsed) && ALLOWED_SESSION_DURATIONS.includes(parsed as SessionDuration)) {
     return parsed as SessionDuration;
   }
