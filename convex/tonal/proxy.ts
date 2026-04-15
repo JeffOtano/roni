@@ -4,7 +4,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
-import { TonalApiError, tonalFetch } from "./client";
+import { fetchAllWorkoutActivities, TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
@@ -259,19 +259,15 @@ function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
 export const fetchWorkoutHistory = internalAction({
   args: {
     userId: v.id("users"),
-    // The /workout-activities endpoint ignores limit/sort/offset params and
-    // always returns ALL activities ascending. We keep the arg for callers
-    // that want a truncated result but do NOT pass it to the API.
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { userId, limit }): Promise<Activity[]> =>
     withTokenRetry(ctx, userId, async (token, tonalUserId) => {
       const items = await cachedFetch<WorkoutActivityDetail[]>(ctx, {
         userId,
-        dataType: "workoutHistory_v2",
+        dataType: "workoutHistory_v3",
         ttl: CACHE_TTLS.workoutHistory,
-        fetcher: () =>
-          tonalFetch<WorkoutActivityDetail[]>(token, `/v6/users/${tonalUserId}/workout-activities`),
+        fetcher: () => fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId),
       });
 
       if (items.length === 0) return [];
@@ -280,8 +276,9 @@ export const fetchWorkoutHistory = internalAction({
       const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
       const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
 
-      const activities = items.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
-      return limit != null ? activities.slice(-limit) : activities;
+      // API returns oldest-first; reverse so callers get newest-first
+      const activities = items.map((wa) => toActivity(wa, meta.get(wa.workoutId))).reverse();
+      return limit != null ? activities.slice(0, limit) : activities;
     }),
 });
 

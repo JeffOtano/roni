@@ -15,6 +15,7 @@ import type { Id } from "../_generated/dataModel";
 
 /** Cache keys to clear before a resync (old per-limit keys + current key). */
 const STALE_CACHE_KEYS = [
+  "workoutHistory_v3",
   "workoutHistory_v2",
   "workoutHistory_v2:1",
   "workoutHistory_v2:5",
@@ -80,5 +81,32 @@ export const getConnectedUsers = internalQuery({
     return profiles
       .filter((p) => p.tonalUserId)
       .map((p) => ({ userId: p.userId, syncStatus: p.syncStatus }));
+  },
+});
+
+/** Count synced workouts per user with date range. For diagnosing sync gaps. */
+export const getSyncDiagnostics = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const profiles = await ctx.db.query("userProfiles").collect();
+    const connected = profiles.filter((p) => p.tonalUserId);
+
+    const results = [];
+    for (const p of connected) {
+      const workouts = await ctx.db
+        .query("completedWorkouts")
+        .withIndex("by_userId_date", (q) => q.eq("userId", p.userId))
+        .collect();
+      const dates = workouts.map((w) => w.date).sort();
+      results.push({
+        userId: p.userId,
+        syncStatus: p.syncStatus,
+        workoutCount: workouts.length,
+        oldestDate: dates[0] ?? null,
+        newestDate: dates[dates.length - 1] ?? null,
+      });
+    }
+
+    return results.sort((a, b) => b.workoutCount - a.workoutCount);
   },
 });
