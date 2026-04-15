@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { coachAgentConfig, mergeConsecutiveSameRole, stripOrphanedToolCalls } from "./coach";
+import { makeCoachAgentConfig, mergeConsecutiveSameRole, stripOrphanedToolCalls } from "./coach";
 
-type ContextHandlerArgs = Parameters<typeof coachAgentConfig.contextHandler>[1];
+const testConfig = makeCoachAgentConfig();
+type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
 
 async function runContextHandler(allMessages: ModelMessage[]): Promise<ModelMessage[]> {
   const args: ContextHandlerArgs = {
@@ -16,7 +17,7 @@ async function runContextHandler(allMessages: ModelMessage[]): Promise<ModelMess
     threadId: undefined,
   };
 
-  return coachAgentConfig.contextHandler(undefined as never, args);
+  return testConfig.contextHandler!(undefined as never, args);
 }
 
 describe("mergeConsecutiveSameRole", () => {

@@ -5,6 +5,7 @@ import { useAction, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { useAnalytics } from "@/lib/analytics";
+import { getBrowserTimezone } from "@/lib/timezone";
 import { Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,7 +41,7 @@ export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprova
     setStatus(approved ? "approving" : "denying");
     try {
       const { messageId } = await respond({ threadId, approvalId, approved });
-      await continueAgent({ threadId, messageId });
+      await continueAgent({ threadId, messageId, userTimezone: getBrowserTimezone() });
       if (approved) {
         track("tool_approved", {
           tool_name: toolName,

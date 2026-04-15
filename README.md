@@ -105,6 +105,7 @@ npx convex dev
 # 6. Set Convex backend secrets
 npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
 npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
+npx convex env set EMAIL_CHANGE_CODE_PEPPER       $(openssl rand -hex 32)
 # Optional: only needed if you want password-reset emails locally
 npx convex env set AUTH_RESEND_KEY                re_your_resend_key
 
@@ -127,6 +128,7 @@ By default, self-hosted deployments start with analytics, Sentry, and the public
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used for the shared Gemini key and embeddings |
 | `AUTH_RESEND_KEY`              | Optional Resend API key (`re_...`). Sends password-reset OTP emails     |
 | `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens and BYOK Gemini keys    |
+| `EMAIL_CHANGE_CODE_PEPPER`     | 64-char hex string. HMAC pepper for email-change verification codes     |
 | `DISCORD_CONTACT_WEBHOOK`      | Optional Discord webhook for the public `/contact` form                 |
 | `DISCORD_WEBHOOK_URL`          | Optional Discord webhook for operator notifications                     |
 | `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side analytics                |

@@ -12,6 +12,7 @@ import { parseByokError } from "@/features/byok/parseByokError";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
 import { useAnalytics } from "@/lib/analytics";
+import { getBrowserTimezone } from "@/lib/timezone";
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -76,6 +77,7 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
       await sendMessage({
         prompt: trimmed || "What do you see in these images?",
         threadId,
+        userTimezone: getBrowserTimezone(),
         ...(imageStorageIds && imageStorageIds.length > 0 && { imageStorageIds }),
       });
       setByokError(null);

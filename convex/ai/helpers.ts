@@ -8,6 +8,13 @@ export function requireUserId(ctx: ToolCtx): Id<"users"> {
   return ctx.userId as Id<"users">;
 }
 
+/** Validate and coerce to a session-duration literal (30, 45, or 60). */
+export function toSessionDuration(value: string | number): 30 | 45 | 60 {
+  const n = typeof value === "number" ? value : Number(value);
+  if (n === 30 || n === 45 || n === 60) return n;
+  throw new Error(`Invalid session duration: ${String(value)} (must be 30, 45, or 60)`);
+}
+
 /** ToolCtx.userId is `string | undefined`; recordToolCall accepts `v.optional(v.string())` to avoid forbidden `as` casts. */
 
 export function withToolTracking<TInput, TOutput>(

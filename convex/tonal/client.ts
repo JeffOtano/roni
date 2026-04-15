@@ -72,7 +72,19 @@ export async function fetchWorkoutActivitiesPage<T>(
   }
 
   const items = (await res.json()) as T[];
-  const pgTotal = parseInt(res.headers.get("pg-total") ?? "0", 10);
+  // Tonal sets pg-total on paginated endpoints. If the header is missing or
+  // malformed, fall back to the item count so callers don't silently loop
+  // against NaN or issue negative-progress requests.
+  const rawPgTotal = res.headers.get("pg-total");
+  const parsed = rawPgTotal !== null ? Number(rawPgTotal) : Number.NaN;
+  // When the header is valid, use it. Otherwise, if the page is full,
+  // assume at least one more item exists so callers continue paginating.
+  const fallback = items.length >= limit ? items.length + 1 : items.length;
+  const validHeader = Number.isFinite(parsed) && parsed >= 0;
+  if (!validHeader && rawPgTotal !== null) {
+    console.warn(`[fetchWorkoutActivitiesPage] Malformed pg-total header: "${rawPgTotal}"`);
+  }
+  const pgTotal = validHeader ? Math.floor(parsed) : fallback;
   return { items, pgTotal };
 }
 
