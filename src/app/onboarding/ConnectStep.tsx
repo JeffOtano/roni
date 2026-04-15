@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { useAnalytics } from "@/lib/analytics";
 
 type ConnectionPhase = "idle" | "authenticating" | "fetching" | "done";
 
@@ -20,6 +21,7 @@ const PHASE_LABELS: Record<Exclude<ConnectionPhase, "idle">, string> = {
 
 export function ConnectStep({ onComplete }: { readonly onComplete: () => void }) {
   const connectTonal = useAction(api.tonal.connectPublic.connectTonal);
+  const { track } = useAnalytics();
   const [tonalEmail, setTonalEmail] = useState("");
   const [tonalPassword, setTonalPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export function ConnectStep({ onComplete }: { readonly onComplete: () => void })
     try {
       await connectTonal({ tonalEmail, tonalPassword });
       clearTimeout(fetchTimer);
+      track("tonal_connected");
       setPhase("done");
       setTimeout(onComplete, 800);
     } catch {
