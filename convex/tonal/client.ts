@@ -77,7 +77,10 @@ export async function fetchWorkoutActivitiesPage<T>(
   // against NaN or issue negative-progress requests.
   const rawPgTotal = res.headers.get("pg-total");
   const parsed = rawPgTotal !== null ? Number(rawPgTotal) : Number.NaN;
-  const pgTotal = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : items.length;
+  // When the header is valid, use it. Otherwise, if the page is full,
+  // assume at least one more item exists so callers continue paginating.
+  const fallback = items.length >= limit ? items.length + 1 : items.length;
+  const pgTotal = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
   return { items, pgTotal };
 }
 

@@ -8,7 +8,8 @@ import {
 } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { api, internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { ActionCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import { blockInputValidator } from "./validators";
 import * as analytics from "./lib/posthog";
 
@@ -151,19 +152,31 @@ export const getByIdInternal = internalQuery({
   },
 });
 
-/**
- * Returns the set of Tonal workout IDs already claimed by any of the
- * user's existing workoutPlans. Used by stuck-push recovery to avoid
- * linking a plan to a workoutId that another plan already owns.
- */
-export const getClaimedTonalWorkoutIdsForUser = internalQuery({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }): Promise<string[]> => {
+/** Atomically claim a recovered Tonal workout if no other plan already owns it. */
+export const claimRecoveredWorkout = internalMutation({
+  args: {
+    planId: v.id("workoutPlans"),
+    userId: v.id("users"),
+    tonalWorkoutId: v.string(),
+    pushedAt: v.number(),
+  },
+  handler: async (ctx, { planId, userId, tonalWorkoutId, pushedAt }) => {
     const plans = await ctx.db
       .query("workoutPlans")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
-    return plans.flatMap((p) => (p.tonalWorkoutId ? [p.tonalWorkoutId] : []));
+
+    if (plans.some((p) => p._id !== planId && p.tonalWorkoutId === tonalWorkoutId)) {
+      return { error: "Workout already claimed" } as const;
+    }
+
+    await ctx.db.patch(planId, {
+      status: "pushed" as const,
+      tonalWorkoutId,
+      pushedAt,
+      pushErrorReason: undefined,
+    });
+    return { ok: true } as const;
   },
 });
 
@@ -249,6 +262,60 @@ export const getStuckPushingPlanIds = internalQuery({
   },
 });
 
+/** Try to find and claim a matching workout on Tonal for a stuck plan. */
+async function tryRecoverPlan(
+  ctx: ActionCtx,
+  planId: Id<"workoutPlans">,
+  plan: Doc<"workoutPlans">,
+): Promise<boolean> {
+  try {
+    const customWorkouts = await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
+      userId: plan.userId,
+    });
+    const planCreatedIso = new Date(plan.createdAt).toISOString();
+    const candidates = customWorkouts.filter(
+      (w: { id: string; title: string; createdAt: string }) =>
+        w.title === plan.title && w.createdAt >= planCreatedIso,
+    );
+
+    if (candidates.length > 1) {
+      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+        planId,
+        status: "failed",
+        pushErrorReason: `Ambiguous: ${candidates.length} Tonal matches for "${plan.title}"`,
+      });
+      console.warn(
+        `[stuckPushRecovery] ${candidates.length} ambiguous Tonal matches for plan ${planId} - marking failed`,
+      );
+      return true;
+    }
+
+    if (candidates.length === 1) {
+      const result = await ctx.runMutation(internal.workoutPlans.claimRecoveredWorkout, {
+        planId,
+        userId: plan.userId,
+        tonalWorkoutId: candidates[0].id,
+        pushedAt: Date.now(),
+      });
+      if ("ok" in result) {
+        analytics.capture(plan.userId, "workout_push_recovered", { plan_id: planId });
+        console.log(
+          `[stuckPushRecovery] Recovered plan ${planId} - found matching workout ${candidates[0].id} on Tonal`,
+        );
+        return true;
+      }
+      console.warn(
+        `[stuckPushRecovery] Could not claim workout ${candidates[0].id} for plan ${planId}: ${result.error}`,
+      );
+    }
+
+    return false;
+  } catch (err) {
+    console.warn(`[stuckPushRecovery] Could not check Tonal for plan ${planId}:`, err);
+    return false;
+  }
+}
+
 /** Cron: mark stuck "pushing" plans as failed, recovering any that made it to Tonal. */
 export const runStuckPushRecovery = internalAction({
   args: {},
@@ -261,55 +328,16 @@ export const runStuckPushRecovery = internalAction({
       });
       for (const planId of ids) {
         const plan = await ctx.runQuery(internal.workoutPlans.getByIdInternal, { planId });
-
-        // Try to recover: check if the workout made it to Tonal
-        let recovered = false;
-        if (plan) {
-          try {
-            const customWorkouts = await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
-              userId: plan.userId,
-            });
-            const claimed = new Set(
-              await ctx.runQuery(internal.workoutPlans.getClaimedTonalWorkoutIdsForUser, {
-                userId: plan.userId,
-              }),
-            );
-            // Only consider workouts (a) whose title matches, (b) created
-            // at-or-after the plan was queued (anything older can't be this
-            // push), and (c) not already claimed by another workoutPlan.
-            const planCreatedIso = new Date(plan.createdAt).toISOString();
-            const candidates = customWorkouts.filter(
-              (w: { id: string; title: string; createdAt: string }) =>
-                w.title === plan.title && w.createdAt >= planCreatedIso && !claimed.has(w.id),
-            );
-            // Require an unambiguous match. If multiple candidates remain
-            // after filtering, we don't know which one this plan produced —
-            // leave it failed rather than link the wrong workoutId.
-            const match = candidates.length === 1 ? candidates[0] : undefined;
-            if (candidates.length > 1) {
-              console.warn(
-                `[stuckPushRecovery] ${candidates.length} ambiguous Tonal matches for plan ${planId} title="${plan.title}" - leaving failed`,
-              );
-            }
-            if (match) {
-              await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-                planId,
-                status: "pushed",
-                tonalWorkoutId: match.id,
-                pushedAt: Date.now(),
-              });
-              recovered = true;
-              analytics.capture(plan.userId, "workout_push_recovered", { plan_id: planId });
-              console.log(
-                `[stuckPushRecovery] Recovered plan ${planId} - found matching workout ${match.id} on Tonal`,
-              );
-            }
-          } catch (err) {
-            // If Tonal is unreachable, fall through to mark as failed
-            console.warn(`[stuckPushRecovery] Could not check Tonal for plan ${planId}:`, err);
-          }
+        if (!plan) {
+          await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+            planId,
+            status: "failed",
+            pushErrorReason: "Push timed out",
+          });
+          continue;
         }
 
+        const recovered = await tryRecoverPlan(ctx, planId, plan);
         if (!recovered) {
           await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
             planId,

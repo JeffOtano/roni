@@ -17,6 +17,7 @@ import { buildCoachAgentForStorageOnly, buildCoachAgentsForProvider } from "./ai
 import { type ProviderKeyResult, resolveProviderKey } from "./byok";
 import { checkDailyBudget, classifyByokError, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
+import { sanitizeTimezone } from "./ai/timeDecay";
 import * as analytics from "./lib/posthog";
 
 const MAX_IMAGES_PER_MESSAGE = 4;
@@ -158,7 +159,8 @@ export const createThreadWithMessage = action({
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, prompt, imageStorageIds, userTimezone }) => {
+  handler: async (ctx, { threadId, prompt, imageStorageIds, userTimezone: rawTz }) => {
+    const userTimezone = sanitizeTimezone(rawTz);
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
@@ -280,7 +282,8 @@ export const continueAfterApproval = action({
     messageId: v.string(),
     userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, messageId, userTimezone }) => {
+  handler: async (ctx, { threadId, messageId, userTimezone: rawTz }) => {
+    const userTimezone = sanitizeTimezone(rawTz);
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
@@ -321,7 +324,8 @@ export const sendMessageToThread = mutation({
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { prompt, threadId, imageStorageIds, userTimezone }) => {
+  handler: async (ctx, { prompt, threadId, imageStorageIds, userTimezone: rawTz }) => {
+    const userTimezone = sanitizeTimezone(rawTz);
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
@@ -349,7 +353,7 @@ export const sendMessageToThread = mutation({
 export const processMessage = internalAction({
   args: {
     threadId: v.string(),
-    userId: v.id("users"),
+    userId: v.string(),
     prompt: v.string(),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     userTimezone: v.optional(v.string()),

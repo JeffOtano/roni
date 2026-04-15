@@ -189,12 +189,7 @@ const serverProvider = createGoogleGenerativeAI({
 });
 const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
 
-/**
- * Build the agent config for a single request. The caller passes the user's
- * browser-reported IANA timezone so `buildTrainingSnapshot` (invoked inside
- * `contextHandler`) can label recent workouts as "today"/"yesterday" using
- * the user's local wall clock instead of the server's UTC day boundary.
- */
+/** Build per-request agent config with timezone-aware context handler. */
 export function makeCoachAgentConfig(userTimezone?: string) {
   return {
     ...coachAgentConfig,

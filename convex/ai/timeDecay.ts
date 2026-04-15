@@ -27,6 +27,26 @@ function calendarDay(date: Date, timeZone: string | undefined): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Subtract one calendar day from a YYYY-MM-DD string. */
+function prevCalendarDay(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  return prev.toISOString().slice(0, 10);
+}
+
+/** Validate a user-supplied IANA timezone, returning undefined if invalid. */
+export function sanitizeTimezone(tz: string | undefined): string | undefined {
+  if (!tz || typeof tz !== "string") return undefined;
+  const trimmed = tz.trim();
+  if (trimmed.length === 0 || trimmed.length > 64) return undefined;
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: trimmed });
+    return trimmed;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getRecencyLabel(
   isoTimestamp: string,
   now: Date = new Date(),
@@ -37,10 +57,7 @@ export function getRecencyLabel(
   const tsDay = calendarDay(ts, timeZone);
   const nowDay = calendarDay(now, timeZone);
   if (tsDay === nowDay) return "today";
-  // Check if ts is the previous calendar day
-  const yesterdayDate = new Date(now);
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  if (tsDay === calendarDay(yesterdayDate, timeZone)) return "yesterday";
+  if (tsDay === prevCalendarDay(nowDay)) return "yesterday";
   if (days < 7) return "this week";
   if (days < 14) return "last week";
   return "older";

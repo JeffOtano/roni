@@ -247,7 +247,7 @@ export async function buildTrainingSnapshot(
     const now = new Date();
     const wl = [`Recent Workouts:`];
     for (const a of activities) {
-      const r = getRecencyLabel(a.date + "T00:00:00Z", now, userTimezone);
+      const r = getRecencyLabel(a.date + "T12:00:00Z", now, userTimezone);
       const recent = r === "today" || r === "yesterday";
       const tag = recent ? `[${r.toUpperCase()}] ` : "";
       const vol = r !== "last week" && r !== "older" ? ` | ${a.totalVolume}lbs vol` : "";
