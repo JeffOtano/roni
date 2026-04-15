@@ -136,11 +136,14 @@ interface StreamWithRetryArgs {
   /** Text prompt or multimodal message array (text + images). */
   prompt?: string | Array<ModelMessage>;
   promptMessageId?: string;
+  /** True when the user is on their own API key (not the house key). */
+  isByok: boolean;
 }
 
 type PromptArgs =
   | { prompt: string | Array<ModelMessage>; maxOutputTokens: number }
-  | { promptMessageId: string; maxOutputTokens: number };
+  | { promptMessageId: string; maxOutputTokens: number }
+  | { promptMessageId: string; prompt: Array<ModelMessage>; maxOutputTokens: number };
 
 const STREAM_OPTIONS = {
   saveStreamDeltas: { chunking: "word" as const, throttleMs: 100 },
@@ -152,10 +155,15 @@ const ATTEMPT_TIMEOUT_MS = 180_000;
 
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
   const { primaryAgent, fallbackAgent, threadId, userId } = args;
-  const promptArgs: PromptArgs =
-    args.prompt !== undefined
-      ? { prompt: args.prompt, maxOutputTokens: MAX_OUTPUT_TOKENS }
-      : { promptMessageId: args.promptMessageId!, maxOutputTokens: MAX_OUTPUT_TOKENS };
+  const promptArgs: PromptArgs = args.promptMessageId
+    ? args.prompt !== undefined
+      ? {
+          promptMessageId: args.promptMessageId,
+          prompt: args.prompt as Array<ModelMessage>,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+        }
+      : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
+    : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
   try {
     await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
@@ -163,6 +171,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   } catch (error) {
     // BYOK errors are terminal under BYOK: never silently fall back to the house key.
     throwIfByokError(error);
+    if (args.isByok && isByokQuotaError(error)) throw new Error("byok_quota_exceeded");
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
@@ -175,6 +184,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
     return;
   } catch (error) {
     throwIfByokError(error);
+    if (args.isByok && isByokQuotaError(error)) throw new Error("byok_quota_exceeded");
     if (!isTransientError(error)) {
       await saveErrorAndNotify(ctx, threadId, userId, error);
       return;
