@@ -27,15 +27,18 @@ export const getMuscleReadiness = internalQuery({
   },
 });
 
-/** Get recent completed workouts, ordered by date descending. */
+/** Get recent completed workouts, ordered by date descending.
+ *  Filters out ghost entries (empty title) from non-workout Tonal activities. */
 export const getRecentCompletedWorkouts = internalQuery({
   args: userIdWithLimitArgsValidator,
   handler: async (ctx, { userId, limit }) => {
-    return await ctx.db
+    const rows = await ctx.db
       .query("completedWorkouts")
       .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(limit);
+      .take(limit * 3);
+
+    return rows.filter((r) => r.title !== "").slice(0, limit);
   },
 });
 

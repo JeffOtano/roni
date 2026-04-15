@@ -104,18 +104,21 @@ export const getWorkoutHistory = query({
       .query("completedWorkouts")
       .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(5);
+      .take(20);
 
-    return rows.map((r) => ({
-      activityId: r.activityId,
-      date: r.date,
-      title: r.title,
-      targetArea: r.targetArea,
-      totalVolume: r.totalVolume,
-      totalDuration: r.totalDuration,
-      totalWork: r.totalWork,
-      workoutType: r.workoutType,
-    }));
+    return rows
+      .filter((r) => r.title !== "")
+      .slice(0, 5)
+      .map((r) => ({
+        activityId: r.activityId,
+        date: r.date,
+        title: r.title,
+        targetArea: r.targetArea,
+        totalVolume: r.totalVolume,
+        totalDuration: r.totalDuration,
+        totalWork: r.totalWork,
+        workoutType: r.workoutType,
+      }));
   },
 });
 

@@ -265,8 +265,6 @@ export const fetchWorkoutHistory = internalAction({
   args: {
     userId: v.id("users"),
     limit: v.optional(v.number()),
-    // "recent" (default): fetches newest page only (1-2 API calls). For cron sync.
-    // "full": paginates through all history (N API calls). For backfill.
     mode: v.optional(v.union(v.literal("recent"), v.literal("full"))),
   },
   handler: async (ctx, { userId, limit, mode = "recent" }): Promise<Activity[]> =>
@@ -283,14 +281,21 @@ export const fetchWorkoutHistory = internalAction({
               ? await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId)
               : await fetchRecentWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
 
-          if (items.length === 0) return [];
+          // Filter ghost entries (null-UUID workoutId + zero volume/work)
+          const realItems = items.filter(
+            (wa) =>
+              wa.workoutId !== "00000000-0000-0000-0000-000000000000" ||
+              wa.totalVolume > 0 ||
+              wa.totalConcentricWork > 0,
+          );
+          if (realItems.length === 0) return [];
 
-          const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
+          const uniqueWorkoutIds = [...new Set(realItems.map((w) => w.workoutId))];
           const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
 
           // fetchRecentWorkoutActivities already returns newest-first;
           // fetchAllWorkoutActivities returns oldest-first, so reverse it
-          const mapped = items.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
+          const mapped = realItems.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
           return mode === "full" ? mapped.reverse() : mapped;
         },
       });
