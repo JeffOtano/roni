@@ -9,6 +9,10 @@ import { ArrowRight } from "lucide-react";
 // Helpers
 // ---------------------------------------------------------------------------
 
+function isOrAre(muscle: string): "is" | "are" {
+  return muscle.endsWith("s") ? "are" : "is";
+}
+
 function readinessColor(value: number): string {
   if (value <= 30)
     return "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/15 hover:shadow-[0_0_12px_oklch(0.65_0.23_15/0.15)]";
@@ -67,14 +71,15 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
           const fresh = entries.find((e) => e.value > 80);
           if (!fresh) return null;
           const prompt = encodeURIComponent(
-            `My ${fresh.muscle.toLowerCase()} is at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()} workout?`,
+            `My ${fresh.muscle.toLowerCase()} ${isOrAre(fresh.muscle)} at ${fresh.value}% readiness. Can you program a ${fresh.muscle.toLowerCase()} workout?`,
           );
           return (
             <Link
               href={`/chat?prompt=${prompt}`}
               className="text-xs text-primary/80 transition-colors duration-200 hover:text-primary"
             >
-              {fresh.muscle} is fresh — ask coach for a workout &rarr;
+              {fresh.muscle}&nbsp;{isOrAre(fresh.muscle)}&nbsp;fresh — ask coach for a workout
+              &rarr;
             </Link>
           );
         })()}
@@ -82,14 +87,14 @@ export function MuscleReadinessMap({ readiness }: MuscleReadinessMapProps) {
           const fatigued = entries.find((e) => e.value <= 30);
           if (!fatigued) return null;
           const prompt = encodeURIComponent(
-            `My ${fatigued.muscle.toLowerCase()} is fatigued at ${fatigued.value}% readiness. What should I do for recovery?`,
+            `My ${fatigued.muscle.toLowerCase()} ${isOrAre(fatigued.muscle)} fatigued at ${fatigued.value}% readiness. What should I do for recovery?`,
           );
           return (
             <Link
               href={`/chat?prompt=${prompt}`}
               className="text-xs text-muted-foreground/80 transition-colors duration-200 hover:text-foreground"
             >
-              Rest day tips for {fatigued.muscle.toLowerCase()} &rarr;
+              Rest day tips for {fatigued.muscle.toLowerCase()}&nbsp; &rarr;
             </Link>
           );
         })()}

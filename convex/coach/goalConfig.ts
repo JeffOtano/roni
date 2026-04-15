@@ -1,5 +1,6 @@
 export type LibraryGoal =
   | "build_muscle"
+  | "bodybuilding"
   | "fat_loss"
   | "strength"
   | "endurance"
@@ -39,23 +40,45 @@ export interface RepSetScheme {
   sets: number;
   reps?: number;
   duration?: number;
+  /** Rest between sets in seconds. Applies to straight-set blocks; supersets use alternation. */
+  restSeconds: number;
 }
 
 const REP_SET_SCHEMES: Record<LibraryGoal, RepSetScheme> = {
-  strength: { sets: 4, reps: 5 },
-  build_muscle: { sets: 3, reps: 10 },
-  fat_loss: { sets: 3, reps: 12 },
-  endurance: { sets: 3, reps: 15 },
-  athletic: { sets: 3, reps: 8 },
-  general_fitness: { sets: 3, reps: 10 },
-  power: { sets: 4, reps: 3 },
-  functional: { sets: 3, reps: 12 },
-  mobility_flexibility: { sets: 2, duration: 35 },
-  sport_complement: { sets: 3, reps: 8 },
+  // Heavy / low-rep goals need full CNS recovery between sets.
+  strength: { sets: 4, reps: 5, restSeconds: 180 },
+  power: { sets: 4, reps: 3, restSeconds: 180 },
+  // Moderate load — standard hypertrophy rest windows.
+  build_muscle: { sets: 3, reps: 10, restSeconds: 90 },
+  bodybuilding: { sets: 4, reps: 12, restSeconds: 60 },
+  athletic: { sets: 3, reps: 8, restSeconds: 90 },
+  general_fitness: { sets: 3, reps: 10, restSeconds: 90 },
+  sport_complement: { sets: 3, reps: 8, restSeconds: 90 },
+  functional: { sets: 3, reps: 12, restSeconds: 60 },
+  // High-rep / metabolic — shorter rest keeps intensity up.
+  fat_loss: { sets: 3, reps: 12, restSeconds: 45 },
+  endurance: { sets: 3, reps: 15, restSeconds: 30 },
+  // Duration-based — minimal rest between holds.
+  mobility_flexibility: { sets: 2, duration: 35, restSeconds: 30 },
 };
 
 export function getRepSetScheme(goal: LibraryGoal): RepSetScheme {
   return REP_SET_SCHEMES[goal];
+}
+
+// Maps free-text goal strings stored in onboardingData.goal to a RepSetScheme.
+// UI values like "get_stronger" and "lose_fat" don't match LibraryGoal exactly.
+const GOAL_STRING_TO_LIBRARY: Record<string, LibraryGoal> = {
+  build_muscle: "build_muscle",
+  bodybuilding: "bodybuilding",
+  get_stronger: "strength",
+  lose_fat: "fat_loss",
+  general_fitness: "general_fitness",
+};
+
+export function goalStringToRepSetScheme(goal: string | undefined): RepSetScheme {
+  const libraryGoal = GOAL_STRING_TO_LIBRARY[goal ?? ""] ?? "general_fitness";
+  return REP_SET_SCHEMES[libraryGoal];
 }
 
 const DURATION_TO_MAX_EXERCISES: Record<LibraryDuration, number> = {
@@ -103,6 +126,7 @@ export function getExcludedAccessoriesForConfig(config: LibraryEquipmentConfig):
 
 const GOAL_LABELS: Record<LibraryGoal, string> = {
   build_muscle: "Hypertrophy",
+  bodybuilding: "Bodybuilding",
   fat_loss: "Fat Loss",
   strength: "Strength",
   endurance: "Endurance",
@@ -177,6 +201,7 @@ export function generateMetaTitle(title: string): string {
 
 const GOAL_DESCRIPTIONS: Record<LibraryGoal, string> = {
   build_muscle: "maximize muscle growth with hypertrophy-focused rep ranges",
+  bodybuilding: "build aesthetic muscle with high-volume body-part focus and isolation work",
   fat_loss: "burn calories and build lean muscle with high-rep supersets",
   strength: "build raw strength with heavy, low-rep compound movements",
   endurance: "improve muscular endurance with high-rep, low-rest training",
