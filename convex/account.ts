@@ -110,24 +110,21 @@ export const getUserEmail = internalQuery({
   },
 });
 
-/** Tables to delete from, in order. Each entry is [table, indexName]. */
-const DELETION_TABLES: Array<[string, string?]> = [
-  ["checkIns"],
-  ["workoutPlans"],
-  ["weekPlans"],
-  ["workoutFeedback"],
-  ["trainingBlocks"],
-  ["goals"],
-  ["injuries"],
-  ["emailChangeRequests"],
-  ["completedWorkouts"],
-  ["strengthScoreSnapshots"],
-  ["aiUsage"],
-  ["exercisePerformance", "by_userId_date"],
-  ["tonalCache", "by_userId_dataType"],
-  ["muscleReadiness", "by_userId"],
-  ["externalActivities", "by_userId_beginTime"],
-];
+/** Tables with a by_userId index, deleted via the typed deleteUserTableBatch mutation. */
+const USER_TABLES = [
+  "checkIns",
+  "workoutPlans",
+  "weekPlans",
+  "workoutFeedback",
+  "trainingBlocks",
+  "goals",
+  "injuries",
+  "emailChangeRequests",
+  "completedWorkouts",
+  "strengthScoreSnapshots",
+  "aiUsage",
+  "muscleReadiness",
+] as const;
 
 export const deleteAccount = action({
   args: {},
@@ -137,15 +134,25 @@ export const deleteAccount = action({
 
     await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
 
-    // Delete each table in batches of 500 to stay under the 4096 read limit
-    for (const [table, indexName] of DELETION_TABLES) {
+    // Drain each table in batches of 500 to stay under the 4096 read limit
+    for (const table of USER_TABLES) {
       let hasMore = true;
       while (hasMore) {
-        hasMore = await ctx.runMutation(internal.accountDeletion.deleteTableBatch, {
+        hasMore = await ctx.runMutation(internal.accountDeletion.deleteUserTableBatch, {
           userId,
           table,
-          indexName,
         });
+      }
+    }
+
+    for (const mutation of [
+      internal.accountDeletion.deleteExercisePerformanceBatch,
+      internal.accountDeletion.deleteTonalCacheBatch,
+      internal.accountDeletion.deleteExternalActivitiesBatch,
+    ] as const) {
+      let hasMore = true;
+      while (hasMore) {
+        hasMore = await ctx.runMutation(mutation, { userId });
       }
     }
 

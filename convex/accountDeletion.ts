@@ -1,42 +1,80 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import type { GenericMutationCtx } from "convex/server";
-import type { DataModel, Id } from "./_generated/dataModel";
-
-type MutationCtx = GenericMutationCtx<DataModel>;
 
 const BATCH_SIZE = 500;
 
-/**
- * Delete up to BATCH_SIZE rows from a table for a given userId.
- * Returns the number of rows deleted so the caller knows whether to continue.
- */
-async function deleteBatch(
-  ctx: MutationCtx,
-  table: string,
-  indexName: string,
-  userId: Id<"users">,
-): Promise<number> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const docs = await (ctx.db.query(table as any) as any)
-    .withIndex(indexName, (q: { eq: (f: string, v: string) => unknown }) => q.eq("userId", userId))
-    .take(BATCH_SIZE);
-  for (const doc of docs) {
-    await ctx.db.delete(doc._id);
-  }
-  return docs.length;
-}
+const userTableValidator = v.union(
+  v.literal("checkIns"),
+  v.literal("workoutPlans"),
+  v.literal("weekPlans"),
+  v.literal("workoutFeedback"),
+  v.literal("trainingBlocks"),
+  v.literal("goals"),
+  v.literal("injuries"),
+  v.literal("emailChangeRequests"),
+  v.literal("completedWorkouts"),
+  v.literal("strengthScoreSnapshots"),
+  v.literal("aiUsage"),
+  v.literal("muscleReadiness"),
+);
 
-/** Delete one batch of user data from a specific table. Returns true if more rows remain. */
-export const deleteTableBatch = internalMutation({
-  args: {
-    userId: v.id("users"),
-    table: v.string(),
-    indexName: v.optional(v.string()),
+/** Delete one batch from a table with a by_userId index. Returns true if more remain. */
+export const deleteUserTableBatch = internalMutation({
+  args: { userId: v.id("users"), table: userTableValidator },
+  handler: async (ctx, { userId, table }): Promise<boolean> => {
+    const docs = await ctx.db
+      .query(table)
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(BATCH_SIZE);
+    for (const doc of docs) {
+      await ctx.db.delete(doc._id);
+    }
+    return docs.length === BATCH_SIZE;
   },
-  handler: async (ctx, { userId, table, indexName = "by_userId" }): Promise<boolean> => {
-    const deleted = await deleteBatch(ctx, table, indexName, userId);
-    return deleted === BATCH_SIZE;
+});
+
+/** Delete one batch of exercisePerformance rows. */
+export const deleteExercisePerformanceBatch = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<boolean> => {
+    const docs = await ctx.db
+      .query("exercisePerformance")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+      .take(BATCH_SIZE);
+    for (const doc of docs) {
+      await ctx.db.delete(doc._id);
+    }
+    return docs.length === BATCH_SIZE;
+  },
+});
+
+/** Delete one batch of tonalCache rows. */
+export const deleteTonalCacheBatch = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<boolean> => {
+    const docs = await ctx.db
+      .query("tonalCache")
+      .withIndex("by_userId_dataType", (q) => q.eq("userId", userId))
+      .take(BATCH_SIZE);
+    for (const doc of docs) {
+      await ctx.db.delete(doc._id);
+    }
+    return docs.length === BATCH_SIZE;
+  },
+});
+
+/** Delete one batch of externalActivities rows. */
+export const deleteExternalActivitiesBatch = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<boolean> => {
+    const docs = await ctx.db
+      .query("externalActivities")
+      .withIndex("by_userId_beginTime", (q) => q.eq("userId", userId))
+      .take(BATCH_SIZE);
+    for (const doc of docs) {
+      await ctx.db.delete(doc._id);
+    }
+    return docs.length === BATCH_SIZE;
   },
 });
 
@@ -47,7 +85,7 @@ export const deleteAuthData = internalMutation({
     const sessions = await ctx.db
       .query("authSessions")
       .withIndex("userId", (q) => q.eq("userId", userId))
-      .collect();
+      .take(BATCH_SIZE);
     for (const session of sessions) {
       const tokens = await ctx.db
         .query("authRefreshTokens")
@@ -62,7 +100,7 @@ export const deleteAuthData = internalMutation({
     const accounts = await ctx.db
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
-      .collect();
+      .take(BATCH_SIZE);
     for (const account of accounts) {
       const codes = await ctx.db
         .query("authVerificationCodes")
