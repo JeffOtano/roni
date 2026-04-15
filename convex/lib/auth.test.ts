@@ -18,6 +18,7 @@ type FakeUser = {
   _id: string;
   isAdmin?: boolean;
   impersonatingUserId?: string;
+  deletionInProgress?: boolean;
 };
 
 function makeCtx(user: FakeUser | null) {
@@ -80,5 +81,14 @@ describe("getEffectiveUserId", () => {
     const result = await getEffectiveUserId(ctx);
 
     expect(result).toBe("user-admin");
+  });
+
+  it("returns null when account deletion is in progress", async () => {
+    getAuthUserIdMock.mockResolvedValue("user-deleting");
+    const ctx = makeCtx({ _id: "user-deleting", deletionInProgress: true });
+
+    const result = await getEffectiveUserId(ctx);
+
+    expect(result).toBeNull();
   });
 });

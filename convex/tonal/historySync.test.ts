@@ -25,6 +25,7 @@ const FUNCTION_NAMES = {
   persistCurrentStrengthScores: getFunctionName(
     internal.tonal.historySyncMutations.persistCurrentStrengthScores,
   ),
+  getDeletionInProgress: getFunctionName(internal.lib.auth.getDeletionInProgress),
   getByUserId: getFunctionName(internal.userProfiles.getByUserId),
 };
 
@@ -79,6 +80,12 @@ describe("backfillUserHistoryHandler", () => {
       return null;
     });
     const runQuery = vi.fn(async (ref: unknown) => {
+      if (
+        getFunctionName(ref as Parameters<typeof getFunctionName>[0]) ===
+        FUNCTION_NAMES.getDeletionInProgress
+      ) {
+        return false;
+      }
       if (
         getFunctionName(ref as Parameters<typeof getFunctionName>[0]) === FUNCTION_NAMES.getByUserId
       ) {

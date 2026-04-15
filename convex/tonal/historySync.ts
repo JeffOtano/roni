@@ -235,6 +235,7 @@ async function maybeRefreshProfile(ctx: ActionCtx, userId: Id<"users">): Promise
 export const syncUserHistory = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
+    if (await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId })) return;
     const activities: Activity[] = await ctx.runAction(
       internal.tonal.workoutHistoryProxy.fetchWorkoutHistory,
       {
@@ -269,6 +270,10 @@ export async function backfillUserHistoryHandler(
   ctx: ActionCtx,
   { userId, retryCount = 0, pgOffset = 0, newestActivityDate }: BackfillUserHistoryArgs,
 ): Promise<{ newWorkouts: number; totalActivities: number }> {
+  if (await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId })) {
+    return { newWorkouts: 0, totalActivities: 0 };
+  }
+
   return backfillUserHistoryWithDeps(
     {
       userId,

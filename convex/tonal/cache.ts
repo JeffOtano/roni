@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { isDeletionInProgress } from "../lib/auth";
 
 // Cache TTLs in milliseconds
 export const CACHE_TTLS: Record<string, number> = {
@@ -15,6 +16,7 @@ export const CACHE_TTLS: Record<string, number> = {
 export const getUserProfile = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
+    if (await isDeletionInProgress(ctx, userId)) return null;
     return ctx.db
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -51,6 +53,7 @@ export const setCacheEntry = internalMutation({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
+    if (args.userId && (await isDeletionInProgress(ctx, args.userId))) return;
     const existing = await ctx.db
       .query("tonalCache")
       .withIndex("by_userId_dataType", (q) =>
@@ -96,6 +99,7 @@ export const deleteUserCacheEntries = internalMutation({
     dataTypes: v.array(v.string()),
   },
   handler: async (ctx, { userId, dataTypes }) => {
+    if (await isDeletionInProgress(ctx, userId)) return 0;
     let deleted = 0;
 
     for (const dataType of dataTypes) {
