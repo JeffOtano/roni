@@ -81,36 +81,48 @@ export const deleteExternalActivitiesBatch = internalMutation({
 /** Delete auth sessions, refresh tokens, accounts, and verification codes. */
 export const deleteAuthData = internalMutation({
   args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const sessions = await ctx.db
+  handler: async (ctx, { userId }): Promise<boolean> => {
+    const session = await ctx.db
       .query("authSessions")
       .withIndex("userId", (q) => q.eq("userId", userId))
-      .take(BATCH_SIZE);
-    for (const session of sessions) {
+      .first();
+    if (session) {
       const tokens = await ctx.db
         .query("authRefreshTokens")
         .withIndex("sessionId", (q) => q.eq("sessionId", session._id))
         .take(BATCH_SIZE);
-      for (const token of tokens) {
-        await ctx.db.delete(token._id);
+      if (tokens.length > 0) {
+        for (const token of tokens) {
+          await ctx.db.delete(token._id);
+        }
+        return true;
       }
+
       await ctx.db.delete(session._id);
+      return true;
     }
 
-    const accounts = await ctx.db
+    const account = await ctx.db
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
-      .take(BATCH_SIZE);
-    for (const account of accounts) {
+      .first();
+    if (account) {
       const codes = await ctx.db
         .query("authVerificationCodes")
         .withIndex("accountId", (q) => q.eq("accountId", account._id))
         .take(BATCH_SIZE);
-      for (const code of codes) {
-        await ctx.db.delete(code._id);
+      if (codes.length > 0) {
+        for (const code of codes) {
+          await ctx.db.delete(code._id);
+        }
+        return true;
       }
+
       await ctx.db.delete(account._id);
+      return true;
     }
+
+    return false;
   },
 });
 

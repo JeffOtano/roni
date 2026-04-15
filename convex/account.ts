@@ -156,7 +156,10 @@ export const deleteAccount = action({
       }
     }
 
-    await ctx.runMutation(internal.accountDeletion.deleteAuthData, { userId });
+    let hasMoreAuthData = true;
+    while (hasMoreAuthData) {
+      hasMoreAuthData = await ctx.runMutation(internal.accountDeletion.deleteAuthData, { userId });
+    }
     await ctx.runMutation(internal.accountDeletion.deleteUserRecord, { userId });
   },
 });
