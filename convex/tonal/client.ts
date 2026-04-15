@@ -107,17 +107,18 @@ export async function fetchRecentWorkoutActivities<T>(
   tonalUserId: string,
   count: number = PG_PAGE_SIZE,
 ): Promise<T[]> {
-  // First call with offset=0 just to get pgTotal from the response header
-  const { pgTotal } = await fetchWorkoutActivitiesPage<T>(token, tonalUserId, 0, 1);
+  // Fetch a full page from offset 0. If pgTotal fits in one page, we're done.
+  // Otherwise use pgTotal to jump to the end for the newest items.
+  const { items: firstPage, pgTotal } = await fetchWorkoutActivitiesPage<T>(
+    token,
+    tonalUserId,
+    0,
+    count,
+  );
 
-  if (pgTotal === 0) return [];
-  if (pgTotal <= count) {
-    // Small enough to fetch everything in one shot
-    const { items } = await fetchWorkoutActivitiesPage<T>(token, tonalUserId, 0, pgTotal);
-    return items.reverse();
-  }
+  if (pgTotal <= count) return firstPage.reverse();
 
-  // Fetch the last `count` items from the end
+  // User has more than `count` items - fetch the last page from the end
   const startOffset = Math.max(0, pgTotal - count);
   const { items } = await fetchWorkoutActivitiesPage<T>(token, tonalUserId, startOffset, count);
   return items.reverse();
