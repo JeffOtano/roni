@@ -39,6 +39,17 @@ async function createAccount(
   );
 }
 
+async function createUserProfile(t: ReturnType<typeof convexTest>, userId: Id<"users">) {
+  return t.run(async (ctx) =>
+    ctx.db.insert("userProfiles", {
+      userId,
+      tonalUserId: `tonal-${userId}`,
+      tonalToken: "token",
+      lastActiveAt: Date.now(),
+    }),
+  );
+}
+
 async function countUserSessions(t: ReturnType<typeof convexTest>, userId: Id<"users">) {
   return t.run(async (ctx) => {
     const sessions = await ctx.db.query("authSessions").collect();
@@ -71,6 +82,13 @@ async function countCurrentStrengthScores(t: ReturnType<typeof convexTest>, user
   return t.run(async (ctx) => {
     const scores = await ctx.db.query("currentStrengthScores").collect();
     return scores.filter((score) => score.userId === userId);
+  });
+}
+
+async function countUserCacheEntries(t: ReturnType<typeof convexTest>, userId: Id<"users">) {
+  return t.run(async (ctx) => {
+    const entries = await ctx.db.query("tonalCache").collect();
+    return entries.filter((entry) => entry.userId === userId);
   });
 }
 
@@ -225,5 +243,31 @@ describe("deleteUserTableBatch", () => {
 
     expect(await countCurrentStrengthScores(t, userId)).toHaveLength(0);
     expect(await countCurrentStrengthScores(t, otherUserId)).toHaveLength(1);
+  });
+});
+
+describe("deletionInProgress", () => {
+  test("blocks history sync writes and user cache writes while deletion is running", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    await createUserProfile(t, userId);
+
+    await t.mutation(internal.accountDeletion.markDeletionInProgress, { userId });
+
+    await t.mutation(internal.tonal.historySyncMutations.persistCurrentStrengthScores, {
+      userId,
+      scores: [{ bodyRegion: "upper", score: 123 }],
+    });
+    await t.mutation(internal.tonal.cache.setCacheEntry, {
+      userId,
+      dataType: "strengthScores",
+      data: { score: 123 },
+      fetchedAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
+    });
+
+    expect(await t.query(internal.tonal.cache.getUserProfile, { userId })).toBeNull();
+    expect(await countCurrentStrengthScores(t, userId)).toHaveLength(0);
+    expect(await countUserCacheEntries(t, userId)).toHaveLength(0);
   });
 });

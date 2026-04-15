@@ -72,6 +72,24 @@ export const deleteExternalActivitiesBatch = internalMutation({
   },
 });
 
+export const markDeletionInProgress = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    if (!user) throw new Error("User not found");
+    if (user.deletionInProgress) throw new Error("Account deletion already in progress");
+    await ctx.db.patch(userId, { deletionInProgress: true });
+  },
+});
+
+export const clearDeletionInProgress = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    if (user) await ctx.db.patch(userId, { deletionInProgress: false });
+  },
+});
+
 /** Delete auth sessions, refresh tokens, accounts, and verification codes. */
 export const deleteAuthData = internalMutation({
   args: { userId: v.id("users") },

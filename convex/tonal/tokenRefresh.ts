@@ -19,6 +19,11 @@ export const refreshExpiringTokens = internalAction({
 
     for (const profile of expiring) {
       try {
+        if (
+          await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId: profile.userId })
+        ) {
+          continue;
+        }
         if (!profile.tonalRefreshToken) {
           console.warn(`No refresh token for user ${profile.userId} - skipping`);
           continue;

@@ -79,7 +79,7 @@ export const changePassword = action({
     newPassword: v.string(),
   },
   handler: async (ctx, { oldPassword, newPassword }): Promise<void> => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const user = await ctx.runQuery(internal.account.getUserEmail, { userId });
@@ -117,34 +117,43 @@ export const deleteAccount = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
+    await ctx.runMutation(internal.accountDeletion.markDeletionInProgress, { userId });
 
-    // Drain each table in batches of 500 to stay under the 4096 read limit
-    for (const table of BY_USER_ID_BATCH_TABLES) {
-      let hasMore = true;
-      while (hasMore) {
-        hasMore = await ctx.runMutation(internal.accountDeletion.deleteUserTableBatch, {
+    try {
+      await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
+
+      // Drain each table in batches of 500 to stay under the 4096 read limit
+      for (const table of BY_USER_ID_BATCH_TABLES) {
+        let hasMore = true;
+        while (hasMore) {
+          hasMore = await ctx.runMutation(internal.accountDeletion.deleteUserTableBatch, {
+            userId,
+            table,
+          });
+        }
+      }
+
+      for (const mutation of [
+        internal.accountDeletion.deleteExercisePerformanceBatch,
+        internal.accountDeletion.deleteTonalCacheBatch,
+        internal.accountDeletion.deleteExternalActivitiesBatch,
+      ] as const) {
+        let hasMore = true;
+        while (hasMore) {
+          hasMore = await ctx.runMutation(mutation, { userId });
+        }
+      }
+
+      let hasMoreAuthData = true;
+      while (hasMoreAuthData) {
+        hasMoreAuthData = await ctx.runMutation(internal.accountDeletion.deleteAuthData, {
           userId,
-          table,
         });
       }
+      await ctx.runMutation(internal.accountDeletion.deleteUserRecord, { userId });
+    } catch (error) {
+      await ctx.runMutation(internal.accountDeletion.clearDeletionInProgress, { userId });
+      throw error;
     }
-
-    for (const mutation of [
-      internal.accountDeletion.deleteExercisePerformanceBatch,
-      internal.accountDeletion.deleteTonalCacheBatch,
-      internal.accountDeletion.deleteExternalActivitiesBatch,
-    ] as const) {
-      let hasMore = true;
-      while (hasMore) {
-        hasMore = await ctx.runMutation(mutation, { userId });
-      }
-    }
-
-    let hasMoreAuthData = true;
-    while (hasMoreAuthData) {
-      hasMoreAuthData = await ctx.runMutation(internal.accountDeletion.deleteAuthData, { userId });
-    }
-    await ctx.runMutation(internal.accountDeletion.deleteUserRecord, { userId });
   },
 });

@@ -8,6 +8,7 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { isDeletionInProgress } from "../lib/auth";
 
 // ---------------------------------------------------------------------------
 // Shared validators (exported for action payload typing)
@@ -74,6 +75,7 @@ export const getExistingActivityIds = internalQuery({
 export const persistCompletedWorkouts = internalMutation({
   args: { userId: v.id("users"), workouts: v.array(workoutValidator) },
   handler: async (ctx, { userId, workouts }) => {
+    if (await isDeletionInProgress(ctx, userId)) return 0;
     let inserted = 0;
     for (const w of workouts) {
       const exists = await ctx.db
@@ -94,6 +96,7 @@ export const persistCompletedWorkouts = internalMutation({
 export const persistExercisePerformance = internalMutation({
   args: { userId: v.id("users"), performances: v.array(performanceValidator) },
   handler: async (ctx, { userId, performances }) => {
+    if (await isDeletionInProgress(ctx, userId)) return;
     for (const p of performances) {
       const existing = await ctx.db
         .query("exercisePerformance")
@@ -112,6 +115,7 @@ export const persistExercisePerformance = internalMutation({
 export const persistStrengthSnapshots = internalMutation({
   args: { userId: v.id("users"), snapshots: v.array(snapshotValidator) },
   handler: async (ctx, { userId, snapshots }) => {
+    if (await isDeletionInProgress(ctx, userId)) return;
     for (const s of snapshots) {
       const exists = await ctx.db
         .query("strengthScoreSnapshots")
@@ -162,6 +166,7 @@ export const externalActivityValidator = v.object({
 export const persistCurrentStrengthScores = internalMutation({
   args: { userId: v.id("users"), scores: v.array(strengthScoreValidator) },
   handler: async (ctx, { userId, scores }) => {
+    if (await isDeletionInProgress(ctx, userId)) return;
     const existing = await ctx.db
       .query("currentStrengthScores")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -180,6 +185,7 @@ export const persistCurrentStrengthScores = internalMutation({
 export const persistMuscleReadiness = internalMutation({
   args: { userId: v.id("users"), readiness: muscleReadinessValidator },
   handler: async (ctx, { userId, readiness }) => {
+    if (await isDeletionInProgress(ctx, userId)) return;
     const existing = await ctx.db
       .query("muscleReadiness")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -195,6 +201,7 @@ export const persistMuscleReadiness = internalMutation({
 export const clearMuscleReadiness = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
+    if (await isDeletionInProgress(ctx, userId)) return;
     const existing = await ctx.db
       .query("muscleReadiness")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -209,6 +216,7 @@ export const clearMuscleReadiness = internalMutation({
 export const persistExternalActivities = internalMutation({
   args: { userId: v.id("users"), activities: v.array(externalActivityValidator) },
   handler: async (ctx, { userId, activities }) => {
+    if (await isDeletionInProgress(ctx, userId)) return;
     const now = Date.now();
     for (const a of activities) {
       const existing = await ctx.db
