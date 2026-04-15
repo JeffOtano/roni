@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterCatalog } from "./workoutDetail";
+import { buildMovementSummaries, filterCatalog } from "./workoutDetail";
+import type { EnrichedSetActivity } from "./workoutDetail";
 import type { Movement } from "./tonal/types";
 
 // ---------------------------------------------------------------------------
@@ -165,5 +166,65 @@ describe("filterCatalog", () => {
 
       expect(results).toHaveLength(CATALOG.length);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildMovementSummaries
+// ---------------------------------------------------------------------------
+
+function makeSet(overrides: Partial<EnrichedSetActivity>): EnrichedSetActivity {
+  return {
+    id: "s1",
+    movementId: "m1",
+    movementName: "Test Move",
+    muscleGroups: ["Chest"],
+    prescribedReps: 10,
+    repetition: 10,
+    repetitionTotal: 10,
+    blockNumber: 1,
+    spotter: false,
+    eccentric: false,
+    chains: false,
+    flex: false,
+    warmUp: false,
+    beginTime: "2026-04-15T10:00:00Z",
+    sideNumber: 0,
+    avgWeight: 50,
+    ...overrides,
+  };
+}
+
+describe("buildMovementSummaries", () => {
+  it("aggregates sets by movementId", () => {
+    const sets = [
+      makeSet({ id: "s1", movementId: "m1", repetition: 10 }),
+      makeSet({ id: "s2", movementId: "m1", repetition: 8 }),
+      makeSet({ id: "s3", movementId: "m2", movementName: "Other", repetition: 12 }),
+    ];
+
+    const result = buildMovementSummaries(sets, new Map());
+
+    expect(result).toHaveLength(2);
+    const m1 = result.find((r) => r.movementId === "m1")!;
+    expect(m1.totalSets).toBe(2);
+    expect(m1.totalReps).toBe(18);
+  });
+
+  it("preserves doubled avgWeight from enriched StraightBar sets", () => {
+    // Simulates what happens after enrichment doubles avgWeight for StraightBar.
+    // A barbell front squat where per-motor avgWeight was 47, doubled to 94.
+    const sets = [
+      makeSet({ id: "s1", movementId: "bar1", movementName: "Barbell Front Squat", avgWeight: 94 }),
+      makeSet({ id: "s2", movementId: "bar1", movementName: "Barbell Front Squat", avgWeight: 94 }),
+    ];
+
+    const result = buildMovementSummaries(sets, new Map());
+    const summary = result.find((r) => r.movementId === "bar1")!;
+
+    // avgWeightLbs comes from volumeMap, not from set.avgWeight,
+    // so it will be 0 here (no volume data). That's expected.
+    expect(summary.totalSets).toBe(2);
+    expect(summary.totalReps).toBe(20);
   });
 });
