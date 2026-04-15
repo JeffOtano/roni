@@ -54,7 +54,10 @@ export const fetchWorkoutHistory = internalAction({
  *  avoid loading all 1000+ workouts into one action's 64MB memory limit. */
 export const fetchWorkoutHistoryPage = internalAction({
   args: { userId: v.id("users"), offset: v.number() },
-  handler: async (ctx, { userId, offset }): Promise<{ activities: Activity[]; pgTotal: number }> =>
+  handler: async (
+    ctx,
+    { userId, offset },
+  ): Promise<{ activities: Activity[]; pageSize: number; pgTotal: number }> =>
     withTokenRetry(ctx, userId, async (token, tonalUserId) => {
       const { items, pgTotal } = await fetchWorkoutActivitiesPage<WorkoutActivityDetail>(
         token,
@@ -62,6 +65,6 @@ export const fetchWorkoutHistoryPage = internalAction({
         offset,
       );
       const activities = await enrichWorkoutActivities(ctx, token, items);
-      return { activities, pgTotal };
+      return { activities, pageSize: items.length, pgTotal };
     }),
 });

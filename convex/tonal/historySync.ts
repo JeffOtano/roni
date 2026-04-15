@@ -283,10 +283,10 @@ export const backfillUserHistory = internalAction({
     }
 
     try {
-      const { activities, pgTotal } = (await ctx.runAction(
+      const { activities, pageSize, pgTotal } = (await ctx.runAction(
         internal.tonal.workoutHistoryProxy.fetchWorkoutHistoryPage,
         { userId, offset: pgOffset },
-      )) as { activities: Activity[]; pgTotal: number };
+      )) as { activities: Activity[]; pageSize: number; pgTotal: number };
 
       const { synced, remaining } =
         activities.length > 0
@@ -306,8 +306,8 @@ export const backfillUserHistory = internalAction({
         return { newWorkouts: synced, totalActivities: pgTotal };
       }
 
-      // More pages to fetch
-      const nextOffset = pgOffset + activities.length;
+      // More pages to fetch (use raw pageSize, not filtered activities.length)
+      const nextOffset = pgOffset + pageSize;
       if (nextOffset < pgTotal) {
         console.log(
           `[historySync] Backfill page offset=${pgOffset}: ${synced} synced, advancing to offset=${nextOffset}/${pgTotal}`,
