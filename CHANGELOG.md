@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0](https://github.com/JeffOtano/tonal-coach/compare/v0.3.0...v0.4.0) (2026-04-15)
+
+
+### Features
+
+* background data sync + bug fixes ([#118](https://github.com/JeffOtano/tonal-coach/issues/118), [#119](https://github.com/JeffOtano/tonal-coach/issues/119), [#120](https://github.com/JeffOtano/tonal-coach/issues/120)) ([#121](https://github.com/JeffOtano/tonal-coach/issues/121)) ([9e18ea3](https://github.com/JeffOtano/tonal-coach/commit/9e18ea3a6a7f79a61305a1879ca820bd323c6a57))
+
+
+### Bug Fixes
+
+* cache lightweight Activity[] instead of raw WorkoutActivityDetail[] ([86bf09e](https://github.com/JeffOtano/tonal-coach/commit/86bf09e675a027eaac986a5af6ffa253f85df6c0))
+* classify depleted Gemini credits as BYOK quota error ([#125](https://github.com/JeffOtano/tonal-coach/issues/125)) ([9ecd59a](https://github.com/JeffOtano/tonal-coach/commit/9ecd59aee3cd03c7b29a442e3c4ba68265aefeea))
+* dashboard reads from sync tables instead of Tonal API proxy ([#123](https://github.com/JeffOtano/tonal-coach/issues/123)) ([ab568db](https://github.com/JeffOtano/tonal-coach/commit/ab568db1484ee32395f338380a1bd19bd0ccd54c))
+* pre-save user message to prevent triple Gemini API calls on retry ([#141](https://github.com/JeffOtano/tonal-coach/issues/141)) ([d375d9d](https://github.com/JeffOtano/tonal-coach/commit/d375d9d167609ea65d7438ce74c36f898da129d6))
+* retry on 429 rate limit and Gemini high demand errors ([#124](https://github.com/JeffOtano/tonal-coach/issues/124)) ([90247e9](https://github.com/JeffOtano/tonal-coach/commit/90247e96fd182683a3851259e69d279a0afa3fc6))
+* surface failed async messages in chat UI ([#139](https://github.com/JeffOtano/tonal-coach/issues/139)) ([a28f04b](https://github.com/JeffOtano/tonal-coach/commit/a28f04b8a51d24356549546ab318c6ad755e9e89))
+* switch workout history to /workout-activities endpoint ([#128](https://github.com/JeffOtano/tonal-coach/issues/128)) ([5c75ed3](https://github.com/JeffOtano/tonal-coach/commit/5c75ed356f52e313ccc908e2cdbc208b26224baf))
+* track tonal_connected event during onboarding flow ([502d295](https://github.com/JeffOtano/tonal-coach/commit/502d295af228ca373dee2a68a550cf3ec84b3d73))
+* workout sync for large histories + per-set weight display ([#130](https://github.com/JeffOtano/tonal-coach/issues/130)) ([04d4de9](https://github.com/JeffOtano/tonal-coach/commit/04d4de90b5441b6264dfe157f329d30c40498863))
+
 ## [0.3.0](https://github.com/JeffOtano/tonal-coach/compare/v0.2.0...v0.3.0) (2026-04-14)
 
 ### Features
