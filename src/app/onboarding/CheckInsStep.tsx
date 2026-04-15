@@ -18,7 +18,7 @@ type Frequency = (typeof FREQUENCY_OPTIONS)[number]["value"];
 
 export function CheckInsStep({ onComplete }: { readonly onComplete: () => void }) {
   const [enabled, setEnabled] = useState(true);
-  const [frequency, setFrequency] = useState<Frequency>("every_other_day");
+  const [frequency, setFrequency] = useState<Frequency>("daily");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

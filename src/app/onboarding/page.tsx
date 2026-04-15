@@ -61,6 +61,7 @@ export default function OnboardingPage() {
       steps={steps}
       hasTonalProfile={!!me?.hasTonalProfile}
       onboardingCompleted={!!me?.onboardingCompleted}
+      hasCheckInPreferences={!!me?.hasCheckInPreferences}
       needsByokStep={needsByokStep}
       firstName={me?.tonalName?.split(" ")[0]}
     />
@@ -71,10 +72,12 @@ function pickInitialStepIndex(
   steps: readonly StepDef[],
   hasTonalProfile: boolean,
   onboardingCompleted: boolean,
+  hasCheckInPreferences: boolean,
   needsByokStep: boolean,
 ): number {
   if (!hasTonalProfile) return steps.findIndex((s) => s.id === "connect");
   if (!onboardingCompleted) return steps.findIndex((s) => s.id === "preferences");
+  if (!hasCheckInPreferences) return steps.findIndex((s) => s.id === "checkins");
   if (needsByokStep) return steps.findIndex((s) => s.id === "byok");
   return steps.findIndex((s) => s.id === "ready");
 }
@@ -83,12 +86,14 @@ function OnboardingFlow({
   steps: initialSteps,
   hasTonalProfile,
   onboardingCompleted,
+  hasCheckInPreferences,
   needsByokStep,
   firstName,
 }: {
   readonly steps: readonly StepDef[];
   readonly hasTonalProfile: boolean;
   readonly onboardingCompleted: boolean;
+  readonly hasCheckInPreferences: boolean;
   readonly needsByokStep: boolean;
   readonly firstName: string | undefined;
 }) {
@@ -98,7 +103,13 @@ function OnboardingFlow({
   // flow rendering BASE_STEPS[3] === undefined (blank screen).
   const [steps] = useState<readonly StepDef[]>(() => initialSteps);
   const [stepIndex, setStepIndex] = useState<number>(() =>
-    pickInitialStepIndex(steps, hasTonalProfile, onboardingCompleted, needsByokStep),
+    pickInitialStepIndex(
+      steps,
+      hasTonalProfile,
+      onboardingCompleted,
+      hasCheckInPreferences,
+      needsByokStep,
+    ),
   );
   const { track } = useAnalytics();
   const startTimeRef = useRef(Date.now());
