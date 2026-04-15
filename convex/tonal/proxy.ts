@@ -4,7 +4,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
-import { TonalApiError, tonalFetch } from "./client";
+import { fetchAllWorkoutActivities, TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { withTokenRetry } from "./tokenRetry";
 import type {
@@ -193,21 +193,96 @@ export const fetchMuscleReadiness = internalAction({
     ),
 });
 
+/** Minimal shape from GET /v6/workouts/{id} for enrichment. */
+interface WorkoutMeta {
+  title?: string;
+  targetArea?: string;
+}
+
+const WORKOUT_META_BATCH_SIZE = 10;
+
+/** Batch-fetch workout metadata for unique workoutIds. Failures are silently skipped. */
+async function fetchWorkoutMetaBatch(
+  ctx: ActionCtx,
+  token: string,
+  workoutIds: string[],
+): Promise<Map<string, WorkoutMeta>> {
+  const meta = new Map<string, WorkoutMeta>();
+  for (let i = 0; i < workoutIds.length; i += WORKOUT_META_BATCH_SIZE) {
+    const batch = workoutIds.slice(i, i + WORKOUT_META_BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (id) => {
+        const data = await cachedFetch<WorkoutMeta>(ctx, {
+          dataType: `workoutMeta:${id}`,
+          ttl: CACHE_TTLS.profile,
+          fetcher: () => tonalFetch<WorkoutMeta>(token, `/v6/workouts/${id}`),
+        });
+        return { id, data };
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        meta.set(result.value.id, result.value.data);
+      }
+    }
+  }
+  return meta;
+}
+
+/** Map a WorkoutActivityDetail list item to the Activity shape the sync pipeline expects. */
+function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activity {
+  return {
+    activityId: wa.id,
+    userId: wa.userId,
+    activityTime: wa.beginTime,
+    activityType: wa.workoutType,
+    workoutPreview: {
+      activityId: wa.id,
+      workoutId: wa.workoutId,
+      workoutTitle: meta?.title ?? "Tonal Workout",
+      programName: "",
+      coachName: "",
+      level: "",
+      targetArea: meta?.targetArea ?? "Full Body",
+      isGuidedWorkout: false,
+      workoutType: wa.workoutType,
+      beginTime: wa.beginTime,
+      totalDuration: wa.totalDuration,
+      totalVolume: wa.totalVolume,
+      totalWork: wa.totalConcentricWork,
+      totalAchievements: 0,
+      activityType: wa.workoutType,
+    },
+  };
+}
+
 export const fetchWorkoutHistory = internalAction({
   args: {
     userId: v.id("users"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { userId, limit = 20 }): Promise<Activity[]> =>
-    withTokenRetry(ctx, userId, (token, tonalUserId) =>
-      cachedFetch<Activity[]>(ctx, {
+  handler: async (ctx, { userId, limit }): Promise<Activity[]> =>
+    withTokenRetry(ctx, userId, async (token, tonalUserId) => {
+      // Cache the lightweight Activity[] (no per-set data) instead of the
+      // raw WorkoutActivityDetail[] which can exceed 16 MiB for heavy users.
+      const activities = await cachedFetch<Activity[]>(ctx, {
         userId,
-        dataType: `workoutHistory:${limit}`,
+        dataType: "workoutHistory_v3",
         ttl: CACHE_TTLS.workoutHistory,
-        fetcher: () =>
-          tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=${limit}`),
-      }),
-    ),
+        fetcher: async () => {
+          const items = await fetchAllWorkoutActivities<WorkoutActivityDetail>(token, tonalUserId);
+          if (items.length === 0) return [];
+
+          const uniqueWorkoutIds = [...new Set(items.map((w) => w.workoutId))];
+          const meta = await fetchWorkoutMetaBatch(ctx, token, uniqueWorkoutIds);
+
+          // API returns oldest-first; reverse so callers get newest-first
+          return items.map((wa) => toActivity(wa, meta.get(wa.workoutId))).reverse();
+        },
+      });
+
+      return limit != null ? activities.slice(0, limit) : activities;
+    }),
 });
 
 // Convex caps array fields at 8192 elements. Tonal can return thousands of

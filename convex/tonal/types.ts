@@ -185,6 +185,11 @@ export interface SetActivity {
   beginTime: string;
   sideNumber: number;
   weightPercentage?: number;
+  avgWeight?: number;
+  baseWeight?: number;
+  volume?: number;
+  repCount?: number;
+  oneRepMax?: number;
 }
 
 // Custom workout from GET /v6/user-workouts
