@@ -51,6 +51,17 @@ describe("generateNumericCode", () => {
 // ---------------------------------------------------------------------------
 
 describe("hashCode", () => {
+  it("throws when EMAIL_CHANGE_CODE_PEPPER is missing", async () => {
+    const saved = process.env.EMAIL_CHANGE_CODE_PEPPER;
+    delete process.env.EMAIL_CHANGE_CODE_PEPPER;
+
+    await expect(hashCode("12345678")).rejects.toThrow(
+      "EMAIL_CHANGE_CODE_PEPPER is not configured",
+    );
+
+    process.env.EMAIL_CHANGE_CODE_PEPPER = saved;
+  });
+
   it("returns a 64-character lowercase hex string (SHA-256)", async () => {
     const hash = await hashCode("12345678");
 

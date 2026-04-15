@@ -22,6 +22,8 @@ import {
   Zap,
 } from "lucide-react";
 
+const SEND_ERROR_MESSAGE = "Could not send your message. Please try again.";
+
 const suggestions = [
   { icon: Dumbbell, text: "Program me a workout for today" },
   { icon: TrendingUp, text: "How are my strength scores trending?" },
@@ -60,6 +62,7 @@ function ChatPageInner() {
 
   // Wrap createThreadWithMessage to track loading state for the welcome flow.
   const sendAndWait = async (args: { prompt: string; imageStorageIds?: Id<"_storage">[] }) => {
+    if (mountedRef.current) setSendError(null);
     if (mountedRef.current) setWaitingForCoach(true);
     try {
       return await createThreadWithMessage(args);
@@ -79,12 +82,11 @@ function ChatPageInner() {
       try {
         await sendAndWait({ prompt: promptParam });
       } catch (err) {
+        console.error("Auto-send failed:", err);
         // Reset so the user can manually retry the same prompt from the input.
         autoSentRef.current = false;
         if (mountedRef.current) {
-          setSendError(
-            err instanceof Error ? err.message : "Could not send your message. Please try again.",
-          );
+          setSendError(SEND_ERROR_MESSAGE);
         }
       }
     })();
@@ -138,12 +140,9 @@ function ChatPageInner() {
                 onClick={() => {
                   track("suggestion_tapped", { suggestion_text: text });
                   sendAndWait({ prompt: text }).catch((err: unknown) => {
+                    console.error("Suggestion send failed:", err);
                     if (mountedRef.current) {
-                      setSendError(
-                        err instanceof Error
-                          ? err.message
-                          : "Could not send your message. Please try again.",
-                      );
+                      setSendError(SEND_ERROR_MESSAGE);
                     }
                   });
                 }}
