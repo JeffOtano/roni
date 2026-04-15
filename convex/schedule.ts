@@ -113,7 +113,19 @@ export const getScheduleData = action({
       movementMap = new Map(movements.map((m) => [m.id, { name: m.name, countReps: m.countReps }]));
     }
 
-    // 5. Build schedule days
+    // 5. Resolve display shape for an exercise (reps vs duration)
+    function resolveShape(
+      ex: { reps?: number; duration?: number },
+      movement?: { countReps: boolean },
+    ): { reps?: number; durationSeconds?: number } {
+      if (ex.duration != null) return { durationSeconds: ex.duration };
+      if (ex.reps != null) return { reps: ex.reps };
+      if (movement && !movement.countReps) return { durationSeconds: 30 };
+      if (movement && movement.countReps) return { reps: 10 };
+      return {};
+    }
+
+    // 6. Build schedule days
     const days: ScheduleDay[] = enriched.days.map((day, i) => {
       const wp = day.workoutPlanId ? workoutPlans.get(day.workoutPlanId) : undefined;
       const exercises: ScheduleExercise[] = [];
@@ -127,21 +139,10 @@ export const getScheduleData = action({
           const supersetGroup = nonRestExercises.length >= 2 ? ++supersetCounter : undefined;
           for (const ex of nonRestExercises) {
             const movement = movementMap.get(ex.movementId);
-            // Prefer the stored field; fall back to catalog countReps only when both are absent.
-            const shape: { reps?: number; durationSeconds?: number } =
-              ex.duration != null
-                ? { durationSeconds: ex.duration }
-                : ex.reps != null
-                  ? { reps: ex.reps }
-                  : movement && !movement.countReps
-                    ? { durationSeconds: 30 }
-                    : movement && movement.countReps
-                      ? { reps: 10 }
-                      : {};
             exercises.push({
               name: movement?.name ?? ex.movementId,
               sets: ex.sets,
-              ...shape,
+              ...resolveShape(ex, movement),
               ...(ex.eccentric && { eccentric: true }),
               ...(ex.chains && { chains: true }),
               ...(ex.burnout && { burnout: true }),
