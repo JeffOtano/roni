@@ -64,7 +64,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <RefreshCw className="size-4" />
               Try again
             </Button>
-            <Button render={<Link href="/chat" />}>Go home</Button>
+            <Button nativeButton={false} render={<Link href="/chat" />}>
+              Go home
+            </Button>
           </div>
         </div>
       </div>
