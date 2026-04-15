@@ -48,7 +48,6 @@ function ChatPageInner() {
     };
   }, []);
 
-  // Wrap createThreadWithMessage to track loading state for the welcome flow.
   const sendAndWait = async (args: { prompt: string; imageStorageIds?: Id<"_storage">[] }) => {
     if (mountedRef.current) setSendError(null);
     if (mountedRef.current) setWaitingForCoach(true);
@@ -59,7 +58,6 @@ function ChatPageInner() {
     }
   };
 
-  // Auto-send from ?prompt= query param (once only)
   const promptParam = searchParams.get("prompt");
   useEffect(() => {
     if (!promptParam || autoSentRef.current) return;
@@ -84,7 +82,6 @@ function ChatPageInner() {
   const hasThread = activeThread !== undefined && activeThread !== null;
   const userInitial = me?.tonalName?.charAt(0).toUpperCase() ?? "U";
 
-  // Waiting for first response -- show thinking state
   if (waitingForCoach && !hasThread) {
     return (
       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 px-4">
@@ -103,7 +100,6 @@ function ChatPageInner() {
     );
   }
 
-  // Show welcome state when no thread/messages exist
   if (activeThread !== undefined && !hasThread && !promptParam) {
     const firstName = me?.tonalName?.split(" ")[0];
 
@@ -149,7 +145,6 @@ function ChatPageInner() {
           )}
         </div>
 
-        {/* Input always visible even on welcome screen */}
         <div className="shrink-0 p-3 sm:p-4">
           <WelcomeInput sendMessage={sendAndWait} />
         </div>
@@ -157,12 +152,11 @@ function ChatPageInner() {
     );
   }
 
-  // Has messages -- show ChatThread
   if (hasThread) {
     return <ChatThread threadId={activeThread.threadId} userInitial={userInitial} />;
   }
 
-  // Loading state (activeThread is undefined = query still loading)
+  // activeThread is undefined while the query is still loading
   return (
     <div className="flex h-full items-center justify-center" role="status">
       <Loader2 className="size-6 animate-spin text-muted-foreground" />

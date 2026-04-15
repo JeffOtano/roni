@@ -12,7 +12,6 @@ export function sanitizeForDiscord(input: string): string {
   return input.replace(/@(everyone|here)/gi, "@\u200b$1");
 }
 
-/** Send a contact form message to the Discord #contact channel via webhook. */
 export const send = action({
   args: {
     name: v.string(),
@@ -43,8 +42,6 @@ export const send = action({
       throw new Error("Message is required and must be 4000 characters or fewer");
     }
 
-    // Single global bucket — there is no authenticated user or trusted IP
-    // to key on. Caps total form submissions across all clients.
     await rateLimiter.limit(ctx, "contactForm", { throws: true });
 
     const embed = {

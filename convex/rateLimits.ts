@@ -100,26 +100,21 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     rate: HOUSE_KEY_MONTHLY_LIMIT,
     period: HOUSE_KEY_MONTHLY_PERIOD,
   },
-  // Anonymous contact form. Single global bucket since we can't key by
-  // authenticated user or IP. Sized for realistic human volume; bot floods
-  // get rejected.
+  // Global bucket -- no authenticated user or IP to key on.
   contactForm: {
     kind: "token bucket",
     rate: 30,
     period: HOUR,
     capacity: 5,
   },
-  // Email-change verification requests. Each request sends an email to a
-  // user-supplied address, so this gates Resend spend and recipient-inbox
-  // abuse. Keyed per user: 3 sends in an hour, burst of 2.
+  // Each request sends an email, so this gates Resend spend.
   emailChangeRequest: {
     kind: "token bucket",
     rate: 3,
     period: HOUR,
     capacity: 2,
   },
-  // Code-verification attempts. Guards against brute-forcing the 8-digit
-  // code within the 15-minute TTL window. Keyed per user.
+  // Guards against brute-forcing the 8-digit code within its 15-min TTL.
   emailChangeConfirm: {
     kind: "token bucket",
     rate: 10,

@@ -52,7 +52,6 @@ export function WelcomeInput({
           const { uploadUrl } = await generateUploadUrl();
           return uploadUrl;
         });
-        // Convex upload endpoint returns branded Id<"_storage"> values at runtime
         imageStorageIds = ids as Id<"_storage">[];
         clearAll();
       }
