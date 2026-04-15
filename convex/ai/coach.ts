@@ -133,6 +133,27 @@ const serverProvider = createGoogleGenerativeAI({
 });
 const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
 
+/**
+ * Build the agent config for a single request. The caller passes the user's
+ * browser-reported IANA timezone so `buildTrainingSnapshot` (invoked inside
+ * `contextHandler`) can label recent workouts as "today"/"yesterday" using
+ * the user's local wall clock instead of the server's UTC day boundary.
+ */
+export function makeCoachAgentConfig(userTimezone?: string) {
+  return {
+    ...coachAgentConfig,
+    contextHandler: (async (ctx, args) => {
+      const messages = mergeConsecutiveSameRole(stripImagesFromOlderMessages(args.allMessages));
+      if (!args.userId) return messages;
+      const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
+      return [
+        { role: "system" as const, content: `<training-data>\n${snapshot}\n</training-data>` },
+        ...messages,
+      ];
+    }) satisfies ContextHandler,
+  };
+}
+
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
@@ -217,21 +238,6 @@ export const coachAgentConfig = {
       cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
     });
   }) satisfies UsageHandler,
-
-  contextHandler: (async (ctx, args) => {
-    // Normalize regardless of auth: strip stale images, merge consecutive
-    // same-role messages that arise from search + recent concatenation.
-    const messages = mergeConsecutiveSameRole(stripImagesFromOlderMessages(args.allMessages));
-
-    if (!args.userId) return messages;
-
-    const snapshot = await buildTrainingSnapshot(ctx, args.userId);
-    const snapshotMessage = {
-      role: "system" as const,
-      content: `<training-data>\n${snapshot}\n</training-data>`,
-    };
-    return [snapshotMessage, ...messages];
-  }) satisfies ContextHandler,
 };
 
 export interface CoachAgentPair {
@@ -239,19 +245,20 @@ export interface CoachAgentPair {
   fallback: Agent;
 }
 
-export function buildCoachAgents(apiKey: string): CoachAgentPair {
+export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
+  const config = makeCoachAgentConfig(userTimezone);
 
   const primary = new Agent(components.agent, {
     name: "Tonal Coach",
     languageModel: provider("gemini-3-flash-preview"),
-    ...coachAgentConfig,
+    ...config,
   });
 
   const fallback = new Agent(components.agent, {
     name: "Tonal Coach (Fallback)",
     languageModel: provider("gemini-2.5-flash"),
-    ...coachAgentConfig,
+    ...config,
   });
 
   return { primary, fallback };
@@ -261,11 +268,13 @@ export interface ProviderAgentArgs {
   provider: ProviderId;
   apiKey: string;
   modelOverride?: string;
+  userTimezone?: string;
 }
 
 export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgentPair {
-  const { provider, apiKey, modelOverride } = args;
+  const { provider, apiKey, modelOverride, userTimezone } = args;
   const config = getProviderConfig(provider);
+  const agentConfig = makeCoachAgentConfig(userTimezone);
 
   const primaryModelName = modelOverride || config.primaryModel;
   if (!primaryModelName) {
@@ -276,7 +285,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
   const primary = new Agent(components.agent, {
     name: "Tonal Coach",
     languageModel: primaryModel,
-    ...coachAgentConfig,
+    ...agentConfig,
   });
 
   let fallback: Agent;
@@ -285,7 +294,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
     fallback = new Agent(components.agent, {
       name: "Tonal Coach (Fallback)",
       languageModel: fallbackModel,
-      ...coachAgentConfig,
+      ...agentConfig,
     });
   } else {
     // No fallback (OpenRouter) -- reuse primary so streamWithRetry still works
@@ -300,6 +309,6 @@ export function buildCoachAgentForStorageOnly(): Agent {
   return new Agent(components.agent, {
     name: "Tonal Coach (Storage Only)",
     languageModel: serverProvider("gemini-2.5-flash"),
-    ...coachAgentConfig,
+    ...makeCoachAgentConfig(),
   });
 }

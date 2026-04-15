@@ -156,8 +156,9 @@ export const createThreadWithMessage = action({
     threadId: v.optional(v.string()),
     prompt: v.string(),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
+    userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, prompt, imageStorageIds }) => {
+  handler: async (ctx, { threadId, prompt, imageStorageIds, userTimezone }) => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
@@ -209,6 +210,7 @@ export const createThreadWithMessage = action({
       userId,
       prompt,
       imageStorageIds,
+      userTimezone,
     });
 
     return { threadId: targetThreadId };
@@ -276,15 +278,19 @@ export const continueAfterApproval = action({
   args: {
     threadId: v.string(),
     messageId: v.string(),
+    userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, messageId }) => {
+  handler: async (ctx, { threadId, messageId, userTimezone }) => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
     const providerConfig = await resolveUserProviderConfig(ctx, userId);
 
     const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgentsForProvider(providerConfig);
+    const { primary, fallback } = buildCoachAgentsForProvider({
+      ...providerConfig,
+      userTimezone,
+    });
     await withByokErrorSanitization(() =>
       streamWithRetry(ctx, {
         primaryAgent: primary,
@@ -313,8 +319,9 @@ export const sendMessageToThread = mutation({
     prompt: v.string(),
     threadId: v.string(),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
+    userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { prompt, threadId, imageStorageIds }) => {
+  handler: async (ctx, { prompt, threadId, imageStorageIds, userTimezone }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
@@ -332,6 +339,7 @@ export const sendMessageToThread = mutation({
       userId,
       prompt,
       imageStorageIds,
+      userTimezone,
     });
 
     return { threadId };
@@ -341,11 +349,12 @@ export const sendMessageToThread = mutation({
 export const processMessage = internalAction({
   args: {
     threadId: v.string(),
-    userId: v.string(),
+    userId: v.id("users"),
     prompt: v.string(),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
+    userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, userId, prompt, imageStorageIds }) => {
+  handler: async (ctx, { threadId, userId, prompt, imageStorageIds, userTimezone }) => {
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
 
@@ -362,7 +371,10 @@ export const processMessage = internalAction({
     });
 
     const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgentsForProvider(providerConfig);
+    const { primary, fallback } = buildCoachAgentsForProvider({
+      ...providerConfig,
+      userTimezone,
+    });
     await withByokErrorSanitization(() =>
       streamWithRetry(ctx, {
         primaryAgent: primary,

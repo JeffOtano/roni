@@ -170,14 +170,30 @@ function resolveGroupName(apiAccessory: string | undefined): string {
   return ACCESSORY_DISPLAY[profileKey];
 }
 
-/** Compute age in years from an ISO date-of-birth string. Returns null if invalid. */
+/**
+ * Compute age in years from a YYYY-MM-DD date-of-birth string.
+ *
+ * Parses the DOB components directly from the string instead of going
+ * through `new Date(dob)`. `new Date("1990-06-15")` is interpreted as UTC
+ * midnight, so `getMonth()`/`getDate()` return local-time values that can
+ * be one day off in UTC-negative zones — producing a wrong age on and
+ * just after the user's birthday. The `now` argument is still compared
+ * in local time, which is what we want.
+ *
+ * Returns null if the string does not parse as YYYY-MM-DD.
+ */
 export function computeAge(dateOfBirth: string | undefined, now: Date): number | null {
   if (!dateOfBirth) return null;
-  const dob = new Date(dateOfBirth);
-  if (isNaN(dob.getTime())) return null;
-  let age = now.getFullYear() - dob.getFullYear();
-  const monthDiff = now.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateOfBirth);
+  if (!match) return null;
+  const dobYear = Number(match[1]);
+  const dobMonth = Number(match[2]);
+  const dobDay = Number(match[3]);
+  if (dobMonth < 1 || dobMonth > 12 || dobDay < 1 || dobDay > 31) return null;
+
+  let age = now.getFullYear() - dobYear;
+  const monthDiff = now.getMonth() + 1 - dobMonth;
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dobDay)) {
     age--;
   }
   return age;

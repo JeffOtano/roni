@@ -29,6 +29,7 @@ export {
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery">,
   userId: string,
+  userTimezone?: string,
 ): Promise<string> {
   const convexUserId = userId as Id<"users">;
 
@@ -246,7 +247,7 @@ export async function buildTrainingSnapshot(
     const now = new Date();
     const wl = [`Recent Workouts:`];
     for (const a of activities) {
-      const r = getRecencyLabel(a.date + "T00:00:00Z", now);
+      const r = getRecencyLabel(a.date + "T00:00:00Z", now, userTimezone);
       const recent = r === "today" || r === "yesterday";
       const tag = recent ? `[${r.toUpperCase()}] ` : "";
       const vol = r !== "last week" && r !== "older" ? ` | ${a.totalVolume}lbs vol` : "";
@@ -262,7 +263,7 @@ export async function buildTrainingSnapshot(
     const el: string[] = [`External Activities (non-Tonal):`];
     let vigorousThisWeek = 0;
     for (const ext of externalActivities) {
-      const r = getRecencyLabel(ext.beginTime, now);
+      const r = getRecencyLabel(ext.beginTime, now, userTimezone);
       const tag = r === "today" || r === "yesterday" ? `  [${r.toUpperCase()}] ` : "  ";
       const type = ext.workoutType
         .replace(/([A-Z])/g, " $1")

@@ -72,7 +72,12 @@ export async function fetchWorkoutActivitiesPage<T>(
   }
 
   const items = (await res.json()) as T[];
-  const pgTotal = parseInt(res.headers.get("pg-total") ?? "0", 10);
+  // Tonal sets pg-total on paginated endpoints. If the header is missing or
+  // malformed, fall back to the item count so callers don't silently loop
+  // against NaN or issue negative-progress requests.
+  const rawPgTotal = res.headers.get("pg-total");
+  const parsed = rawPgTotal !== null ? Number(rawPgTotal) : Number.NaN;
+  const pgTotal = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : items.length;
   return { items, pgTotal };
 }
 

@@ -16,7 +16,7 @@ import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-import { requireUserId, withToolTracking } from "./helpers";
+import { requireUserId, toSessionDuration, withToolTracking } from "./helpers";
 import { buildReasoningPrompt } from "./weekReasoning";
 
 // ---------------------------------------------------------------------------
@@ -77,9 +77,11 @@ export const programWeekTool = createTool({
       } | null;
 
       const preferredSplit = input.preferredSplit ?? saved?.preferredSplit ?? "ppl";
-      const sessionDuration = input.sessionDurationMinutes
-        ? (parseInt(input.sessionDurationMinutes) as 30 | 45 | 60)
-        : ((saved?.sessionDurationMinutes as 30 | 45 | 60 | undefined) ?? 45);
+      const sessionDuration: 30 | 45 | 60 = input.sessionDurationMinutes
+        ? toSessionDuration(input.sessionDurationMinutes)
+        : saved?.sessionDurationMinutes !== undefined
+          ? toSessionDuration(saved.sessionDurationMinutes)
+          : 45;
 
       const targetDays =
         input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3;
@@ -293,10 +295,6 @@ export const deleteWeekPlanTool = createTool({
     },
   ),
 });
-
-// ---------------------------------------------------------------------------
-// approveWeekPlanTool
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // getWorkoutPerformanceTool

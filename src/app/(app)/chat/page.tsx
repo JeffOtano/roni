@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ImagePreviewRow } from "@/features/chat/ImagePreviewRow";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useAnalytics } from "@/lib/analytics";
+import { getBrowserTimezone } from "@/lib/timezone";
 import {
   Activity,
   Dumbbell,
@@ -53,7 +54,7 @@ function ChatPageInner() {
   const sendAndWait = async (args: { prompt: string; imageStorageIds?: Id<"_storage">[] }) => {
     setWaitingForCoach(true);
     try {
-      return await createThreadWithMessage(args);
+      return await createThreadWithMessage({ ...args, userTimezone: getBrowserTimezone() });
     } finally {
       setWaitingForCoach(false);
     }

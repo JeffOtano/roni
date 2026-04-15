@@ -151,6 +151,22 @@ export const getByIdInternal = internalQuery({
   },
 });
 
+/**
+ * Returns the set of Tonal workout IDs already claimed by any of the
+ * user's existing workoutPlans. Used by stuck-push recovery to avoid
+ * linking a plan to a workoutId that another plan already owns.
+ */
+export const getClaimedTonalWorkoutIdsForUser = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<string[]> => {
+    const plans = await ctx.db
+      .query("workoutPlans")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    return plans.flatMap((p) => (p.tonalWorkoutId ? [p.tonalWorkoutId] : []));
+  },
+});
+
 /** Retry pushing a failed/draft plan to Tonal. TOCTOU-safe via transitionToPushing. */
 export const retryPush = action({
   args: { planId: v.id("workoutPlans") },
@@ -253,16 +269,28 @@ export const runStuckPushRecovery = internalAction({
             const customWorkouts = await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
               userId: plan.userId,
             });
-            const matches = customWorkouts.filter(
-              (w: { id: string; title: string }) => w.title === plan.title,
+            const claimed = new Set(
+              await ctx.runQuery(internal.workoutPlans.getClaimedTonalWorkoutIdsForUser, {
+                userId: plan.userId,
+              }),
             );
-            if (matches.length > 1) {
+            // Only consider workouts (a) whose title matches, (b) created
+            // at-or-after the plan was queued (anything older can't be this
+            // push), and (c) not already claimed by another workoutPlan.
+            const planCreatedIso = new Date(plan.createdAt).toISOString();
+            const candidates = customWorkouts.filter(
+              (w: { id: string; title: string; createdAt: string }) =>
+                w.title === plan.title && w.createdAt >= planCreatedIso && !claimed.has(w.id),
+            );
+            // Require an unambiguous match. If multiple candidates remain
+            // after filtering, we don't know which one this plan produced —
+            // leave it failed rather than link the wrong workoutId.
+            const match = candidates.length === 1 ? candidates[0] : undefined;
+            if (candidates.length > 1) {
               console.warn(
-                `[stuckPushRecovery] Multiple Tonal workouts match title "${plan.title}" for plan ${planId} - using most recent`,
+                `[stuckPushRecovery] ${candidates.length} ambiguous Tonal matches for plan ${planId} title="${plan.title}" - leaving failed`,
               );
             }
-            // Use the last match (most recently created on Tonal)
-            const match = matches.length > 0 ? matches[matches.length - 1] : undefined;
             if (match) {
               await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
                 planId,
