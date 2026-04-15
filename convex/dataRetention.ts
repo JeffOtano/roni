@@ -17,6 +17,8 @@ export const RETENTION = {
 } as const;
 
 const BATCH_SIZE = 100;
+/** Cache docs store full API responses and can be ~1MB each; use a smaller batch. */
+const CACHE_BATCH_SIZE = 10;
 
 /** Get IDs of aiUsage records older than the retention window. */
 export const getExpiredAiUsageIds = internalQuery({
@@ -112,12 +114,12 @@ export const runDataRetention = internalAction({
     while (true) {
       const ids: string[] = await ctx.runQuery(internal.dataRetention.getExpiredCacheIds, {
         cutoff: cacheCutoff,
-        limit: BATCH_SIZE,
+        limit: CACHE_BATCH_SIZE,
       });
       if (ids.length === 0) break;
       await ctx.runMutation(internal.dataRetention.batchDelete, { ids });
       cacheDeleted += ids.length;
-      if (ids.length < BATCH_SIZE) break;
+      if (ids.length < CACHE_BATCH_SIZE) break;
     }
 
     totalDeleted = aiUsageDeleted + toolCallsDeleted + cacheDeleted;
