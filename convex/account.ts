@@ -110,19 +110,46 @@ export const getUserEmail = internalQuery({
   },
 });
 
+/** Tables to delete from, in order. Each entry is [table, indexName]. */
+const DELETION_TABLES: Array<[string, string?]> = [
+  ["checkIns"],
+  ["workoutPlans"],
+  ["weekPlans"],
+  ["workoutFeedback"],
+  ["trainingBlocks"],
+  ["goals"],
+  ["injuries"],
+  ["emailChangeRequests"],
+  ["completedWorkouts"],
+  ["strengthScoreSnapshots"],
+  ["aiUsage"],
+  ["exercisePerformance", "by_userId_date"],
+  ["tonalCache", "by_userId_dataType"],
+  ["muscleReadiness", "by_userId"],
+  ["externalActivities", "by_userId_beginTime"],
+];
+
 export const deleteAccount = action({
   args: {},
   handler: async (ctx): Promise<void> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // Purge the @convex-dev/agent component's threads and messages first.
-    // Its tables live outside our schema, so deleteAllUserData can't touch
-    // them - we have to call the component's own purge action. Running it
-    // before the user row is deleted keeps the foreign-key target alive
-    // for any internal cascades the component performs.
     await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
 
-    await ctx.runMutation(internal.accountDeletion.deleteAllUserData, { userId });
+    // Delete each table in batches of 500 to stay under the 4096 read limit
+    for (const [table, indexName] of DELETION_TABLES) {
+      let hasMore = true;
+      while (hasMore) {
+        hasMore = await ctx.runMutation(internal.accountDeletion.deleteTableBatch, {
+          userId,
+          table,
+          indexName,
+        });
+      }
+    }
+
+    await ctx.runMutation(internal.accountDeletion.deleteAuthData, { userId });
+    await ctx.runMutation(internal.accountDeletion.deleteUserRecord, { userId });
   },
 });
