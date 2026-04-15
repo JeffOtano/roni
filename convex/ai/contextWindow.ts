@@ -164,7 +164,7 @@ export function buildContextWindow(
     if (messages[i].role === "user") userIndices.push(i);
   }
 
-  if (userIndices.length === 0) return messages;
+  if (userIndices.length === 0) return [];
 
   // Always include from the last user message to the end
   let startIdx = userIndices[userIndices.length - 1];

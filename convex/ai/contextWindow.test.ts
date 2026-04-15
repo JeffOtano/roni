@@ -3,6 +3,7 @@ import type { ModelMessage } from "ai";
 import {
   buildContextWindow,
   mergeConsecutiveSameRole,
+  stripImagesFromOlderMessages,
   stripOrphanedToolCalls,
 } from "./contextWindow";
 
@@ -223,11 +224,8 @@ describe("stripOrphanedToolCalls", () => {
 });
 
 describe("buildContextWindow", () => {
-  it("returns empty array unchanged", () => {
+  it("returns empty array unchanged and passes through user-first messages", () => {
     expect(buildContextWindow([])).toEqual([]);
-  });
-
-  it("returns messages unchanged when already starting with user", () => {
     const msgs: ModelMessage[] = [
       { role: "user", content: "hello" },
       { role: "assistant", content: "hi" },
@@ -336,11 +334,67 @@ describe("buildContextWindow", () => {
     expect(buildContextWindow(msgs, 50_000)).toEqual(msgs);
   });
 
-  it("returns all messages when no user messages exist", () => {
+  it("returns empty array when no user messages exist", () => {
     const msgs: ModelMessage[] = [
       { role: "assistant", content: "orphaned" },
       { role: "assistant", content: "response" },
     ];
-    expect(buildContextWindow(msgs)).toEqual(msgs);
+    expect(buildContextWindow(msgs)).toEqual([]);
+  });
+});
+
+describe("stripImagesFromOlderMessages", () => {
+  it("replaces older image-only user message with placeholder", () => {
+    const latestImage = new URL("https://example.com/latest.jpg");
+    const msgs: ModelMessage[] = [
+      {
+        role: "user",
+        content: [{ type: "image", image: new URL("https://example.com/old.jpg") }],
+      },
+      { role: "assistant", content: "I see the image" },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "latest" },
+          { type: "image", image: latestImage },
+        ],
+      },
+    ];
+
+    const result = stripImagesFromOlderMessages(msgs);
+    expect(result[0].content).toBe("[image message]");
+    expect(result[1]).toEqual({ role: "assistant", content: "I see the image" });
+    expect(result[2].content).toEqual([
+      { type: "text", text: "latest" },
+      { type: "image", image: latestImage },
+    ]);
+  });
+
+  it("strips image parts but keeps text parts from older user messages", () => {
+    const msgs: ModelMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "check this" },
+          { type: "image", image: new URL("https://example.com/old.jpg") },
+        ],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "follow up" }],
+      },
+    ];
+
+    const result = stripImagesFromOlderMessages(msgs);
+    expect(result[0].content).toEqual([{ type: "text", text: "check this" }]);
+    expect(result[1].content).toEqual([{ type: "text", text: "follow up" }]);
+  });
+
+  it("leaves non-user messages untouched", () => {
+    const msgs: ModelMessage[] = [
+      { role: "assistant", content: "hello" },
+      { role: "user", content: "hi" },
+    ];
+    expect(stripImagesFromOlderMessages(msgs)).toEqual(msgs);
   });
 });
