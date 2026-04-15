@@ -326,31 +326,34 @@ describe("buildExerciseCatalogSection", () => {
 // ---------------------------------------------------------------------------
 
 describe("computeAge", () => {
+  // Fixed local-time date avoids UTC-midnight drift across CI timezones.
+  const now = new Date(2026, 2, 28); // March 28, 2026
+
   it("computes age correctly before birthday this year", () => {
-    expect(computeAge("1993-12-15", new Date("2026-03-28"))).toBe(32);
+    expect(computeAge("1993-12-15", now)).toBe(32);
   });
 
   it("computes age correctly after birthday this year", () => {
-    expect(computeAge("1993-01-10", new Date("2026-03-28"))).toBe(33);
+    expect(computeAge("1993-01-10", now)).toBe(33);
   });
 
   it("returns null for undefined dateOfBirth", () => {
-    expect(computeAge(undefined, new Date())).toBeNull();
+    expect(computeAge(undefined, now)).toBeNull();
   });
 
   it("returns null for invalid date string", () => {
-    expect(computeAge("not-a-date", new Date())).toBeNull();
+    expect(computeAge("not-a-date", now)).toBeNull();
   });
 
   it("rejects impossible dates like Feb 30", () => {
-    expect(computeAge("1993-02-30", new Date("2026-03-28"))).toBeNull();
+    expect(computeAge("1993-02-30", now)).toBeNull();
   });
 
   it("rejects partial dates without day", () => {
-    expect(computeAge("1993-06", new Date("2026-03-28"))).toBeNull();
+    expect(computeAge("1993-06", now)).toBeNull();
   });
 
   it("rejects dates with trailing text", () => {
-    expect(computeAge("1993-06-15T00:00:00Z", new Date("2026-03-28"))).toBeNull();
+    expect(computeAge("1993-06-15T00:00:00Z", now)).toBeNull();
   });
 });

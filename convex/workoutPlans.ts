@@ -340,11 +340,7 @@ export const runStuckPushRecovery = internalAction({
       for (const planId of ids) {
         const plan = await ctx.runQuery(internal.workoutPlans.getByIdInternal, { planId });
         if (!plan) {
-          await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-            planId,
-            status: "failed",
-            pushErrorReason: "Push timed out",
-          });
+          console.warn(`[stuckPushRecovery] Plan ${planId} no longer exists, skipping`);
           continue;
         }
 
