@@ -56,7 +56,6 @@ export async function fetchAllWorkoutActivities<T>(
   const all: T[] = [];
   let offset = 0;
 
-   
   while (true) {
     const res = await fetch(`${TONAL_API_BASE}/v6/users/${tonalUserId}/workout-activities`, {
       headers: {
