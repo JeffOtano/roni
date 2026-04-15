@@ -92,6 +92,62 @@ export function mergeConsecutiveSameRole(messages: ModelMessage[]): ModelMessage
   return result;
 }
 
+export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[] {
+  const approvalIdToToolCallId = new Map<string, string>();
+  const toolCallIdsWithApprovalRequests = new Set<string>();
+  const resolvedToolCallIds = new Set<string>();
+  for (const msg of messages) {
+    if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
+    for (const part of msg.content as Array<{
+      type: string;
+      approvalId?: string;
+      toolCallId?: string;
+    }>) {
+      if (part.type === "tool-approval-request" && part.approvalId && part.toolCallId) {
+        approvalIdToToolCallId.set(part.approvalId, part.toolCallId);
+        toolCallIdsWithApprovalRequests.add(part.toolCallId);
+      }
+      if (part.type === "tool-result" && part.toolCallId) {
+        resolvedToolCallIds.add(part.toolCallId);
+      }
+    }
+  }
+
+  for (const msg of messages) {
+    if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
+    for (const part of msg.content as Array<{ type: string; approvalId?: string }>) {
+      if (part.type === "tool-approval-response" && part.approvalId) {
+        const toolCallId = approvalIdToToolCallId.get(part.approvalId);
+        if (toolCallId) {
+          resolvedToolCallIds.add(toolCallId);
+        }
+      }
+    }
+  }
+
+  return messages
+    .map((msg) => {
+      if (msg.role !== "assistant") return msg;
+      if (typeof msg.content === "string" || !Array.isArray(msg.content)) return msg;
+
+      const parts = msg.content as Array<{ type: string; toolCallId?: string }>;
+      const hasToolCalls = parts.some((p) => p.type === "tool-call");
+      if (!hasToolCalls) return msg;
+
+      const filtered = parts.filter(
+        (p) =>
+          p.type !== "tool-call" ||
+          (p.toolCallId &&
+            (resolvedToolCallIds.has(p.toolCallId) ||
+              toolCallIdsWithApprovalRequests.has(p.toolCallId))),
+      );
+
+      if (filtered.length === 0) return null;
+      return { ...msg, content: filtered } as ModelMessage;
+    })
+    .filter((msg): msg is ModelMessage => msg !== null);
+}
+
 /**
  * Remove image parts from all messages except the most recent user message.
  * Images stored in older messages cause unbounded memory growth when loaded
@@ -143,7 +199,9 @@ export function makeCoachAgentConfig(userTimezone?: string) {
   return {
     ...coachAgentConfig,
     contextHandler: (async (ctx, args) => {
-      const messages = mergeConsecutiveSameRole(stripImagesFromOlderMessages(args.allMessages));
+      const messages = mergeConsecutiveSameRole(
+        stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
+      );
       if (!args.userId) return messages;
       const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
       return [
