@@ -153,7 +153,8 @@ export default defineSchema({
     expiresAt: v.number(),
   })
     .index("by_userId_dataType", ["userId", "dataType"])
-    .index("by_dataType", ["dataType"]),
+    .index("by_dataType", ["dataType"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   /** Tonal exercise catalog (synced daily at 3 AM from Tonal API). */
   movements: defineTable({

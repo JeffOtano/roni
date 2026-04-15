@@ -50,7 +50,7 @@ export const getExpiredCacheIds = internalQuery({
   handler: async (ctx, { cutoff, limit }) => {
     const records = await ctx.db
       .query("tonalCache")
-      .filter((q) => q.lt(q.field("expiresAt"), cutoff))
+      .withIndex("by_expiresAt", (q) => q.lt("expiresAt", cutoff))
       .take(limit);
     return records.map((r) => r._id);
   },
