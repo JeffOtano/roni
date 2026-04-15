@@ -14,13 +14,13 @@ import type { Movement } from "../tonal/types";
 import { selectExercises } from "./exerciseSelection";
 import { computeExcludedAccessories } from "../tonal/accessories";
 import {
-  blocksFromMovementIds,
   DEFAULT_MAX_EXERCISES,
   formatSessionTitle,
   parseUserLevel,
   SESSION_DURATION_TO_MAX_EXERCISES,
   SESSION_TYPE_MUSCLES,
 } from "./weekProgrammingHelpers";
+import { blocksFromMovementIds } from "./workoutBlocks";
 import type { SessionType } from "./weekProgrammingHelpers";
 
 // ---------------------------------------------------------------------------

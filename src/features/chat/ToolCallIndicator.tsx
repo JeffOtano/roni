@@ -3,6 +3,7 @@
 import { WeekPlanCard } from "./WeekPlanCard";
 import { ActionConfirmationBanner } from "./ActionConfirmationBanner";
 import { extractBannerProps } from "./bannerExtractors";
+import { weekPlanPresentationSchema } from "../../../convex/ai/schemas";
 import type { WeekPlanPresentation } from "../../../convex/ai/schemas";
 
 const TOOL_MESSAGES: Record<string, { running: string; done: string }> = {
@@ -97,48 +98,44 @@ export function ToolCallIndicator({ toolName, state, output }: ToolCallIndicator
 
   // Special case: program_week shows WeekPlanCard when done
   if (toolName === "program_week" && isDone && output) {
-    const data = output as {
-      success?: boolean;
-      summary?: {
-        weekStartDate: string;
-        preferredSplit: string;
-        days: Array<{
-          dayName: string;
-          sessionType: string;
-          estimatedDuration: number;
-          exercises: Array<{
-            name: string;
-            muscleGroups: string[];
-            sets: number;
-            reps: number;
-            lastTime?: string;
-            suggestedTarget?: string;
-            lastWeight?: number;
-            targetWeight?: number;
-          }>;
-        }>;
-      };
-    };
+    const data = output as Record<string, unknown>;
+    const summary =
+      data?.success && typeof data.summary === "object" && data.summary !== null
+        ? (data.summary as Record<string, unknown>)
+        : null;
 
-    if (data.success && data.summary) {
+    if (summary) {
+      const splitResult = weekPlanPresentationSchema.shape.split.safeParse(summary.preferredSplit);
+      if (!splitResult.success) return null;
+
+      const days = Array.isArray(summary.days) ? summary.days : [];
       const plan: WeekPlanPresentation = {
-        weekStartDate: data.summary.weekStartDate,
-        split: data.summary.preferredSplit as "ppl" | "upper_lower" | "full_body",
-        days: data.summary.days.map((day) => ({
-          dayName: day.dayName,
-          sessionType: day.sessionType,
-          targetMuscles: [...new Set(day.exercises.flatMap((ex) => ex.muscleGroups))].join(", "),
-          durationMinutes: day.estimatedDuration,
-          exercises: day.exercises.map((ex) => ({
-            name: ex.name,
-            sets: ex.sets,
-            reps: ex.reps,
-            targetWeight: ex.targetWeight,
-            lastWeight: ex.lastWeight,
-            note: [ex.suggestedTarget, ex.lastTime].filter(Boolean).join(" | ") || undefined,
-          })),
-        })),
-        summary: `${data.summary.preferredSplit.toUpperCase()} split - ${data.summary.days.length} training days`,
+        weekStartDate: String(summary.weekStartDate ?? ""),
+        split: splitResult.data,
+        days: days.map((day: Record<string, unknown>) => {
+          const exercises = Array.isArray(day.exercises) ? day.exercises : [];
+          return {
+            dayName: String(day.dayName ?? ""),
+            sessionType: String(day.sessionType ?? ""),
+            targetMuscles: [
+              ...new Set(
+                exercises.flatMap((ex: Record<string, unknown>) =>
+                  Array.isArray(ex.muscleGroups) ? ex.muscleGroups : [],
+                ),
+              ),
+            ].join(", "),
+            durationMinutes: Number(day.estimatedDuration ?? 0),
+            exercises: exercises.map((ex: Record<string, unknown>) => ({
+              name: String(ex.name ?? ""),
+              sets: Number(ex.sets ?? 0),
+              reps: Number(ex.reps ?? 0),
+              targetWeight: typeof ex.targetWeight === "number" ? ex.targetWeight : undefined,
+              lastWeight: typeof ex.lastWeight === "number" ? ex.lastWeight : undefined,
+              note: [ex.suggestedTarget, ex.lastTime].filter(Boolean).join(" | ") || undefined,
+            })),
+          };
+        }),
+        summary: `${String(summary.preferredSplit).toUpperCase()} split - ${days.length} training days`,
       };
 
       return <WeekPlanCard plan={plan} />;

@@ -106,4 +106,23 @@ describe("ToolCallIndicator", () => {
 
     expect(container.firstChild).toBeNull();
   });
+
+  it("returns null for program_week with an invalid split value", () => {
+    const { container } = render(
+      <ToolCallIndicator
+        toolName="program_week"
+        state="output-available"
+        output={{
+          success: true,
+          summary: {
+            weekStartDate: "2026-04-14",
+            preferredSplit: "invalid_split",
+            days: [],
+          },
+        }}
+      />,
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
 });

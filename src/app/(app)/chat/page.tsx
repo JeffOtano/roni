@@ -13,6 +13,7 @@ import { useAnalytics } from "@/lib/analytics";
 import {
   Activity,
   Dumbbell,
+  Flame,
   ImagePlus,
   Loader2,
   SendHorizontal,
@@ -26,6 +27,7 @@ const suggestions = [
   { icon: TrendingUp, text: "How are my strength scores trending?" },
   { icon: Zap, text: "Which muscles are freshest right now?" },
   { icon: Activity, text: "Analyze my training this month" },
+  { icon: Flame, text: "Add eccentrics and chains to my next workout" },
 ];
 
 // Wrap in Suspense because useSearchParams requires it in Next.js 14+
