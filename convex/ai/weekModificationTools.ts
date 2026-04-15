@@ -12,7 +12,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-import { requireUserId, withToolTracking } from "./helpers";
+import { requireUserId, toSessionDuration, withToolTracking } from "./helpers";
 
 const VALIDATION_PREFIXES = [
   "Invalid movementId",
@@ -270,7 +270,7 @@ export const adjustSessionDurationTool = createTool({
         userId,
         weekPlanId: weekPlan._id,
         dayIndex: input.dayIndex,
-        newDurationMinutes: parseInt(input.newDurationMinutes) as 30 | 45 | 60,
+        newDurationMinutes: toSessionDuration(input.newDurationMinutes),
       });
 
       return {

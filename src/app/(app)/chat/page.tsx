@@ -7,6 +7,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { ChatThread } from "@/features/chat/ChatThread";
 import { useAnalytics } from "@/lib/analytics";
+import { getBrowserTimezone } from "@/lib/timezone";
 import { Activity, Dumbbell, Flame, Loader2, Sparkles, TrendingUp, Zap } from "lucide-react";
 import { WelcomeInput } from "./WelcomeInput";
 
@@ -52,7 +53,7 @@ function ChatPageInner() {
     if (mountedRef.current) setSendError(null);
     if (mountedRef.current) setWaitingForCoach(true);
     try {
-      return await createThreadWithMessage(args);
+      return await createThreadWithMessage({ ...args, userTimezone: getBrowserTimezone() });
     } finally {
       if (mountedRef.current) setWaitingForCoach(false);
     }
