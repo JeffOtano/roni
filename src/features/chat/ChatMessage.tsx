@@ -143,7 +143,10 @@ export function ChatMessage({ message, isGrouped, threadId }: ChatMessageProps) 
 
       <div className="sm:pl-8">
         {message.status === "failed" && !message.text.trim() && (
-          <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+          >
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
               Something went wrong generating a response. Check your AI provider&apos;s usage and
