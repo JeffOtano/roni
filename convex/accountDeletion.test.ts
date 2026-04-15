@@ -67,6 +67,13 @@ async function countAccountCodes(t: ReturnType<typeof convexTest>, accountId: Id
   });
 }
 
+async function countCurrentStrengthScores(t: ReturnType<typeof convexTest>, userId: Id<"users">) {
+  return t.run(async (ctx) => {
+    const scores = await ctx.db.query("currentStrengthScores").collect();
+    return scores.filter((score) => score.userId === userId);
+  });
+}
+
 async function drainAuthData(t: ReturnType<typeof convexTest>, userId: Id<"users">) {
   let iterations = 0;
   while (await t.mutation(internal.accountDeletion.deleteAuthData, { userId })) {
@@ -76,6 +83,20 @@ async function drainAuthData(t: ReturnType<typeof convexTest>, userId: Id<"users
     }
   }
   return iterations;
+}
+
+async function drainUserTableBatch(
+  t: ReturnType<typeof convexTest>,
+  userId: Id<"users">,
+  table: "currentStrengthScores",
+) {
+  let iterations = 0;
+  while (await t.mutation(internal.accountDeletion.deleteUserTableBatch, { userId, table })) {
+    iterations += 1;
+    if (iterations > 5_000) {
+      throw new Error(`deleteUserTableBatch did not converge for ${table}`);
+    }
+  }
 }
 
 describe("deleteAuthData", () => {
@@ -173,5 +194,36 @@ describe("deleteAuthData", () => {
     await expect(t.mutation(internal.accountDeletion.deleteAuthData, { userId })).resolves.toBe(
       false,
     );
+  });
+});
+
+describe("deleteUserTableBatch", () => {
+  test("deletes current strength scores in batches via the shared registry", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const otherUserId = await createUser(t);
+
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 501; i += 1) {
+        await ctx.db.insert("currentStrengthScores", {
+          userId,
+          bodyRegion: `region-${i}`,
+          score: i,
+          fetchedAt: Date.now() + i,
+        });
+      }
+
+      await ctx.db.insert("currentStrengthScores", {
+        userId: otherUserId,
+        bodyRegion: "other-region",
+        score: 999,
+        fetchedAt: Date.now(),
+      });
+    });
+
+    await drainUserTableBatch(t, userId, "currentStrengthScores");
+
+    expect(await countCurrentStrengthScores(t, userId)).toHaveLength(0);
+    expect(await countCurrentStrengthScores(t, otherUserId)).toHaveLength(1);
   });
 });

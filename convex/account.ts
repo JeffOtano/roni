@@ -3,6 +3,7 @@ import { getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@conve
 import { action, internalQuery, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
+import { BY_USER_ID_BATCH_TABLES } from "./userData";
 
 export const getFullProfile = query({
   args: {},
@@ -110,22 +111,6 @@ export const getUserEmail = internalQuery({
   },
 });
 
-/** Tables with a by_userId index, deleted via the typed deleteUserTableBatch mutation. */
-const USER_TABLES = [
-  "checkIns",
-  "workoutPlans",
-  "weekPlans",
-  "workoutFeedback",
-  "trainingBlocks",
-  "goals",
-  "injuries",
-  "emailChangeRequests",
-  "completedWorkouts",
-  "strengthScoreSnapshots",
-  "aiUsage",
-  "muscleReadiness",
-] as const;
-
 export const deleteAccount = action({
   args: {},
   handler: async (ctx): Promise<void> => {
@@ -135,7 +120,7 @@ export const deleteAccount = action({
     await ctx.runAction(components.agent.users.deleteAllForUserId, { userId });
 
     // Drain each table in batches of 500 to stay under the 4096 read limit
-    for (const table of USER_TABLES) {
+    for (const table of BY_USER_ID_BATCH_TABLES) {
       let hasMore = true;
       while (hasMore) {
         hasMore = await ctx.runMutation(internal.accountDeletion.deleteUserTableBatch, {

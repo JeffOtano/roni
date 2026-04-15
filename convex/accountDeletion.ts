@@ -1,21 +1,15 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
+import { BY_USER_ID_BATCH_TABLES, type ByUserIdBatchTable } from "./userData";
 
 const BATCH_SIZE = 500;
 
 const userTableValidator = v.union(
-  v.literal("checkIns"),
-  v.literal("workoutPlans"),
-  v.literal("weekPlans"),
-  v.literal("workoutFeedback"),
-  v.literal("trainingBlocks"),
-  v.literal("goals"),
-  v.literal("injuries"),
-  v.literal("emailChangeRequests"),
-  v.literal("completedWorkouts"),
-  v.literal("strengthScoreSnapshots"),
-  v.literal("aiUsage"),
-  v.literal("muscleReadiness"),
+  ...(BY_USER_ID_BATCH_TABLES.map((table) => v.literal(table)) as [
+    ReturnType<typeof v.literal<ByUserIdBatchTable>>,
+    ReturnType<typeof v.literal<ByUserIdBatchTable>>,
+    ...Array<ReturnType<typeof v.literal<ByUserIdBatchTable>>>,
+  ]),
 );
 
 /** Delete one batch from a table with a by_userId index. Returns true if more remain. */
