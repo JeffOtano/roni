@@ -71,7 +71,6 @@ import type * as schedule from "../schedule.js";
 import type * as stats from "../stats.js";
 import type * as systemHealth from "../systemHealth.js";
 import type * as threads from "../threads.js";
-import type * as tonal__rawWeightProbe from "../tonal/_rawWeightProbe.js";
 import type * as tonal_accessories from "../tonal/accessories.js";
 import type * as tonal_auth from "../tonal/auth.js";
 import type * as tonal_cache from "../tonal/cache.js";
@@ -184,7 +183,6 @@ declare const fullApi: ApiFromModules<{
   stats: typeof stats;
   systemHealth: typeof systemHealth;
   threads: typeof threads;
-  "tonal/_rawWeightProbe": typeof tonal__rawWeightProbe;
   "tonal/accessories": typeof tonal_accessories;
   "tonal/auth": typeof tonal_auth;
   "tonal/cache": typeof tonal_cache;
