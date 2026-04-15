@@ -127,8 +127,46 @@ async function fetchAndBuildPayloads(
 // Shared orchestration: diff, fetch details, persist, sync strength
 // ---------------------------------------------------------------------------
 
+/** Sync strength scores and update high-water mark. */
+async function syncStrengthAndHighWaterMark(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  activities: Activity[],
+): Promise<void> {
+  try {
+    const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
+      internal.tonal.proxy.fetchStrengthHistory,
+      { userId },
+    );
+    if (strengthHistory.length > 0) {
+      const snapshots = strengthHistory.map((entry) => ({
+        date: entry.activityTime.slice(0, 10),
+        overall: entry.overall,
+        upper: entry.upper,
+        lower: entry.lower,
+        core: entry.core,
+        workoutActivityId: entry.workoutActivityId || undefined,
+      }));
+      await ctx.runMutation(internal.tonal.historySyncMutations.persistStrengthSnapshots, {
+        userId,
+        snapshots,
+      });
+    }
+  } catch (err) {
+    console.error("[historySync] Strength history sync failed", err);
+  }
+
+  if (activities.length > 0) {
+    const newestDate = activities[activities.length - 1].activityTime.slice(0, 10);
+    await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
+      userId,
+      date: newestDate,
+    });
+  }
+}
+
 /**
- * Diff activities against DB, fetch details, persist, and sync strength scores.
+ * Diff activities against DB, fetch details, and persist.
  * When maxNew is set, only processes that many new activities per invocation.
  * Returns { synced, remaining } so the caller can schedule a continuation.
  */
@@ -165,41 +203,11 @@ async function syncActivitiesAndStrength(
     }
   }
 
-  // Sync strength score history (only on final batch or when no batching)
-  if (remaining === 0) {
-    try {
-      const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
-        internal.tonal.proxy.fetchStrengthHistory,
-        {
-          userId,
-        },
-      );
-      if (strengthHistory.length > 0) {
-        const snapshots = strengthHistory.map((entry) => ({
-          date: entry.activityTime.slice(0, 10),
-          overall: entry.overall,
-          upper: entry.upper,
-          lower: entry.lower,
-          core: entry.core,
-          workoutActivityId: entry.workoutActivityId || undefined,
-        }));
-        await ctx.runMutation(internal.tonal.historySyncMutations.persistStrengthSnapshots, {
-          userId,
-          snapshots,
-        });
-      }
-    } catch (err) {
-      console.error("[historySync] Strength history sync failed", err);
-    }
-
-    // Update high-water mark
-    if (activities.length > 0) {
-      const newestDate = activities[activities.length - 1].activityTime.slice(0, 10);
-      await ctx.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
-        userId,
-        date: newestDate,
-      });
-    }
+  // When maxNew is set, the caller (backfill) handles strength sync and
+  // high-water mark in its own finalize step. Only run them here for
+  // unbatched callers (incremental sync).
+  if (remaining === 0 && maxNew == null) {
+    await syncStrengthAndHighWaterMark(ctx, userId, activities);
   }
 
   return { synced: batch.length, remaining };
@@ -321,6 +329,7 @@ export const backfillUserHistory = internalAction({
       }
 
       // All pages processed - finalize
+      await syncStrengthAndHighWaterMark(ctx, userId, activities);
       const enrichmentFailures = await persistNewTableData(ctx, userId);
       await maybeRefreshProfile(ctx, userId);
       await ctx.runMutation(internal.userProfiles.updateSyncStatus, {
@@ -341,6 +350,7 @@ export const backfillUserHistory = internalAction({
         await ctx.scheduler.runAfter(delay, internal.tonal.historySync.backfillUserHistory, {
           userId,
           retryCount: retryCount + 1,
+          pgOffset,
         });
         return { newWorkouts: 0, totalActivities: 0 };
       }
