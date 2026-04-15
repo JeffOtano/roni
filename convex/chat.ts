@@ -83,10 +83,7 @@ async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * Resolves storage IDs to URLs and builds a multimodal ModelMessage array.
- * Returns the plain text string when no images are provided.
- */
+/** Resolves storage IDs to URLs and builds a multimodal ModelMessage array. */
 async function buildPrompt(
   ctx: ActionCtx,
   text: string,
@@ -358,7 +355,8 @@ export const processMessage = internalAction({
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     userTimezone: v.optional(v.string()),
   },
-  handler: async (ctx, { threadId, userId, prompt, imageStorageIds, userTimezone }) => {
+  handler: async (ctx, { threadId, userId, prompt, imageStorageIds, userTimezone: rawTz }) => {
+    const userTimezone = sanitizeTimezone(rawTz);
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
 

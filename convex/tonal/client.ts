@@ -80,7 +80,11 @@ export async function fetchWorkoutActivitiesPage<T>(
   // When the header is valid, use it. Otherwise, if the page is full,
   // assume at least one more item exists so callers continue paginating.
   const fallback = items.length >= limit ? items.length + 1 : items.length;
-  const pgTotal = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
+  const validHeader = Number.isFinite(parsed) && parsed >= 0;
+  if (!validHeader && rawPgTotal !== null) {
+    console.warn(`[fetchWorkoutActivitiesPage] Malformed pg-total header: "${rawPgTotal}"`);
+  }
+  const pgTotal = validHeader ? Math.floor(parsed) : fallback;
   return { items, pgTotal };
 }
 

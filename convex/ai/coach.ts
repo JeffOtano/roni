@@ -189,24 +189,6 @@ const serverProvider = createGoogleGenerativeAI({
 });
 const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
 
-/** Build per-request agent config with timezone-aware context handler. */
-export function makeCoachAgentConfig(userTimezone?: string) {
-  return {
-    ...coachAgentConfig,
-    contextHandler: (async (ctx, args) => {
-      const messages = mergeConsecutiveSameRole(
-        stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
-      );
-      if (!args.userId) return messages;
-      const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
-      return [
-        { role: "system" as const, content: `<training-data>\n${snapshot}\n</training-data>` },
-        ...messages,
-      ];
-    }) satisfies ContextHandler,
-  };
-}
-
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
@@ -292,6 +274,24 @@ export const coachAgentConfig = {
     });
   }) satisfies UsageHandler,
 };
+
+/** Build per-request agent config with timezone-aware context handler. */
+export function makeCoachAgentConfig(userTimezone?: string) {
+  return {
+    ...coachAgentConfig,
+    contextHandler: (async (ctx, args) => {
+      const messages = mergeConsecutiveSameRole(
+        stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
+      );
+      if (!args.userId) return messages;
+      const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
+      return [
+        { role: "system" as const, content: `<training-data>\n${snapshot}\n</training-data>` },
+        ...messages,
+      ];
+    }) satisfies ContextHandler,
+  };
+}
 
 export interface CoachAgentPair {
   primary: Agent;

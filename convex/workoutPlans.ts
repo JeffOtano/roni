@@ -161,6 +161,11 @@ export const claimRecoveredWorkout = internalMutation({
     pushedAt: v.number(),
   },
   handler: async (ctx, { planId, userId, tonalWorkoutId, pushedAt }) => {
+    const plan = await ctx.db.get(planId);
+    if (!plan || plan.userId !== userId) {
+      return { error: "Plan not found or not owned by user" } as const;
+    }
+
     const plans = await ctx.db
       .query("workoutPlans")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -304,9 +309,15 @@ async function tryRecoverPlan(
         );
         return true;
       }
+      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+        planId,
+        status: "failed",
+        pushErrorReason: result.error,
+      });
       console.warn(
         `[stuckPushRecovery] Could not claim workout ${candidates[0].id} for plan ${planId}: ${result.error}`,
       );
+      return true; // Handled with specific reason, not generic timeout.
     }
 
     return false;
