@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyByokError,
+  isByokQuotaError,
   isTransientError,
   throwIfByokError,
   withByokErrorSanitization,
@@ -131,6 +132,42 @@ describe("classifyByokError", () => {
     expect(classifyByokError("oops")).toBeNull();
     expect(classifyByokError(null)).toBeNull();
     expect(classifyByokError(undefined)).toBeNull();
+  });
+});
+
+describe("isByokQuotaError", () => {
+  it("returns true for 429 status code", () => {
+    const error = Object.assign(new Error("Too Many Requests"), { status: 429 });
+    expect(isByokQuotaError(error)).toBe(true);
+  });
+
+  it("returns true for resource_exhausted message", () => {
+    const error = new Error("RESOURCE_EXHAUSTED: Quota exceeded");
+    expect(isByokQuotaError(error)).toBe(true);
+  });
+
+  it("returns true for quota message", () => {
+    const error = new Error("You have exceeded your quota for this model");
+    expect(isByokQuotaError(error)).toBe(true);
+  });
+
+  it("returns true for rate_limit message", () => {
+    const error = new Error("rate_limit_exceeded: try again later");
+    expect(isByokQuotaError(error)).toBe(true);
+  });
+
+  it("returns false for 500 server error", () => {
+    const error = Object.assign(new Error("Internal"), { status: 500 });
+    expect(isByokQuotaError(error)).toBe(false);
+  });
+
+  it("returns false for non-Error values", () => {
+    expect(isByokQuotaError("string error")).toBe(false);
+    expect(isByokQuotaError(null)).toBe(false);
+  });
+
+  it("returns false for generic errors", () => {
+    expect(isByokQuotaError(new Error("Something broke"))).toBe(false);
   });
 });
 
