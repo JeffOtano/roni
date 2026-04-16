@@ -21,6 +21,7 @@ import {
   SESSION_TYPE_MUSCLES,
 } from "./weekProgrammingHelpers";
 import { blocksFromMovementIds } from "./workoutBlocks";
+import { normalizeBlocksAgainstCatalog } from "./normalizeBlocks";
 import type { SessionType } from "./weekProgrammingHelpers";
 
 // ---------------------------------------------------------------------------
@@ -63,7 +64,8 @@ export const swapExerciseInDraft = internalMutation({
       ),
     }));
 
-    await ctx.db.patch(workoutPlanId, { blocks: updatedBlocks });
+    const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, updatedBlocks);
+    await ctx.db.patch(workoutPlanId, { blocks: normalizedBlocks });
   },
 });
 
@@ -121,7 +123,8 @@ export const addExerciseToDraft = internalMutation({
       blocks.splice(cooldownIdx, 0, { exercises: [newExercise] });
     }
 
-    await ctx.db.patch(workoutPlanId, { blocks });
+    const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, blocks);
+    await ctx.db.patch(workoutPlanId, { blocks: normalizedBlocks });
   },
 });
 

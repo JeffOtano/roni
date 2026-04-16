@@ -15,6 +15,7 @@ import type * as activation from "../activation.js";
 import type * as ai_coach from "../ai/coach.js";
 import type * as ai_coachingTools from "../ai/coachingTools.js";
 import type * as ai_context from "../ai/context.js";
+import type * as ai_contextWindow from "../ai/contextWindow.js";
 import type * as ai_helpers from "../ai/helpers.js";
 import type * as ai_promptSections from "../ai/promptSections.js";
 import type * as ai_providers from "../ai/providers.js";
@@ -33,12 +34,14 @@ import type * as byokProvider from "../byokProvider.js";
 import type * as byokShared from "../byokShared.js";
 import type * as byokValidation from "../byokValidation.js";
 import type * as chat from "../chat.js";
+import type * as chatHelpers from "../chatHelpers.js";
 import type * as checkIns from "../checkIns.js";
 import type * as checkIns_content from "../checkIns/content.js";
 import type * as checkIns_triggers from "../checkIns/triggers.js";
 import type * as coach_exerciseSelection from "../coach/exerciseSelection.js";
 import type * as coach_goalConfig from "../coach/goalConfig.js";
 import type * as coach_missedSessionDetection from "../coach/missedSessionDetection.js";
+import type * as coach_normalizeBlocks from "../coach/normalizeBlocks.js";
 import type * as coach_periodization from "../coach/periodization.js";
 import type * as coach_prDetection from "../coach/prDetection.js";
 import type * as coach_pushAndVerify from "../coach/pushAndVerify.js";
@@ -64,7 +67,10 @@ import type * as injuries from "../injuries.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_posthog from "../lib/posthog.js";
+import type * as lib_targetArea from "../lib/targetArea.js";
 import type * as libraryWorkouts from "../libraryWorkouts.js";
+import type * as migrations from "../migrations.js";
+import type * as migrations_backfillAvgWeight from "../migrations/backfillAvgWeight.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
@@ -74,6 +80,8 @@ import type * as systemHealth from "../systemHealth.js";
 import type * as threads from "../threads.js";
 import type * as tonal_accessories from "../tonal/accessories.js";
 import type * as tonal_auth from "../tonal/auth.js";
+import type * as tonal_backfillCompletion from "../tonal/backfillCompletion.js";
+import type * as tonal_backfillRunner from "../tonal/backfillRunner.js";
 import type * as tonal_cache from "../tonal/cache.js";
 import type * as tonal_cacheRefresh from "../tonal/cacheRefresh.js";
 import type * as tonal_client from "../tonal/client.js";
@@ -129,6 +137,7 @@ declare const fullApi: ApiFromModules<{
   "ai/coach": typeof ai_coach;
   "ai/coachingTools": typeof ai_coachingTools;
   "ai/context": typeof ai_context;
+  "ai/contextWindow": typeof ai_contextWindow;
   "ai/helpers": typeof ai_helpers;
   "ai/promptSections": typeof ai_promptSections;
   "ai/providers": typeof ai_providers;
@@ -147,12 +156,14 @@ declare const fullApi: ApiFromModules<{
   byokShared: typeof byokShared;
   byokValidation: typeof byokValidation;
   chat: typeof chat;
+  chatHelpers: typeof chatHelpers;
   checkIns: typeof checkIns;
   "checkIns/content": typeof checkIns_content;
   "checkIns/triggers": typeof checkIns_triggers;
   "coach/exerciseSelection": typeof coach_exerciseSelection;
   "coach/goalConfig": typeof coach_goalConfig;
   "coach/missedSessionDetection": typeof coach_missedSessionDetection;
+  "coach/normalizeBlocks": typeof coach_normalizeBlocks;
   "coach/periodization": typeof coach_periodization;
   "coach/prDetection": typeof coach_prDetection;
   "coach/pushAndVerify": typeof coach_pushAndVerify;
@@ -178,7 +189,10 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/env": typeof lib_env;
   "lib/posthog": typeof lib_posthog;
+  "lib/targetArea": typeof lib_targetArea;
   libraryWorkouts: typeof libraryWorkouts;
+  migrations: typeof migrations;
+  "migrations/backfillAvgWeight": typeof migrations_backfillAvgWeight;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   progressiveOverload: typeof progressiveOverload;
   rateLimits: typeof rateLimits;
@@ -188,6 +202,8 @@ declare const fullApi: ApiFromModules<{
   threads: typeof threads;
   "tonal/accessories": typeof tonal_accessories;
   "tonal/auth": typeof tonal_auth;
+  "tonal/backfillCompletion": typeof tonal_backfillCompletion;
+  "tonal/backfillRunner": typeof tonal_backfillRunner;
   "tonal/cache": typeof tonal_cache;
   "tonal/cacheRefresh": typeof tonal_cacheRefresh;
   "tonal/client": typeof tonal_client;
@@ -5086,6 +5102,93 @@ export declare const components: {
           null
         >;
       };
+    };
+  };
+  migrations: {
+    lib: {
+      cancel: FunctionReference<
+        "mutation",
+        "internal",
+        { name: string },
+        {
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }
+      >;
+      cancelAll: FunctionReference<
+        "mutation",
+        "internal",
+        { sinceTs?: number },
+        Array<{
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }>
+      >;
+      clearAll: FunctionReference<
+        "mutation",
+        "internal",
+        { before?: number },
+        null
+      >;
+      getStatus: FunctionReference<
+        "query",
+        "internal",
+        { limit?: number; names?: Array<string> },
+        Array<{
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }>
+      >;
+      migrate: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          batchSize?: number;
+          cursor?: string | null;
+          dryRun: boolean;
+          fnHandle: string;
+          name: string;
+          next?: Array<{ fnHandle: string; name: string }>;
+          oneBatchOnly?: boolean;
+          reset?: boolean;
+        },
+        {
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }
+      >;
     };
   };
   rateLimiter: {

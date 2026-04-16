@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (me && (!me.hasTonalProfile || !me.onboardingCompleted)) {
+    if (me && (!me.hasTonalProfile || !me.onboardingCompleted || !me.hasCheckInPreferences)) {
       router.replace("/onboarding");
     }
   }, [me, router]);
@@ -101,7 +101,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated || (me && (!me.hasTonalProfile || !me.onboardingCompleted))) {
+  if (
+    !isAuthenticated ||
+    (me && (!me.hasTonalProfile || !me.onboardingCompleted || !me.hasCheckInPreferences))
+  ) {
     return null;
   }
 

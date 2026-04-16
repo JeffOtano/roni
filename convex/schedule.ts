@@ -10,6 +10,7 @@ import type { Doc } from "./_generated/dataModel";
 import type { EnrichedWeekPlan } from "./weekPlanEnriched";
 import type { Movement } from "./tonal/types";
 import { DAY_NAMES } from "./coach/weekProgrammingHelpers";
+import { TONAL_REST_MOVEMENT_ID } from "./tonal/transforms";
 
 // ---------------------------------------------------------------------------
 // Return types
@@ -19,6 +20,14 @@ export interface ScheduleExercise {
   name: string;
   sets: number;
   reps?: number;
+  durationSeconds?: number;
+  eccentric?: boolean;
+  chains?: boolean;
+  burnout?: boolean;
+  dropSet?: boolean;
+  spotter?: boolean;
+  /** Index (1-based) identifying the superset group this exercise belongs to. Undefined for straight sets. */
+  supersetGroup?: number;
 }
 
 export interface ScheduleDay {
@@ -97,25 +106,52 @@ export const getScheduleData = action({
       }
     }
 
-    // 4. Fetch movement catalog for name resolution
-    let movementMap = new Map<string, string>();
+    // 4. Fetch movement catalog for name + duration/rep resolution
+    let movementMap = new Map<string, { name: string; countReps: boolean }>();
     if (allMovementIds.size > 0) {
       const movements: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
-      movementMap = new Map(movements.map((m) => [m.id, m.name]));
+      movementMap = new Map(movements.map((m) => [m.id, { name: m.name, countReps: m.countReps }]));
     }
 
-    // 5. Build schedule days
+    // 5. Resolve display shape for an exercise (reps vs duration).
+    //    Catalog countReps is authoritative (matches push path in transforms.ts).
+    function resolveShape(
+      ex: { reps?: number; duration?: number },
+      movement?: { countReps: boolean },
+    ): { reps?: number; durationSeconds?: number } {
+      if (movement) {
+        if (!movement.countReps) return { durationSeconds: ex.duration ?? 30 };
+        return { reps: ex.reps ?? 10 };
+      }
+      if (ex.duration != null) return { durationSeconds: ex.duration };
+      if (ex.reps != null) return { reps: ex.reps };
+      return {};
+    }
+
+    // 6. Build schedule days
     const days: ScheduleDay[] = enriched.days.map((day, i) => {
       const wp = day.workoutPlanId ? workoutPlans.get(day.workoutPlanId) : undefined;
       const exercises: ScheduleExercise[] = [];
 
+      let supersetCounter = 0;
       if (wp) {
         for (const block of wp.blocks) {
-          for (const ex of block.exercises) {
+          const nonRestExercises = block.exercises.filter(
+            (e) => e.movementId !== TONAL_REST_MOVEMENT_ID,
+          );
+          const supersetGroup = nonRestExercises.length >= 2 ? ++supersetCounter : undefined;
+          for (const ex of nonRestExercises) {
+            const movement = movementMap.get(ex.movementId);
             exercises.push({
-              name: movementMap.get(ex.movementId) ?? ex.movementId,
+              name: movement?.name ?? ex.movementId,
               sets: ex.sets,
-              reps: ex.reps,
+              ...resolveShape(ex, movement),
+              ...(ex.eccentric && { eccentric: true }),
+              ...(ex.chains && { chains: true }),
+              ...(ex.burnout && { burnout: true }),
+              ...(ex.dropSet && { dropSet: true }),
+              ...(ex.spotter && { spotter: true }),
+              ...(supersetGroup != null && { supersetGroup }),
             });
           }
         }

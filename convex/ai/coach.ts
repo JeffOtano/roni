@@ -1,11 +1,16 @@
 import { Agent } from "@convex-dev/agent";
 import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
-import type { ModelMessage, UserContent } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { components, internal } from "../_generated/api";
 import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
 import { buildTrainingSnapshot } from "./context";
+import {
+  buildContextWindow,
+  mergeConsecutiveSameRole,
+  stripImagesFromOlderMessages,
+  stripOrphanedToolCalls,
+} from "./contextWindow";
 import { buildInstructions } from "./promptSections";
 import { captureAiGeneration } from "../lib/posthog";
 // ---------------------------------------------------------------------------
@@ -67,122 +72,6 @@ import {
   updateGoalProgressTool,
 } from "./coachingTools";
 
-export function mergeConsecutiveSameRole(messages: ModelMessage[]): ModelMessage[] {
-  if (messages.length <= 1) return messages;
-
-  const result: ModelMessage[] = [messages[0]];
-
-  for (let i = 1; i < messages.length; i++) {
-    const prev = result[result.length - 1];
-    const curr = messages[i];
-
-    // Never merge system messages; the provider extracts them separately.
-    if (prev.role !== curr.role || prev.role === "system") {
-      result.push(curr);
-      continue;
-    }
-
-    const toParts = (c: ModelMessage["content"]): Array<Record<string, unknown>> =>
-      typeof c === "string" ? [{ type: "text", text: c }] : (c as Array<Record<string, unknown>>);
-
-    const merged = [...toParts(prev.content), ...toParts(curr.content)];
-    result[result.length - 1] = { ...prev, content: merged } as ModelMessage;
-  }
-
-  return result;
-}
-
-export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[] {
-  const approvalIdToToolCallId = new Map<string, string>();
-  const toolCallIdsWithApprovalRequests = new Set<string>();
-  const resolvedToolCallIds = new Set<string>();
-  for (const msg of messages) {
-    if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
-    for (const part of msg.content as Array<{
-      type: string;
-      approvalId?: string;
-      toolCallId?: string;
-    }>) {
-      if (part.type === "tool-approval-request" && part.approvalId && part.toolCallId) {
-        approvalIdToToolCallId.set(part.approvalId, part.toolCallId);
-        toolCallIdsWithApprovalRequests.add(part.toolCallId);
-      }
-      if (part.type === "tool-result" && part.toolCallId) {
-        resolvedToolCallIds.add(part.toolCallId);
-      }
-    }
-  }
-
-  for (const msg of messages) {
-    if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
-    for (const part of msg.content as Array<{ type: string; approvalId?: string }>) {
-      if (part.type === "tool-approval-response" && part.approvalId) {
-        const toolCallId = approvalIdToToolCallId.get(part.approvalId);
-        if (toolCallId) {
-          resolvedToolCallIds.add(toolCallId);
-        }
-      }
-    }
-  }
-
-  return messages
-    .map((msg) => {
-      if (msg.role !== "assistant") return msg;
-      if (typeof msg.content === "string" || !Array.isArray(msg.content)) return msg;
-
-      const parts = msg.content as Array<{ type: string; toolCallId?: string }>;
-      const hasToolCalls = parts.some((p) => p.type === "tool-call");
-      if (!hasToolCalls) return msg;
-
-      const filtered = parts.filter(
-        (p) =>
-          p.type !== "tool-call" ||
-          (p.toolCallId &&
-            (resolvedToolCallIds.has(p.toolCallId) ||
-              toolCallIdsWithApprovalRequests.has(p.toolCallId))),
-      );
-
-      if (filtered.length === 0) return null;
-      return { ...msg, content: filtered } as ModelMessage;
-    })
-    .filter((msg): msg is ModelMessage => msg !== null);
-}
-
-/**
- * Remove image parts from all messages except the most recent user message.
- * Images stored in older messages cause unbounded memory growth when loaded
- * via recentMessages, leading to 64 MB OOM on Convex actions.
- */
-function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMessage[] {
-  // Find the index of the last user message (the one that may contain fresh images)
-  let lastUserIdx = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") {
-      lastUserIdx = i;
-      break;
-    }
-  }
-
-  return messages.map((msg, idx) => {
-    // Keep the most recent user message intact (it has the current images)
-    if (idx === lastUserIdx) return msg;
-    // Only user messages can contain image parts from buildPrompt
-    if (msg.role !== "user") return msg;
-    // String content has no images
-    if (typeof msg.content === "string") return msg;
-    if (!Array.isArray(msg.content)) return msg;
-
-    const filtered = (msg.content as Array<{ type: string }>).filter(
-      (part) => part.type !== "image",
-    );
-    // If all parts were images, replace with a placeholder
-    if (filtered.length === 0) {
-      return { ...msg, content: "[image message]" };
-    }
-    return { ...msg, content: filtered as UserContent };
-  });
-}
-
 // Embeddings always bill the house key, regardless of BYOK status.
 const serverProvider = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
@@ -193,7 +82,7 @@ export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
   contextOptions: {
-    recentMessages: 30,
+    recentMessages: 100,
     searchOtherThreads: true,
     searchOptions: {
       limit: 10,
@@ -280,8 +169,10 @@ export function makeCoachAgentConfig(userTimezone?: string) {
   return {
     ...coachAgentConfig,
     contextHandler: (async (ctx, args) => {
-      const messages = mergeConsecutiveSameRole(
-        stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
+      const messages = buildContextWindow(
+        mergeConsecutiveSameRole(
+          stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
+        ),
       );
       if (!args.userId) return messages;
       const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);

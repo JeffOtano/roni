@@ -78,24 +78,136 @@ export function StatCard({
 // Exercise row (full detail, not truncated)
 // ---------------------------------------------------------------------------
 
+const MODE_STYLES: Record<string, { label: string; className: string }> = {
+  eccentric: {
+    label: "Eccentric",
+    className: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  },
+  chains: { label: "Chains", className: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+  burnout: { label: "Burnout", className: "bg-red-500/15 text-red-300 border-red-500/30" },
+  dropSet: {
+    label: "Drop Set",
+    className: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
+  },
+  spotter: {
+    label: "Spotter",
+    className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  },
+};
+
+function ExerciseModeBadges({ exercise }: { exercise: ScheduleExercise }) {
+  const active = (["eccentric", "chains", "burnout", "dropSet", "spotter"] as const).filter(
+    (key) => exercise[key],
+  );
+  if (active.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {active.map((key) => (
+        <Badge
+          key={key}
+          variant="outline"
+          className={cn("shrink-0 text-[10px] font-medium", MODE_STYLES[key].className)}
+        >
+          {MODE_STYLES[key].label}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
 export function ExerciseRow({ exercise, index }: { exercise: ScheduleExercise; index: number }) {
+  const hasDynamicMode =
+    exercise.eccentric || exercise.chains || exercise.burnout || exercise.dropSet;
   return (
     <li
       className={cn(
         "flex items-center justify-between gap-3 rounded-lg px-3 py-2.5",
-        index % 2 === 0 ? "bg-muted/30" : "bg-transparent",
+        hasDynamicMode
+          ? "bg-amber-500/5 ring-1 ring-inset ring-amber-500/20"
+          : index % 2 === 0
+            ? "bg-muted/30"
+            : "bg-transparent",
       )}
     >
       <div className="flex items-center gap-3 min-w-0">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted/60 text-xs font-medium tabular-nums text-muted-foreground">
           {index + 1}
         </span>
-        <span className="text-sm font-medium text-foreground">{exercise.name}</span>
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-sm font-medium text-foreground">{exercise.name}</span>
+          <ExerciseModeBadges exercise={exercise} />
+        </div>
       </div>
       <Badge variant="outline" className="shrink-0 tabular-nums text-xs font-medium">
-        {exercise.sets} &times; {exercise.reps ?? "--"}
+        {exercise.sets} &times;{" "}
+        {exercise.durationSeconds != null
+          ? `${exercise.durationSeconds}s`
+          : (exercise.reps ?? "--")}
       </Badge>
     </li>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Superset-aware list: groups consecutive same-supersetGroup rows into a
+// bracketed cluster with a "Superset" badge. Straight sets render as-is.
+// ---------------------------------------------------------------------------
+
+interface ExerciseGroup {
+  supersetGroup?: number;
+  exercises: { exercise: ScheduleExercise; index: number }[];
+}
+
+function groupExercises(exercises: readonly ScheduleExercise[]): ExerciseGroup[] {
+  const groups: ExerciseGroup[] = [];
+  exercises.forEach((exercise, index) => {
+    const last = groups[groups.length - 1];
+    if (exercise.supersetGroup != null && last?.supersetGroup === exercise.supersetGroup) {
+      last.exercises.push({ exercise, index });
+    } else {
+      groups.push({ supersetGroup: exercise.supersetGroup, exercises: [{ exercise, index }] });
+    }
+  });
+  return groups;
+}
+
+export function ExerciseListWithSupersets({
+  exercises,
+  dayName,
+}: {
+  exercises: readonly ScheduleExercise[];
+  dayName: string;
+}) {
+  const groups = groupExercises(exercises);
+
+  return (
+    <ul className="space-y-2" aria-label={`Exercises for ${dayName}`}>
+      {groups.map((group, gi) => {
+        if (group.supersetGroup == null || group.exercises.length < 2) {
+          const { exercise, index } = group.exercises[0];
+          return <ExerciseRow key={`row-${index}`} exercise={exercise} index={index} />;
+        }
+        return (
+          <li key={`ss-${gi}`} className="relative">
+            <div className="overflow-hidden rounded-lg border border-primary/25 bg-primary/5">
+              <div className="flex items-center justify-between border-b border-primary/20 bg-primary/10 px-3 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                  Superset · {group.exercises.length} exercises
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Alternate between each set
+                </span>
+              </div>
+              <ul className="space-y-0.5 p-1" aria-label={`Superset ${group.supersetGroup}`}>
+                {group.exercises.map(({ exercise, index }) => (
+                  <ExerciseRow key={`row-${index}`} exercise={exercise} index={index} />
+                ))}
+              </ul>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

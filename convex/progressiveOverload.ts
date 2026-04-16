@@ -1,18 +1,12 @@
 /**
  * Progressive overload: per-exercise history from Tonal, "last time" and "suggested next" display.
- * No AI — deterministic from workout-activities (and optional formatted summary for weight).
- * See docs/progressive-overload-data.md for data source and set-level notes.
+ * No AI — deterministic from workout-activity set data (per-set avgWeight).
  */
 
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type {
-  FormattedWorkoutSummary,
-  Movement,
-  SetActivity,
-  WorkoutActivityDetail,
-} from "./tonal/types";
+import type { Movement, SetActivity, WorkoutActivityDetail } from "./tonal/types";
 import { generatePerformanceSummary } from "./coach/prDetection";
 
 const WEIGHT_STEP_LBS = 2.5;
@@ -46,7 +40,7 @@ export interface LastTimeAndSuggested {
 /** Aggregate workoutSetActivity by movementId into per-movement session snapshot. */
 export function aggregateDetailToSessions(
   detail: WorkoutActivityDetail,
-  volumeByMovement?: Map<string, number>,
+  straightBarMovementIds?: ReadonlySet<string>,
 ): Map<string, MovementSessionSnapshot> {
   const sessionDate = detail.beginTime.slice(0, 10);
   const byMovement = new Map<string, SetActivity[]>();
@@ -60,9 +54,8 @@ export function aggregateDetailToSessions(
     const totalReps = sets.reduce((sum, s) => sum + (s.repetition ?? 0), 0);
     const count = sets.length;
     const repsPerSet = count > 0 ? Math.round(totalReps / count) : 0;
-    const totalVolume = volumeByMovement?.get(movementId);
-    const avgWeightLbs =
-      totalVolume != null && totalReps > 0 ? Math.round(totalVolume / totalReps) : undefined;
+    const isStraightBar = straightBarMovementIds?.has(movementId) ?? false;
+    const avgWeightLbs = weightedAvgWeight(sets, isStraightBar);
     out.set(movementId, {
       sessionDate,
       sets: count,
@@ -74,13 +67,24 @@ export function aggregateDetailToSessions(
   return out;
 }
 
-/** Extract per-movement totalVolume from FormattedWorkoutSummary. */
-function volumeByMovementFromSummary(summary: FormattedWorkoutSummary): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const ms of summary.movementSets ?? []) {
-    out.set(ms.movementId, ms.totalVolume);
+/** Weighted average of per-set avgWeight, weighted by reps per set.
+ *  StraightBar avgWeight is per-motor; double it for actual bar weight. */
+function weightedAvgWeight(
+  sets: readonly SetActivity[],
+  isStraightBar: boolean,
+): number | undefined {
+  let totalWeight = 0;
+  let totalReps = 0;
+  for (const s of sets) {
+    if (s.avgWeight == null || s.avgWeight <= 0) continue;
+    const reps = s.repetition ?? 0;
+    if (reps <= 0) continue;
+    const weight = isStraightBar ? s.avgWeight * 2 : s.avgWeight;
+    totalWeight += weight * reps;
+    totalReps += reps;
   }
-  return out;
+  if (totalReps === 0) return undefined;
+  return Math.round(totalWeight / totalReps);
 }
 
 /** Format "last time" for display. */
@@ -135,6 +139,11 @@ export const getPerMovementHistory = internalAction({
       limit: maxActivities,
     });
 
+    const movements: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+    const straightBarIds = new Set(
+      movements.filter((m) => m.onMachineInfo?.accessory === "StraightBar").map((m) => m.id),
+    );
+
     const perMovement = new Map<string, MovementSessionSnapshot[]>();
 
     for (const activity of activities) {
@@ -154,18 +163,7 @@ export const getPerMovementHistory = internalAction({
       }
       if (!detail) continue;
 
-      let volumeByMovement: Map<string, number> | undefined;
-      try {
-        const summary = await ctx.runAction(internal.tonal.proxy.fetchFormattedSummary, {
-          userId,
-          summaryId: activityId,
-        });
-        volumeByMovement = volumeByMovementFromSummary(summary);
-      } catch {
-        // Formatted summary may use different ID; we still have sets/reps
-      }
-
-      const sessionMap = aggregateDetailToSessions(detail, volumeByMovement);
+      const sessionMap = aggregateDetailToSessions(detail, straightBarIds);
       for (const [movementId, snapshot] of sessionMap) {
         const list = perMovement.get(movementId) ?? [];
         list.push(snapshot);

@@ -12,10 +12,13 @@ import type { ActionCtx } from "../_generated/server";
 import { internalAction, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { TONAL_REFRESH_CACHE_KEYS } from "./refresh";
 
-/** Cache keys to clear before a resync (old per-limit keys + current key). */
+/** Cache keys to clear before a resync. Includes the full refresh set
+ *  (profile, strength, readiness, current history) plus legacy per-limit
+ *  workout-history keys that may still linger in older deployments. */
 const STALE_CACHE_KEYS = [
-  "workoutHistory_v3",
+  ...TONAL_REFRESH_CACHE_KEYS,
   "workoutHistory_v3_full",
   "workoutHistory_v2",
   "workoutHistory_v2:1",

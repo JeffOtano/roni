@@ -16,15 +16,37 @@ import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
 import { getWeekStartDateString } from "../weekPlanHelpers";
-import { requireUserId, toSessionDuration, withToolTracking } from "./helpers";
+import { requireUserId, withToolTracking } from "./helpers";
 import { buildReasoningPrompt } from "./weekReasoning";
+
+// ---------------------------------------------------------------------------
+// Session duration validation
+// ---------------------------------------------------------------------------
+
+const ALLOWED_SESSION_DURATIONS = [30, 45, 60] as const;
+type SessionDuration = (typeof ALLOWED_SESSION_DURATIONS)[number];
+
+function validateSessionDuration(value: unknown): SessionDuration | undefined {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? parseInt(value, 10) : undefined;
+  if (Number.isInteger(parsed) && ALLOWED_SESSION_DURATIONS.includes(parsed as SessionDuration)) {
+    return parsed as SessionDuration;
+  }
+  return undefined;
+}
 
 // ---------------------------------------------------------------------------
 // programWeekTool
 // ---------------------------------------------------------------------------
 
 export const programWeekTool = createTool({
-  description: `Program the user's full training week. Creates draft workouts for each training day based on their split, available days, and session duration. Returns a summary of the full week plan with exercises, sets, reps, and progressive overload targets. The plan is NOT pushed to Tonal yet — present it to the user for approval first, then use approve_week_plan. If the user already has saved preferences, you can omit the parameters to use their saved preferences.`,
+  description: `Program the user's full training week. Creates draft workouts for each training day based on their split, available days, and session duration.
+
+IMPORTANT: The backend algorithm selects the exact exercises, sets, and reps — you do NOT. Your job is to call this tool, then faithfully describe what it returned in the \`summary\` field. Never pre-announce specific exercises before calling this tool (e.g. "I'll program bench press, rows, and squats..."), because the algorithm may pick differently based on user history, muscle readiness, injuries, and progressive overload. Never describe exercise names, sets, or reps that are not present in the returned \`summary\`.
+
+Duration-based movements in the summary use a duration (seconds) instead of reps. Describe them in seconds (e.g. "30s hold") — never as "4x10".
+
+Returns a summary of the full week plan with exercises, sets, reps/duration, and progressive overload targets. The plan is NOT pushed to Tonal yet — present it to the user for approval first, then use approve_week_plan. If the user already has saved preferences, you can omit the parameters to use their saved preferences.`,
   inputSchema: z.object({
     preferredSplit: z
       .enum(["ppl", "upper_lower", "full_body", "bro_split"])
@@ -77,11 +99,9 @@ export const programWeekTool = createTool({
       } | null;
 
       const preferredSplit = input.preferredSplit ?? saved?.preferredSplit ?? "ppl";
-      const sessionDuration: 30 | 45 | 60 = input.sessionDurationMinutes
-        ? toSessionDuration(input.sessionDurationMinutes)
-        : saved?.sessionDurationMinutes !== undefined
-          ? toSessionDuration(saved.sessionDurationMinutes)
-          : 45;
+      const inputDuration = validateSessionDuration(input.sessionDurationMinutes);
+      const savedDuration = validateSessionDuration(saved?.sessionDurationMinutes);
+      const sessionDuration = inputDuration ?? savedDuration ?? 45;
 
       const targetDays =
         input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3;

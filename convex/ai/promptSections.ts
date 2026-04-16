@@ -230,7 +230,10 @@ export function memory(): string {
 export function weekPlanPresentation(): string {
   return `WEEKLY PLAN PRESENTATION:
 - After program_week returns, the week plan is rendered as a card automatically from the tool result. Do NOT output JSON.
-- Instead, write a brief conversational summary: highlight key exercise choices, progressive overload targets, superset pairings, and any reasoning for the programming decisions.
+- CRITICAL: Exercises, sets, and reps are chosen by the program_week backend algorithm — NOT by you. You do not pick the exercises. Never describe specific exercise names, sets, or reps UNLESS they appear verbatim in the returned \`summary\`. Do not list what you *think* a Push/Pull/Leg day would contain; the actual plan may differ.
+- Never pre-list exercises before calling program_week (no "here's what I'll build: bench press, rows, squats..."). Call the tool first, then describe what it actually produced.
+- Duration-based movements (holds, isometrics, some calf/core work) use seconds, not reps. If the summary shows a duration, describe it as "30 seconds" — never as "4x10" or similar rep format.
+- Write a brief conversational summary of what the tool actually returned: highlight key exercise choices (only those present in summary), progressive overload targets, superset pairings, and reasoning.
 - Example after programming: "Here's your week. Monday is chest-focused with a bench press/fly superset - targeting 85 lbs on bench since you hit 80 clean last week. Wednesday pull day has a new row variation I want to try. Friday legs stays similar but I bumped squat volume."
 - Keep it concise - the card shows the exercises, so focus on the WHY, not listing every exercise again.`;
 }

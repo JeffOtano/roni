@@ -109,14 +109,14 @@ describe("aggregateDetailToSessions", () => {
     expect(result.size).toBe(0);
   });
 
-  it("computes avgWeightLbs when volumeByMovement is provided", () => {
+  it("computes avgWeightLbs from per-set avgWeight", () => {
     const detail = makeDetail({
       workoutSetActivity: [
         {
           id: "s1",
           movementId: "m1",
           prescribedReps: 10,
-          repetition: 10,
+          repetition: 8,
           repetitionTotal: 2,
           blockNumber: 1,
           spotter: false,
@@ -126,12 +126,13 @@ describe("aggregateDetailToSessions", () => {
           warmUp: false,
           beginTime: "2026-03-10T10:00:00Z",
           sideNumber: 0,
+          avgWeight: 50,
         },
         {
           id: "s2",
           movementId: "m1",
           prescribedReps: 10,
-          repetition: 10,
+          repetition: 12,
           repetitionTotal: 2,
           blockNumber: 1,
           spotter: false,
@@ -141,18 +142,48 @@ describe("aggregateDetailToSessions", () => {
           warmUp: false,
           beginTime: "2026-03-10T10:02:00Z",
           sideNumber: 0,
+          avgWeight: 60,
         },
       ],
     });
-    const volumeByMovement = new Map([["m1", 2000]]);
 
-    const result = aggregateDetailToSessions(detail, volumeByMovement);
+    const result = aggregateDetailToSessions(detail);
 
     const m1 = result.get("m1");
-    expect(m1!.avgWeightLbs).toBe(100); // 2000 / 20 = 100
+    // Weighted average: (50*8 + 60*12) / 20 = 56
+    expect(m1!.avgWeightLbs).toBe(56);
   });
 
-  it("omits avgWeightLbs when volume data is not provided", () => {
+  it("doubles avgWeight for StraightBar movements", () => {
+    const detail = makeDetail({
+      workoutSetActivity: [
+        {
+          id: "s1",
+          movementId: "bar1",
+          prescribedReps: 10,
+          repetition: 10,
+          repetitionTotal: 1,
+          blockNumber: 1,
+          spotter: false,
+          eccentric: false,
+          chains: false,
+          flex: false,
+          warmUp: false,
+          beginTime: "2026-03-10T10:00:00Z",
+          sideNumber: 0,
+          avgWeight: 47,
+        },
+      ],
+    });
+
+    const straightBarIds = new Set(["bar1"]);
+    const result = aggregateDetailToSessions(detail, straightBarIds);
+
+    const bar1 = result.get("bar1");
+    expect(bar1!.avgWeightLbs).toBe(94);
+  });
+
+  it("omits avgWeightLbs when sets have no avgWeight", () => {
     const detail = makeDetail({
       workoutSetActivity: [
         {

@@ -15,7 +15,7 @@ import { api } from "../../../../../convex/_generated/api";
 import type { ScheduleData } from "../../../../../convex/schedule";
 
 import {
-  ExerciseRow,
+  ExerciseListWithSupersets,
   formatDayDate,
   formatDuration,
   ScheduleDetailSkeleton,
@@ -138,11 +138,7 @@ export default function ScheduleDayPage({ params }: { params: Promise<{ dayIndex
           Exercises
         </h2>
         {day.exercises.length > 0 ? (
-          <ul className="space-y-0.5" aria-label={`Exercises for ${day.dayName}`}>
-            {day.exercises.map((exercise, i) => (
-              <ExerciseRow key={`${exercise.name}-${i}`} exercise={exercise} index={i} />
-            ))}
-          </ul>
+          <ExerciseListWithSupersets exercises={day.exercises} dayName={day.dayName} />
         ) : (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Exercises will appear once this workout is programmed.
