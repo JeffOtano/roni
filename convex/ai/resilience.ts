@@ -12,6 +12,20 @@ const BUDGET_EXCEEDED_MESSAGE =
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
 
+// User-visible messages for each BYOK error class. Written directly into
+// the assistant side of the thread so the user sees an actionable message
+// instead of the generic "I'm having trouble" fallback.
+const BYOK_ERROR_MESSAGES: Record<ByokErrorCode, string> = {
+  byok_key_invalid:
+    "Your API key was rejected by the provider. Open **Settings → API Keys** to check or replace it, then try again.",
+  byok_quota_exceeded:
+    "Your API key's provider is rejecting requests — likely out of credit or over quota. Top up with your provider, or switch providers under **Settings → API Keys**, and try again.",
+  byok_safety_blocked:
+    "The provider blocked that response for safety reasons. Try rephrasing and sending again.",
+  byok_unknown_error:
+    "Your API key's provider returned an unexpected error. Double-check the key under **Settings → API Keys** or try again later.",
+};
+
 // ---------------------------------------------------------------------------
 // Error classification
 // ---------------------------------------------------------------------------
@@ -54,11 +68,33 @@ export type ByokErrorCode =
   | "byok_safety_blocked"
   | "byok_unknown_error";
 
+/**
+ * Collect every text fragment that could classify a BYOK error. The Vercel
+ * AI SDK often wraps provider errors in an `APICallError` whose `.message`
+ * is just "API call failed", while the real detail lives on `.responseBody`
+ * or `.cause.message`. We must pattern-match across all of them so errors
+ * like Anthropic's "Your credit balance is too low" don't slip through.
+ */
+function gatherErrorText(error: Error): string {
+  const parts: string[] = [error.message];
+  const extended = error as Error & {
+    responseBody?: unknown;
+    cause?: unknown;
+    data?: unknown;
+  };
+  if (typeof extended.responseBody === "string") parts.push(extended.responseBody);
+  if (extended.cause instanceof Error) parts.push(extended.cause.message);
+  if (extended.data && typeof extended.data === "object") {
+    parts.push(JSON.stringify(extended.data));
+  }
+  return parts.join(" ").toLowerCase();
+}
+
 export function classifyByokError(error: unknown): ByokErrorCode | null {
   if (!(error instanceof Error)) return null;
 
   const status = (error as Error & { status?: number }).status;
-  const lower = error.message.toLowerCase();
+  const lower = gatherErrorText(error);
 
   if (status === 401 || status === 403) return "byok_key_invalid";
   if (
@@ -78,6 +114,8 @@ export function classifyByokError(error: unknown): ByokErrorCode | null {
     lower.includes("rate_limit_error") ||
     lower.includes("rate_limit_exceeded") ||
     lower.includes("credits are depleted") ||
+    lower.includes("credit balance") ||
+    lower.includes("insufficient_quota") ||
     lower.includes("billing")
   ) {
     return "byok_quota_exceeded";
@@ -154,7 +192,7 @@ const STREAM_OPTIONS = {
 const ATTEMPT_TIMEOUT_MS = 180_000;
 
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
-  const { primaryAgent, fallbackAgent, threadId, userId } = args;
+  const { primaryAgent, fallbackAgent, threadId, userId, isByok } = args;
   const promptArgs: PromptArgs = args.promptMessageId
     ? args.prompt !== undefined
       ? {
@@ -165,36 +203,49 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
     : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  try {
-    await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
-    return;
-  } catch (error) {
-    // BYOK errors are terminal under BYOK: never silently fall back to the house key.
-    throwIfByokError(error);
-    if (args.isByok && isByokQuotaError(error)) throw new Error("byok_quota_exceeded");
-    if (!isTransientError(error)) {
-      await saveErrorAndNotify(ctx, threadId, userId, error);
-      return;
+  /**
+   * Try one attempt. Returns `true` when the attempt succeeded OR produced
+   * a terminal error that's already been surfaced to the user, so the
+   * caller should stop. Returns `false` only for transient errors that
+   * should be retried on the next attempt in the chain.
+   */
+  const runAttempt = async (agent: Agent): Promise<boolean> => {
+    try {
+      await attemptStream(ctx, agent, threadId, userId, promptArgs);
+      return true;
+    } catch (error) {
+      // BYOK errors always land as a user-visible assistant message so the
+      // user knows to fix their key — never silently abort and never fall
+      // back to the house key under BYOK.
+      if (isByok) {
+        const code = classifyByokError(error);
+        if (code !== null) {
+          await saveByokErrorAndNotify(ctx, threadId, userId, code, error);
+          return true;
+        }
+      }
+      if (!isTransientError(error)) {
+        await saveErrorAndNotify(ctx, threadId, userId, error);
+        return true;
+      }
+      return false;
     }
-  }
+  };
 
+  if (await runAttempt(primaryAgent)) return;
   await delay(RETRY_DELAY_MS);
-  try {
-    await attemptStream(ctx, primaryAgent, threadId, userId, promptArgs);
-    return;
-  } catch (error) {
-    throwIfByokError(error);
-    if (args.isByok && isByokQuotaError(error)) throw new Error("byok_quota_exceeded");
-    if (!isTransientError(error)) {
-      await saveErrorAndNotify(ctx, threadId, userId, error);
-      return;
-    }
-  }
+  if (await runAttempt(primaryAgent)) return;
 
   try {
     await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
   } catch (error) {
-    throwIfByokError(error);
+    if (isByok) {
+      const code = classifyByokError(error);
+      if (code !== null) {
+        await saveByokErrorAndNotify(ctx, threadId, userId, code, error);
+        return;
+      }
+    }
     await saveErrorAndNotify(ctx, threadId, userId, error);
   }
 }
@@ -220,12 +271,42 @@ async function attemptStream(
   }
 }
 
+/**
+ * Finalize any assistant messages left in `pending` state on the thread.
+ * Normally `streamText`'s abortSignal handler does this, but provider
+ * errors (network/billing/auth) surface directly as throws from
+ * `result.text` — in that path the pending row is stranded forever until
+ * we explicitly mark it failed. Must run before we save the follow-up
+ * error message so the thread doesn't show a dangling spinner above the
+ * explanation.
+ */
+async function finalizePendingMessages(
+  ctx: ActionCtx,
+  threadId: string,
+  reason: string,
+): Promise<void> {
+  const result = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+    threadId,
+    paginationOpts: { cursor: null, numItems: 10 },
+    order: "desc",
+  });
+  for (const message of result.page) {
+    if (message.status !== "pending") continue;
+    await ctx.runMutation(components.agent.messages.finalizeMessage, {
+      messageId: message._id,
+      result: { status: "failed", error: reason },
+    });
+  }
+}
+
 async function saveErrorAndNotify(
   ctx: ActionCtx,
   threadId: string,
   userId: string,
   error: unknown,
 ): Promise<void> {
+  const reason = error instanceof Error ? error.message : String(error);
+  await finalizePendingMessages(ctx, threadId, reason);
   await saveMessage(ctx, components.agent, {
     threadId,
     userId,
@@ -233,7 +314,34 @@ async function saveErrorAndNotify(
   });
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
-    message: error instanceof Error ? error.message : String(error),
+    message: reason,
+    userId,
+  });
+}
+
+/**
+ * Save a user-visible assistant message explaining the BYOK error class so
+ * the user can act on it, and ping ops with the (safe) error code only —
+ * not the raw provider message, which can echo the decrypted key.
+ */
+async function saveByokErrorAndNotify(
+  ctx: ActionCtx,
+  threadId: string,
+  userId: string,
+  code: ByokErrorCode,
+  error: unknown,
+): Promise<void> {
+  // Use the error code (not the raw message) as the finalize reason since
+  // the provider body can include the decrypted key.
+  await finalizePendingMessages(ctx, threadId, code);
+  await saveMessage(ctx, components.agent, {
+    threadId,
+    userId,
+    message: { role: "assistant", content: BYOK_ERROR_MESSAGES[code] },
+  });
+  await ctx.runAction(internal.discord.notifyError, {
+    source: "streamWithRetry",
+    message: `${code} (${error instanceof Error ? error.name : "Unknown"})`,
     userId,
   });
 }

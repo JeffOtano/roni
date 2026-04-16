@@ -118,6 +118,45 @@ describe("classifyByokError", () => {
     expect(classifyByokError(error)).toBe("byok_quota_exceeded");
   });
 
+  it("classifies Anthropic 'credit balance is too low' as byok_quota_exceeded", () => {
+    // The exact error text Anthropic returns when the account has no
+    // credit. This is what blocked Randy's thread for 24h before we
+    // realized the classifier wasn't seeing it.
+    const error = new Error(
+      "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+    );
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
+  it("classifies an error whose billing text lives on responseBody", () => {
+    // The Vercel AI SDK often surfaces a generic outer message like
+    // "API call failed" and keeps the provider's real text on `.responseBody`.
+    // The classifier must reach into that field or the error slips through.
+    const error = Object.assign(new Error("AI_APICallError: Bad Request"), {
+      status: 400,
+      responseBody: JSON.stringify({
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "Your credit balance is too low",
+        },
+      }),
+    });
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
+  it("classifies an error whose auth text lives on cause.message", () => {
+    const cause = new Error("invalid_api_key: authentication failed");
+    const error = new Error("request failed");
+    (error as Error & { cause?: unknown }).cause = cause;
+    expect(classifyByokError(error)).toBe("byok_key_invalid");
+  });
+
+  it("classifies OpenAI 'insufficient_quota' as byok_quota_exceeded", () => {
+    const error = new Error("You exceeded your current quota: insufficient_quota.");
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
   it("classifies a 'safety' substring as byok_safety_blocked", () => {
     const error = new Error("Response was blocked due to safety filters");
     expect(classifyByokError(error)).toBe("byok_safety_blocked");
