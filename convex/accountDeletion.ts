@@ -3,6 +3,10 @@ import { internalMutation } from "./_generated/server";
 import { BY_USER_ID_BATCH_TABLES, type ByUserIdBatchTable } from "./userData";
 
 const BATCH_SIZE = 500;
+// tonalCache rows can hold up to ~1 MiB each, so a 500-row batch can blow past
+// Convex's 16 MiB per-call read limit. Keep this small enough that even
+// worst-case rows stay well under the limit.
+const TONAL_CACHE_BATCH_SIZE = 10;
 
 const userTableValidator = v.union(
   ...(BY_USER_ID_BATCH_TABLES.map((table) => v.literal(table)) as [
@@ -42,18 +46,19 @@ export const deleteExercisePerformanceBatch = internalMutation({
   },
 });
 
-/** Delete one batch of tonalCache rows. */
+/** Delete one batch of tonalCache rows. Uses a smaller batch size than other
+ *  tables because each row's `data` field can approach Convex's 1 MiB doc cap. */
 export const deleteTonalCacheBatch = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<boolean> => {
     const docs = await ctx.db
       .query("tonalCache")
       .withIndex("by_userId_dataType", (q) => q.eq("userId", userId))
-      .take(BATCH_SIZE);
+      .take(TONAL_CACHE_BATCH_SIZE);
     for (const doc of docs) {
       await ctx.db.delete(doc._id);
     }
-    return docs.length === BATCH_SIZE;
+    return docs.length === TONAL_CACHE_BATCH_SIZE;
   },
 });
 
