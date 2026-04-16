@@ -12,7 +12,7 @@ export const REQUIRED_ENV_FILE_KEYS = ["CONVEX_DEPLOYMENT", "NEXT_PUBLIC_CONVEX_
 
 const PLACEHOLDER_DEPLOYMENT_PREFIX = "dev:your-deployment-name";
 
-export interface ValidationResult {
+interface ValidationResult {
   ok: boolean;
   missingConvex: string[];
   missingEnvFile: string[];
