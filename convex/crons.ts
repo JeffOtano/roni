@@ -37,7 +37,7 @@ if (cronsEnabled()) {
   crons.cron(
     "sync-workout-catalog",
     "0 4 * * 0",
-    internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
+    internal.tonal.workoutCatalogSync.startSyncWorkoutCatalog,
     {},
   );
 
