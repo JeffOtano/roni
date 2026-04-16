@@ -116,7 +116,7 @@ describe("aggregateDetailToSessions", () => {
           id: "s1",
           movementId: "m1",
           prescribedReps: 10,
-          repetition: 10,
+          repetition: 8,
           repetitionTotal: 2,
           blockNumber: 1,
           spotter: false,
@@ -132,7 +132,7 @@ describe("aggregateDetailToSessions", () => {
           id: "s2",
           movementId: "m1",
           prescribedReps: 10,
-          repetition: 10,
+          repetition: 12,
           repetitionTotal: 2,
           blockNumber: 1,
           spotter: false,
@@ -150,8 +150,8 @@ describe("aggregateDetailToSessions", () => {
     const result = aggregateDetailToSessions(detail);
 
     const m1 = result.get("m1");
-    // Weighted average: (50*10 + 60*10) / 20 = 55
-    expect(m1!.avgWeightLbs).toBe(55);
+    // Weighted average: (50*8 + 60*12) / 20 = 56
+    expect(m1!.avgWeightLbs).toBe(56);
   });
 
   it("doubles avgWeight for StraightBar movements", () => {

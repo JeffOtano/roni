@@ -211,10 +211,22 @@ describe("buildMovementSummaries", () => {
     expect(m1.totalReps).toBe(18);
   });
 
-  it("computes avgWeightLbs from per-set avgWeight (doubled for StraightBar)", () => {
+  it("computes weighted avgWeightLbs from per-set avgWeight", () => {
     const sets = [
-      makeSet({ id: "s1", movementId: "bar1", movementName: "Barbell Front Squat", avgWeight: 94 }),
-      makeSet({ id: "s2", movementId: "bar1", movementName: "Barbell Front Squat", avgWeight: 94 }),
+      makeSet({
+        id: "s1",
+        movementId: "bar1",
+        movementName: "Barbell Front Squat",
+        avgWeight: 94,
+        repetition: 8,
+      }),
+      makeSet({
+        id: "s2",
+        movementId: "bar1",
+        movementName: "Barbell Front Squat",
+        avgWeight: 100,
+        repetition: 12,
+      }),
     ];
 
     const result = buildMovementSummaries(sets, new Map());
@@ -222,7 +234,8 @@ describe("buildMovementSummaries", () => {
 
     expect(summary.totalSets).toBe(2);
     expect(summary.totalReps).toBe(20);
-    expect(summary.avgWeightLbs).toBe(94);
+    // Weighted: (94*8 + 100*12) / 20 = 97.6 -> 98
+    expect(summary.avgWeightLbs).toBe(98);
   });
 
   it("returns avgWeightLbs 0 when sets have no avgWeight", () => {
