@@ -120,7 +120,9 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"])
-    .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"]),
+    .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"])
+    .index("by_lastActiveAt", ["lastActiveAt"])
+    .index("by_tonalConnectedAt", ["tonalConnectedAt"]),
 
   /** In-app check-ins (proactive messages). No SMS. */
   checkIns: defineTable({

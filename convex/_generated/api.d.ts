@@ -105,6 +105,7 @@ import type * as tonal_refresh from "../tonal/refresh.js";
 import type * as tonal_refreshPublic from "../tonal/refreshPublic.js";
 import type * as tonal_resync from "../tonal/resync.js";
 import type * as tonal_syncQueries from "../tonal/syncQueries.js";
+import type * as tonal_tokenQueries from "../tonal/tokenQueries.js";
 import type * as tonal_tokenRefresh from "../tonal/tokenRefresh.js";
 import type * as tonal_tokenRetry from "../tonal/tokenRetry.js";
 import type * as tonal_transforms from "../tonal/transforms.js";
@@ -229,6 +230,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/refreshPublic": typeof tonal_refreshPublic;
   "tonal/resync": typeof tonal_resync;
   "tonal/syncQueries": typeof tonal_syncQueries;
+  "tonal/tokenQueries": typeof tonal_tokenQueries;
   "tonal/tokenRefresh": typeof tonal_tokenRefresh;
   "tonal/tokenRetry": typeof tonal_tokenRetry;
   "tonal/transforms": typeof tonal_transforms;

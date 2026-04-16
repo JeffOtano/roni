@@ -233,10 +233,17 @@ export const backfillThumbnails = internalAction({
   },
 });
 
+// Hard cap on single-pass scans of the movements table. The catalog sits well
+// below this today; if it ever grows past, these helpers throw so the caller
+// fails loudly instead of silently skipping the overflow rows.
+const MOVEMENTS_SCAN_LIMIT = 2000;
+const OVERFLOW_ERROR = `movements catalog exceeds MOVEMENTS_SCAN_LIMIT (${MOVEMENTS_SCAN_LIMIT}); switch this helper to a paginated sweep.`;
+
 /** One-time migration: resolve thumbnailStorageId to thumbnailMediaUrl for existing documents. */
 export const backfillThumbnailUrls = internalMutation({
   handler: async (ctx) => {
-    const docs = await ctx.db.query("movements").collect();
+    const docs = await ctx.db.query("movements").take(MOVEMENTS_SCAN_LIMIT + 1);
+    if (docs.length > MOVEMENTS_SCAN_LIMIT) throw new Error(OVERFLOW_ERROR);
     const needsBackfill = docs.filter((m) => m.thumbnailStorageId && !m.thumbnailMediaUrl);
     let patched = 0;
     for (const doc of needsBackfill) {
@@ -254,7 +261,8 @@ export const backfillThumbnailUrls = internalMutation({
 export const getMovementsMissingThumbnails = internalQuery({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
-    const all = await ctx.db.query("movements").collect();
+    const all = await ctx.db.query("movements").take(MOVEMENTS_SCAN_LIMIT + 1);
+    if (all.length > MOVEMENTS_SCAN_LIMIT) throw new Error(OVERFLOW_ERROR);
     return all
       .filter((m) => !m.thumbnailMediaUrl && m.imageAssetId && !m.thumbnailStorageId)
       .slice(0, limit)
