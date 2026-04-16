@@ -119,8 +119,13 @@ export const forceRefreshUserData = internalAction({
     forceRefreshUserDataWithDeps(userId, {
       deleteUserCacheEntries: (args) =>
         ctx.runMutation(internal.tonal.cache.deleteUserCacheEntries, args),
-      backfillUserHistory: (args) =>
-        ctx.runAction(internal.tonal.historySync.backfillUserHistory, args),
+      backfillUserHistory: async (args) => {
+        const result = await ctx.runAction(
+          internal.tonal.historySync.doFetchAndPersistNewActivities,
+          args,
+        );
+        return { newWorkouts: result.synced, totalActivities: result.totalFetched };
+      },
       fetchUserProfile: (args) => ctx.runAction(internal.tonal.proxy.fetchUserProfile, args),
       fetchStrengthDistribution: (args) =>
         ctx.runAction(internal.tonal.proxy.fetchStrengthDistribution, args),

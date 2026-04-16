@@ -210,6 +210,8 @@ export const triggerBackfillIfNeeded = mutation({
     if (!profile || profile.syncStatus) return;
 
     await ctx.db.patch(profile._id, { syncStatus: "syncing" });
-    await ctx.scheduler.runAfter(0, internal.tonal.historySync.backfillUserHistory, { userId });
+    await ctx.scheduler.runAfter(0, internal.tonal.historySync.startBackfillUserHistory, {
+      userId,
+    });
   },
 });

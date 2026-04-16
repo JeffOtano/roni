@@ -35,7 +35,7 @@ async function clearCacheAndScheduleBackfill(ctx: ActionCtx, userId: Id<"users">
     userId,
     dataTypes: STALE_CACHE_KEYS,
   });
-  await ctx.scheduler.runAfter(delayMs, internal.tonal.historySync.backfillUserHistory, {
+  await ctx.scheduler.runAfter(delayMs, internal.tonal.historySync.startBackfillUserHistory, {
     userId,
   });
 }

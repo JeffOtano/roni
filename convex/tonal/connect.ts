@@ -63,8 +63,8 @@ export const connectTonal = internalAction({
       tonalName: `${profile.firstName} ${profile.lastName}`,
     });
 
-    // 9. Backfill historical training data (non-blocking)
-    await ctx.scheduler.runAfter(0, internal.tonal.historySync.backfillUserHistory, {
+    // 9. Backfill historical training data (non-blocking, via durable workflow)
+    await ctx.runMutation(internal.tonal.historySync.startBackfillUserHistory, {
       userId,
     });
 
