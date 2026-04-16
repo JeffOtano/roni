@@ -5,13 +5,8 @@ export function randomHex(byteLength: number): string {
   return crypto.randomBytes(byteLength).toString("hex");
 }
 
-export interface JwtKeypair {
-  privateKeyPem: string;
-  jwks: string;
-}
-
 /** Generate an RSA-2048 keypair for @convex-dev/auth JWT signing. */
-export function generateJwtKeypair(): JwtKeypair {
+export function generateJwtKeypair(): { privateKeyPem: string; jwks: string } {
   const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
     modulusLength: 2048,
   });

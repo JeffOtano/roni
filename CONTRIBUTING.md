@@ -18,7 +18,7 @@ See the [Self-host setup](README.md#self-host-setup) section of the README for t
 git clone https://github.com/JeffOtano/tonal-coach.git
 cd tonal-coach
 npm install
-cp .env.example .env.local
+npm run setup        # interactive: bootstraps Convex, generates required secrets
 npx convex dev       # in one terminal
 npm run dev          # in another terminal
 ```

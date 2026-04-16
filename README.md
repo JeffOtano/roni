@@ -83,41 +83,21 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 ## Self-Host Setup
 
 ```bash
-# 1. Clone and install
 git clone <repo-url> tonal-coach
 cd tonal-coach
 npm install
+npm run setup        # interactive: bootstraps Convex, generates secrets, prompts for optional integrations
 
-# 2. Create .env.local from the example
-cp .env.example .env.local
+# In two separate terminals:
+npx convex dev       # terminal 1
+npm run dev          # terminal 2
 
-# 3. Start the Convex dev backend (creates a new deployment on first run)
-npx convex dev
-# Follow the prompts to log in and create a project.
-# This updates .env.local with CONVEX_DEPLOYMENT and NEXT_PUBLIC_CONVEX_URL.
-
-# 4. Review .env.local and fill in any optional values you want to use locally
-# `CONVEX_DEPLOYMENT` and `NEXT_PUBLIC_CONVEX_URL` are written automatically.
-
-# 5. Get a Gemini API key from Google AI Studio (free for personal use)
-# https://aistudio.google.com/app/apikey
-
-# 6. Set Convex backend secrets
-npx convex env set GOOGLE_GENERATIVE_AI_API_KEY  your-google-ai-key
-npx convex env set TOKEN_ENCRYPTION_KEY           $(openssl rand -hex 32)
-npx convex env set EMAIL_CHANGE_CODE_PEPPER       $(openssl rand -hex 32)
-# Optional: only needed if you want password-reset emails locally
-npx convex env set AUTH_RESEND_KEY                re_your_resend_key
-
-# 7. Start the Next.js dev server (in a second terminal)
-npm run dev
-
-# 8. Open http://localhost:3000
+# Open http://localhost:3000
 ```
 
-`npx convex dev` and `npm run dev` need to run concurrently in separate terminals.
+`npm run setup` walks you through Convex deployment creation, generates `TOKEN_ENCRYPTION_KEY`, `EMAIL_CHANGE_CODE_PEPPER`, and the JWT keypair, and prompts for optional integrations (Resend, Discord webhooks, PostHog, Sentry). It is safe to re-run - existing values are preserved unless you choose to overwrite them.
 
-By default, self-hosted deployments start with analytics, Sentry, and the public contact form disabled. Those integrations are opt-in and can be enabled later with the optional environment variables below.
+By default, self-hosted deployments start with analytics, Sentry, and the public contact form disabled. Those integrations are opt-in and can be enabled during `npm run setup` or by setting the variables below.
 
 ## Environment Variables
 
