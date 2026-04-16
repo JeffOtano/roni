@@ -40,6 +40,7 @@ export interface LastTimeAndSuggested {
 /** Aggregate workoutSetActivity by movementId into per-movement session snapshot. */
 export function aggregateDetailToSessions(
   detail: WorkoutActivityDetail,
+  straightBarMovementIds?: ReadonlySet<string>,
 ): Map<string, MovementSessionSnapshot> {
   const sessionDate = detail.beginTime.slice(0, 10);
   const byMovement = new Map<string, SetActivity[]>();
@@ -53,7 +54,8 @@ export function aggregateDetailToSessions(
     const totalReps = sets.reduce((sum, s) => sum + (s.repetition ?? 0), 0);
     const count = sets.length;
     const repsPerSet = count > 0 ? Math.round(totalReps / count) : 0;
-    const avgWeightLbs = weightedAvgWeight(sets);
+    const isStraightBar = straightBarMovementIds?.has(movementId) ?? false;
+    const avgWeightLbs = weightedAvgWeight(sets, isStraightBar);
     out.set(movementId, {
       sessionDate,
       sets: count,
@@ -65,15 +67,20 @@ export function aggregateDetailToSessions(
   return out;
 }
 
-/** Weighted average of per-set avgWeight, weighted by reps per set. */
-function weightedAvgWeight(sets: readonly SetActivity[]): number | undefined {
+/** Weighted average of per-set avgWeight, weighted by reps per set.
+ *  StraightBar avgWeight is per-motor; double it for actual bar weight. */
+function weightedAvgWeight(
+  sets: readonly SetActivity[],
+  isStraightBar: boolean,
+): number | undefined {
   let totalWeight = 0;
   let totalReps = 0;
   for (const s of sets) {
     if (s.avgWeight == null || s.avgWeight <= 0) continue;
     const reps = s.repetition ?? 0;
     if (reps <= 0) continue;
-    totalWeight += s.avgWeight * reps;
+    const weight = isStraightBar ? s.avgWeight * 2 : s.avgWeight;
+    totalWeight += weight * reps;
     totalReps += reps;
   }
   if (totalReps === 0) return undefined;
@@ -133,6 +140,11 @@ export const getPerMovementHistory = internalAction({
       limit: maxActivities,
     });
 
+    const movements: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+    const straightBarIds = new Set(
+      movements.filter((m) => m.onMachineInfo?.accessory === "StraightBar").map((m) => m.id),
+    );
+
     const perMovement = new Map<string, MovementSessionSnapshot[]>();
 
     for (const activity of activities) {
@@ -152,7 +164,7 @@ export const getPerMovementHistory = internalAction({
       }
       if (!detail) continue;
 
-      const sessionMap = aggregateDetailToSessions(detail);
+      const sessionMap = aggregateDetailToSessions(detail, straightBarIds);
       for (const [movementId, snapshot] of sessionMap) {
         const list = perMovement.get(movementId) ?? [];
         list.push(snapshot);

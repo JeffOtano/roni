@@ -154,6 +154,35 @@ describe("aggregateDetailToSessions", () => {
     expect(m1!.avgWeightLbs).toBe(55);
   });
 
+  it("doubles avgWeight for StraightBar movements", () => {
+    const detail = makeDetail({
+      workoutSetActivity: [
+        {
+          id: "s1",
+          movementId: "bar1",
+          prescribedReps: 10,
+          repetition: 10,
+          repetitionTotal: 1,
+          blockNumber: 1,
+          spotter: false,
+          eccentric: false,
+          chains: false,
+          flex: false,
+          warmUp: false,
+          beginTime: "2026-03-10T10:00:00Z",
+          sideNumber: 0,
+          avgWeight: 47,
+        },
+      ],
+    });
+
+    const straightBarIds = new Set(["bar1"]);
+    const result = aggregateDetailToSessions(detail, straightBarIds);
+
+    const bar1 = result.get("bar1");
+    expect(bar1!.avgWeightLbs).toBe(94);
+  });
+
   it("omits avgWeightLbs when sets have no avgWeight", () => {
     const detail = makeDetail({
       workoutSetActivity: [

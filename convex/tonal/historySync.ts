@@ -14,6 +14,7 @@ import { aggregateDetailToSessions } from "../progressiveOverload";
 import type {
   Activity,
   FormattedWorkoutSummary,
+  Movement,
   StrengthScoreHistoryEntry,
   WorkoutActivityDetail,
 } from "./types";
@@ -40,6 +41,7 @@ async function processOneActivity(
   ctx: ActionCtx,
   userId: Id<"users">,
   activity: Activity,
+  straightBarIds?: ReadonlySet<string>,
 ): Promise<{ workout: WorkoutPayload; performances: PerformancePayload[] }> {
   const { activityId, activityTime, workoutPreview: p } = activity;
   const date = activityTime.slice(0, 10);
@@ -82,7 +84,7 @@ async function processOneActivity(
     // Summary optional
   }
 
-  const sessionMap = aggregateDetailToSessions(detail);
+  const sessionMap = aggregateDetailToSessions(detail, straightBarIds);
   const performances: PerformancePayload[] = [];
   for (const [movementId, snap] of sessionMap) {
     performances.push({
@@ -108,11 +110,18 @@ async function fetchAndBuildPayloads(
   const workouts: WorkoutPayload[] = [];
   const performances: PerformancePayload[] = [];
 
+  const movements: Movement[] = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
+  const straightBarIds = new Set(
+    movements.filter((m) => m.onMachineInfo?.accessory === "StraightBar").map((m) => m.id),
+  );
+
   for (let i = 0; i < activities.length; i += DETAIL_BATCH_SIZE) {
     if (i > 0) await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     const batch = activities.slice(i, i + DETAIL_BATCH_SIZE);
 
-    const results = await Promise.allSettled(batch.map((a) => processOneActivity(ctx, userId, a)));
+    const results = await Promise.allSettled(
+      batch.map((a) => processOneActivity(ctx, userId, a, straightBarIds)),
+    );
     for (const result of results) {
       if (result.status === "fulfilled") {
         workouts.push(result.value.workout);
