@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { internalQuery, mutation, query } from "./_generated/server";
 import { components } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
@@ -8,27 +9,51 @@ import { listMessages } from "@convex-dev/agent";
 // Panel 2: Cache Inspector
 // ---------------------------------------------------------------------------
 
+// Each tonalCache row can hold up to ~1 MiB (Convex doc size cap). Heavy users
+// accumulate 15+ entries (workoutPage:N backfill pages, workoutHistory_v3,
+// strengthHistory, customWorkouts, ...). A page size of 10 keeps per-call
+// bytes-read comfortably under Convex's 16 MiB function limit.
+const CACHE_PAGE_SIZE = 10;
+const CACHE_PURGE_BATCH_SIZE = 10;
+
 export const listCacheEntries = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const entries = await ctx.db
+    const result = await ctx.db
       .query("tonalCache")
       .withIndex("by_userId_dataType", (q) => q.eq("userId", userId))
-      .collect();
+      .paginate({ ...paginationOpts, numItems: CACHE_PAGE_SIZE });
 
     const now = Date.now();
-    return entries.map((entry) => ({
-      _id: entry._id,
-      dataType: entry.dataType,
-      fetchedAt: entry.fetchedAt,
-      expiresAt: entry.expiresAt,
-      status: entry.expiresAt > now ? ("fresh" as const) : ("expired" as const),
-      sizeBytes: JSON.stringify(entry.data).length,
-      data: entry.data,
-    }));
+    return {
+      ...result,
+      page: result.page.map((entry) => ({
+        _id: entry._id,
+        dataType: entry.dataType,
+        fetchedAt: entry.fetchedAt,
+        expiresAt: entry.expiresAt,
+        status: entry.expiresAt > now ? ("fresh" as const) : ("expired" as const),
+        sizeBytes: JSON.stringify(entry.data).length,
+      })),
+    };
+  },
+});
+
+export const getCacheEntryData = query({
+  args: { entryId: v.id("tonalCache") },
+  handler: async (ctx, { entryId }) => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const entry = await ctx.db.get(entryId);
+    if (!entry) return null;
+    if (entry.userId !== userId) {
+      throw new Error("Cache entry not owned by user");
+    }
+    return { data: entry.data };
   },
 });
 
@@ -46,7 +71,9 @@ export const deleteCacheEntry = mutation({
   },
 });
 
-export const purgeUserCache = mutation({
+/** Delete one batch of the caller's tonalCache rows. Returns `hasMore` so the
+ *  UI can drain large caches without exceeding Convex's per-call read limit. */
+export const purgeUserCacheBatch = mutation({
   args: {},
   handler: async (ctx) => {
     const userId = await getEffectiveUserId(ctx);
@@ -55,12 +82,12 @@ export const purgeUserCache = mutation({
     const entries = await ctx.db
       .query("tonalCache")
       .withIndex("by_userId_dataType", (q) => q.eq("userId", userId))
-      .collect();
+      .take(CACHE_PURGE_BATCH_SIZE);
 
     for (const entry of entries) {
       await ctx.db.delete(entry._id);
     }
-    return { deleted: entries.length };
+    return { deleted: entries.length, hasMore: entries.length === CACHE_PURGE_BATCH_SIZE };
   },
 });
 
