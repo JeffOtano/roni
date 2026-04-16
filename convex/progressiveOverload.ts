@@ -87,7 +87,6 @@ function weightedAvgWeight(
   return Math.round(totalWeight / totalReps);
 }
 
-/** Extract per-movement totalVolume from FormattedWorkoutSummary. */
 /** Format "last time" for display. */
 function formatLastTime(sets: number, repsPerSet: number, avgWeightLbs?: number): string {
   const base = `${sets}×${repsPerSet}`;
