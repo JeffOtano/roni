@@ -69,6 +69,8 @@ import type * as lib_env from "../lib/env.js";
 import type * as lib_posthog from "../lib/posthog.js";
 import type * as lib_targetArea from "../lib/targetArea.js";
 import type * as libraryWorkouts from "../libraryWorkouts.js";
+import type * as migrations from "../migrations.js";
+import type * as migrations_backfillAvgWeight from "../migrations/backfillAvgWeight.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as rateLimits from "../rateLimits.js";
@@ -189,6 +191,8 @@ declare const fullApi: ApiFromModules<{
   "lib/posthog": typeof lib_posthog;
   "lib/targetArea": typeof lib_targetArea;
   libraryWorkouts: typeof libraryWorkouts;
+  migrations: typeof migrations;
+  "migrations/backfillAvgWeight": typeof migrations_backfillAvgWeight;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   progressiveOverload: typeof progressiveOverload;
   rateLimits: typeof rateLimits;
@@ -5098,6 +5102,93 @@ export declare const components: {
           null
         >;
       };
+    };
+  };
+  migrations: {
+    lib: {
+      cancel: FunctionReference<
+        "mutation",
+        "internal",
+        { name: string },
+        {
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }
+      >;
+      cancelAll: FunctionReference<
+        "mutation",
+        "internal",
+        { sinceTs?: number },
+        Array<{
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }>
+      >;
+      clearAll: FunctionReference<
+        "mutation",
+        "internal",
+        { before?: number },
+        null
+      >;
+      getStatus: FunctionReference<
+        "query",
+        "internal",
+        { limit?: number; names?: Array<string> },
+        Array<{
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }>
+      >;
+      migrate: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          batchSize?: number;
+          cursor?: string | null;
+          dryRun: boolean;
+          fnHandle: string;
+          name: string;
+          next?: Array<{ fnHandle: string; name: string }>;
+          oneBatchOnly?: boolean;
+          reset?: boolean;
+        },
+        {
+          batchSize?: number;
+          cursor?: string | null;
+          error?: string;
+          isDone: boolean;
+          latestEnd?: number;
+          latestStart: number;
+          name: string;
+          next?: Array<string>;
+          processed: number;
+          state: "inProgress" | "success" | "failed" | "canceled" | "unknown";
+        }
+      >;
     };
   };
   rateLimiter: {
