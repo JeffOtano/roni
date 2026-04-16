@@ -233,10 +233,15 @@ export const backfillThumbnails = internalAction({
   },
 });
 
+// Hard cap on single-pass scans of the movements table. The catalog sits well
+// below this today; if it ever grows past, switch these helpers to paginated
+// sweeps instead of raising the cap.
+const MOVEMENTS_SCAN_LIMIT = 2000;
+
 /** One-time migration: resolve thumbnailStorageId to thumbnailMediaUrl for existing documents. */
 export const backfillThumbnailUrls = internalMutation({
   handler: async (ctx) => {
-    const docs = await ctx.db.query("movements").collect();
+    const docs = await ctx.db.query("movements").take(MOVEMENTS_SCAN_LIMIT);
     const needsBackfill = docs.filter((m) => m.thumbnailStorageId && !m.thumbnailMediaUrl);
     let patched = 0;
     for (const doc of needsBackfill) {
@@ -254,7 +259,7 @@ export const backfillThumbnailUrls = internalMutation({
 export const getMovementsMissingThumbnails = internalQuery({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
-    const all = await ctx.db.query("movements").collect();
+    const all = await ctx.db.query("movements").take(MOVEMENTS_SCAN_LIMIT);
     return all
       .filter((m) => !m.thumbnailMediaUrl && m.imageAssetId && !m.thumbnailStorageId)
       .slice(0, limit)
