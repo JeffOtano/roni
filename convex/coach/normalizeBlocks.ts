@@ -54,10 +54,25 @@ export async function normalizeBlocksAgainstCatalog(
   ctx: MutationCtx,
   blocks: BlockShape[],
 ): Promise<BlockShape[]> {
-  const allMovements = await ctx.db.query("movements").collect();
+  const referencedIds = new Set<string>();
+  for (const block of blocks) {
+    for (const ex of block.exercises) {
+      referencedIds.add(ex.movementId);
+    }
+  }
+
+  const docs = await Promise.all(
+    [...referencedIds].map((tonalId) =>
+      ctx.db
+        .query("movements")
+        .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
+        .unique(),
+    ),
+  );
+
   const countRepsByMovement = new Map<string, boolean>();
-  for (const doc of allMovements) {
-    countRepsByMovement.set(doc.tonalId, doc.countReps);
+  for (const doc of docs) {
+    if (doc) countRepsByMovement.set(doc.tonalId, doc.countReps);
   }
   return normalizeBlocksWithCountReps(blocks, countRepsByMovement);
 }

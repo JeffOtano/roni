@@ -192,14 +192,20 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId_beginTime", (q) => q.eq("userId", userId))
       .collect();
 
-    // Build movement ID → name lookup for exercise performance
+    // Build movement ID → name lookup, fetching only movements actually
+    // referenced by this user's exercisePerformance rows.
     const movementIds = new Set(exercisePerformanceRows.map((ep) => ep.movementId));
-    const allMovements = await ctx.db.query("movements").collect();
+    const referencedMovements = await Promise.all(
+      [...movementIds].map((tonalId) =>
+        ctx.db
+          .query("movements")
+          .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
+          .unique(),
+      ),
+    );
     const movementNames = new Map<string, string>();
-    for (const m of allMovements) {
-      if (movementIds.has(m.tonalId)) {
-        movementNames.set(m.tonalId, m.name);
-      }
+    for (const m of referencedMovements) {
+      if (m) movementNames.set(m.tonalId, m.name);
     }
 
     return {
