@@ -1,7 +1,14 @@
 import { spawnSync } from "node:child_process";
 
-/** Run `npx convex env list` and return the set of defined variable names. */
-export function listConvexEnv(): Set<string> {
+const CONVEX_ENV_LIST_LINE = /^([A-Z_][A-Z0-9_]*)=(.*)$/;
+
+/**
+ * Run `npx convex env list` and return a map of variable name -> value.
+ * Asserts that every non-blank line matches the documented `KEY=value` shape
+ * so a CLI output-format change fails loud instead of silently returning a
+ * partial view.
+ */
+export function listConvexEnv(): Map<string, string> {
   const result = spawnSync("npx", ["convex", "env", "list"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -13,20 +20,28 @@ export function listConvexEnv(): Set<string> {
     );
   }
 
-  const names = new Set<string>();
+  const env = new Map<string, string>();
   for (const line of result.stdout.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const eqIdx = trimmed.indexOf("=");
-    const key = eqIdx === -1 ? trimmed : trimmed.slice(0, eqIdx).trim();
-    if (key && /^[A-Z_][A-Z0-9_]*$/.test(key)) {
-      names.add(key);
+    const match = trimmed.match(CONVEX_ENV_LIST_LINE);
+    if (!match) {
+      throw new Error(
+        `npx convex env list returned unexpected line format; ` +
+          `setup cannot safely inspect the deployment. Line: ${JSON.stringify(trimmed)}`,
+      );
     }
+    env.set(match[1], match[2]);
   }
-  return names;
+  return env;
 }
 
-/** Set a single Convex environment variable. Throws on failure. */
+/**
+ * Set a single Convex environment variable.
+ * Throws on failure. Deliberately does NOT include stderr in the error
+ * message because Convex CLI may echo the submitted value back on
+ * validation errors, which would leak the secret into logs.
+ */
 export function setConvexEnv(key: string, value: string): void {
   const result = spawnSync("npx", ["convex", "env", "set", key, value], {
     encoding: "utf8",
@@ -35,7 +50,8 @@ export function setConvexEnv(key: string, value: string): void {
 
   if (result.status !== 0) {
     throw new Error(
-      `npx convex env set ${key} failed (exit ${result.status}): ${result.stderr || "no stderr"}`,
+      `npx convex env set ${key} failed (exit ${result.status}). ` +
+        `Re-run with 'npx convex env set ${key} <value>' to see the CLI error directly.`,
     );
   }
 }

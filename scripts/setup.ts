@@ -1,4 +1,4 @@
-import { assertInteractive, createPrompter } from "./setup/prompts";
+import { assertInteractive, createPrompter, type Prompter } from "./setup/prompts";
 import { listConvexEnv } from "./setup/convex";
 import {
   stepBootstrapConvex,
@@ -11,50 +11,74 @@ import {
   stepValidate,
 } from "./setup/steps";
 
+interface Context {
+  prompter: Prompter;
+  existing: Map<string, string>;
+}
+
+type Step =
+  | { label: string; kind: "simple"; run: () => void | Promise<void> }
+  | { label: string; kind: "contextual"; run: (ctx: Context) => Promise<void> };
+
+const STEPS: Step[] = [
+  { label: "Checking Node version", kind: "simple", run: stepCheckNodeVersion },
+  { label: "Checking .env.local", kind: "simple", run: stepEnsureEnvFile },
+  { label: "Bootstrapping Convex deployment", kind: "simple", run: stepBootstrapConvex },
+  {
+    label: "Setting GOOGLE_GENERATIVE_AI_API_KEY",
+    kind: "contextual",
+    run: ({ prompter, existing }) => stepSetGoogleKey(prompter, existing),
+  },
+  {
+    label: "Setting TOKEN_ENCRYPTION_KEY",
+    kind: "contextual",
+    run: ({ prompter, existing }) => stepSetRandomHex(prompter, existing, "TOKEN_ENCRYPTION_KEY"),
+  },
+  {
+    label: "Setting EMAIL_CHANGE_CODE_PEPPER",
+    kind: "contextual",
+    run: ({ prompter, existing }) =>
+      stepSetRandomHex(prompter, existing, "EMAIL_CHANGE_CODE_PEPPER"),
+  },
+  {
+    label: "Generating JWT keypair",
+    kind: "contextual",
+    run: ({ prompter, existing }) => stepSetJwtKeys(prompter, existing),
+  },
+  {
+    label: "Optional integrations (skip any you don't need)",
+    kind: "contextual",
+    run: ({ prompter, existing }) => stepOptionalIntegrations(prompter, existing),
+  },
+  { label: "Validating", kind: "simple", run: stepValidate },
+];
+
 async function main(): Promise<void> {
   assertInteractive();
-
   console.log("Tonal Coach setup\n");
 
-  console.log("[1/9] Checking Node version...");
-  stepCheckNodeVersion();
-
-  console.log("\n[2/9] Checking .env.local...");
-  stepEnsureEnvFile();
-
-  console.log("\n[3/9] Bootstrapping Convex deployment...");
-  stepBootstrapConvex();
-
-  const existing = listConvexEnv();
-  const prompter = createPrompter();
+  const total = STEPS.length;
+  let ctx: Context | null = null;
 
   try {
-    console.log("\n[4/9] Setting GOOGLE_GENERATIVE_AI_API_KEY...");
-    await stepSetGoogleKey(prompter, existing);
-
-    console.log("\n[5/9] Setting TOKEN_ENCRYPTION_KEY...");
-    await stepSetRandomHex(prompter, existing, "TOKEN_ENCRYPTION_KEY");
-
-    console.log("\n[6/9] Setting EMAIL_CHANGE_CODE_PEPPER...");
-    await stepSetRandomHex(prompter, existing, "EMAIL_CHANGE_CODE_PEPPER");
-
-    console.log("\n[7/9] Generating JWT keypair...");
-    await stepSetJwtKeys(prompter, existing);
-
-    console.log("\n[8/9] Optional integrations (skip any you don't need)...");
-    await stepOptionalIntegrations(prompter);
-
-    console.log("\n[9/9] Validating...");
-    stepValidate();
-
-    console.log("\nSetup complete.\n");
-    console.log("Next steps:");
-    console.log("  Terminal 1: npx convex dev");
-    console.log("  Terminal 2: npm run dev");
-    console.log("\nThen open http://localhost:3000\n");
+    for (const [i, step] of STEPS.entries()) {
+      console.log(`${i === 0 ? "" : "\n"}[${i + 1}/${total}] ${step.label}...`);
+      if (step.kind === "simple") {
+        await step.run();
+        continue;
+      }
+      if (!ctx) ctx = { prompter: createPrompter(), existing: listConvexEnv() };
+      await step.run(ctx);
+    }
   } finally {
-    prompter.close();
+    ctx?.prompter.close();
   }
+
+  console.log("\nSetup complete.\n");
+  console.log("Next steps (run in separate terminals):");
+  console.log("  Terminal 1: npx convex dev   # Convex backend with hot reload");
+  console.log("  Terminal 2: npm run dev      # Next.js dev server");
+  console.log("\nThen open http://localhost:3000\n");
 }
 
 main().catch((err: unknown) => {

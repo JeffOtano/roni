@@ -41,12 +41,15 @@ export function createPrompter(): Prompter {
     },
 
     async secret(question: string): Promise<string> {
-      process.stdout.write(question);
+      process.stdout.write(`${question}(input hidden) `);
       mutableOutput.muted = true;
-      const answer = await new Promise<string>((resolve) => rl.question("", resolve));
-      mutableOutput.muted = false;
-      process.stdout.write("\n");
-      return answer;
+      try {
+        const answer = await new Promise<string>((resolve) => rl.question("", resolve));
+        return answer;
+      } finally {
+        mutableOutput.muted = false;
+        process.stdout.write("\n");
+      }
     },
 
     async yesNo(question: string, defaultValue: boolean): Promise<boolean> {
