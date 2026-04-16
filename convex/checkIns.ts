@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import {
   type ActionCtx,
   internalAction,
@@ -189,16 +190,24 @@ export const hasRecentCheckIn = internalQuery({
   },
 });
 
-export const getEligibleUserIds = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect();
-    return profiles
-      .filter((p) => {
-        const prefs = p.checkInPreferences ?? DEFAULT_PREFS;
-        return prefs.enabled && !prefs.muted;
-      })
-      .map((p) => p.userId);
+/**
+ * One page of user IDs eligible for check-ins (enabled + not muted).
+ * The filter lives on a nested object (`checkInPreferences.enabled`) that
+ * no index can cover, so we paginate the full table and filter per page.
+ */
+export const getEligibleUserIdsPage = internalQuery({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const result = await ctx.db.query("userProfiles").paginate(paginationOpts);
+    return {
+      ...result,
+      page: result.page
+        .filter((p) => {
+          const prefs = p.checkInPreferences ?? DEFAULT_PREFS;
+          return prefs.enabled && !prefs.muted;
+        })
+        .map((p) => p.userId),
+    };
   },
 });
 
@@ -264,40 +273,54 @@ async function evaluateUserCheckIn(
   return toSend.length;
 }
 
+const ELIGIBLE_USERS_PAGE_SIZE = 100;
+
 export const runCheckInTriggerEvaluation = internalAction({
   args: {},
   handler: async (ctx) => {
-    const userIds = await ctx.runQuery(internal.checkIns.getEligibleUserIds, {});
     const now = Date.now();
     const BATCH_SIZE = 5;
     const DELAY_MS = 2000;
     let checkInsSent = 0;
+    let totalEligible = 0;
 
-    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
-      const batch = userIds.slice(i, i + BATCH_SIZE);
-      for (const userId of batch) {
-        try {
-          const sent = await evaluateUserCheckIn(ctx, userId, now);
-          checkInsSent += sent;
-        } catch (err) {
-          console.error("[check-in] evaluateTriggersForUser failed", {
-            userId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          void ctx.runAction(internal.discord.notifyError, {
-            source: "checkIns",
-            message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
-            userId,
-          });
+    let cursor: string | null = null;
+    while (true) {
+      const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
+        await ctx.runQuery(internal.checkIns.getEligibleUserIdsPage, {
+          paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
+        });
+
+      for (let i = 0; i < result.page.length; i += BATCH_SIZE) {
+        const batch = result.page.slice(i, i + BATCH_SIZE);
+        for (const userId of batch) {
+          try {
+            const sent = await evaluateUserCheckIn(ctx, userId, now);
+            checkInsSent += sent;
+          } catch (err) {
+            console.error("[check-in] evaluateTriggersForUser failed", {
+              userId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            void ctx.runAction(internal.discord.notifyError, {
+              source: "checkIns",
+              message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
+              userId,
+            });
+          }
+        }
+        if (i + BATCH_SIZE < result.page.length) {
+          await new Promise((r) => setTimeout(r, DELAY_MS));
         }
       }
-      if (i + BATCH_SIZE < userIds.length) {
-        await new Promise((r) => setTimeout(r, DELAY_MS));
-      }
+
+      totalEligible += result.page.length;
+      if (result.isDone) break;
+      cursor = result.continueCursor;
     }
 
     analytics.captureSystem("check_in_trigger_evaluated", {
-      users_checked: userIds.length,
+      users_checked: totalEligible,
       check_ins_sent: checkInsSent,
     });
     await analytics.flush();

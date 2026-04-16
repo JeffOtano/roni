@@ -1,11 +1,13 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { Activity } from "./tonal/types";
 import * as analytics from "./lib/posthog";
 
 const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
+const ELIGIBLE_USERS_PAGE_SIZE = 100;
 
 /**
  * Activation metric: "first AI-programmed workout completed on Tonal."
@@ -25,11 +27,10 @@ export const getActivationRate72h = internalQuery({
   },
   handler: async (ctx, { days }) => {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const profiles = await ctx.db.query("userProfiles").collect();
-    const cohort = profiles.filter(
-      (p): p is typeof p & { tonalConnectedAt: number } =>
-        p.tonalConnectedAt !== undefined && p.tonalConnectedAt >= cutoff,
-    );
+    const cohort = (await ctx.db
+      .query("userProfiles")
+      .withIndex("by_tonalConnectedAt", (q) => q.gte("tonalConnectedAt", cutoff))
+      .collect()) as Array<Doc<"userProfiles"> & { tonalConnectedAt: number }>;
     const total = cohort.length;
     const activated = cohort.filter(
       (p) =>
@@ -44,12 +45,21 @@ export const getActivationRate72h = internalQuery({
   },
 });
 
-/** User IDs with Tonal connected but no first-completion timestamp yet. */
-export const getEligibleUserIds = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect();
-    return profiles.filter((p) => p.firstAiWorkoutCompletedAt === undefined).map((p) => p.userId);
+/**
+ * One page of user IDs with Tonal connected but no first-completion timestamp yet.
+ * No index supports "field is undefined", so we paginate the full table and
+ * filter per page. Caller loops until `isDone`.
+ */
+export const getEligibleUserIdsPage = internalQuery({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const result = await ctx.db.query("userProfiles").paginate(paginationOpts);
+    return {
+      ...result,
+      page: result.page
+        .filter((p) => p.firstAiWorkoutCompletedAt === undefined)
+        .map((p) => p.userId),
+    };
   },
 });
 
@@ -130,33 +140,43 @@ const DELAY_MS = 2000;
 export const runActivationCheckForEligibleUsers = internalAction({
   args: {},
   handler: async (ctx) => {
-    const userIds = (await ctx.runQuery(
-      internal.activation.getEligibleUserIds,
-      {},
-    )) as Id<"users">[];
-    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
-      const batch = userIds.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map(async (userId: Id<"users">) => {
-          try {
-            await ctx.runAction(internal.activation.checkActivation, { userId });
-          } catch (error) {
-            console.error(`[activation] Check failed for user ${userId}:`, error);
-            void ctx.runAction(internal.discord.notifyError, {
-              source: "activationCheck",
-              message: `Activation check failed for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
-              userId,
-            });
-          }
-        }),
-      );
-      if (i + BATCH_SIZE < userIds.length) {
-        await new Promise((r) => setTimeout(r, DELAY_MS));
+    let cursor: string | null = null;
+    let totalChecked = 0;
+
+    while (true) {
+      const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
+        await ctx.runQuery(internal.activation.getEligibleUserIdsPage, {
+          paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
+        });
+
+      for (let i = 0; i < result.page.length; i += BATCH_SIZE) {
+        const batch = result.page.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (userId) => {
+            try {
+              await ctx.runAction(internal.activation.checkActivation, { userId });
+            } catch (error) {
+              console.error(`[activation] Check failed for user ${userId}:`, error);
+              void ctx.runAction(internal.discord.notifyError, {
+                source: "activationCheck",
+                message: `Activation check failed for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+                userId,
+              });
+            }
+          }),
+        );
+        if (i + BATCH_SIZE < result.page.length) {
+          await new Promise((r) => setTimeout(r, DELAY_MS));
+        }
       }
+
+      totalChecked += result.page.length;
+      if (result.isDone) break;
+      cursor = result.continueCursor;
     }
 
     analytics.captureSystem("activation_check_completed", {
-      users_checked: userIds.length,
+      users_checked: totalChecked,
     });
     await analytics.flush();
   },
