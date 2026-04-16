@@ -9,6 +9,7 @@ import { withTokenRetry } from "./tonal/tokenRetry";
 import { expandBlocksToSets } from "./tonal/transforms";
 import type { BlockInput } from "./tonal/transforms";
 import type { Id } from "./_generated/dataModel";
+import { rateLimiter } from "./rateLimits";
 
 // ---------------------------------------------------------------------------
 // Panel 1: API Explorer
@@ -45,8 +46,11 @@ function buildPath(
       return `/v6/users/${tonalUserId}/strength-scores/history?limit=200`;
     case "muscleReadiness":
       return `/v6/users/${tonalUserId}/muscle-readiness/current`;
-    case "workoutActivities":
-      return `/v6/users/${tonalUserId}/workout-activities`;
+    case "workoutActivities": {
+      const offset = params?.offset ?? 0;
+      const limit = params?.limit ?? 20;
+      return `/v6/users/${tonalUserId}/workout-activities?offset=${offset}&limit=${limit}`;
+    }
     case "workoutDetail":
       if (!params?.id) throw new Error("activityId required for workoutDetail");
       return `/v6/users/${tonalUserId}/workout-activities/${params.id}`;
@@ -83,6 +87,8 @@ export const callTonalEndpoint = action({
   }> => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
+
+    await rateLimiter.limit(ctx, "refreshTonalData", { key: userId, throws: true });
 
     if (!ENDPOINT_ALLOWLIST.includes(endpoint as EndpointName)) {
       throw new Error(`Unknown endpoint: ${endpoint}`);

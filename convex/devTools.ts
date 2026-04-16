@@ -117,11 +117,12 @@ export const getRecentPushes = query({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    const safeLimit = Math.min(limit, 100);
     const plans = await ctx.db
       .query("workoutPlans")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(limit);
+      .take(safeLimit);
 
     return plans.map((plan) => ({
       _id: plan._id,
@@ -147,9 +148,10 @@ export const listUserThreads = query({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    const safeLimit = Math.min(limit, 50);
     const threads = await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
       userId: userId as string,
-      paginationOpts: { cursor: null, numItems: limit },
+      paginationOpts: { cursor: null, numItems: safeLimit },
       order: "desc",
     });
 
