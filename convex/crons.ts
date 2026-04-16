@@ -30,7 +30,7 @@ if (cronsEnabled()) {
   crons.cron(
     "sync-movement-catalog",
     "0 3 * * *",
-    internal.tonal.movementSync.syncMovementCatalog,
+    internal.tonal.movementSync.startSyncMovementCatalog,
     {},
   );
 

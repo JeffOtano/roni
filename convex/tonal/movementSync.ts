@@ -15,87 +15,88 @@ import { ACCESSORY_MAP } from "./accessories";
 import type { Movement } from "./types";
 import * as analytics from "../lib/posthog";
 import { mapApiToDoc, mapDocToMovement, movementFields } from "./movementMapping";
+import { workflow } from "../workflows";
 
 /** Fetch movements from Tonal API and upsert into the movements table. */
-export const syncMovementCatalog = internalAction({
-  args: { retryCount: v.optional(v.number()) },
-  handler: async (ctx, { retryCount = 0 }) => {
-    const MAX_RETRIES = 2;
-    const RETRY_DELAY_MS = 10 * 60 * 1000; // 10 minutes
-    try {
-      // Pick any user with a valid Tonal token (movements are global)
-      const tokenUser = await ctx.runQuery(internal.userProfiles.getUserWithValidToken);
+export const doSyncMovements = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const movements = await withTokenRetry(ctx, userId, (token) =>
+      tonalFetch<Movement[]>(token, "/v6/movements"),
+    );
+    const now = Date.now();
 
-      if (!tokenUser) {
-        console.warn("[movementSync] No connected users found - skipping catalog sync");
-        return;
+    let inserted = 0;
+    let updated = 0;
+    const unmappedAccessories = new Set<string>();
+
+    for (const m of movements) {
+      const accessory = m.onMachineInfo?.accessory ?? undefined;
+
+      if (accessory && !(accessory in ACCESSORY_MAP)) {
+        unmappedAccessories.add(accessory);
       }
 
-      const movements = await withTokenRetry(ctx, tokenUser.userId, (token) =>
-        tonalFetch<Movement[]>(token, "/v6/movements"),
-      );
-      const now = Date.now();
+      const existing = await ctx.runQuery(internal.tonal.movementSync.getByTonalId, {
+        tonalId: m.id,
+      });
 
-      let inserted = 0;
-      let updated = 0;
-      const unmappedAccessories = new Set<string>();
+      const doc = mapApiToDoc(m, now);
 
-      for (const m of movements) {
-        const accessory = m.onMachineInfo?.accessory ?? undefined;
-
-        if (accessory && !(accessory in ACCESSORY_MAP)) {
-          unmappedAccessories.add(accessory);
-        }
-
-        const existing = await ctx.runQuery(internal.tonal.movementSync.getByTonalId, {
-          tonalId: m.id,
+      if (existing) {
+        await ctx.runMutation(internal.tonal.movementSync.updateMovement, {
+          id: existing._id,
+          ...doc,
         });
-
-        const doc = mapApiToDoc(m, now);
-
-        if (existing) {
-          await ctx.runMutation(internal.tonal.movementSync.updateMovement, {
-            id: existing._id,
-            ...doc,
-          });
-          updated++;
-        } else {
-          await ctx.runMutation(internal.tonal.movementSync.insertMovement, { ...doc });
-          inserted++;
-        }
-      }
-
-      if (unmappedAccessories.size > 0) {
-        console.warn(
-          `[movementSync] Unmapped accessory values: ${[...unmappedAccessories].join(", ")}`,
-        );
-      }
-
-      console.log(
-        `[movementSync] Synced ${movements.length} movements (${inserted} inserted, ${updated} updated)`,
-      );
-
-      analytics.captureSystem("movement_catalog_synced", {
-        count: movements.length,
-        inserted,
-        updated,
-      });
-      await analytics.flush();
-    } catch (error) {
-      console.error("[movementSync] Catalog sync failed:", error);
-      void ctx.runAction(internal.discord.notifyError, {
-        source: "movementSync",
-        message: `Movement catalog sync failed (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${error instanceof Error ? error.message : String(error)}`,
-      });
-      if (retryCount < MAX_RETRIES) {
-        await ctx.scheduler.runAfter(
-          RETRY_DELAY_MS,
-          internal.tonal.movementSync.syncMovementCatalog,
-          { retryCount: retryCount + 1 },
-        );
-        console.log(`[movementSync] Retry ${retryCount + 1} scheduled in 10 minutes`);
+        updated++;
+      } else {
+        await ctx.runMutation(internal.tonal.movementSync.insertMovement, { ...doc });
+        inserted++;
       }
     }
+
+    if (unmappedAccessories.size > 0) {
+      console.warn(
+        `[movementSync] Unmapped accessory values: ${[...unmappedAccessories].join(", ")}`,
+      );
+    }
+
+    console.log(
+      `[movementSync] Synced ${movements.length} movements (${inserted} inserted, ${updated} updated)`,
+    );
+
+    analytics.captureSystem("movement_catalog_synced", {
+      count: movements.length,
+      inserted,
+      updated,
+    });
+    await analytics.flush();
+  },
+});
+
+/** Durable workflow: fetch movements from Tonal API and upsert into movements table. */
+export const syncMovementCatalogWorkflow = workflow.define({
+  args: {},
+  handler: async (step): Promise<null> => {
+    const tokenUser = await step.runQuery(internal.userProfiles.getUserWithValidToken);
+    if (!tokenUser) {
+      console.warn("[movementSync] No connected users found - skipping catalog sync");
+      return null;
+    }
+
+    await step.runAction(internal.tonal.movementSync.doSyncMovements, {
+      userId: tokenUser.userId,
+    });
+
+    return null;
+  },
+});
+
+/** Cron entry point: starts the movement catalog sync workflow. */
+export const startSyncMovementCatalog = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    await workflow.start(ctx, internal.tonal.movementSync.syncMovementCatalogWorkflow, {});
   },
 });
 
