@@ -12,6 +12,8 @@ export interface ProviderConfig {
   keyRegex: RegExp;
   keyFormatError: string;
   keySourceUrl: string;
+  /** Where users go to top up or check quota/billing on this provider. */
+  billingUrl: string;
   keyPlaceholder: string;
   keyFieldName: string;
   keyTimestampFieldName: string;
@@ -27,6 +29,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     keyFormatError:
       "Key format looks wrong. Gemini keys start with 'AIza' and are 39 characters long.",
     keySourceUrl: "https://aistudio.google.com/app/apikey",
+    billingUrl: "https://aistudio.google.com/app/apikey",
     keyPlaceholder: "AIza...",
     keyFieldName: "geminiApiKeyEncrypted",
     keyTimestampFieldName: "geminiApiKeyAddedAt",
@@ -42,6 +45,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     keyRegex: /^sk-ant-/,
     keyFormatError: "Key format looks wrong. Claude keys start with 'sk-ant-'.",
     keySourceUrl: "https://console.anthropic.com/settings/keys",
+    billingUrl: "https://console.anthropic.com/settings/billing",
     keyPlaceholder: "sk-ant-...",
     keyFieldName: "claudeApiKeyEncrypted",
     keyTimestampFieldName: "claudeApiKeyAddedAt",
@@ -58,6 +62,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     keyFormatError:
       "Key format looks wrong. OpenAI keys start with 'sk-' (but not 'sk-ant-' or 'sk-or-').",
     keySourceUrl: "https://platform.openai.com/api-keys",
+    billingUrl: "https://platform.openai.com/settings/organization/billing",
     keyPlaceholder: "sk-...",
     keyFieldName: "openaiApiKeyEncrypted",
     keyTimestampFieldName: "openaiApiKeyAddedAt",
@@ -73,6 +78,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     keyRegex: /^sk-or-/,
     keyFormatError: "Key format looks wrong. OpenRouter keys start with 'sk-or-'.",
     keySourceUrl: "https://openrouter.ai/keys",
+    billingUrl: "https://openrouter.ai/credits",
     keyPlaceholder: "sk-or-...",
     keyFieldName: "openrouterApiKeyEncrypted",
     keyTimestampFieldName: "openrouterApiKeyAddedAt",

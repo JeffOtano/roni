@@ -211,6 +211,7 @@ export const continueAfterApproval = action({
         userId,
         promptMessageId: messageId,
         isByok: !providerConfig.isHouseKey,
+        provider: providerConfig.provider,
       }),
     );
 
@@ -299,6 +300,7 @@ export const processMessage = internalAction({
         promptMessageId: messageId,
         prompt: typeof resolvedPrompt === "string" ? undefined : resolvedPrompt,
         isByok: !providerConfig.isHouseKey,
+        provider: providerConfig.provider,
       }),
     );
 

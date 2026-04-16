@@ -1,21 +1,34 @@
+import { APICallError } from "@ai-sdk/provider";
 import { describe, expect, it } from "vitest";
 import {
+  buildByokErrorMessage,
   classifyByokError,
-  isByokQuotaError,
   isTransientError,
-  throwIfByokError,
   withByokErrorSanitization,
 } from "./resilience";
+
+function apiCallError(overrides: {
+  statusCode?: number;
+  isRetryable?: boolean;
+  responseBody?: string;
+  message?: string;
+}): APICallError {
+  return new APICallError({
+    message: overrides.message ?? "API call failed",
+    url: "https://example.test/v1/messages",
+    requestBodyValues: {},
+    statusCode: overrides.statusCode,
+    isRetryable: overrides.isRetryable ?? false,
+    responseBody: overrides.responseBody,
+  });
+}
 
 describe("isTransientError", () => {
   it("returns true for network errors", () => {
     expect(isTransientError(new TypeError("fetch failed"))).toBe(true);
   });
 
-  it("returns true for 429 rate limit (retryable; BYOK routing handled upstream)", () => {
-    // For house-key users, 429 from Gemini "high demand" should be retried.
-    // BYOK users' 429s are caught by throwIfByokError before isTransientError
-    // is ever called, so this classification is safe for both paths.
+  it("returns true for 429 rate limit", () => {
     const error = Object.assign(new Error("Rate limited"), { status: 429 });
     expect(isTransientError(error)).toBe(true);
   });
@@ -81,6 +94,15 @@ describe("isTransientError", () => {
   it("returns false for generic errors without status", () => {
     expect(isTransientError(new Error("Something broke"))).toBe(false);
   });
+
+  it("defers to APICallError.isRetryable = true", () => {
+    expect(isTransientError(apiCallError({ statusCode: 529, isRetryable: true }))).toBe(true);
+  });
+
+  it("defers to APICallError.isRetryable = false even when status looks transient", () => {
+    // SDK says don't retry (e.g., auth-layer 429), trust it.
+    expect(isTransientError(apiCallError({ statusCode: 429, isRetryable: false }))).toBe(false);
+  });
 });
 
 describe("classifyByokError", () => {
@@ -95,8 +117,6 @@ describe("classifyByokError", () => {
   });
 
   it("classifies an 'API key not valid' message as byok_key_invalid", () => {
-    // Google AI's actual error format. The classifier matches on substring
-    // so we never have to read the full body (which could echo the key).
     const error = new Error("API key not valid. Please pass a valid API key.");
     expect(classifyByokError(error)).toBe("byok_key_invalid");
   });
@@ -118,6 +138,39 @@ describe("classifyByokError", () => {
     expect(classifyByokError(error)).toBe("byok_quota_exceeded");
   });
 
+  it("classifies Anthropic 'credit balance is too low' as byok_quota_exceeded", () => {
+    const error = new Error(
+      "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+    );
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
+  it("classifies an error whose billing text lives on responseBody", () => {
+    const error = Object.assign(new Error("AI_APICallError: Bad Request"), {
+      status: 400,
+      responseBody: JSON.stringify({
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "Your credit balance is too low",
+        },
+      }),
+    });
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
+  it("classifies an error whose auth text lives on cause.message", () => {
+    const cause = new Error("invalid_api_key: authentication failed");
+    const error = new Error("request failed");
+    (error as Error & { cause?: unknown }).cause = cause;
+    expect(classifyByokError(error)).toBe("byok_key_invalid");
+  });
+
+  it("classifies OpenAI 'insufficient_quota' as byok_quota_exceeded", () => {
+    const error = new Error("You exceeded your current quota: insufficient_quota.");
+    expect(classifyByokError(error)).toBe("byok_quota_exceeded");
+  });
+
   it("classifies a 'safety' substring as byok_safety_blocked", () => {
     const error = new Error("Response was blocked due to safety filters");
     expect(classifyByokError(error)).toBe("byok_safety_blocked");
@@ -133,68 +186,45 @@ describe("classifyByokError", () => {
     expect(classifyByokError(null)).toBeNull();
     expect(classifyByokError(undefined)).toBeNull();
   });
-});
 
-describe("isByokQuotaError", () => {
-  it("returns true for 429 status code", () => {
-    const error = Object.assign(new Error("Too Many Requests"), { status: 429 });
-    expect(isByokQuotaError(error)).toBe(true);
+  it("classifies APICallError 401 via statusCode, not ad-hoc .status", () => {
+    expect(classifyByokError(apiCallError({ statusCode: 401 }))).toBe("byok_key_invalid");
   });
 
-  it("returns true for resource_exhausted message", () => {
-    const error = new Error("RESOURCE_EXHAUSTED: Quota exceeded");
-    expect(isByokQuotaError(error)).toBe(true);
+  it("classifies APICallError 429 via statusCode", () => {
+    expect(classifyByokError(apiCallError({ statusCode: 429 }))).toBe("byok_quota_exceeded");
   });
 
-  it("returns true for quota message", () => {
-    const error = new Error("You have exceeded your quota for this model");
-    expect(isByokQuotaError(error)).toBe(true);
-  });
-
-  it("returns true for rate_limit message", () => {
-    const error = new Error("rate_limit_exceeded: try again later");
-    expect(isByokQuotaError(error)).toBe(true);
-  });
-
-  it("returns false for 500 server error", () => {
-    const error = Object.assign(new Error("Internal"), { status: 500 });
-    expect(isByokQuotaError(error)).toBe(false);
-  });
-
-  it("returns false for non-Error values", () => {
-    expect(isByokQuotaError("string error")).toBe(false);
-    expect(isByokQuotaError(null)).toBe(false);
-  });
-
-  it("returns false for generic errors", () => {
-    expect(isByokQuotaError(new Error("Something broke"))).toBe(false);
+  it("classifies APICallError 400 billing body via responseBody", () => {
+    const err = apiCallError({
+      statusCode: 400,
+      responseBody: JSON.stringify({ error: { message: "Your credit balance is too low" } }),
+    });
+    expect(classifyByokError(err)).toBe("byok_quota_exceeded");
   });
 });
 
-describe("throwIfByokError", () => {
-  it("throws a sanitized Error with the BYOK code as the message", () => {
-    const error = Object.assign(new Error("Unauthorized"), { status: 401 });
-    expect(() => throwIfByokError(error)).toThrow("byok_key_invalid");
+describe("buildByokErrorMessage", () => {
+  it("names the provider and links to its billing page on quota", () => {
+    const msg = buildByokErrorMessage("byok_quota_exceeded", "claude");
+
+    expect(msg).toContain("Anthropic Claude");
+    expect(msg).toContain("(https://console.anthropic.com/settings/billing)");
+    expect(msg).toContain("(/settings)");
   });
 
-  it("does not leak the original error message into the sanitized error", () => {
-    // If the AI SDK ever wraps the key in the error message ("API key
-    // AIza... is invalid"), the sanitized error must not echo that.
-    const leakKey = "AIza_leak_for_throw_test";
-    const error = new Error(`API key not valid (${leakKey})`);
-    try {
-      throwIfByokError(error);
-      throw new Error("expected throwIfByokError to throw");
-    } catch (caught) {
-      expect(caught).toBeInstanceOf(Error);
-      expect((caught as Error).message).toBe("byok_key_invalid");
-      expect((caught as Error).message).not.toContain(leakKey);
-    }
+  it("names the provider and links to settings on invalid key", () => {
+    const msg = buildByokErrorMessage("byok_key_invalid", "gemini");
+
+    expect(msg).toContain("Google Gemini");
+    expect(msg).toContain("(/settings)");
   });
 
-  it("returns without throwing for non-BYOK errors", () => {
-    const error = Object.assign(new Error("Internal"), { status: 500 });
-    expect(() => throwIfByokError(error)).not.toThrow();
+  it("uses the OpenAI billing URL for OpenAI quota errors", () => {
+    const msg = buildByokErrorMessage("byok_quota_exceeded", "openai");
+
+    expect(msg).toContain("OpenAI");
+    expect(msg).toContain("(https://platform.openai.com/settings/organization/billing)");
   });
 });
 
