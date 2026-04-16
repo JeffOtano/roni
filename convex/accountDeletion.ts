@@ -46,8 +46,7 @@ export const deleteExercisePerformanceBatch = internalMutation({
   },
 });
 
-/** Delete one batch of tonalCache rows. Uses a smaller batch size than other
- *  tables because each row's `data` field can approach Convex's 1 MiB doc cap. */
+/** Delete one batch of tonalCache rows. */
 export const deleteTonalCacheBatch = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<boolean> => {

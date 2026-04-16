@@ -49,7 +49,10 @@ export const getCacheEntryData = query({
     if (!userId) throw new Error("Not authenticated");
 
     const entry = await ctx.db.get(entryId);
-    if (!entry || entry.userId !== userId) return null;
+    if (!entry) return null;
+    if (entry.userId !== userId) {
+      throw new Error("Cache entry not owned by user");
+    }
     return { data: entry.data };
   },
 });
@@ -72,7 +75,7 @@ export const deleteCacheEntry = mutation({
  *  UI can drain large caches without exceeding Convex's per-call read limit. */
 export const purgeUserCacheBatch = mutation({
   args: {},
-  handler: async (ctx): Promise<{ deleted: number; hasMore: boolean }> => {
+  handler: async (ctx) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
