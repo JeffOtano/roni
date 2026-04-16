@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { useUIMessages } from "@convex-dev/agent/react";
 import { toUIMessages } from "@convex-dev/agent";
+import type { MessageDoc } from "@convex-dev/agent";
 import type { UIMessage } from "@convex-dev/agent/react";
 import { api } from "../../../convex/_generated/api";
 import { MessageList } from "./MessageList";
@@ -50,8 +51,7 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
 
   const handleLoadEarlier = () => {
     if (!history || history.messages.length === 0) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const converted = toUIMessages(history.messages as any);
+    const converted = toUIMessages(history.messages as unknown as MessageDoc[]);
     setHistoricalMessages((prev) => [...converted, ...prev]);
   };
 

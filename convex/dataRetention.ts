@@ -26,8 +26,7 @@ export const getExpiredAiUsageIds = internalQuery({
   handler: async (ctx, { cutoff, limit }) => {
     const records = await ctx.db
       .query("aiUsage")
-      .withIndex("by_createdAt")
-      .filter((q) => q.lt(q.field("createdAt"), cutoff))
+      .withIndex("by_createdAt", (q) => q.lt("createdAt", cutoff))
       .take(limit);
     return records.map((r) => r._id);
   },
@@ -39,8 +38,7 @@ export const getExpiredToolCallIds = internalQuery({
   handler: async (ctx, { cutoff, limit }) => {
     const records = await ctx.db
       .query("aiToolCalls")
-      .withIndex("by_createdAt")
-      .filter((q) => q.lt(q.field("createdAt"), cutoff))
+      .withIndex("by_createdAt", (q) => q.lt("createdAt", cutoff))
       .take(limit);
     return records.map((r) => r._id);
   },

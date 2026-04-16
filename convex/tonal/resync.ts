@@ -81,10 +81,11 @@ export const resyncAllUsers = internalAction({
 export const getConnectedUsers = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect();
-    return profiles
-      .filter((p) => p.tonalUserId)
-      .map((p) => ({ userId: p.userId, syncStatus: p.syncStatus }));
+    const profiles = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_tonalUserId", (q) => q.gt("tonalUserId", ""))
+      .collect();
+    return profiles.map((p) => ({ userId: p.userId, syncStatus: p.syncStatus }));
   },
 });
 
@@ -92,8 +93,10 @@ export const getConnectedUsers = internalQuery({
 export const getSyncDiagnostics = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect();
-    const connected = profiles.filter((p) => p.tonalUserId);
+    const connected = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_tonalUserId", (q) => q.gt("tonalUserId", ""))
+      .collect();
 
     const results = [];
     for (const p of connected) {

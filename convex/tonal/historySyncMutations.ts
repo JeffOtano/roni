@@ -100,10 +100,9 @@ export const persistExercisePerformance = internalMutation({
     for (const p of performances) {
       const existing = await ctx.db
         .query("exercisePerformance")
-        .withIndex("by_userId_activityId", (q) =>
-          q.eq("userId", userId).eq("activityId", p.activityId),
+        .withIndex("by_userId_activityId_movementId", (q) =>
+          q.eq("userId", userId).eq("activityId", p.activityId).eq("movementId", p.movementId),
         )
-        .filter((q) => q.eq(q.field("movementId"), p.movementId))
         .first();
       if (existing) continue;
       await ctx.db.insert("exercisePerformance", { userId, ...p, syncedAt: Date.now() });
