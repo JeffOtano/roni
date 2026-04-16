@@ -12,9 +12,6 @@ const BUDGET_EXCEEDED_MESSAGE =
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
 
-// User-visible messages for each BYOK error class. Written directly into
-// the assistant side of the thread so the user sees an actionable message
-// instead of the generic "I'm having trouble" fallback.
 const BYOK_ERROR_MESSAGES: Record<ByokErrorCode, string> = {
   byok_key_invalid:
     "Your API key was rejected by the provider. Open **Settings → API Keys** to check or replace it, then try again.",
@@ -68,13 +65,8 @@ export type ByokErrorCode =
   | "byok_safety_blocked"
   | "byok_unknown_error";
 
-/**
- * Collect every text fragment that could classify a BYOK error. The Vercel
- * AI SDK often wraps provider errors in an `APICallError` whose `.message`
- * is just "API call failed", while the real detail lives on `.responseBody`
- * or `.cause.message`. We must pattern-match across all of them so errors
- * like Anthropic's "Your credit balance is too low" don't slip through.
- */
+// Vercel AI SDK wraps provider errors: .message is generic, the real text
+// lives on .responseBody / .cause.message. Pattern-match across all of them.
 function gatherErrorText(error: Error): string {
   const parts: string[] = [error.message];
   if ("responseBody" in error && typeof error.responseBody === "string") {
@@ -133,30 +125,13 @@ export function classifyByokError(error: unknown): ByokErrorCode | null {
   return null;
 }
 
-export function throwIfByokError(error: unknown): void {
-  const code = classifyByokError(error);
-  if (code !== null) throw new Error(code);
-}
-
-export function isByokQuotaError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const status = (error as Error & { status?: number }).status;
-  if (status === 429) return true;
-  const lower = error.message.toLowerCase();
-  return (
-    lower.includes("resource_exhausted") || lower.includes("quota") || lower.includes("rate_limit")
-  );
-}
-
-// Sanitization is mandatory: Google AI error bodies can echo the decrypted key.
+// Google AI error bodies can echo the decrypted key — never rethrow raw.
 export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     const code = classifyByokError(err);
-    if (code !== null) {
-      throw new Error(code);
-    }
+    if (code !== null) throw new Error(code);
     throw err;
   }
 }
@@ -170,7 +145,6 @@ interface StreamWithRetryArgs {
   fallbackAgent: Agent;
   threadId: string;
   userId: string;
-  /** Text prompt or multimodal message array (text + images). */
   prompt?: string | Array<ModelMessage>;
   promptMessageId?: string;
   /** True when the user is on their own API key (not the house key). */
@@ -186,9 +160,10 @@ const STREAM_OPTIONS = {
   saveStreamDeltas: { chunking: "word" as const, throttleMs: 100 },
 };
 
-// Convex actions have a 600s hard limit. Budget 180s per attempt so all three
-// attempts (primary + retry + fallback) fit within the action lifetime.
+// Convex actions have a 600s hard cap; budget 180s per attempt so 3 fit.
 const ATTEMPT_TIMEOUT_MS = 180_000;
+
+type AttemptOutcome = { done: true } | { done: false; error: unknown };
 
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
   const { primaryAgent, fallbackAgent, threadId, userId, isByok } = args;
@@ -204,36 +179,29 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
 
   const errorReport = { threadId, userId, isByok };
 
-  /**
-   * Try one attempt. Returns `true` when the attempt succeeded OR produced
-   * a terminal error that's already been surfaced to the user, so the
-   * caller should stop. Returns `false` only for transient errors that
-   * should be retried on the next attempt in the chain.
-   */
-  const runAttempt = async (agent: Agent): Promise<boolean> => {
+  // `done` = success or terminal-error-already-reported; otherwise retryable transient.
+  const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
     try {
       await attemptStream(ctx, agent, threadId, userId, promptArgs);
-      return true;
+      return { done: true };
     } catch (error) {
-      if (await tryReportByok(ctx, { ...errorReport, error })) return true;
+      if (await tryReportByok(ctx, { ...errorReport, error })) return { done: true };
       if (!isTransientError(error)) {
         await reportError(ctx, { ...errorReport, error });
-        return true;
+        return { done: true };
       }
-      return false;
+      return { done: false, error };
     }
   };
 
-  if (await runAttempt(primaryAgent)) return;
+  if ((await runAttempt(primaryAgent)).done) return;
   await delay(RETRY_DELAY_MS);
-  if (await runAttempt(primaryAgent)) return;
+  if ((await runAttempt(primaryAgent)).done) return;
 
-  try {
-    await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
-  } catch (error) {
-    if (await tryReportByok(ctx, { ...errorReport, error })) return;
-    await reportError(ctx, { ...errorReport, error });
-  }
+  const final = await runAttempt(fallbackAgent);
+  if (final.done) return;
+  // Fallback also hit a transient error — terminal now, surface the generic message.
+  await reportError(ctx, { ...errorReport, error: final.error });
 }
 
 async function attemptStream(
@@ -264,15 +232,8 @@ interface ErrorReport {
   isByok: boolean;
 }
 
-/**
- * Finalize any assistant messages left in `pending` state on the thread.
- * Normally `streamText`'s abortSignal handler does this, but provider
- * errors (network/billing/auth) surface directly as throws from
- * `result.text` — in that path the pending row is stranded forever until
- * we explicitly mark it failed. Must run before we save the follow-up
- * error message so the thread doesn't show a dangling spinner above the
- * explanation.
- */
+// streamText's abortSignal handler finalizes on clean aborts; provider errors
+// thrown from result.text bypass that path and leave a stranded pending row.
 async function finalizePendingMessages(
   ctx: ActionCtx,
   threadId: string,
@@ -292,18 +253,11 @@ async function finalizePendingMessages(
   }
 }
 
-/**
- * If `error` is BYOK-classifiable, save an actionable assistant message and
- * return true. Returns false when the error isn't BYOK-related (or the
- * user isn't on BYOK), so the caller can fall through to transient /
- * generic handling.
- */
 async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boolean> {
   if (!report.isByok) return false;
   const code = classifyByokError(report.error);
   if (code === null) return false;
-  // Use the error code (not the raw message) as the finalize reason since
-  // the provider body can include the decrypted key.
+  // Provider bodies can include the decrypted key, so the finalize reason is the code only.
   await finalizePendingMessages(ctx, report.threadId, code);
   await saveMessage(ctx, components.agent, {
     threadId: report.threadId,
@@ -318,10 +272,6 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
   return true;
 }
 
-/**
- * Generic terminal-error path: write the fallback "I'm having trouble"
- * assistant message and notify ops with the raw error summary.
- */
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   const reason = report.error instanceof Error ? report.error.message : String(report.error);
   await finalizePendingMessages(ctx, report.threadId, reason);
@@ -341,10 +291,6 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Check if a user has exceeded their daily token budget.
- * Returns true if budget is exceeded (caller should abort).
- */
 export async function checkDailyBudget(
   ctx: ActionCtx,
   userId: string,

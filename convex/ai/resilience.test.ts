@@ -1,21 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-  classifyByokError,
-  isByokQuotaError,
-  isTransientError,
-  throwIfByokError,
-  withByokErrorSanitization,
-} from "./resilience";
+import { classifyByokError, isTransientError, withByokErrorSanitization } from "./resilience";
 
 describe("isTransientError", () => {
   it("returns true for network errors", () => {
     expect(isTransientError(new TypeError("fetch failed"))).toBe(true);
   });
 
-  it("returns true for 429 rate limit (retryable; BYOK routing handled upstream)", () => {
-    // For house-key users, 429 from Gemini "high demand" should be retried.
-    // BYOK users' 429s are caught by throwIfByokError before isTransientError
-    // is ever called, so this classification is safe for both paths.
+  it("returns true for 429 rate limit", () => {
     const error = Object.assign(new Error("Rate limited"), { status: 429 });
     expect(isTransientError(error)).toBe(true);
   });
@@ -95,8 +86,6 @@ describe("classifyByokError", () => {
   });
 
   it("classifies an 'API key not valid' message as byok_key_invalid", () => {
-    // Google AI's actual error format. The classifier matches on substring
-    // so we never have to read the full body (which could echo the key).
     const error = new Error("API key not valid. Please pass a valid API key.");
     expect(classifyByokError(error)).toBe("byok_key_invalid");
   });
@@ -119,9 +108,6 @@ describe("classifyByokError", () => {
   });
 
   it("classifies Anthropic 'credit balance is too low' as byok_quota_exceeded", () => {
-    // The exact error text Anthropic returns when the account has no
-    // credit. This is what blocked Randy's thread for 24h before we
-    // realized the classifier wasn't seeing it.
     const error = new Error(
       "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
     );
@@ -129,9 +115,6 @@ describe("classifyByokError", () => {
   });
 
   it("classifies an error whose billing text lives on responseBody", () => {
-    // The Vercel AI SDK often surfaces a generic outer message like
-    // "API call failed" and keeps the provider's real text on `.responseBody`.
-    // The classifier must reach into that field or the error slips through.
     const error = Object.assign(new Error("AI_APICallError: Bad Request"), {
       status: 400,
       responseBody: JSON.stringify({
@@ -171,69 +154,6 @@ describe("classifyByokError", () => {
     expect(classifyByokError("oops")).toBeNull();
     expect(classifyByokError(null)).toBeNull();
     expect(classifyByokError(undefined)).toBeNull();
-  });
-});
-
-describe("isByokQuotaError", () => {
-  it("returns true for 429 status code", () => {
-    const error = Object.assign(new Error("Too Many Requests"), { status: 429 });
-    expect(isByokQuotaError(error)).toBe(true);
-  });
-
-  it("returns true for resource_exhausted message", () => {
-    const error = new Error("RESOURCE_EXHAUSTED: Quota exceeded");
-    expect(isByokQuotaError(error)).toBe(true);
-  });
-
-  it("returns true for quota message", () => {
-    const error = new Error("You have exceeded your quota for this model");
-    expect(isByokQuotaError(error)).toBe(true);
-  });
-
-  it("returns true for rate_limit message", () => {
-    const error = new Error("rate_limit_exceeded: try again later");
-    expect(isByokQuotaError(error)).toBe(true);
-  });
-
-  it("returns false for 500 server error", () => {
-    const error = Object.assign(new Error("Internal"), { status: 500 });
-    expect(isByokQuotaError(error)).toBe(false);
-  });
-
-  it("returns false for non-Error values", () => {
-    expect(isByokQuotaError("string error")).toBe(false);
-    expect(isByokQuotaError(null)).toBe(false);
-  });
-
-  it("returns false for generic errors", () => {
-    expect(isByokQuotaError(new Error("Something broke"))).toBe(false);
-  });
-});
-
-describe("throwIfByokError", () => {
-  it("throws a sanitized Error with the BYOK code as the message", () => {
-    const error = Object.assign(new Error("Unauthorized"), { status: 401 });
-    expect(() => throwIfByokError(error)).toThrow("byok_key_invalid");
-  });
-
-  it("does not leak the original error message into the sanitized error", () => {
-    // If the AI SDK ever wraps the key in the error message ("API key
-    // AIza... is invalid"), the sanitized error must not echo that.
-    const leakKey = "AIza_leak_for_throw_test";
-    const error = new Error(`API key not valid (${leakKey})`);
-    try {
-      throwIfByokError(error);
-      throw new Error("expected throwIfByokError to throw");
-    } catch (caught) {
-      expect(caught).toBeInstanceOf(Error);
-      expect((caught as Error).message).toBe("byok_key_invalid");
-      expect((caught as Error).message).not.toContain(leakKey);
-    }
-  });
-
-  it("returns without throwing for non-BYOK errors", () => {
-    const error = Object.assign(new Error("Internal"), { status: 500 });
-    expect(() => throwIfByokError(error)).not.toThrow();
   });
 });
 
