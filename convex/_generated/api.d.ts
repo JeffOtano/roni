@@ -82,8 +82,6 @@ import type * as systemHealth from "../systemHealth.js";
 import type * as threads from "../threads.js";
 import type * as tonal_accessories from "../tonal/accessories.js";
 import type * as tonal_auth from "../tonal/auth.js";
-import type * as tonal_backfillCompletion from "../tonal/backfillCompletion.js";
-import type * as tonal_backfillRunner from "../tonal/backfillRunner.js";
 import type * as tonal_cache from "../tonal/cache.js";
 import type * as tonal_cacheRefresh from "../tonal/cacheRefresh.js";
 import type * as tonal_client from "../tonal/client.js";
@@ -93,6 +91,7 @@ import type * as tonal_encryption from "../tonal/encryption.js";
 import type * as tonal_enrichmentSync from "../tonal/enrichmentSync.js";
 import type * as tonal_hardware from "../tonal/hardware.js";
 import type * as tonal_historySync from "../tonal/historySync.js";
+import type * as tonal_historySyncCore from "../tonal/historySyncCore.js";
 import type * as tonal_historySyncMutations from "../tonal/historySyncMutations.js";
 import type * as tonal_movementMapping from "../tonal/movementMapping.js";
 import type * as tonal_movementSearch from "../tonal/movementSearch.js";
@@ -122,6 +121,7 @@ import type * as weekPlanEnriched from "../weekPlanEnriched.js";
 import type * as weekPlanHelpers from "../weekPlanHelpers.js";
 import type * as weekPlanInternals from "../weekPlanInternals.js";
 import type * as weekPlans from "../weekPlans.js";
+import type * as workflows from "../workflows.js";
 import type * as workoutDetail from "../workoutDetail.js";
 import type * as workoutFeedback from "../workoutFeedback.js";
 import type * as workoutPlans from "../workoutPlans.js";
@@ -207,8 +207,6 @@ declare const fullApi: ApiFromModules<{
   threads: typeof threads;
   "tonal/accessories": typeof tonal_accessories;
   "tonal/auth": typeof tonal_auth;
-  "tonal/backfillCompletion": typeof tonal_backfillCompletion;
-  "tonal/backfillRunner": typeof tonal_backfillRunner;
   "tonal/cache": typeof tonal_cache;
   "tonal/cacheRefresh": typeof tonal_cacheRefresh;
   "tonal/client": typeof tonal_client;
@@ -218,6 +216,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/enrichmentSync": typeof tonal_enrichmentSync;
   "tonal/hardware": typeof tonal_hardware;
   "tonal/historySync": typeof tonal_historySync;
+  "tonal/historySyncCore": typeof tonal_historySyncCore;
   "tonal/historySyncMutations": typeof tonal_historySyncMutations;
   "tonal/movementMapping": typeof tonal_movementMapping;
   "tonal/movementSearch": typeof tonal_movementSearch;
@@ -247,6 +246,7 @@ declare const fullApi: ApiFromModules<{
   weekPlanHelpers: typeof weekPlanHelpers;
   weekPlanInternals: typeof weekPlanInternals;
   weekPlans: typeof weekPlans;
+  workflows: typeof workflows;
   workoutDetail: typeof workoutDetail;
   workoutFeedback: typeof workoutFeedback;
   workoutPlans: typeof workoutPlans;
@@ -5329,6 +5329,522 @@ export declare const components: {
     };
     time: {
       getServerTime: FunctionReference<"mutation", "internal", {}, number>;
+    };
+  };
+  workflow: {
+    event: {
+      create: FunctionReference<
+        "mutation",
+        "internal",
+        { name: string; workflowId: string },
+        string
+      >;
+      send: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          eventId?: string;
+          name?: string;
+          result:
+            | { kind: "success"; returnValue: any }
+            | { error: string; kind: "failed" }
+            | { kind: "canceled" };
+          workflowId?: string;
+          workpoolOptions?: {
+            defaultRetryBehavior?: {
+              base: number;
+              initialBackoffMs: number;
+              maxAttempts: number;
+            };
+            logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism?: number;
+            retryActionsByDefault?: boolean;
+          };
+        },
+        string
+      >;
+    };
+    journal: {
+      load: FunctionReference<
+        "query",
+        "internal",
+        { shortCircuit?: boolean; workflowId: string },
+        {
+          blocked?: boolean;
+          journalEntries: Array<{
+            _creationTime: number;
+            _id: string;
+            step:
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  functionType: "query" | "mutation" | "action";
+                  handle: string;
+                  inProgress: boolean;
+                  kind?: "function";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  handle: string;
+                  inProgress: boolean;
+                  kind: "workflow";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workflowId?: string;
+                }
+              | {
+                  args: { eventId?: string };
+                  argsSize: number;
+                  completedAt?: number;
+                  eventId?: string;
+                  inProgress: boolean;
+                  kind: "event";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  inProgress: boolean;
+                  kind: "sleep";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                };
+            stepNumber: number;
+            workflowId: string;
+          }>;
+          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          ok: boolean;
+          workflow: {
+            _creationTime: number;
+            _id: string;
+            args: any;
+            generationNumber: number;
+            logLevel?: any;
+            name?: string;
+            onComplete?: { context?: any; fnHandle: string };
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt?: any;
+            state?: any;
+            workflowHandle: string;
+          };
+        }
+      >;
+      startSteps: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          generationNumber: number;
+          steps: Array<{
+            retry?:
+              | boolean
+              | { base: number; initialBackoffMs: number; maxAttempts: number };
+            schedulerOptions?: { runAt?: number } | { runAfter?: number };
+            step:
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  functionType: "query" | "mutation" | "action";
+                  handle: string;
+                  inProgress: boolean;
+                  kind?: "function";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  handle: string;
+                  inProgress: boolean;
+                  kind: "workflow";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workflowId?: string;
+                }
+              | {
+                  args: { eventId?: string };
+                  argsSize: number;
+                  completedAt?: number;
+                  eventId?: string;
+                  inProgress: boolean;
+                  kind: "event";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  inProgress: boolean;
+                  kind: "sleep";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                };
+          }>;
+          workflowId: string;
+          workpoolOptions?: {
+            defaultRetryBehavior?: {
+              base: number;
+              initialBackoffMs: number;
+              maxAttempts: number;
+            };
+            logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism?: number;
+            retryActionsByDefault?: boolean;
+          };
+        },
+        Array<{
+          _creationTime: number;
+          _id: string;
+          step:
+            | {
+                args: any;
+                argsSize: number;
+                completedAt?: number;
+                functionType: "query" | "mutation" | "action";
+                handle: string;
+                inProgress: boolean;
+                kind?: "function";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+                workId?: string;
+              }
+            | {
+                args: any;
+                argsSize: number;
+                completedAt?: number;
+                handle: string;
+                inProgress: boolean;
+                kind: "workflow";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+                workflowId?: string;
+              }
+            | {
+                args: { eventId?: string };
+                argsSize: number;
+                completedAt?: number;
+                eventId?: string;
+                inProgress: boolean;
+                kind: "event";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+              }
+            | {
+                args: any;
+                argsSize: number;
+                completedAt?: number;
+                inProgress: boolean;
+                kind: "sleep";
+                name: string;
+                runResult?:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                startedAt: number;
+                workId?: string;
+              };
+          stepNumber: number;
+          workflowId: string;
+        }>
+      >;
+    };
+    workflow: {
+      cancel: FunctionReference<
+        "mutation",
+        "internal",
+        { workflowId: string },
+        null
+      >;
+      cleanup: FunctionReference<
+        "mutation",
+        "internal",
+        { force?: boolean; workflowId: string },
+        boolean
+      >;
+      complete: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          generationNumber: number;
+          runResult:
+            | { kind: "success"; returnValue: any }
+            | { error: string; kind: "failed" }
+            | { kind: "canceled" };
+          workflowId: string;
+        },
+        null
+      >;
+      create: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          maxParallelism?: number;
+          onComplete?: { context?: any; fnHandle: string };
+          startAsync?: boolean;
+          workflowArgs: any;
+          workflowHandle: string;
+          workflowName: string;
+        },
+        string
+      >;
+      getStatus: FunctionReference<
+        "query",
+        "internal",
+        { workflowId: string },
+        {
+          inProgress: Array<{
+            _creationTime: number;
+            _id: string;
+            step:
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  functionType: "query" | "mutation" | "action";
+                  handle: string;
+                  inProgress: boolean;
+                  kind?: "function";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  handle: string;
+                  inProgress: boolean;
+                  kind: "workflow";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workflowId?: string;
+                }
+              | {
+                  args: { eventId?: string };
+                  argsSize: number;
+                  completedAt?: number;
+                  eventId?: string;
+                  inProgress: boolean;
+                  kind: "event";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                }
+              | {
+                  args: any;
+                  argsSize: number;
+                  completedAt?: number;
+                  inProgress: boolean;
+                  kind: "sleep";
+                  name: string;
+                  runResult?:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  startedAt: number;
+                  workId?: string;
+                };
+            stepNumber: number;
+            workflowId: string;
+          }>;
+          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          workflow: {
+            _creationTime: number;
+            _id: string;
+            args: any;
+            generationNumber: number;
+            logLevel?: any;
+            name?: string;
+            onComplete?: { context?: any; fnHandle: string };
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt?: any;
+            state?: any;
+            workflowHandle: string;
+          };
+        }
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        {
+          order: "asc" | "desc";
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            args: any;
+            context?: any;
+            name?: string;
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            workflowId: string;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        }
+      >;
+      listByName: FunctionReference<
+        "query",
+        "internal",
+        {
+          name: string;
+          order: "asc" | "desc";
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            args: any;
+            context?: any;
+            name?: string;
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            workflowId: string;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        }
+      >;
+      listSteps: FunctionReference<
+        "query",
+        "internal",
+        {
+          order: "asc" | "desc";
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+          workflowId: string;
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            args: any;
+            completedAt?: number;
+            eventId?: string;
+            kind: "function" | "workflow" | "event" | "sleep";
+            name: string;
+            nestedWorkflowId?: string;
+            runResult?:
+              | { kind: "success"; returnValue: any }
+              | { error: string; kind: "failed" }
+              | { kind: "canceled" };
+            startedAt: number;
+            stepId: string;
+            stepNumber: number;
+            workId?: string;
+            workflowId: string;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        }
+      >;
+      restart: FunctionReference<
+        "mutation",
+        "internal",
+        { from?: number | string; startAsync?: boolean; workflowId: string },
+        null
+      >;
     };
   };
 };
