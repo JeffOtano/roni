@@ -148,7 +148,9 @@ export const getByIdInternal = internalQuery({
   },
 });
 
-/** Durable workflow: claim plan, push to Tonal, record outcome, invalidate cache. */
+// Assumes the caller has already claimed the plan (status: pushing) — the
+// retryPush action does that synchronously so a double-click can't start
+// two workflows.
 export const retryPushWorkflow = workflow.define({
   args: {
     planId: v.id("workoutPlans"),
@@ -157,11 +159,6 @@ export const retryPushWorkflow = workflow.define({
     blocks: blockInputValidator,
   },
   handler: async (step, args): Promise<{ workoutId: string }> => {
-    const claimed = await step.runMutation(internal.workoutPlans.transitionToPushing, {
-      planId: args.planId,
-    });
-    if (!claimed) throw new Error("Plan cannot be retried or another push is in progress");
-
     const result = await step.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
       userId: args.userId,
       title: args.title,
@@ -223,7 +220,12 @@ export const retryPush = action({
     })) as Doc<"workoutPlans"> | null;
     if (!plan) return { success: false, error: "Plan not found or access denied" };
     const userId = plan.userId;
-    if (plan.status !== "failed" && plan.status !== "draft")
+
+    // Atomic claim up front: a double-click loses the second claim here and
+    // can't start a second workflow (which would otherwise overwrite the
+    // first workflow's success via onRetryPushComplete's fail branch).
+    const claimed = await ctx.runMutation(internal.workoutPlans.transitionToPushing, { planId });
+    if (!claimed) {
       return {
         success: false,
         error:
@@ -231,16 +233,28 @@ export const retryPush = action({
             ? "Push already in progress"
             : `Plan cannot be retried (status: ${plan.status})`,
       };
+    }
 
-    await workflow.start(
-      ctx,
-      internal.workoutPlans.retryPushWorkflow,
-      { planId, userId, title: plan.title, blocks: plan.blocks },
-      {
-        onComplete: internal.workoutPlans.onRetryPushComplete,
-        context: { planId, userId },
-      },
-    );
+    try {
+      await workflow.start(
+        ctx,
+        internal.workoutPlans.retryPushWorkflow,
+        { planId, userId, title: plan.title, blocks: plan.blocks },
+        {
+          onComplete: internal.workoutPlans.onRetryPushComplete,
+          context: { planId, userId },
+        },
+      );
+    } catch (err) {
+      // Release the claim so the plan isn't stuck in "pushing" forever.
+      const message = err instanceof Error ? err.message : String(err);
+      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
+        planId,
+        status: "failed",
+        pushErrorReason: `Failed to start retry workflow: ${message}`,
+      });
+      return { success: false, error: "Failed to start retry workflow" };
+    }
 
     return { success: true, started: true };
   },
