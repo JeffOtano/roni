@@ -226,12 +226,16 @@ export const retryPush = action({
     // first workflow's success via onRetryPushComplete's fail branch).
     const claimed = await ctx.runMutation(internal.workoutPlans.transitionToPushing, { planId });
     if (!claimed) {
+      // Re-read since the failure means status changed between our initial
+      // read and the claim — typically because a parallel retry just won.
+      const current = await ctx.runQuery(internal.workoutPlans.getByIdInternal, { planId });
+      const currentStatus = current?.status ?? plan.status;
       return {
         success: false,
         error:
-          plan.status === "pushing"
+          currentStatus === "pushing" || currentStatus === "pushed"
             ? "Push already in progress"
-            : `Plan cannot be retried (status: ${plan.status})`,
+            : `Plan cannot be retried (status: ${currentStatus})`,
       };
     }
 
