@@ -13,6 +13,7 @@ import { tonalFetch } from "./client";
 import { withTokenRetry } from "./tokenRetry";
 import type { TonalExploreGroup, TonalWorkoutDetail, TrainingType } from "./types";
 import * as analytics from "../lib/posthog";
+import { workflow } from "../workflows";
 
 const BATCH_SIZE = 20;
 
@@ -132,109 +133,110 @@ export const getAllTrainingTypes = internalQuery({
   },
 });
 
-/** Main sync action: fetch training types + workout catalog, tag movements. */
-export const syncWorkoutCatalog = internalAction({
-  args: { retryCount: v.optional(v.number()) },
-  handler: async (ctx, { retryCount = 0 }) => {
-    const MAX_RETRIES = 2;
-    const RETRY_DELAY_MS = 10 * 60 * 1000; // 10 minutes
-    try {
-      const tokenUser = await ctx.runQuery(internal.userProfiles.getUserWithValidToken);
-
-      if (!tokenUser) {
-        console.warn("[workoutCatalogSync] No connected users - skipping");
-        return;
-      }
-
-      await withTokenRetry(ctx, tokenUser.userId, async (token) => {
-        // 1. Fetch and upsert training types
-        const trainingTypes = await tonalFetch<TrainingType[]>(token, "/v6/training-types");
-        const typeMap = new Map<string, string>();
-        for (const tt of trainingTypes) {
-          typeMap.set(tt.id, tt.name);
-          await ctx.runMutation(internal.tonal.workoutCatalogSync.upsertTrainingType, {
-            tonalId: tt.id,
-            name: tt.name,
-            description: tt.description ?? "",
-          });
-        }
-        console.log(`[workoutCatalogSync] Synced ${trainingTypes.length} training types`);
-
-        // 2. Fetch explore workouts catalog
-        const exploreGroups = await tonalFetch<TonalExploreGroup[]>(token, "/v6/explore/workouts");
-
-        // Flatten all tiles with their training type IDs
-        const allTiles: Array<{ workoutId: string; trainingTypeIds: string[] }> = [];
-        for (const group of exploreGroups) {
-          for (const tile of group.tiles) {
-            if (tile.trainingTypeIds?.length > 0) {
-              allTiles.push({
-                workoutId: tile.workoutId,
-                trainingTypeIds: tile.trainingTypeIds,
-              });
-            }
-          }
-        }
-
-        // Deduplicate by workoutId (same workout can appear in multiple groups)
-        const uniqueTiles = new Map<string, { workoutId: string; trainingTypeIds: string[] }>();
-        for (const tile of allTiles) {
-          const existing = uniqueTiles.get(tile.workoutId);
-          if (existing) {
-            const merged = new Set([...existing.trainingTypeIds, ...tile.trainingTypeIds]);
-            uniqueTiles.set(tile.workoutId, {
-              workoutId: tile.workoutId,
-              trainingTypeIds: [...merged],
-            });
-          } else {
-            uniqueTiles.set(tile.workoutId, tile);
-          }
-        }
-
-        const tiles = [...uniqueTiles.values()];
-        console.log(`[workoutCatalogSync] Found ${tiles.length} unique curated workouts`);
-
-        // 3. Fetch workout details to get movementIds
-        const workoutIds = tiles.map((t) => t.workoutId);
-        const workoutDetails = await fetchWorkoutDetails(token, workoutIds);
-        console.log(
-          `[workoutCatalogSync] Fetched details for ${workoutDetails.size}/${workoutIds.length} workouts`,
-        );
-
-        // 4. Build movement -> trainingTypes mapping
-        const movementTypeMap = buildMovementTrainingTypeMap(tiles, workoutDetails, typeMap);
-
-        // 5. Write trainingTypes to each movement
-        let updated = 0;
-        for (const [movementId, types] of movementTypeMap) {
-          await ctx.runMutation(internal.tonal.workoutCatalogSync.updateMovementTrainingTypes, {
-            tonalId: movementId,
-            trainingTypes: types,
-          });
-          updated++;
-        }
-
-        console.log(`[workoutCatalogSync] Tagged ${updated} movements with training types`);
-
-        analytics.captureSystem("workout_catalog_synced", {
-          movements_tagged: updated,
+/** Core sync logic: fetch training types + workout catalog, tag movements. */
+export const doSyncWorkoutCatalog = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await withTokenRetry(ctx, userId, async (token) => {
+      // 1. Fetch and upsert training types
+      const trainingTypes = await tonalFetch<TrainingType[]>(token, "/v6/training-types");
+      const typeMap = new Map<string, string>();
+      for (const tt of trainingTypes) {
+        typeMap.set(tt.id, tt.name);
+        await ctx.runMutation(internal.tonal.workoutCatalogSync.upsertTrainingType, {
+          tonalId: tt.id,
+          name: tt.name,
+          description: tt.description ?? "",
         });
-      });
-      await analytics.flush();
-    } catch (error) {
-      console.error("[workoutCatalogSync] Catalog sync failed:", error);
-      void ctx.runAction(internal.discord.notifyError, {
-        source: "workoutCatalogSync",
-        message: `Workout catalog sync failed (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${error instanceof Error ? error.message : String(error)}`,
-      });
-      if (retryCount < MAX_RETRIES) {
-        await ctx.scheduler.runAfter(
-          RETRY_DELAY_MS,
-          internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
-          { retryCount: retryCount + 1 },
-        );
-        console.log(`[workoutCatalogSync] Retry ${retryCount + 1} scheduled in 10 minutes`);
       }
+      console.log(`[workoutCatalogSync] Synced ${trainingTypes.length} training types`);
+
+      // 2. Fetch explore workouts catalog
+      const exploreGroups = await tonalFetch<TonalExploreGroup[]>(token, "/v6/explore/workouts");
+
+      // Flatten all tiles with their training type IDs
+      const allTiles: Array<{ workoutId: string; trainingTypeIds: string[] }> = [];
+      for (const group of exploreGroups) {
+        for (const tile of group.tiles) {
+          if (tile.trainingTypeIds?.length > 0) {
+            allTiles.push({
+              workoutId: tile.workoutId,
+              trainingTypeIds: tile.trainingTypeIds,
+            });
+          }
+        }
+      }
+
+      // Deduplicate by workoutId (same workout can appear in multiple groups)
+      const uniqueTiles = new Map<string, { workoutId: string; trainingTypeIds: string[] }>();
+      for (const tile of allTiles) {
+        const existing = uniqueTiles.get(tile.workoutId);
+        if (existing) {
+          const merged = new Set([...existing.trainingTypeIds, ...tile.trainingTypeIds]);
+          uniqueTiles.set(tile.workoutId, {
+            workoutId: tile.workoutId,
+            trainingTypeIds: [...merged],
+          });
+        } else {
+          uniqueTiles.set(tile.workoutId, tile);
+        }
+      }
+
+      const tiles = [...uniqueTiles.values()];
+      console.log(`[workoutCatalogSync] Found ${tiles.length} unique curated workouts`);
+
+      // 3. Fetch workout details to get movementIds
+      const workoutIds = tiles.map((t) => t.workoutId);
+      const workoutDetails = await fetchWorkoutDetails(token, workoutIds);
+      console.log(
+        `[workoutCatalogSync] Fetched details for ${workoutDetails.size}/${workoutIds.length} workouts`,
+      );
+
+      // 4. Build movement -> trainingTypes mapping
+      const movementTypeMap = buildMovementTrainingTypeMap(tiles, workoutDetails, typeMap);
+
+      // 5. Write trainingTypes to each movement
+      let updated = 0;
+      for (const [movementId, types] of movementTypeMap) {
+        await ctx.runMutation(internal.tonal.workoutCatalogSync.updateMovementTrainingTypes, {
+          tonalId: movementId,
+          trainingTypes: types,
+        });
+        updated++;
+      }
+
+      console.log(`[workoutCatalogSync] Tagged ${updated} movements with training types`);
+
+      analytics.captureSystem("workout_catalog_synced", {
+        movements_tagged: updated,
+      });
+    });
+    await analytics.flush();
+  },
+});
+
+/** Durable workflow: sync workout catalog from Tonal API. */
+export const syncWorkoutCatalogWorkflow = workflow.define({
+  args: {},
+  handler: async (step): Promise<null> => {
+    const tokenUser = await step.runQuery(internal.userProfiles.getUserWithValidToken);
+    if (!tokenUser) {
+      console.warn("[workoutCatalogSync] No connected users - skipping");
+      return null;
     }
+
+    await step.runAction(internal.tonal.workoutCatalogSync.doSyncWorkoutCatalog, {
+      userId: tokenUser.userId,
+    });
+
+    return null;
+  },
+});
+
+/** Cron entry point: starts the workout catalog sync workflow. */
+export const startSyncWorkoutCatalog = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    await workflow.start(ctx, internal.tonal.workoutCatalogSync.syncWorkoutCatalogWorkflow, {});
   },
 });

@@ -4,9 +4,10 @@
  * and the incremental cron sync.
  */
 
+import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import type { ActionCtx } from "../_generated/server";
+import { type ActionCtx, internalAction } from "../_generated/server";
 import type { ExternalActivity, MuscleReadiness, StrengthScore } from "./types";
 
 /** Fetch current strength scores, muscle readiness, and external activities, then persist to DB.
@@ -86,3 +87,11 @@ export async function persistNewTableData(ctx: ActionCtx, userId: Id<"users">): 
 
   return failures;
 }
+
+/** Persist enrichment data. Callable as a workflow step. */
+export const doPersistNewTableData = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await persistNewTableData(ctx, userId);
+  },
+});

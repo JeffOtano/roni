@@ -11,7 +11,6 @@ const EXPIRED_TOKEN_ALERT_THRESHOLD = 2;
 
 export interface HealthSignals {
   expiredTokenCount: number;
-  stuckPushCount: number;
   circuitOpen: boolean;
 }
 
@@ -21,9 +20,6 @@ export function formatHealthSummary(signals: HealthSignals): string {
 
   if (signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD) {
     issues.push(`${signals.expiredTokenCount} expired tokens`);
-  }
-  if (signals.stuckPushCount > 0) {
-    issues.push(`${signals.stuckPushCount} stuck push(es)`);
   }
   if (signals.circuitOpen) {
     issues.push("Tonal API circuit breaker OPEN");
@@ -54,28 +50,19 @@ export const getExpiredTokenCount = internalQuery({
 /** Main health check action. Called by cron every 15 minutes. */
 export const runHealthCheck = internalAction({
   handler: async (ctx) => {
-    const now = Date.now();
-
-    const [expiredTokenCount, stuckPushIds, circuitOpen] = await Promise.all([
+    const [expiredTokenCount, circuitOpen] = await Promise.all([
       ctx.runQuery(internal.healthCheck.getExpiredTokenCount),
-      ctx.runQuery(internal.workoutPlans.getStuckPushingPlanIds, {
-        cutoffTs: now - 5 * 60 * 1000,
-        limit: 50,
-      }),
       ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" }),
     ]);
 
     const signals: HealthSignals = {
       expiredTokenCount,
-      stuckPushCount: stuckPushIds.length,
       circuitOpen,
     };
 
     const summary = formatHealthSummary(signals);
     const hasIssues =
-      signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD ||
-      signals.stuckPushCount > 0 ||
-      signals.circuitOpen;
+      signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD || signals.circuitOpen;
 
     if (hasIssues) {
       await ctx.runAction(internal.discord.notifyError, {
@@ -87,7 +74,6 @@ export const runHealthCheck = internalAction({
     analytics.captureSystem("health_check_completed", {
       has_issues: hasIssues,
       expired_tokens: signals.expiredTokenCount,
-      stuck_pushes: signals.stuckPushCount,
       circuit_open: signals.circuitOpen,
     });
     await analytics.flush();

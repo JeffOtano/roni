@@ -33,6 +33,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "setup": "tsx scripts/setup.ts",
     "knip": "knip",
     "test:e2e": "playwright test",
     "prepare": "husky"
@@ -60,6 +61,8 @@
     "@convex-dev/auth": "^0.0.91",
     "@convex-dev/migrations": "^0.3.3",
     "@convex-dev/rate-limiter": "^0.3.2",
+    "@convex-dev/workflow": "^0.3.10",
+    "@convex-dev/workpool": "^0.4.6",
     "@sentry/nextjs": "^10.47.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
@@ -105,6 +108,7 @@
     "lint-staged": "^16.3.3",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vite": "^8.0.8",
     "vitest": "^4.1.2"

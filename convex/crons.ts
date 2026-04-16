@@ -25,25 +25,19 @@ if (cronsEnabled()) {
     internal.activation.runActivationCheckForEligibleUsers,
   );
 
-  crons.interval(
-    "stuck-push-recovery",
-    { minutes: 15 },
-    internal.workoutPlans.runStuckPushRecovery,
-  );
-
   crons.interval("check-in-triggers", { hours: 6 }, internal.checkIns.runCheckInTriggerEvaluation);
 
   crons.cron(
     "sync-movement-catalog",
     "0 3 * * *",
-    internal.tonal.movementSync.syncMovementCatalog,
+    internal.tonal.movementSync.startSyncMovementCatalog,
     {},
   );
 
   crons.cron(
     "sync-workout-catalog",
     "0 4 * * 0",
-    internal.tonal.workoutCatalogSync.syncWorkoutCatalog,
+    internal.tonal.workoutCatalogSync.startSyncWorkoutCatalog,
     {},
   );
 

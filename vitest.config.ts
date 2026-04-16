@@ -60,6 +60,14 @@ export default defineConfig({
           },
         },
       },
+      {
+        test: {
+          name: "scripts",
+          globals: true,
+          environment: "node",
+          include: ["scripts/**/*.test.ts"],
+        },
+      },
     ],
   },
 });

@@ -11,7 +11,7 @@ export const refreshActiveUsers = internalAction({
 
     for (const profile of activeUsers) {
       try {
-        await ctx.runAction(internal.tonal.historySync.syncUserHistory, {
+        await ctx.runMutation(internal.tonal.historySync.startSyncUserHistory, {
           userId: profile.userId,
         });
       } catch (error) {
