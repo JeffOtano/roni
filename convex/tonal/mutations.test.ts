@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { correctDurationRepsMismatch, enrichPushErrorMessage, formatTonalTitle } from "./mutations";
+import { describe, expect, it, vi } from "vitest";
+import {
+  correctDurationRepsMismatch,
+  enrichPushErrorMessage,
+  formatTonalTitle,
+  retryOn5xx,
+} from "./mutations";
 import { TonalApiError } from "./client";
 import type { WorkoutSetInput } from "./types";
 
@@ -100,6 +105,78 @@ describe("formatTonalTitle", () => {
 
     expect(result).toContain(" · ");
     expect(result.endsWith("Quick Check")).toBe(true);
+  });
+});
+
+describe("retryOn5xx", () => {
+  it("returns the value on first success without retrying", async () => {
+    const fn = vi.fn(async () => "ok");
+
+    const result = await retryOn5xx(fn, 2);
+
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries on TonalApiError 5xx and eventually succeeds", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      if (calls < 3) throw new TonalApiError(503, "Service Unavailable");
+      return "ok";
+    };
+
+    const promise = retryOn5xx(fn, 2);
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result).toBe("ok");
+    expect(calls).toBe(3);
+    vi.useRealTimers();
+  });
+
+  it("does NOT retry on a 4xx — throws immediately", async () => {
+    const fn = vi.fn(async () => {
+      throw new TonalApiError(400, "Bad Request");
+    });
+
+    await expect(retryOn5xx(fn, 2)).rejects.toBeInstanceOf(TonalApiError);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry on a 401 — 401 must reach withTokenRetry quickly", async () => {
+    const fn = vi.fn(async () => {
+      throw new TonalApiError(401, "Unauthorized");
+    });
+
+    await expect(retryOn5xx(fn, 2)).rejects.toMatchObject({ status: 401 });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry on a plain Error", async () => {
+    const fn = vi.fn(async () => {
+      throw new Error("generic failure");
+    });
+
+    await expect(retryOn5xx(fn, 2)).rejects.toThrow("generic failure");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up and rethrows after maxRetries on persistent 5xx", async () => {
+    vi.useFakeTimers();
+    const fn = vi.fn(async () => {
+      throw new TonalApiError(500, "Internal Server Error");
+    });
+
+    // Attach the catch handler synchronously so the rejection is never unhandled.
+    const settled = retryOn5xx(fn, 2).catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+    const result = await settled;
+
+    expect(result).toMatchObject({ status: 500 });
+    expect(fn).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
   });
 });
 

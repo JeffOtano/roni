@@ -42,13 +42,25 @@ export function enrichPushErrorMessage(
   return `Push failed for "${title}" (movements: ${unique.join(", ")}). Tonal error: ${originalError}`;
 }
 
-/** Drop keys with `undefined` values while preserving the type's shape. */
-function stripUndefined<T extends object>(obj: T): T {
-  const result = {} as T;
-  for (const key of Object.keys(obj) as Array<keyof T>) {
-    if (obj[key] !== undefined) result[key] = obj[key];
+/**
+ * Retry `fn` up to `maxRetries` times on transient Tonal 5xx responses,
+ * with 3s/6s backoff. Any non-5xx (4xx, 401, non-Tonal error) bubbles
+ * immediately so 401-refresh and terminal-failure paths aren't delayed.
+ */
+export async function retryOn5xx<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is5xx = err instanceof TonalApiError && err.status >= 500;
+      if (!is5xx || attempt >= maxRetries) throw err;
+      const delayMs = 3000 * (attempt + 1);
+      console.warn(
+        `Tonal ${(err as TonalApiError).status} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delayMs / 1000}s`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
-  return result;
 }
 
 /** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
@@ -71,11 +83,8 @@ export const pushWorkoutToTonal = internalAction({
         `Invalid movement IDs. You must use search_exercises to get real IDs from Tonal's catalog. Do not fabricate IDs. Errors: ${validation.errors.join(", ")}`,
       );
     }
-    const rawSets = expandBlocksToSets(blocks as BlockInput[], catalog);
-    correctDurationRepsMismatch(rawSets, catalog);
-
-    // Keeps logged payloads clean; JSON.stringify already elides undefined on the wire.
-    const sets: WorkoutSetInput[] = rawSets.map((s) => stripUndefined(s));
+    const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
+    correctDurationRepsMismatch(sets, catalog);
 
     const payload = { title, sets, createdSource: "WorkoutBuilder" };
     console.log(
@@ -85,10 +94,12 @@ export const pushWorkoutToTonal = internalAction({
     return withTokenRetry(ctx, userId, async (token) => {
       let workout: { id: string };
       try {
-        workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
-          method: "POST",
-          body: payload,
-        });
+        workout = await retryOn5xx(() =>
+          tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
+            method: "POST",
+            body: payload,
+          }),
+        );
       } catch (err) {
         // Let 401s propagate to withTokenRetry for automatic token refresh
         if (err instanceof TonalApiError && err.status === 401) throw err;
