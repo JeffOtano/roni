@@ -130,7 +130,7 @@ export default function ContactPage() {
                   placeholder="What's on your mind?"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   disabled={status === "submitting"}
                 />
               </div>

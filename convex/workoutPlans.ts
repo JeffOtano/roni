@@ -369,7 +369,7 @@ export const markDeleted = internalMutation({
   handler: async (ctx, { tonalWorkoutId }) => {
     const plan = await ctx.db
       .query("workoutPlans")
-      .filter((q) => q.eq(q.field("tonalWorkoutId"), tonalWorkoutId))
+      .withIndex("by_tonalWorkoutId", (q) => q.eq("tonalWorkoutId", tonalWorkoutId))
       .unique();
 
     if (plan) {

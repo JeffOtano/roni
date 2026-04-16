@@ -43,9 +43,8 @@ export const getExpiredTokenCount = internalQuery({
     const now = Date.now();
     const profiles = await ctx.db
       .query("userProfiles")
-      .withIndex("by_tonalTokenExpiresAt")
-      .filter((q) =>
-        q.and(q.gt(q.field("tonalTokenExpiresAt"), 0), q.lt(q.field("tonalTokenExpiresAt"), now)),
+      .withIndex("by_tonalTokenExpiresAt", (q) =>
+        q.gt("tonalTokenExpiresAt", 0).lt("tonalTokenExpiresAt", now),
       )
       .collect();
     return profiles.length;

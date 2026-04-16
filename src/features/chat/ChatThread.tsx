@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { useUIMessages } from "@convex-dev/agent/react";
-import { toUIMessages } from "@convex-dev/agent";
+import { toUIMessages, vMessageDoc } from "@convex-dev/agent";
 import type { UIMessage } from "@convex-dev/agent/react";
+import { parse } from "convex-helpers/validators";
 import { api } from "../../../convex/_generated/api";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
@@ -50,9 +51,13 @@ export function ChatThread({ userInitial, threadId }: ChatThreadProps) {
 
   const handleLoadEarlier = () => {
     if (!history || history.messages.length === 0) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const converted = toUIMessages(history.messages as any);
-    setHistoricalMessages((prev) => [...converted, ...prev]);
+    try {
+      const validated = history.messages.map((m) => parse(vMessageDoc, m));
+      const converted = toUIMessages(validated);
+      setHistoricalMessages((prev) => [...converted, ...prev]);
+    } catch (e) {
+      console.error("Failed to parse historical messages:", e);
+    }
   };
 
   // Show a local pending message until the server confirms it.
