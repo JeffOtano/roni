@@ -3,7 +3,6 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import { components } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { listMessages } from "@convex-dev/agent";
-import { CACHE_TTLS } from "./tonal/cache";
 
 // ---------------------------------------------------------------------------
 // Panel 2: Cache Inspector
@@ -184,13 +183,6 @@ export const listThreadMessages = query({
     });
 
     return result.page;
-  },
-});
-
-export const getCacheTTLs = query({
-  args: {},
-  handler: async () => {
-    return CACHE_TTLS;
   },
 });
 
