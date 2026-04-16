@@ -1,19 +1,15 @@
 import { v } from "convex/values";
-import {
-  action,
-  internalAction,
-  internalMutation,
-  internalQuery,
-  query,
-} from "./_generated/server";
+import { action, internalMutation, internalQuery, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { api, internal } from "./_generated/api";
-import type { ActionCtx } from "./_generated/server";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import { blockInputValidator } from "./validators";
 import * as analytics from "./lib/posthog";
+import { vWorkflowId } from "@convex-dev/workflow";
+import { vResultValidator } from "@convex-dev/workpool";
+import { workflow } from "./workflows";
 
-type RetryPushResult = { success: true; workoutId: string } | { success: false; error: string };
+type RetryPushResult = { success: true; started: true } | { success: false; error: string };
 
 const statusValidator = v.union(
   v.literal("draft"),
@@ -152,40 +148,73 @@ export const getByIdInternal = internalQuery({
   },
 });
 
-/** Atomically claim a recovered Tonal workout if no other plan already owns it. */
-export const claimRecoveredWorkout = internalMutation({
+/** Durable workflow: claim plan, push to Tonal, record outcome, invalidate cache. */
+export const retryPushWorkflow = workflow.define({
   args: {
     planId: v.id("workoutPlans"),
     userId: v.id("users"),
-    tonalWorkoutId: v.string(),
-    pushedAt: v.number(),
+    title: v.string(),
+    blocks: blockInputValidator,
   },
-  handler: async (ctx, { planId, userId, tonalWorkoutId, pushedAt }) => {
-    const plan = await ctx.db.get(planId);
-    if (!plan || plan.userId !== userId) {
-      return { error: "Plan not found or not owned by user" } as const;
-    }
-
-    const plans = await ctx.db
-      .query("workoutPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
-    if (plans.some((p) => p._id !== planId && p.tonalWorkoutId === tonalWorkoutId)) {
-      return { error: "Workout already claimed" } as const;
-    }
-
-    await ctx.db.patch(planId, {
-      status: "pushed" as const,
-      tonalWorkoutId,
-      pushedAt,
-      pushErrorReason: undefined,
+  handler: async (step, args): Promise<{ workoutId: string }> => {
+    const claimed = await step.runMutation(internal.workoutPlans.transitionToPushing, {
+      planId: args.planId,
     });
-    return { ok: true } as const;
+    if (!claimed) throw new Error("Plan cannot be retried or another push is in progress");
+
+    const result = await step.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
+      userId: args.userId,
+      title: args.title,
+      blocks: args.blocks,
+    });
+
+    await step.runMutation(internal.workoutPlans.updatePushOutcome, {
+      planId: args.planId,
+      status: "pushed",
+      tonalWorkoutId: result.id,
+      pushedAt: Date.now(),
+    });
+
+    await step.runMutation(internal.tonal.cache.setCacheEntry, {
+      userId: args.userId,
+      dataType: "customWorkouts",
+      data: null,
+      fetchedAt: 0,
+      expiresAt: 0,
+    });
+
+    return { workoutId: result.id };
   },
 });
 
-/** Retry pushing a failed/draft plan to Tonal. TOCTOU-safe via transitionToPushing. */
+/** onComplete handler: success analytics, failure status + Discord notification. */
+export const onRetryPushComplete = internalMutation({
+  args: {
+    workflowId: vWorkflowId,
+    result: vResultValidator,
+    context: v.object({ planId: v.id("workoutPlans"), userId: v.id("users") }),
+  },
+  handler: async (ctx, { result, context }) => {
+    if (result.kind === "success") {
+      analytics.capture(context.userId, "workout_pushed", { plan_id: context.planId });
+      await analytics.flush();
+      return;
+    }
+    const reason =
+      result.kind === "canceled" ? "Push was canceled" : (result.error ?? "Unknown error");
+    await ctx.db.patch(context.planId, {
+      status: "failed" as const,
+      pushErrorReason: reason,
+    });
+    analytics.capture(context.userId, "workout_push_failed", {
+      plan_id: context.planId,
+      error: reason,
+    });
+    await analytics.flush();
+  },
+});
+
+/** Retry pushing a failed/draft plan to Tonal. Starts a durable workflow. */
 export const retryPush = action({
   args: { planId: v.id("workoutPlans") },
   handler: async (ctx, { planId }): Promise<RetryPushResult> => {
@@ -202,165 +231,18 @@ export const retryPush = action({
             ? "Push already in progress"
             : `Plan cannot be retried (status: ${plan.status})`,
       };
-    const claimed = await ctx.runMutation(internal.workoutPlans.transitionToPushing, { planId });
-    if (!claimed)
-      return {
-        success: false,
-        error: "Plan cannot be retried or another push is in progress",
-      };
-    try {
-      const result = await ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
-        userId,
-        title: plan.title,
-        blocks: plan.blocks,
-      });
-      const id = result.id;
-      const now = Date.now();
-      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-        planId,
-        status: "pushed",
-        tonalWorkoutId: id,
-        pushedAt: now,
-      });
-      await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-        userId,
-        dataType: "customWorkouts",
-        data: null,
-        fetchedAt: 0,
-        expiresAt: 0,
-      });
-      analytics.capture(userId, "workout_pushed", { plan_id: planId });
-      await analytics.flush();
-      return { success: true, workoutId: id };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-        planId,
-        status: "failed",
-        pushErrorReason: message,
-      });
-      analytics.capture(userId, "workout_push_failed", { plan_id: planId, error: message });
-      await analytics.flush();
-      return { success: false, error: message };
-    }
-  },
-});
 
-const STUCK_PUSH_CUTOFF_MS = 5 * 60 * 1000;
-const STUCK_PUSH_BATCH_SIZE = 50;
-
-/** Plan IDs stuck in "pushing" longer than cutoff (for cron recovery). */
-export const getStuckPushingPlanIds = internalQuery({
-  args: {
-    cutoffTs: v.number(),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { cutoffTs, limit = STUCK_PUSH_BATCH_SIZE }) => {
-    const plans = await ctx.db
-      .query("workoutPlans")
-      .withIndex("by_status", (q) => q.eq("status", "pushing"))
-      .collect();
-    return plans
-      .filter((p) => p.createdAt < cutoffTs)
-      .map((p) => p._id)
-      .slice(0, limit);
-  },
-});
-
-/** Try to find and claim a matching workout on Tonal for a stuck plan. */
-async function tryRecoverPlan(
-  ctx: ActionCtx,
-  planId: Id<"workoutPlans">,
-  plan: Doc<"workoutPlans">,
-): Promise<boolean> {
-  try {
-    const customWorkouts = await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
-      userId: plan.userId,
-    });
-    const planCreatedIso = new Date(plan.createdAt).toISOString();
-    const candidates = customWorkouts.filter(
-      (w: { id: string; title: string; createdAt: string }) =>
-        w.title === plan.title && w.createdAt >= planCreatedIso,
+    await workflow.start(
+      ctx,
+      internal.workoutPlans.retryPushWorkflow,
+      { planId, userId, title: plan.title, blocks: plan.blocks },
+      {
+        onComplete: internal.workoutPlans.onRetryPushComplete,
+        context: { planId, userId },
+      },
     );
 
-    if (candidates.length > 1) {
-      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-        planId,
-        status: "failed",
-        pushErrorReason: `Ambiguous: ${candidates.length} Tonal matches for "${plan.title}"`,
-      });
-      console.warn(
-        `[stuckPushRecovery] ${candidates.length} ambiguous Tonal matches for plan ${planId} - marking failed`,
-      );
-      return true;
-    }
-
-    if (candidates.length === 1) {
-      const result = await ctx.runMutation(internal.workoutPlans.claimRecoveredWorkout, {
-        planId,
-        userId: plan.userId,
-        tonalWorkoutId: candidates[0].id,
-        pushedAt: Date.now(),
-      });
-      if ("ok" in result) {
-        analytics.capture(plan.userId, "workout_push_recovered", { plan_id: planId });
-        console.log(
-          `[stuckPushRecovery] Recovered plan ${planId} - found matching workout ${candidates[0].id} on Tonal`,
-        );
-        return true;
-      }
-      await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-        planId,
-        status: "failed",
-        pushErrorReason: result.error,
-      });
-      console.warn(
-        `[stuckPushRecovery] Could not claim workout ${candidates[0].id} for plan ${planId}: ${result.error}`,
-      );
-      return true; // Handled with specific reason, not generic timeout.
-    }
-
-    return false;
-  } catch (err) {
-    console.warn(`[stuckPushRecovery] Could not check Tonal for plan ${planId}:`, err);
-    return false;
-  }
-}
-
-/** Cron: mark stuck "pushing" plans as failed, recovering any that made it to Tonal. */
-export const runStuckPushRecovery = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    try {
-      const cutoffTs = Date.now() - STUCK_PUSH_CUTOFF_MS;
-      const ids = await ctx.runQuery(internal.workoutPlans.getStuckPushingPlanIds, {
-        cutoffTs,
-        limit: STUCK_PUSH_BATCH_SIZE,
-      });
-      for (const planId of ids) {
-        const plan = await ctx.runQuery(internal.workoutPlans.getByIdInternal, { planId });
-        if (!plan) {
-          console.warn(`[stuckPushRecovery] Plan ${planId} no longer exists, skipping`);
-          continue;
-        }
-
-        const recovered = await tryRecoverPlan(ctx, planId, plan);
-        if (!recovered) {
-          await ctx.runMutation(internal.workoutPlans.updatePushOutcome, {
-            planId,
-            status: "failed",
-            pushErrorReason: "Push timed out",
-          });
-        }
-      }
-      await analytics.flush();
-    } catch (error) {
-      console.error("[stuckPushRecovery] Recovery failed:", error);
-      void ctx.runAction(internal.discord.notifyError, {
-        source: "stuckPushRecovery",
-        message: `Stuck push recovery failed: ${error instanceof Error ? error.message : String(error)}`,
-      });
-    }
+    return { success: true, started: true };
   },
 });
 

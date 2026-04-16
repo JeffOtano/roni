@@ -25,12 +25,6 @@ if (cronsEnabled()) {
     internal.activation.runActivationCheckForEligibleUsers,
   );
 
-  crons.interval(
-    "stuck-push-recovery",
-    { minutes: 15 },
-    internal.workoutPlans.runStuckPushRecovery,
-  );
-
   crons.interval("check-in-triggers", { hours: 6 }, internal.checkIns.runCheckInTriggerEvaluation);
 
   crons.cron(
