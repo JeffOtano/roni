@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { correctDurationRepsMismatch, enrichPushErrorMessage, formatTonalTitle } from "./mutations";
+import { describe, expect, it, vi } from "vitest";
+import {
+  correctDurationRepsMismatch,
+  enrichPushErrorMessage,
+  formatTonalTitle,
+  retryOn5xx,
+} from "./mutations";
 import { TonalApiError } from "./client";
 import type { WorkoutSetInput } from "./types";
 
@@ -103,34 +108,90 @@ describe("formatTonalTitle", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 401 propagation through inner retry loop
-//
-// The 5xx retry loop inside createWorkout must NOT wrap 401 TonalApiErrors
-// in a plain Error, otherwise withTokenRetry can't detect them for token
-// refresh. This mirrors the catch-block logic in doTonalCreateWorkout.
-// ---------------------------------------------------------------------------
+describe("retryOn5xx", () => {
+  it("returns the value on first success without retrying", async () => {
+    const fn = vi.fn(async () => "ok");
 
-describe("401 propagation through inner retry loop", () => {
-  /**
-   * Simulates the catch block in the createWorkout 5xx retry loop.
-   * Must match the real logic in mutations.ts doTonalCreateWorkout.
-   */
-  function simulateInnerRetryErrorHandling(err: unknown, title: string, movementIds: string[]) {
-    const is5xx = err instanceof TonalApiError && err.status >= 500;
-    if (!is5xx) {
-      if (err instanceof TonalApiError && err.status === 401) throw err;
-      const errMsg = err instanceof Error ? err.message : String(err);
-      throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
-    }
-    throw err;
+    const result = await retryOn5xx(fn, 2);
+
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries on TonalApiError 5xx and eventually succeeds", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      if (calls < 3) throw new TonalApiError(503, "Service Unavailable");
+      return "ok";
+    };
+
+    const promise = retryOn5xx(fn, 2);
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result).toBe("ok");
+    expect(calls).toBe(3);
+    vi.useRealTimers();
+  });
+
+  it("does NOT retry on a 4xx — throws immediately", async () => {
+    const fn = vi.fn(async () => {
+      throw new TonalApiError(400, "Bad Request");
+    });
+
+    await expect(retryOn5xx(fn, 2)).rejects.toBeInstanceOf(TonalApiError);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry on a 401 — 401 must reach withTokenRetry quickly", async () => {
+    const fn = vi.fn(async () => {
+      throw new TonalApiError(401, "Unauthorized");
+    });
+
+    await expect(retryOn5xx(fn, 2)).rejects.toMatchObject({ status: 401 });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT retry on a plain Error", async () => {
+    const fn = vi.fn(async () => {
+      throw new Error("generic failure");
+    });
+
+    await expect(retryOn5xx(fn, 2)).rejects.toThrow("generic failure");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up and rethrows after maxRetries on persistent 5xx", async () => {
+    vi.useFakeTimers();
+    const fn = vi.fn(async () => {
+      throw new TonalApiError(500, "Internal Server Error");
+    });
+
+    // Attach the catch handler synchronously so the rejection is never unhandled.
+    const settled = retryOn5xx(fn, 2).catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+    const result = await settled;
+
+    expect(result).toMatchObject({ status: 500 });
+    expect(fn).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+});
+
+describe("pushWorkoutToTonal catch block", () => {
+  function simulateCatch(err: unknown, title: string, movementIds: string[]) {
+    if (err instanceof TonalApiError && err.status === 401) throw err;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
   }
 
   it("re-throws TonalApiError 401 directly without wrapping", () => {
     const original = new TonalApiError(401, "token is expired by 33s");
 
     try {
-      simulateInnerRetryErrorHandling(original, "Full body", ["m1"]);
+      simulateCatch(original, "Full body", ["m1"]);
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(TonalApiError);
@@ -139,11 +200,11 @@ describe("401 propagation through inner retry loop", () => {
     }
   });
 
-  it("wraps non-401 errors with enrichPushErrorMessage", () => {
+  it("wraps 4xx errors with enrichPushErrorMessage", () => {
     const original = new TonalApiError(400, "Bad Request");
 
     try {
-      simulateInnerRetryErrorHandling(original, "Push Day", ["m1", "m2"]);
+      simulateCatch(original, "Push Day", ["m1", "m2"]);
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
@@ -153,14 +214,17 @@ describe("401 propagation through inner retry loop", () => {
     }
   });
 
-  it("re-throws 5xx errors directly", () => {
+  it("wraps 5xx errors with enrichPushErrorMessage", () => {
     const original = new TonalApiError(500, "Internal Server Error");
 
     try {
-      simulateInnerRetryErrorHandling(original, "Leg Day", ["m1"]);
+      simulateCatch(original, "Leg Day", ["m1"]);
       expect.fail("should have thrown");
     } catch (err) {
-      expect(err).toBe(original);
+      expect(err).toBeInstanceOf(Error);
+      expect(err).not.toBeInstanceOf(TonalApiError);
+      expect((err as Error).message).toContain("Leg Day");
+      expect((err as Error).message).toContain("Internal Server Error");
     }
   });
 });

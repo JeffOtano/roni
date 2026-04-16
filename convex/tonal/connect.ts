@@ -44,7 +44,7 @@ export const connectTonal = internalAction({
     // 6. Seed movements table if empty (first user connecting)
     const existingMovements = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     if (existingMovements.length === 0) {
-      await ctx.runAction(internal.tonal.movementSync.syncMovementCatalog, {});
+      await ctx.runAction(internal.tonal.movementSync.doSyncMovements, { userId });
     }
 
     // 7. Cache user profile
@@ -63,8 +63,8 @@ export const connectTonal = internalAction({
       tonalName: `${profile.firstName} ${profile.lastName}`,
     });
 
-    // 9. Backfill historical training data (non-blocking)
-    await ctx.scheduler.runAfter(0, internal.tonal.historySync.backfillUserHistory, {
+    // 9. Backfill historical training data (non-blocking, via durable workflow)
+    await ctx.runMutation(internal.tonal.historySync.startBackfillUserHistory, {
       userId,
     });
 

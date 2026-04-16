@@ -11,10 +11,7 @@ import { cachedFetch } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
-/**
- * Correct sets where a duration-based movement was incorrectly assigned prescribedReps.
- * Mutates the sets in place; returns the number of corrections made.
- */
+/** Mutates `sets` in place; returns the number of corrections made. */
 export function correctDurationRepsMismatch(
   sets: WorkoutSetInput[],
   catalog: Array<{ id: string; name?: string; countReps: boolean }>,
@@ -36,7 +33,6 @@ export function correctDurationRepsMismatch(
   return corrections;
 }
 
-/** Build an error message that includes workout context for debugging push failures. */
 export function enrichPushErrorMessage(
   originalError: string,
   title: string,
@@ -46,8 +42,25 @@ export function enrichPushErrorMessage(
   return `Push failed for "${title}" (movements: ${unique.join(", ")}). Tonal error: ${originalError}`;
 }
 
-/** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
-export const doTonalCreateWorkout = internalAction({
+/** 3s/6s backoff on Tonal 5xx; 4xx/401/non-Tonal bubble immediately. */
+export async function retryOn5xx<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is5xx = err instanceof TonalApiError && err.status >= 500;
+      if (!is5xx || attempt >= maxRetries) throw err;
+      const delayMs = 3000 * (attempt + 1);
+      console.warn(
+        `Tonal ${(err as TonalApiError).status} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delayMs / 1000}s`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+/** Pushes to Tonal only — the caller records the plan. Used by createWorkout and retryPush. */
+export const pushWorkoutToTonal = internalAction({
   args: {
     userId: v.id("users"),
     title: v.string(),
@@ -66,15 +79,8 @@ export const doTonalCreateWorkout = internalAction({
         `Invalid movement IDs. You must use search_exercises to get real IDs from Tonal's catalog. Do not fabricate IDs. Errors: ${validation.errors.join(", ")}`,
       );
     }
-    const rawSets = expandBlocksToSets(blocks as BlockInput[], catalog);
-    correctDurationRepsMismatch(rawSets, catalog);
-
-    // Strip undefined fields from each set before sending to Tonal.
-    // JSON.stringify drops undefined values, but Tonal's Go backend
-    // may reject null values for optional fields like prescribedReps/prescribedDuration.
-    const sets = rawSets.map((s) =>
-      Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)),
-    );
+    const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
+    correctDurationRepsMismatch(sets, catalog);
 
     const payload = { title, sets, createdSource: "WorkoutBuilder" };
     console.log(
@@ -83,38 +89,27 @@ export const doTonalCreateWorkout = internalAction({
 
     return withTokenRetry(ctx, userId, async (token) => {
       let workout: { id: string };
-      const MAX_RETRIES = 2;
-      for (let attempt = 0; ; attempt++) {
-        try {
-          workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
+      try {
+        workout = await retryOn5xx(() =>
+          tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
             method: "POST",
             body: payload,
-          });
-          break;
-        } catch (err) {
-          const is5xx = err instanceof TonalApiError && err.status >= 500;
-          if (!is5xx || attempt >= MAX_RETRIES) {
-            // Let 401s propagate to withTokenRetry for automatic token refresh
-            if (err instanceof TonalApiError && err.status === 401) throw err;
-            console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
-            const movementIds = sets.map((s) => s.movementId as string);
-            const errMsg = err instanceof Error ? err.message : String(err);
-            throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
-          }
-          const delay = 3000 * (attempt + 1);
-          console.warn(
-            `createWorkout: Tonal ${(err as TonalApiError).status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay / 1000}s`,
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
+          }),
+        );
+      } catch (err) {
+        // Let 401s propagate to withTokenRetry for automatic token refresh
+        if (err instanceof TonalApiError && err.status === 401) throw err;
+        console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
+        const movementIds = sets.map((s) => s.movementId);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
       }
       const tonalWorkoutId = workout.id;
 
-      // Soft verification: read back custom workouts list to confirm push
+      // Best-effort verification; never throws — the push itself already succeeded.
       try {
         const customWorkouts = await tonalFetch<Array<{ id: string }>>(token, `/v6/user-workouts`);
-        const verified = customWorkouts?.some((w) => w.id === tonalWorkoutId);
-        if (!verified) {
+        if (!customWorkouts?.some((w) => w.id === tonalWorkoutId)) {
           console.warn(`Push verification: workout ${tonalWorkoutId} not found in read-back`);
         }
       } catch {
@@ -144,7 +139,6 @@ export const shareWorkout = internalAction({
   },
 });
 
-/** Delete all custom workouts from a user's Tonal account. */
 export const deleteAllCustomWorkouts = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<{ deleted: number }> => {
@@ -155,7 +149,6 @@ export const deleteAllCustomWorkouts = internalAction({
         try {
           await tonalFetch(token, `/v6/user-workouts/${w.id}`, { method: "DELETE" });
           deleted++;
-          // Rate limit
           await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (e) {
           console.error(`Failed to delete workout ${w.id}:`, e);
@@ -210,7 +203,7 @@ export const createWorkout = internalAction({
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
       const tonalTitle = title;
-      const { id } = await ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
+      const { id } = await ctx.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
         userId,
         title: tonalTitle,
         blocks,
@@ -290,7 +283,6 @@ export const deleteWorkout = internalAction({
     }),
 });
 
-/** Estimate workout duration from exercise blocks. */
 export const estimateWorkout = internalAction({
   args: {
     userId: v.id("users"),
