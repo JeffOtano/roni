@@ -1,5 +1,22 @@
+import { APICallError } from "@ai-sdk/provider";
 import { describe, expect, it } from "vitest";
 import { classifyByokError, isTransientError, withByokErrorSanitization } from "./resilience";
+
+function apiCallError(overrides: {
+  statusCode?: number;
+  isRetryable?: boolean;
+  responseBody?: string;
+  message?: string;
+}): APICallError {
+  return new APICallError({
+    message: overrides.message ?? "API call failed",
+    url: "https://example.test/v1/messages",
+    requestBodyValues: {},
+    statusCode: overrides.statusCode,
+    isRetryable: overrides.isRetryable ?? false,
+    responseBody: overrides.responseBody,
+  });
+}
 
 describe("isTransientError", () => {
   it("returns true for network errors", () => {
@@ -71,6 +88,15 @@ describe("isTransientError", () => {
 
   it("returns false for generic errors without status", () => {
     expect(isTransientError(new Error("Something broke"))).toBe(false);
+  });
+
+  it("defers to APICallError.isRetryable = true", () => {
+    expect(isTransientError(apiCallError({ statusCode: 529, isRetryable: true }))).toBe(true);
+  });
+
+  it("defers to APICallError.isRetryable = false even when status looks transient", () => {
+    // SDK says don't retry (e.g., auth-layer 429), trust it.
+    expect(isTransientError(apiCallError({ statusCode: 429, isRetryable: false }))).toBe(false);
   });
 });
 
@@ -154,6 +180,22 @@ describe("classifyByokError", () => {
     expect(classifyByokError("oops")).toBeNull();
     expect(classifyByokError(null)).toBeNull();
     expect(classifyByokError(undefined)).toBeNull();
+  });
+
+  it("classifies APICallError 401 via statusCode, not ad-hoc .status", () => {
+    expect(classifyByokError(apiCallError({ statusCode: 401 }))).toBe("byok_key_invalid");
+  });
+
+  it("classifies APICallError 429 via statusCode", () => {
+    expect(classifyByokError(apiCallError({ statusCode: 429 }))).toBe("byok_quota_exceeded");
+  });
+
+  it("classifies APICallError 400 billing body via responseBody", () => {
+    const err = apiCallError({
+      statusCode: 400,
+      responseBody: JSON.stringify({ error: { message: "Your credit balance is too low" } }),
+    });
+    expect(classifyByokError(err)).toBe("byok_quota_exceeded");
   });
 });
 

@@ -1,6 +1,7 @@
 import type { Agent } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
+import { APICallError } from "@ai-sdk/provider";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
@@ -39,6 +40,10 @@ const TRANSIENT_MESSAGE_PATTERNS = [
 ];
 
 export function isTransientError(error: unknown): boolean {
+  // Prefer the SDK's own retry decision — it knows provider-specific cases
+  // like Anthropic 529 "overloaded" that our pattern list would miss.
+  if (APICallError.isInstance(error)) return error.isRetryable;
+
   if (error instanceof TypeError && error.message.includes("fetch")) return true;
 
   if (error instanceof Error) {
@@ -84,7 +89,11 @@ function gatherErrorText(error: Error): string {
 export function classifyByokError(error: unknown): ByokErrorCode | null {
   if (!(error instanceof Error)) return null;
 
-  const status = (error as Error & { status?: number }).status;
+  // APICallError exposes a typed statusCode; fall back to ad-hoc `.status`
+  // on bare errors (raw fetch, provider SDKs that don't wrap in APICallError).
+  const status = APICallError.isInstance(error)
+    ? error.statusCode
+    : (error as Error & { status?: number }).status;
   const lower = gatherErrorText(error);
 
   if (status === 401 || status === 403) return "byok_key_invalid";
