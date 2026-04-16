@@ -83,30 +83,18 @@ export const doTonalCreateWorkout = internalAction({
 
     return withTokenRetry(ctx, userId, async (token) => {
       let workout: { id: string };
-      const MAX_RETRIES = 2;
-      for (let attempt = 0; ; attempt++) {
-        try {
-          workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
-            method: "POST",
-            body: payload,
-          });
-          break;
-        } catch (err) {
-          const is5xx = err instanceof TonalApiError && err.status >= 500;
-          if (!is5xx || attempt >= MAX_RETRIES) {
-            // Let 401s propagate to withTokenRetry for automatic token refresh
-            if (err instanceof TonalApiError && err.status === 401) throw err;
-            console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
-            const movementIds = sets.map((s) => s.movementId as string);
-            const errMsg = err instanceof Error ? err.message : String(err);
-            throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
-          }
-          const delay = 3000 * (attempt + 1);
-          console.warn(
-            `createWorkout: Tonal ${(err as TonalApiError).status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay / 1000}s`,
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
+      try {
+        workout = await tonalFetch<{ id: string }>(token, "/v6/user-workouts", {
+          method: "POST",
+          body: payload,
+        });
+      } catch (err) {
+        // Let 401s propagate to withTokenRetry for automatic token refresh
+        if (err instanceof TonalApiError && err.status === 401) throw err;
+        console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
+        const movementIds = sets.map((s) => s.movementId as string);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
       }
       const tonalWorkoutId = workout.id;
 
