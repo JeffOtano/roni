@@ -233,7 +233,8 @@ export default defineSchema({
     pushedAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_tonalWorkoutId", ["tonalWorkoutId"]),
 
   /** 7-day training schedule. Each day has a session type, status, and optional linked workout. */
   weekPlans: defineTable({
@@ -441,6 +442,7 @@ export default defineSchema({
   })
     .index("by_userId_movementId", ["userId", "movementId"])
     .index("by_userId_activityId", ["userId", "activityId"])
+    .index("by_userId_activityId_movementId", ["userId", "activityId", "movementId"])
     .index("by_userId_date", ["userId", "date"]),
 
   /** Strength score snapshots over time (synced from Tonal history). */
