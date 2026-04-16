@@ -211,9 +211,7 @@ describe("buildMovementSummaries", () => {
     expect(m1.totalReps).toBe(18);
   });
 
-  it("preserves doubled avgWeight from enriched StraightBar sets", () => {
-    // Simulates what happens after enrichment doubles avgWeight for StraightBar.
-    // A barbell front squat where per-motor avgWeight was 47, doubled to 94.
+  it("computes avgWeightLbs from per-set avgWeight (doubled for StraightBar)", () => {
     const sets = [
       makeSet({ id: "s1", movementId: "bar1", movementName: "Barbell Front Squat", avgWeight: 94 }),
       makeSet({ id: "s2", movementId: "bar1", movementName: "Barbell Front Squat", avgWeight: 94 }),
@@ -222,9 +220,15 @@ describe("buildMovementSummaries", () => {
     const result = buildMovementSummaries(sets, new Map());
     const summary = result.find((r) => r.movementId === "bar1")!;
 
-    // avgWeightLbs comes from volumeMap, not from set.avgWeight,
-    // so it will be 0 here (no volume data). That's expected.
     expect(summary.totalSets).toBe(2);
     expect(summary.totalReps).toBe(20);
+    expect(summary.avgWeightLbs).toBe(94);
+  });
+
+  it("returns avgWeightLbs 0 when sets have no avgWeight", () => {
+    const sets = [makeSet({ id: "s1", movementId: "m1", avgWeight: undefined })];
+
+    const result = buildMovementSummaries(sets, new Map());
+    expect(result[0].avgWeightLbs).toBe(0);
   });
 });

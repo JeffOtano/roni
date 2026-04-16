@@ -109,7 +109,7 @@ describe("aggregateDetailToSessions", () => {
     expect(result.size).toBe(0);
   });
 
-  it("computes avgWeightLbs when volumeByMovement is provided", () => {
+  it("computes avgWeightLbs from per-set avgWeight", () => {
     const detail = makeDetail({
       workoutSetActivity: [
         {
@@ -126,6 +126,7 @@ describe("aggregateDetailToSessions", () => {
           warmUp: false,
           beginTime: "2026-03-10T10:00:00Z",
           sideNumber: 0,
+          avgWeight: 50,
         },
         {
           id: "s2",
@@ -141,18 +142,19 @@ describe("aggregateDetailToSessions", () => {
           warmUp: false,
           beginTime: "2026-03-10T10:02:00Z",
           sideNumber: 0,
+          avgWeight: 60,
         },
       ],
     });
-    const volumeByMovement = new Map([["m1", 2000]]);
 
-    const result = aggregateDetailToSessions(detail, volumeByMovement);
+    const result = aggregateDetailToSessions(detail);
 
     const m1 = result.get("m1");
-    expect(m1!.avgWeightLbs).toBe(100); // 2000 / 20 = 100
+    // Weighted average: (50*10 + 60*10) / 20 = 55
+    expect(m1!.avgWeightLbs).toBe(55);
   });
 
-  it("omits avgWeightLbs when volume data is not provided", () => {
+  it("omits avgWeightLbs when sets have no avgWeight", () => {
     const detail = makeDetail({
       workoutSetActivity: [
         {

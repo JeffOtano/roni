@@ -67,22 +67,22 @@ async function processOneActivity(
   }
   if (!detail) return { workout, performances: [] };
 
-  // Fetch formatted summary for per-movement volume (optional)
-  let volumeByMovement: Map<string, number> | undefined;
+  // Fetch formatted summary for per-movement totalVolume (optional).
+  // totalVolume is a work-based metric (not weight x reps); kept for volume display.
+  const volumeByMovement = new Map<string, number>();
   try {
     const summary = (await ctx.runAction(internal.tonal.proxy.fetchFormattedSummary, {
       userId,
       summaryId: activityId,
     })) as FormattedWorkoutSummary;
-    volumeByMovement = new Map<string, number>();
     for (const ms of summary.movementSets ?? []) {
       volumeByMovement.set(ms.movementId, ms.totalVolume);
     }
   } catch {
-    // Summary optional -- we still have sets/reps from detail
+    // Summary optional
   }
 
-  const sessionMap = aggregateDetailToSessions(detail, volumeByMovement);
+  const sessionMap = aggregateDetailToSessions(detail);
   const performances: PerformancePayload[] = [];
   for (const [movementId, snap] of sessionMap) {
     performances.push({
@@ -92,7 +92,7 @@ async function processOneActivity(
       sets: snap.sets,
       totalReps: snap.totalReps,
       avgWeightLbs: snap.avgWeightLbs,
-      totalVolume: volumeByMovement?.get(movementId),
+      totalVolume: volumeByMovement.get(movementId),
     });
   }
 

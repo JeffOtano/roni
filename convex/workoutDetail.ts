@@ -122,20 +122,35 @@ export function buildMovementSummaries(
 ): MovementSummary[] {
   const grouped = new Map<
     string,
-    { name: string; muscleGroups: string[]; totalSets: number; totalReps: number }
+    {
+      name: string;
+      muscleGroups: string[];
+      totalSets: number;
+      totalReps: number;
+      weightedWeightSum: number;
+      weightedReps: number;
+    }
   >();
 
   for (const set of sets) {
     const existing = grouped.get(set.movementId);
+    const reps = set.repetition ?? 0;
+    const hasWeight = set.avgWeight != null && set.avgWeight > 0 && reps > 0;
     if (existing) {
       existing.totalSets += 1;
-      existing.totalReps += set.repetition;
+      existing.totalReps += reps;
+      if (hasWeight) {
+        existing.weightedWeightSum += set.avgWeight! * reps;
+        existing.weightedReps += reps;
+      }
     } else {
       grouped.set(set.movementId, {
         name: set.movementName ?? "Unknown",
         muscleGroups: set.muscleGroups,
         totalSets: 1,
-        totalReps: set.repetition,
+        totalReps: reps,
+        weightedWeightSum: hasWeight ? set.avgWeight! * reps : 0,
+        weightedReps: hasWeight ? reps : 0,
       });
     }
   }
@@ -150,7 +165,7 @@ export function buildMovementSummaries(
       totalSets: data.totalSets,
       totalReps: data.totalReps,
       avgWeightLbs:
-        data.totalReps > 0 && totalVolume > 0 ? Math.round(totalVolume / data.totalReps) : 0,
+        data.weightedReps > 0 ? Math.round(data.weightedWeightSum / data.weightedReps) : 0,
     };
   });
 }
