@@ -103,34 +103,20 @@ describe("formatTonalTitle", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 401 propagation through inner retry loop
-//
-// The 5xx retry loop inside createWorkout must NOT wrap 401 TonalApiErrors
-// in a plain Error, otherwise withTokenRetry can't detect them for token
-// refresh. This mirrors the catch-block logic in doTonalCreateWorkout.
-// ---------------------------------------------------------------------------
-
-describe("401 propagation through inner retry loop", () => {
-  /**
-   * Simulates the catch block in the createWorkout 5xx retry loop.
-   * Must match the real logic in mutations.ts doTonalCreateWorkout.
-   */
-  function simulateInnerRetryErrorHandling(err: unknown, title: string, movementIds: string[]) {
-    const is5xx = err instanceof TonalApiError && err.status >= 500;
-    if (!is5xx) {
-      if (err instanceof TonalApiError && err.status === 401) throw err;
-      const errMsg = err instanceof Error ? err.message : String(err);
-      throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
-    }
-    throw err;
+// pushWorkoutToTonal catch block: 401 must propagate unwrapped so
+// withTokenRetry can refresh the token. Everything else gets enriched.
+describe("pushWorkoutToTonal catch block", () => {
+  function simulateCatch(err: unknown, title: string, movementIds: string[]) {
+    if (err instanceof TonalApiError && err.status === 401) throw err;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
   }
 
   it("re-throws TonalApiError 401 directly without wrapping", () => {
     const original = new TonalApiError(401, "token is expired by 33s");
 
     try {
-      simulateInnerRetryErrorHandling(original, "Full body", ["m1"]);
+      simulateCatch(original, "Full body", ["m1"]);
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(TonalApiError);
@@ -139,11 +125,11 @@ describe("401 propagation through inner retry loop", () => {
     }
   });
 
-  it("wraps non-401 errors with enrichPushErrorMessage", () => {
+  it("wraps 4xx errors with enrichPushErrorMessage", () => {
     const original = new TonalApiError(400, "Bad Request");
 
     try {
-      simulateInnerRetryErrorHandling(original, "Push Day", ["m1", "m2"]);
+      simulateCatch(original, "Push Day", ["m1", "m2"]);
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
@@ -153,14 +139,17 @@ describe("401 propagation through inner retry loop", () => {
     }
   });
 
-  it("re-throws 5xx errors directly", () => {
+  it("wraps 5xx errors with enrichPushErrorMessage", () => {
     const original = new TonalApiError(500, "Internal Server Error");
 
     try {
-      simulateInnerRetryErrorHandling(original, "Leg Day", ["m1"]);
+      simulateCatch(original, "Leg Day", ["m1"]);
       expect.fail("should have thrown");
     } catch (err) {
-      expect(err).toBe(original);
+      expect(err).toBeInstanceOf(Error);
+      expect(err).not.toBeInstanceOf(TonalApiError);
+      expect((err as Error).message).toContain("Leg Day");
+      expect((err as Error).message).toContain("Internal Server Error");
     }
   });
 });

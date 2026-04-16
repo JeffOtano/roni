@@ -162,7 +162,7 @@ export const retryPushWorkflow = workflow.define({
     });
     if (!claimed) throw new Error("Plan cannot be retried or another push is in progress");
 
-    const result = await step.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
+    const result = await step.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
       userId: args.userId,
       title: args.title,
       blocks: args.blocks,

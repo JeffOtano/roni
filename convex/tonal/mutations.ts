@@ -11,10 +11,7 @@ import { cachedFetch } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
-/**
- * Correct sets where a duration-based movement was incorrectly assigned prescribedReps.
- * Mutates the sets in place; returns the number of corrections made.
- */
+/** Mutates `sets` in place; returns the number of corrections made. */
 export function correctDurationRepsMismatch(
   sets: WorkoutSetInput[],
   catalog: Array<{ id: string; name?: string; countReps: boolean }>,
@@ -36,7 +33,6 @@ export function correctDurationRepsMismatch(
   return corrections;
 }
 
-/** Build an error message that includes workout context for debugging push failures. */
 export function enrichPushErrorMessage(
   originalError: string,
   title: string,
@@ -46,8 +42,17 @@ export function enrichPushErrorMessage(
   return `Push failed for "${title}" (movements: ${unique.join(", ")}). Tonal error: ${originalError}`;
 }
 
+/** Drop keys with `undefined` values while preserving the type's shape. */
+function stripUndefined<T extends object>(obj: T): T {
+  const result = {} as T;
+  for (const key of Object.keys(obj) as Array<keyof T>) {
+    if (obj[key] !== undefined) result[key] = obj[key];
+  }
+  return result;
+}
+
 /** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
-export const doTonalCreateWorkout = internalAction({
+export const pushWorkoutToTonal = internalAction({
   args: {
     userId: v.id("users"),
     title: v.string(),
@@ -69,12 +74,8 @@ export const doTonalCreateWorkout = internalAction({
     const rawSets = expandBlocksToSets(blocks as BlockInput[], catalog);
     correctDurationRepsMismatch(rawSets, catalog);
 
-    // Strip undefined fields from each set before sending to Tonal.
-    // JSON.stringify drops undefined values, but Tonal's Go backend
-    // may reject null values for optional fields like prescribedReps/prescribedDuration.
-    const sets = rawSets.map((s) =>
-      Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)),
-    );
+    // Keeps logged payloads clean; JSON.stringify already elides undefined on the wire.
+    const sets: WorkoutSetInput[] = rawSets.map((s) => stripUndefined(s));
 
     const payload = { title, sets, createdSource: "WorkoutBuilder" };
     console.log(
@@ -92,7 +93,7 @@ export const doTonalCreateWorkout = internalAction({
         // Let 401s propagate to withTokenRetry for automatic token refresh
         if (err instanceof TonalApiError && err.status === 401) throw err;
         console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
-        const movementIds = sets.map((s) => s.movementId as string);
+        const movementIds = sets.map((s) => s.movementId);
         const errMsg = err instanceof Error ? err.message : String(err);
         throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
       }
@@ -132,7 +133,6 @@ export const shareWorkout = internalAction({
   },
 });
 
-/** Delete all custom workouts from a user's Tonal account. */
 export const deleteAllCustomWorkouts = internalAction({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<{ deleted: number }> => {
@@ -143,7 +143,6 @@ export const deleteAllCustomWorkouts = internalAction({
         try {
           await tonalFetch(token, `/v6/user-workouts/${w.id}`, { method: "DELETE" });
           deleted++;
-          // Rate limit
           await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (e) {
           console.error(`Failed to delete workout ${w.id}:`, e);
@@ -198,7 +197,7 @@ export const createWorkout = internalAction({
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
       const tonalTitle = title;
-      const { id } = await ctx.runAction(internal.tonal.mutations.doTonalCreateWorkout, {
+      const { id } = await ctx.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
         userId,
         title: tonalTitle,
         blocks,
@@ -278,7 +277,6 @@ export const deleteWorkout = internalAction({
     }),
 });
 
-/** Estimate workout duration from exercise blocks. */
 export const estimateWorkout = internalAction({
   args: {
     userId: v.id("users"),
