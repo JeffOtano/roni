@@ -42,11 +42,7 @@ export function enrichPushErrorMessage(
   return `Push failed for "${title}" (movements: ${unique.join(", ")}). Tonal error: ${originalError}`;
 }
 
-/**
- * Retry `fn` up to `maxRetries` times on transient Tonal 5xx responses,
- * with 3s/6s backoff. Any non-5xx (4xx, 401, non-Tonal error) bubbles
- * immediately so 401-refresh and terminal-failure paths aren't delayed.
- */
+/** 3s/6s backoff on Tonal 5xx; 4xx/401/non-Tonal bubble immediately. */
 export async function retryOn5xx<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -63,7 +59,7 @@ export async function retryOn5xx<T>(fn: () => Promise<T>, maxRetries = 2): Promi
   }
 }
 
-/** Tonal API only; returns { id }. Used by createWorkout and retryPush. */
+/** Pushes to Tonal only — the caller records the plan. Used by createWorkout and retryPush. */
 export const pushWorkoutToTonal = internalAction({
   args: {
     userId: v.id("users"),
@@ -110,11 +106,10 @@ export const pushWorkoutToTonal = internalAction({
       }
       const tonalWorkoutId = workout.id;
 
-      // Soft verification: read back custom workouts list to confirm push
+      // Best-effort verification; never throws — the push itself already succeeded.
       try {
         const customWorkouts = await tonalFetch<Array<{ id: string }>>(token, `/v6/user-workouts`);
-        const verified = customWorkouts?.some((w) => w.id === tonalWorkoutId);
-        if (!verified) {
+        if (!customWorkouts?.some((w) => w.id === tonalWorkoutId)) {
           console.warn(`Push verification: workout ${tonalWorkoutId} not found in read-back`);
         }
       } catch {

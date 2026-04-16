@@ -180,8 +180,6 @@ describe("retryOn5xx", () => {
   });
 });
 
-// pushWorkoutToTonal catch block: 401 must propagate unwrapped so
-// withTokenRetry can refresh the token. Everything else gets enriched.
 describe("pushWorkoutToTonal catch block", () => {
   function simulateCatch(err: unknown, title: string, movementIds: string[]) {
     if (err instanceof TonalApiError && err.status === 401) throw err;
