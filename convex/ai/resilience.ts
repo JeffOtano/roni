@@ -77,15 +77,14 @@ export type ByokErrorCode =
  */
 function gatherErrorText(error: Error): string {
   const parts: string[] = [error.message];
-  const extended = error as Error & {
-    responseBody?: unknown;
-    cause?: unknown;
-    data?: unknown;
-  };
-  if (typeof extended.responseBody === "string") parts.push(extended.responseBody);
-  if (extended.cause instanceof Error) parts.push(extended.cause.message);
-  if (extended.data && typeof extended.data === "object") {
-    parts.push(JSON.stringify(extended.data));
+  if ("responseBody" in error && typeof error.responseBody === "string") {
+    parts.push(error.responseBody);
+  }
+  if ("cause" in error && error.cause instanceof Error) {
+    parts.push(error.cause.message);
+  }
+  if ("data" in error && error.data && typeof error.data === "object") {
+    parts.push(JSON.stringify(error.data));
   }
   return parts.join(" ").toLowerCase();
 }
@@ -203,6 +202,8 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
     : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
+  const errorReport = { threadId, userId, isByok };
+
   /**
    * Try one attempt. Returns `true` when the attempt succeeded OR produced
    * a terminal error that's already been surfaced to the user, so the
@@ -214,18 +215,9 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       await attemptStream(ctx, agent, threadId, userId, promptArgs);
       return true;
     } catch (error) {
-      // BYOK errors always land as a user-visible assistant message so the
-      // user knows to fix their key — never silently abort and never fall
-      // back to the house key under BYOK.
-      if (isByok) {
-        const code = classifyByokError(error);
-        if (code !== null) {
-          await saveByokErrorAndNotify(ctx, threadId, userId, code, error);
-          return true;
-        }
-      }
+      if (await tryReportByok(ctx, { ...errorReport, error })) return true;
       if (!isTransientError(error)) {
-        await saveErrorAndNotify(ctx, threadId, userId, error);
+        await reportError(ctx, { ...errorReport, error });
         return true;
       }
       return false;
@@ -239,14 +231,8 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   try {
     await attemptStream(ctx, fallbackAgent, threadId, userId, promptArgs);
   } catch (error) {
-    if (isByok) {
-      const code = classifyByokError(error);
-      if (code !== null) {
-        await saveByokErrorAndNotify(ctx, threadId, userId, code, error);
-        return;
-      }
-    }
-    await saveErrorAndNotify(ctx, threadId, userId, error);
+    if (await tryReportByok(ctx, { ...errorReport, error })) return;
+    await reportError(ctx, { ...errorReport, error });
   }
 }
 
@@ -269,6 +255,13 @@ async function attemptStream(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+interface ErrorReport {
+  threadId: string;
+  userId: string;
+  error: unknown;
+  isByok: boolean;
 }
 
 /**
@@ -299,50 +292,48 @@ async function finalizePendingMessages(
   }
 }
 
-async function saveErrorAndNotify(
-  ctx: ActionCtx,
-  threadId: string,
-  userId: string,
-  error: unknown,
-): Promise<void> {
-  const reason = error instanceof Error ? error.message : String(error);
-  await finalizePendingMessages(ctx, threadId, reason);
+/**
+ * If `error` is BYOK-classifiable, save an actionable assistant message and
+ * return true. Returns false when the error isn't BYOK-related (or the
+ * user isn't on BYOK), so the caller can fall through to transient /
+ * generic handling.
+ */
+async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boolean> {
+  if (!report.isByok) return false;
+  const code = classifyByokError(report.error);
+  if (code === null) return false;
+  // Use the error code (not the raw message) as the finalize reason since
+  // the provider body can include the decrypted key.
+  await finalizePendingMessages(ctx, report.threadId, code);
   await saveMessage(ctx, components.agent, {
-    threadId,
-    userId,
+    threadId: report.threadId,
+    userId: report.userId,
+    message: { role: "assistant", content: BYOK_ERROR_MESSAGES[code] },
+  });
+  await ctx.runAction(internal.discord.notifyError, {
+    source: "streamWithRetry",
+    message: `${code} (${report.error instanceof Error ? report.error.name : "Unknown"})`,
+    userId: report.userId,
+  });
+  return true;
+}
+
+/**
+ * Generic terminal-error path: write the fallback "I'm having trouble"
+ * assistant message and notify ops with the raw error summary.
+ */
+async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
+  const reason = report.error instanceof Error ? report.error.message : String(report.error);
+  await finalizePendingMessages(ctx, report.threadId, reason);
+  await saveMessage(ctx, components.agent, {
+    threadId: report.threadId,
+    userId: report.userId,
     message: { role: "assistant", content: AI_ERROR_MESSAGE },
   });
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
     message: reason,
-    userId,
-  });
-}
-
-/**
- * Save a user-visible assistant message explaining the BYOK error class so
- * the user can act on it, and ping ops with the (safe) error code only —
- * not the raw provider message, which can echo the decrypted key.
- */
-async function saveByokErrorAndNotify(
-  ctx: ActionCtx,
-  threadId: string,
-  userId: string,
-  code: ByokErrorCode,
-  error: unknown,
-): Promise<void> {
-  // Use the error code (not the raw message) as the finalize reason since
-  // the provider body can include the decrypted key.
-  await finalizePendingMessages(ctx, threadId, code);
-  await saveMessage(ctx, components.agent, {
-    threadId,
-    userId,
-    message: { role: "assistant", content: BYOK_ERROR_MESSAGES[code] },
-  });
-  await ctx.runAction(internal.discord.notifyError, {
-    source: "streamWithRetry",
-    message: `${code} (${error instanceof Error ? error.name : "Unknown"})`,
-    userId,
+    userId: report.userId,
   });
 }
 
