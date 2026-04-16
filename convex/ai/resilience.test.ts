@@ -1,6 +1,11 @@
 import { APICallError } from "@ai-sdk/provider";
 import { describe, expect, it } from "vitest";
-import { classifyByokError, isTransientError, withByokErrorSanitization } from "./resilience";
+import {
+  buildByokErrorMessage,
+  classifyByokError,
+  isTransientError,
+  withByokErrorSanitization,
+} from "./resilience";
 
 function apiCallError(overrides: {
   statusCode?: number;
@@ -196,6 +201,30 @@ describe("classifyByokError", () => {
       responseBody: JSON.stringify({ error: { message: "Your credit balance is too low" } }),
     });
     expect(classifyByokError(err)).toBe("byok_quota_exceeded");
+  });
+});
+
+describe("buildByokErrorMessage", () => {
+  it("names the provider and links to its billing page on quota", () => {
+    const msg = buildByokErrorMessage("byok_quota_exceeded", "claude");
+
+    expect(msg).toContain("Anthropic Claude");
+    expect(msg).toContain("(https://console.anthropic.com/settings/billing)");
+    expect(msg).toContain("(/settings)");
+  });
+
+  it("names the provider and links to settings on invalid key", () => {
+    const msg = buildByokErrorMessage("byok_key_invalid", "gemini");
+
+    expect(msg).toContain("Google Gemini");
+    expect(msg).toContain("(/settings)");
+  });
+
+  it("uses the OpenAI billing URL for OpenAI quota errors", () => {
+    const msg = buildByokErrorMessage("byok_quota_exceeded", "openai");
+
+    expect(msg).toContain("OpenAI");
+    expect(msg).toContain("(https://platform.openai.com/settings/organization/billing)");
   });
 });
 

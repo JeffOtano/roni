@@ -6,6 +6,7 @@ import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { BUDGET_WARNING_THRESHOLD, DAILY_TOKEN_BUDGET } from "../aiUsage";
+import { getProviderConfig, type ProviderId } from "./providers";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 const BUDGET_EXCEEDED_MESSAGE =
@@ -13,16 +14,22 @@ const BUDGET_EXCEEDED_MESSAGE =
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
 
-const BYOK_ERROR_MESSAGES: Record<ByokErrorCode, string> = {
-  byok_key_invalid:
-    "Your API key was rejected by the provider. Open **Settings → API Keys** to check or replace it, then try again.",
-  byok_quota_exceeded:
-    "Your API key's provider is rejecting requests — likely out of credit or over quota. Top up with your provider, or switch providers under **Settings → API Keys**, and try again.",
-  byok_safety_blocked:
-    "The provider blocked that response for safety reasons. Try rephrasing and sending again.",
-  byok_unknown_error:
-    "Your API key's provider returned an unexpected error. Double-check the key under **Settings → API Keys** or try again later.",
-};
+const SETTINGS_LINK = "[Settings](/settings)";
+
+export function buildByokErrorMessage(code: ByokErrorCode, provider: ProviderId): string {
+  const config = getProviderConfig(provider);
+  const billingLink = `[${config.label} billing](${config.billingUrl})`;
+  switch (code) {
+    case "byok_key_invalid":
+      return `**${config.label} rejected your API key.** Check or replace it in ${SETTINGS_LINK}, then try again.`;
+    case "byok_quota_exceeded":
+      return `**${config.label} is rejecting requests** — your account is out of credit or over quota. Top up at ${billingLink}, or switch providers in ${SETTINGS_LINK}, then try again.`;
+    case "byok_safety_blocked":
+      return `**${config.label} blocked that response for safety.** Try rephrasing and sending again.`;
+    case "byok_unknown_error":
+      return `**${config.label} returned an unexpected error.** Check your key in ${SETTINGS_LINK} or try again later.`;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Error classification
@@ -158,6 +165,8 @@ interface StreamWithRetryArgs {
   promptMessageId?: string;
   /** True when the user is on their own API key (not the house key). */
   isByok: boolean;
+  /** The active provider. Drives the provider-specific BYOK error message. */
+  provider: ProviderId;
 }
 
 type PromptArgs =
@@ -175,7 +184,7 @@ const ATTEMPT_TIMEOUT_MS = 180_000;
 type AttemptOutcome = { done: true } | { done: false; error: unknown };
 
 export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
-  const { primaryAgent, fallbackAgent, threadId, userId, isByok } = args;
+  const { primaryAgent, fallbackAgent, threadId, userId, isByok, provider } = args;
   const promptArgs: PromptArgs = args.promptMessageId
     ? args.prompt !== undefined
       ? {
@@ -186,7 +195,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
     : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  const errorReport = { threadId, userId, isByok };
+  const errorReport = { threadId, userId, isByok, provider };
 
   // `done` = success or terminal-error-already-reported; otherwise retryable transient.
   const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
@@ -239,6 +248,7 @@ interface ErrorReport {
   userId: string;
   error: unknown;
   isByok: boolean;
+  provider: ProviderId;
 }
 
 // streamText's abortSignal handler finalizes on clean aborts; provider errors
@@ -271,11 +281,11 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
   await saveMessage(ctx, components.agent, {
     threadId: report.threadId,
     userId: report.userId,
-    message: { role: "assistant", content: BYOK_ERROR_MESSAGES[code] },
+    message: { role: "assistant", content: buildByokErrorMessage(code, report.provider) },
   });
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
-    message: `${code} (${report.error instanceof Error ? report.error.name : "Unknown"})`,
+    message: `${code} on ${report.provider} (${report.error instanceof Error ? report.error.name : "Unknown"})`,
     userId: report.userId,
   });
   return true;
