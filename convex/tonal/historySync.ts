@@ -19,6 +19,10 @@ import {
 } from "./historySyncCore";
 
 const BACKFILL_BATCH_SIZE = 20;
+// Hard cap: each iteration drains one page (or one offset advance). Exceeding
+// this means doBackfillPage is reporting non-zero `remaining` forever or the
+// pgTotal is climbing — bail loudly instead of looping silently.
+const MAX_BACKFILL_ITERATIONS = 500;
 
 // ---------------------------------------------------------------------------
 // Workflow step actions
@@ -159,8 +163,15 @@ export const backfillUserHistoryWorkflow = workflow.define({
 
     let pgOffset = 0;
     let bestDate: string | undefined;
+    let iterations = 0;
 
     while (true) {
+      if (++iterations > MAX_BACKFILL_ITERATIONS) {
+        throw new Error(
+          `[historySync] backfill exceeded ${MAX_BACKFILL_ITERATIONS} iterations at offset ${pgOffset} for user ${userId}`,
+        );
+      }
+
       const page = await step.runAction(internal.tonal.historySync.doBackfillPage, {
         userId,
         pgOffset,
