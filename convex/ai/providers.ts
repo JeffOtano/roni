@@ -81,7 +81,7 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
         apiKey,
         baseURL: "https://openrouter.ai/api/v1",
       });
-      return provider(model);
+      return provider.chat(model);
     },
   },
 };
