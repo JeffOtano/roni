@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0](https://github.com/JeffOtano/tonal-coach/compare/v0.4.0...v0.5.0) (2026-04-17)
+
+
+### Features
+
+* add npm run setup interactive contributor bootstrap ([#177](https://github.com/JeffOtano/tonal-coach/issues/177)) ([8bf7d30](https://github.com/JeffOtano/tonal-coach/commit/8bf7d30e2389f2a0cd27e6640ca1c986431f5603))
+
+
+### Bug Fixes
+
+* close retry-push race that could revert a successful push ([#184](https://github.com/JeffOtano/tonal-coach/issues/184)) ([d256a89](https://github.com/JeffOtano/tonal-coach/commit/d256a8949ef376fcf45c7023c6812c4c72092cbc))
+* evict oversized cache reads and guard oversized writes in tonal proxy ([#221](https://github.com/JeffOtano/tonal-coach/issues/221)) ([39a2ec9](https://github.com/JeffOtano/tonal-coach/commit/39a2ec92b95be29ede75880efb0b493eed646350))
+* paginate dev-tools cache and shrink tonalCache delete batch ([#178](https://github.com/JeffOtano/tonal-coach/issues/178)) ([3f59b7a](https://github.com/JeffOtano/tonal-coach/commit/3f59b7ab55fab704a36e8c3fe99da62d3a037c4c))
+* recover scheduled chat failures ([#217](https://github.com/JeffOtano/tonal-coach/issues/217)) ([9d75ae6](https://github.com/JeffOtano/tonal-coach/commit/9d75ae63d984508c44f225cb68e0b4b741649608))
+* route workflow PostHog capture through action step ([#220](https://github.com/JeffOtano/tonal-coach/issues/220)) ([c8454f5](https://github.com/JeffOtano/tonal-coach/commit/c8454f5f8313c92955666a2f2dde843093d02680))
+* suppress Sentry noise from control-flow sentinels and Tonal credential errors ([#219](https://github.com/JeffOtano/tonal-coach/issues/219)) ([8213c43](https://github.com/JeffOtano/tonal-coach/commit/8213c433af382330750dd9040a20619743d15890))
+* surface BYOK errors and clean up orphaned pending messages ([#181](https://github.com/JeffOtano/tonal-coach/issues/181)) ([a2ce13f](https://github.com/JeffOtano/tonal-coach/commit/a2ce13f5d98687383208b3f43ef5b0cc07314182))
+* use hasOwnProperty.call for ES2021 compat in chatHelpers ([#218](https://github.com/JeffOtano/tonal-coach/issues/218)) ([b52bd66](https://github.com/JeffOtano/tonal-coach/commit/b52bd66dda99a8620bb3db0eeb92b14650b2272a))
+
+
+### Performance Improvements
+
+* **ai:** enable Anthropic prompt caching for static instructions + tools ([#186](https://github.com/JeffOtano/tonal-coach/issues/186)) ([9da3862](https://github.com/JeffOtano/tonal-coach/commit/9da3862eba0c205ab5c6f562e03f435a10d96cb5))
+* batch sync RPCs, index workoutPlans queries, guard backfill loop ([#185](https://github.com/JeffOtano/tonal-coach/issues/185)) ([9ab234e](https://github.com/JeffOtano/tonal-coach/commit/9ab234e799ecd476a8d2ae5e7bf9caf0989aa3ba))
+
+
+### Refactoring
+
+* harden cron and admin reads against the 16 MiB limit ([#179](https://github.com/JeffOtano/tonal-coach/issues/179)) ([523bd5d](https://github.com/JeffOtano/tonal-coach/commit/523bd5d3b34e8484a375920ed48365f074b1dfec))
+* simplify Tonal push + rename doTonalCreateWorkout ([#183](https://github.com/JeffOtano/tonal-coach/issues/183)) ([b38710e](https://github.com/JeffOtano/tonal-coach/commit/b38710e7f85412301c36a6957b6d3d36c977e173))
+
 ## [0.4.0](https://github.com/JeffOtano/tonal-coach/compare/v0.3.0...v0.4.0) (2026-04-16)
 
 ### Features
