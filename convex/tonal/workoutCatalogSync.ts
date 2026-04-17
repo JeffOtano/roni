@@ -16,6 +16,7 @@ import * as analytics from "../lib/posthog";
 import { workflow } from "../workflows";
 
 const BATCH_SIZE = 20;
+const MOVEMENT_UPDATE_BATCH_SIZE = 200;
 
 /**
  * Pure function: build a Map<movementId, trainingTypeName[]> from workout tiles and details.
@@ -109,20 +110,27 @@ export const upsertTrainingType = internalMutation({
   },
 });
 
-/** Update a single movement's trainingTypes by tonalId. */
-export const updateMovementTrainingTypes = internalMutation({
+/** Patch trainingTypes for a batch of movements by tonalId in one transaction. */
+export const batchUpdateMovementTrainingTypes = internalMutation({
   args: {
-    tonalId: v.string(),
-    trainingTypes: v.array(v.string()),
+    updates: v.array(v.object({ tonalId: v.string(), trainingTypes: v.array(v.string()) })),
   },
-  handler: async (ctx, { tonalId, trainingTypes }) => {
-    const doc = await ctx.db
-      .query("movements")
-      .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
-      .unique();
-    if (doc) {
-      await ctx.db.patch(doc._id, { trainingTypes });
+  handler: async (ctx, { updates }): Promise<{ updated: number; skipped: number }> => {
+    let updated = 0;
+    let skipped = 0;
+    for (const { tonalId, trainingTypes } of updates) {
+      const doc = await ctx.db
+        .query("movements")
+        .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
+        .unique();
+      if (doc) {
+        await ctx.db.patch(doc._id, { trainingTypes });
+        updated++;
+      } else {
+        skipped++;
+      }
     }
+    return { updated, skipped };
   },
 });
 
@@ -195,20 +203,30 @@ export const doSyncWorkoutCatalog = internalAction({
       // 4. Build movement -> trainingTypes mapping
       const movementTypeMap = buildMovementTrainingTypeMap(tiles, workoutDetails, typeMap);
 
-      // 5. Write trainingTypes to each movement
+      // 5. Write trainingTypes to each movement (batched in one transaction per chunk)
+      const updates = [...movementTypeMap].map(([tonalId, trainingTypes]) => ({
+        tonalId,
+        trainingTypes,
+      }));
       let updated = 0;
-      for (const [movementId, types] of movementTypeMap) {
-        await ctx.runMutation(internal.tonal.workoutCatalogSync.updateMovementTrainingTypes, {
-          tonalId: movementId,
-          trainingTypes: types,
-        });
-        updated++;
+      let skipped = 0;
+      for (let i = 0; i < updates.length; i += MOVEMENT_UPDATE_BATCH_SIZE) {
+        const batch = updates.slice(i, i + MOVEMENT_UPDATE_BATCH_SIZE);
+        const result = await ctx.runMutation(
+          internal.tonal.workoutCatalogSync.batchUpdateMovementTrainingTypes,
+          { updates: batch },
+        );
+        updated += result.updated;
+        skipped += result.skipped;
       }
 
-      console.log(`[workoutCatalogSync] Tagged ${updated} movements with training types`);
+      console.log(
+        `[workoutCatalogSync] Tagged ${updated} movements with training types (${skipped} skipped — movement not in catalog)`,
+      );
 
       analytics.captureSystem("workout_catalog_synced", {
         movements_tagged: updated,
+        movements_skipped: skipped,
       });
     });
     await analytics.flush();

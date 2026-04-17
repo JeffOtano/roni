@@ -236,7 +236,8 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_status", ["status"])
-    .index("by_tonalWorkoutId", ["tonalWorkoutId"]),
+    .index("by_tonalWorkoutId", ["tonalWorkoutId"])
+    .index("by_userId_status", ["userId", "status"]),
 
   /** 7-day training schedule. Each day has a session type, status, and optional linked workout. */
   weekPlans: defineTable({

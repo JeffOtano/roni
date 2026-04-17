@@ -19,6 +19,9 @@ import {
 } from "./historySyncCore";
 
 const BACKFILL_BATCH_SIZE = 20;
+// 2x what we'd need to drain pgTotal at BACKFILL_BATCH_SIZE per iteration; floor for tiny histories.
+const ITERATION_SAFETY_FACTOR = 2;
+const MIN_BACKFILL_ITERATIONS = 50;
 
 // ---------------------------------------------------------------------------
 // Workflow step actions
@@ -159,12 +162,26 @@ export const backfillUserHistoryWorkflow = workflow.define({
 
     let pgOffset = 0;
     let bestDate: string | undefined;
+    let iterations = 0;
+    let maxIterations = MIN_BACKFILL_ITERATIONS;
 
     while (true) {
+      if (++iterations > maxIterations) {
+        throw new Error(
+          `[historySync] backfill exceeded ${maxIterations} iterations at offset ${pgOffset} for user ${userId}`,
+        );
+      }
+
       const page = await step.runAction(internal.tonal.historySync.doBackfillPage, {
         userId,
         pgOffset,
       });
+
+      // pgTotal is unknown until the first response; recompute the cap then.
+      maxIterations = Math.max(
+        MIN_BACKFILL_ITERATIONS,
+        Math.ceil(page.pgTotal / BACKFILL_BATCH_SIZE) * ITERATION_SAFETY_FACTOR,
+      );
 
       if (page.newestDate) bestDate = page.newestDate;
 

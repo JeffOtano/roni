@@ -44,14 +44,12 @@ export const getPushedAiWorkoutIds = internalQuery({
   handler: async (ctx, { userId }) => {
     const plans = await ctx.db
       .query("workoutPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "pushed"))
       .collect();
     return plans
       .filter(
         (p) =>
-          p.status === "pushed" &&
-          p.tonalWorkoutId !== undefined &&
-          (p.source === "tonal_coach" || p.source === undefined),
+          p.tonalWorkoutId !== undefined && (p.source === "tonal_coach" || p.source === undefined),
       )
       .map((p) => p.tonalWorkoutId as string);
   },
@@ -64,11 +62,12 @@ export const getByUserIdAndTonalWorkoutId = internalQuery({
     tonalWorkoutId: v.string(),
   },
   handler: async (ctx, { userId, tonalWorkoutId }) => {
-    const plans = await ctx.db
+    const plan = await ctx.db
       .query("workoutPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    return plans.find((p) => p.tonalWorkoutId === tonalWorkoutId) ?? null;
+      .withIndex("by_tonalWorkoutId", (q) => q.eq("tonalWorkoutId", tonalWorkoutId))
+      .unique();
+    if (!plan || plan.userId !== userId) return null;
+    return plan;
   },
 });
 
@@ -76,14 +75,20 @@ export const getByUserIdAndTonalWorkoutId = internalQuery({
 export const getRecentMovementIds = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    const plans = await ctx.db
-      .query("workoutPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    const allMovementIds = plans
-      .filter((p) => p.status === "pushed" || p.status === "completed")
-      .flatMap((p) => p.blocks.flatMap((b) => b.exercises.map((ex) => ex.movementId)));
-
+    const [pushed, completed] = await Promise.all([
+      ctx.db
+        .query("workoutPlans")
+        .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "pushed"))
+        .collect(),
+      ctx.db
+        .query("workoutPlans")
+        .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "completed"))
+        .collect(),
+    ]);
+    const recentPlans = [...pushed, ...completed].sort((a, b) => a._creationTime - b._creationTime);
+    const allMovementIds = recentPlans.flatMap((p) =>
+      p.blocks.flatMap((b) => b.exercises.map((ex) => ex.movementId)),
+    );
     return [...new Set(allMovementIds)].slice(-50);
   },
 });

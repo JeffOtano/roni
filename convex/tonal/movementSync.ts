@@ -17,6 +17,8 @@ import * as analytics from "../lib/posthog";
 import { mapApiToDoc, mapDocToMovement, movementFields } from "./movementMapping";
 import { workflow } from "../workflows";
 
+const UPSERT_BATCH_SIZE = 200;
+
 /** Fetch movements from Tonal API and upsert into the movements table. */
 export const doSyncMovements = internalAction({
   args: { userId: v.id("users") },
@@ -26,33 +28,24 @@ export const doSyncMovements = internalAction({
     );
     const now = Date.now();
 
-    let inserted = 0;
-    let updated = 0;
     const unmappedAccessories = new Set<string>();
-
-    for (const m of movements) {
+    const docs = movements.map((m) => {
       const accessory = m.onMachineInfo?.accessory ?? undefined;
-
       if (accessory && !(accessory in ACCESSORY_MAP)) {
         unmappedAccessories.add(accessory);
       }
+      return mapApiToDoc(m, now);
+    });
 
-      const existing = await ctx.runQuery(internal.tonal.movementSync.getByTonalId, {
-        tonalId: m.id,
+    let inserted = 0;
+    let updated = 0;
+    for (let i = 0; i < docs.length; i += UPSERT_BATCH_SIZE) {
+      const batch = docs.slice(i, i + UPSERT_BATCH_SIZE);
+      const result = await ctx.runMutation(internal.tonal.movementSync.batchUpsertMovements, {
+        docs: batch,
       });
-
-      const doc = mapApiToDoc(m, now);
-
-      if (existing) {
-        await ctx.runMutation(internal.tonal.movementSync.updateMovement, {
-          id: existing._id,
-          ...doc,
-        });
-        updated++;
-      } else {
-        await ctx.runMutation(internal.tonal.movementSync.insertMovement, { ...doc });
-        inserted++;
-      }
+      inserted += result.inserted;
+      updated += result.updated;
     }
 
     if (unmappedAccessories.size > 0) {
@@ -100,33 +93,26 @@ export const startSyncMovementCatalog = internalMutation({
   },
 });
 
-/** Look up a single movement by Tonal ID. */
-export const getByTonalId = internalQuery({
-  args: { tonalId: v.string() },
-  handler: async (ctx, { tonalId }) => {
-    return ctx.db
-      .query("movements")
-      .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
-      .unique();
-  },
-});
-
-/** Insert a new movement document. */
-export const insertMovement = internalMutation({
-  args: movementFields,
-  handler: async (ctx, args) => {
-    return ctx.db.insert("movements", args);
-  },
-});
-
-/** Update an existing movement document. */
-export const updateMovement = internalMutation({
-  args: {
-    id: v.id("movements"),
-    ...movementFields,
-  },
-  handler: async (ctx, { id, ...fields }) => {
-    await ctx.db.patch(id, fields);
+/** Upsert a batch of movement docs by tonalId in a single transaction. */
+export const batchUpsertMovements = internalMutation({
+  args: { docs: v.array(v.object(movementFields)) },
+  handler: async (ctx, { docs }): Promise<{ inserted: number; updated: number }> => {
+    let inserted = 0;
+    let updated = 0;
+    for (const doc of docs) {
+      const existing = await ctx.db
+        .query("movements")
+        .withIndex("by_tonalId", (q) => q.eq("tonalId", doc.tonalId))
+        .unique();
+      if (existing) {
+        await ctx.db.patch(existing._id, doc);
+        updated++;
+      } else {
+        await ctx.db.insert("movements", doc);
+        inserted++;
+      }
+    }
+    return { inserted, updated };
   },
 });
 
