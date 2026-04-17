@@ -68,6 +68,24 @@ export const doFetchAndPersistNewActivities = internalAction({
   },
 });
 
+/**
+ * Send a PostHog event from inside a workflow. Workflow handlers run in a
+ * sandbox that deletes `process` from globals, so `analytics.capture` can't
+ * read POSTHOG_PROJECT_TOKEN directly. Routing through an action gives the
+ * capture call a normal V8 runtime with `process.env` available.
+ */
+export const doCaptureEvent = internalAction({
+  args: {
+    userId: v.id("users"),
+    event: v.string(),
+    properties: v.optional(v.any()),
+  },
+  handler: async (_ctx, { userId, event, properties }) => {
+    analytics.capture(userId, event, properties);
+    await analytics.flush();
+  },
+});
+
 /** Fetch one page of history, diff, process new activities, persist. */
 export const doBackfillPage = internalAction({
   args: {
@@ -140,8 +158,11 @@ export const syncUserHistoryWorkflow = workflow.define({
       console.log(`[historySync] Synced ${synced} new workouts for user ${userId}`);
     }
 
-    analytics.capture(userId, "history_sync_completed", { new_workouts: synced });
-    await analytics.flush();
+    await step.runAction(internal.tonal.historySync.doCaptureEvent, {
+      userId,
+      event: "history_sync_completed",
+      properties: { new_workouts: synced },
+    });
 
     return null;
   },
@@ -210,8 +231,11 @@ export const backfillUserHistoryWorkflow = workflow.define({
       syncStatus: "complete",
     });
 
-    analytics.capture(userId, "history_sync_completed", { backfill: true });
-    await analytics.flush();
+    await step.runAction(internal.tonal.historySync.doCaptureEvent, {
+      userId,
+      event: "history_sync_completed",
+      properties: { backfill: true },
+    });
 
     return null;
   },
