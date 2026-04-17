@@ -19,10 +19,9 @@ import {
 } from "./historySyncCore";
 
 const BACKFILL_BATCH_SIZE = 20;
-// Hard cap: each iteration drains one page (or one offset advance). Exceeding
-// this means doBackfillPage is reporting non-zero `remaining` forever or the
-// pgTotal is climbing — bail loudly instead of looping silently.
-const MAX_BACKFILL_ITERATIONS = 500;
+// 2x what we'd need to drain pgTotal at BACKFILL_BATCH_SIZE per iteration; floor for tiny histories.
+const ITERATION_SAFETY_FACTOR = 2;
+const MIN_BACKFILL_ITERATIONS = 50;
 
 // ---------------------------------------------------------------------------
 // Workflow step actions
@@ -164,11 +163,12 @@ export const backfillUserHistoryWorkflow = workflow.define({
     let pgOffset = 0;
     let bestDate: string | undefined;
     let iterations = 0;
+    let maxIterations = MIN_BACKFILL_ITERATIONS;
 
     while (true) {
-      if (++iterations > MAX_BACKFILL_ITERATIONS) {
+      if (++iterations > maxIterations) {
         throw new Error(
-          `[historySync] backfill exceeded ${MAX_BACKFILL_ITERATIONS} iterations at offset ${pgOffset} for user ${userId}`,
+          `[historySync] backfill exceeded ${maxIterations} iterations at offset ${pgOffset} for user ${userId}`,
         );
       }
 
@@ -176,6 +176,12 @@ export const backfillUserHistoryWorkflow = workflow.define({
         userId,
         pgOffset,
       });
+
+      // pgTotal is unknown until the first response; recompute the cap then.
+      maxIterations = Math.max(
+        MIN_BACKFILL_ITERATIONS,
+        Math.ceil(page.pgTotal / BACKFILL_BATCH_SIZE) * ITERATION_SAFETY_FACTOR,
+      );
 
       if (page.newestDate) bestDate = page.newestDate;
 

@@ -115,8 +115,9 @@ export const batchUpdateMovementTrainingTypes = internalMutation({
   args: {
     updates: v.array(v.object({ tonalId: v.string(), trainingTypes: v.array(v.string()) })),
   },
-  handler: async (ctx, { updates }): Promise<{ updated: number }> => {
+  handler: async (ctx, { updates }): Promise<{ updated: number; skipped: number }> => {
     let updated = 0;
+    let skipped = 0;
     for (const { tonalId, trainingTypes } of updates) {
       const doc = await ctx.db
         .query("movements")
@@ -125,9 +126,11 @@ export const batchUpdateMovementTrainingTypes = internalMutation({
       if (doc) {
         await ctx.db.patch(doc._id, { trainingTypes });
         updated++;
+      } else {
+        skipped++;
       }
     }
-    return { updated };
+    return { updated, skipped };
   },
 });
 
@@ -206,6 +209,7 @@ export const doSyncWorkoutCatalog = internalAction({
         trainingTypes,
       }));
       let updated = 0;
+      let skipped = 0;
       for (let i = 0; i < updates.length; i += MOVEMENT_UPDATE_BATCH_SIZE) {
         const batch = updates.slice(i, i + MOVEMENT_UPDATE_BATCH_SIZE);
         const result = await ctx.runMutation(
@@ -213,12 +217,16 @@ export const doSyncWorkoutCatalog = internalAction({
           { updates: batch },
         );
         updated += result.updated;
+        skipped += result.skipped;
       }
 
-      console.log(`[workoutCatalogSync] Tagged ${updated} movements with training types`);
+      console.log(
+        `[workoutCatalogSync] Tagged ${updated} movements with training types (${skipped} skipped — movement not in catalog)`,
+      );
 
       analytics.captureSystem("workout_catalog_synced", {
         movements_tagged: updated,
+        movements_skipped: skipped,
       });
     });
     await analytics.flush();
