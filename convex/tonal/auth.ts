@@ -29,7 +29,11 @@ export async function obtainTonalToken(email: string, password: string): Promise
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error_description: "Unknown error" }));
-    throw new Error(error.error_description || "Invalid Tonal credentials");
+    const description = error.error_description || "Invalid Tonal credentials";
+    if (/wrong email or password|invalid_grant/i.test(description)) {
+      throw new Error("tonal_invalid_credentials");
+    }
+    throw new Error(description);
   }
 
   const data = await res.json();

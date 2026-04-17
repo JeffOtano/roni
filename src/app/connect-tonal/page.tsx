@@ -51,8 +51,14 @@ export default function ConnectTonalPage() {
 
     try {
       const phaseTimer = setTimeout(() => setPhase("syncing"), 1500);
-      await connectTonal({ tonalEmail, tonalPassword });
+      const result = await connectTonal({ tonalEmail, tonalPassword });
       clearTimeout(phaseTimer);
+      if (!result.success) {
+        track("tonal_connection_failed", { error: result.error });
+        setPhase("idle");
+        setError("Wrong email or password. Please check your Tonal credentials and try again.");
+        return;
+      }
       track("tonal_connected");
       setPhase("done");
       const destination = isReconnecting ? "/dashboard" : "/onboarding";

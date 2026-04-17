@@ -7,15 +7,28 @@ import { CACHE_TTLS } from "./cache";
 import { toUserProfileData } from "./profileData";
 import type { TonalUser } from "./types";
 
+export type ConnectTonalResult =
+  | { success: true; tonalUserId: string }
+  | { success: false; error: "invalid_credentials" };
+
 export const connectTonal = internalAction({
   args: {
     userId: v.id("users"),
     tonalEmail: v.string(),
     tonalPassword: v.string(),
   },
-  handler: async (ctx, { userId, tonalEmail, tonalPassword }) => {
-    // 1. Obtain token from Auth0
-    const { idToken, refreshToken, expiresAt } = await obtainTonalToken(tonalEmail, tonalPassword);
+  handler: async (ctx, { userId, tonalEmail, tonalPassword }): Promise<ConnectTonalResult> => {
+    let idToken: string;
+    let refreshToken: string | undefined;
+    let expiresAt: number;
+    try {
+      ({ idToken, refreshToken, expiresAt } = await obtainTonalToken(tonalEmail, tonalPassword));
+    } catch (err) {
+      if (err instanceof Error && err.message === "tonal_invalid_credentials") {
+        return { success: false, error: "invalid_credentials" };
+      }
+      throw err;
+    }
 
     // 2. Get Tonal user info (returns full profile)
     const profile = await tonalFetch<TonalUser>(idToken, "/v6/users/userinfo");
@@ -68,6 +81,6 @@ export const connectTonal = internalAction({
       userId,
     });
 
-    return { success: true, tonalUserId };
+    return { success: true, tonalUserId } satisfies ConnectTonalResult;
   },
 });

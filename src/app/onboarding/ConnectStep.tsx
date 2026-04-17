@@ -38,8 +38,13 @@ export function ConnectStep({ onComplete }: { readonly onComplete: () => void })
     const fetchTimer = setTimeout(() => setPhase("fetching"), 1200);
 
     try {
-      await connectTonal({ tonalEmail, tonalPassword });
+      const result = await connectTonal({ tonalEmail, tonalPassword });
       clearTimeout(fetchTimer);
+      if (!result.success) {
+        setPhase("idle");
+        setError("Wrong email or password. Please check your Tonal credentials and try again.");
+        return;
+      }
       track("tonal_connected");
       setPhase("done");
       setTimeout(onComplete, 800);
