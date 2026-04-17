@@ -1,11 +1,6 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
-/**
- * Messages that are intentional control-flow signals, not system failures.
- * Dropping them here keeps Sentry focused on real bugs.
- */
 const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
-  // BYOK sentinels rethrown by withByokErrorSanitization / resolveProviderKey
   "byok_key_missing",
   "byok_model_missing",
   "byok_key_invalid",
@@ -13,12 +8,9 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "byok_safety_blocked",
   "byok_unknown_error",
   "house_key_quota_exhausted",
-  // User input, not a bug
   "tonal_invalid_credentials",
   "Wrong email or password",
-  // Convex rate limiter — expected user-facing cap
   '"kind":"RateLimited"',
-  // Auth guards firing from race conditions between session + navigation
   "Not authenticated",
 ];
 

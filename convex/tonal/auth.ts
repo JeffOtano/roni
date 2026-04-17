@@ -30,8 +30,6 @@ export async function obtainTonalToken(email: string, password: string): Promise
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error_description: "Unknown error" }));
     const description = error.error_description || "Invalid Tonal credentials";
-    // Invalid credentials is user input, not a system failure. Surface as a
-    // typed sentinel the action layer converts to a structured response.
     if (/wrong email or password|invalid_grant/i.test(description)) {
       throw new Error("tonal_invalid_credentials");
     }
