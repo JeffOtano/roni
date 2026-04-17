@@ -14,6 +14,7 @@ import {
   Settings,
   Sun,
   TrendingUp,
+  Trophy,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const navLinks: Array<{
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/prs", label: "PRs", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

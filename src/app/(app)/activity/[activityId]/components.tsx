@@ -4,6 +4,7 @@ import type { EnrichedSetActivity, MovementSummary } from "../../../../../convex
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrendingUp } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Formatting helpers
@@ -53,9 +54,11 @@ export function workoutTypeLabel(workoutType: string): string {
   return labels[workoutType] ?? workoutType;
 }
 
-function sideLabel(sideNumber: number): string | null {
+function sideLabel(sideNumber: number, hasSidedSets: boolean): string | null {
   if (sideNumber === 1) return "L";
   if (sideNumber === 2) return "R";
+  // Tonal uses sideNumber 0 for the right side on two-sided movements
+  if (sideNumber === 0 && hasSidedSets) return "R";
   return null;
 }
 
@@ -156,8 +159,16 @@ export function TimeBreakdownBar({
 // Set row
 // ---------------------------------------------------------------------------
 
-function SetRow({ set, setNumber }: { set: EnrichedSetActivity; setNumber: number }) {
-  const side = sideLabel(set.sideNumber);
+function SetRow({
+  set,
+  setNumber,
+  hasSidedSets,
+}: {
+  set: EnrichedSetActivity;
+  setNumber: number;
+  hasSidedSets: boolean;
+}) {
+  const side = sideLabel(set.sideNumber, hasSidedSets);
   const hasWeight = set.avgWeight != null && set.avgWeight > 0;
   const reps = set.repCount != null && set.repCount > 0 ? set.repCount : set.repetition;
 
@@ -222,11 +233,18 @@ export function MovementCard({
   summary: MovementSummary;
   sets: EnrichedSetActivity[];
 }) {
+  const hasSidedSets = sets.some((s) => s.sideNumber > 0);
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-foreground">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
           {summary.movementName}
+          {summary.isPR && (
+            <span className="flex items-center gap-1 rounded-full bg-chart-2/10 px-2 py-0.5 text-[10px] font-medium text-chart-2">
+              <TrendingUp className="size-3" />
+              PR
+            </span>
+          )}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           {summary.muscleGroups.map((group) => (
@@ -248,7 +266,7 @@ export function MovementCard({
       </CardHeader>
       <CardContent className="space-y-1.5">
         {sets.map((set, i) => (
-          <SetRow key={set.id} set={set} setNumber={i + 1} />
+          <SetRow key={set.id} set={set} setNumber={i + 1} hasSidedSets={hasSidedSets} />
         ))}
       </CardContent>
     </Card>
