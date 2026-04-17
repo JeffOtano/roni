@@ -20,6 +20,10 @@ async function runContextHandler(allMessages: ModelMessage[]): Promise<ModelMess
   return testConfig.contextHandler!(undefined as never, args);
 }
 
+function nonSystemMessages(messages: ModelMessage[]): ModelMessage[] {
+  return messages.filter((m) => m.role !== "system");
+}
+
 describe("coachAgentConfig.contextHandler", () => {
   it("trims leading assistant messages so context starts with a user turn", async () => {
     const messages: ModelMessage[] = [
@@ -34,7 +38,7 @@ describe("coachAgentConfig.contextHandler", () => {
       { role: "user", content: "What does this change?" },
     ];
 
-    await expect(runContextHandler(messages)).resolves.toEqual([
+    expect(nonSystemMessages(await runContextHandler(messages))).toEqual([
       { role: "user", content: "What does this change?" },
     ]);
   });
@@ -70,7 +74,7 @@ describe("coachAgentConfig.contextHandler", () => {
       },
     ]);
 
-    expect(result).toEqual([
+    expect(nonSystemMessages(result)).toEqual([
       {
         role: "user",
         content: [
@@ -81,5 +85,32 @@ describe("coachAgentConfig.contextHandler", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("coachAgentConfig.contextHandler — Anthropic prompt caching", () => {
+  it("emits the static instructions as the first system message with cacheControl", async () => {
+    const result = await runContextHandler([{ role: "user", content: "hi" }]);
+
+    const first = result[0];
+    expect(first.role).toBe("system");
+    expect(typeof first.content === "string" && first.content).toContain("PERSONALITY:");
+    expect(first.providerOptions).toEqual({
+      anthropic: { cacheControl: { type: "ephemeral" } },
+    });
+  });
+
+  it("emits exactly one cacheControl marker", async () => {
+    const result = await runContextHandler([{ role: "user", content: "hi" }]);
+
+    const tagged = result.filter((m) => m.providerOptions?.anthropic?.cacheControl);
+    expect(tagged).toHaveLength(1);
+  });
+
+  it("omits the snapshot system message when no userId is present", async () => {
+    const result = await runContextHandler([{ role: "user", content: "hi" }]);
+
+    const systemMessages = result.filter((m) => m.role === "system");
+    expect(systemMessages).toHaveLength(1);
   });
 });
