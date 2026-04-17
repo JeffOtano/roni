@@ -41,6 +41,34 @@ export async function withTonalToken(
   return { token, tonalUserId: profile.tonalUserId };
 }
 
+const MAX_CACHE_VALUE_BYTES = 8 * 1024 * 1024;
+
+async function readCacheEntry(
+  ctx: ActionCtx,
+  userId: Id<"users"> | undefined,
+  dataType: string,
+): Promise<{ data: unknown; expiresAt: number } | null> {
+  return ctx.runQuery(internal.tonal.cache.getCacheEntry, { userId, dataType });
+}
+
+export function isConvexSizeError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("too long") ||
+    msg.includes("too large") ||
+    msg.includes("maximum size") ||
+    msg.includes("maximum length")
+  );
+}
+
+function estimatedBytes(value: unknown): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
 /** Generic cache-check-then-fetch helper with stale-while-revalidate. */
 export async function cachedFetch<T>(
   ctx: ActionCtx,
@@ -53,46 +81,57 @@ export async function cachedFetch<T>(
 ): Promise<T> {
   const { userId, dataType, ttl, fetcher } = opts;
 
-  const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-    userId,
-    dataType,
-  });
+  let cached: Awaited<ReturnType<typeof readCacheEntry>> = null;
+  try {
+    cached = await readCacheEntry(ctx, userId, dataType);
+  } catch (readErr) {
+    if (isConvexSizeError(readErr)) {
+      console.warn(`cachedFetch(${dataType}): cached entry invalid on read, evicting`, readErr);
+      await ctx
+        .runMutation(internal.tonal.cache.deleteCacheEntryByType, { userId, dataType })
+        .catch((err: unknown) => console.warn(`cachedFetch(${dataType}): eviction failed`, err));
+    } else {
+      throw readErr;
+    }
+  }
 
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data as T;
   }
 
-  // Circuit breaker: if Tonal is unhealthy, serve stale data without attempting fetch
   const circuitOpen = await ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" });
   if (circuitOpen && cached) {
     console.warn(`cachedFetch(${dataType}): circuit open, serving stale data`);
     return cached.data as T;
   }
 
-  // Stale-while-revalidate: try to refresh, fall back to stale data
   try {
     const data = await fetcher();
     const now = Date.now();
 
-    // Truncate large arrays before caching to stay within Convex's
-    // 8192 element limit per array field. The full data is still
-    // returned to the caller; only the cached copy is truncated.
     const MAX_CACHE_ARRAY_LENGTH = 500;
     const cacheData =
       Array.isArray(data) && data.length > MAX_CACHE_ARRAY_LENGTH
         ? data.slice(0, MAX_CACHE_ARRAY_LENGTH)
         : data;
 
-    try {
-      await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-        userId,
-        dataType,
-        data: cacheData,
-        fetchedAt: now,
-        expiresAt: now + ttl,
-      });
-    } catch (cacheErr) {
-      console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
+    if (estimatedBytes(cacheData) <= MAX_CACHE_VALUE_BYTES) {
+      try {
+        await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
+          userId,
+          dataType,
+          data: cacheData,
+          fetchedAt: now,
+          expiresAt: now + ttl,
+        });
+      } catch (cacheErr) {
+        console.warn(
+          `cachedFetch(${dataType}): cache write failed, returning fresh data`,
+          cacheErr,
+        );
+      }
+    } else {
+      console.warn(`cachedFetch(${dataType}): payload too large to cache, skipping write`);
     }
 
     await ctx
@@ -262,10 +301,17 @@ export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activ
 // Convex caps array fields at 8192 elements. Tonal can return thousands of
 // set entries for some activities. Apply after every return path (fresh + cached).
 const MAX_SETS_RETURN = 4000;
-function truncateWorkoutDetail(detail: WorkoutActivityDetail | null): WorkoutActivityDetail | null {
-  if (!detail?.workoutSetActivity || detail.workoutSetActivity.length <= MAX_SETS_RETURN)
-    return detail;
-  return { ...detail, workoutSetActivity: detail.workoutSetActivity.slice(0, MAX_SETS_RETURN) };
+export function truncateWorkoutDetail(
+  detail: WorkoutActivityDetail | null,
+): WorkoutActivityDetail | null {
+  if (!detail) return detail;
+  const out: Record<string, unknown> = { ...detail };
+  for (const [key, value] of Object.entries(out)) {
+    if (Array.isArray(value) && value.length > MAX_SETS_RETURN) {
+      out[key] = value.slice(0, MAX_SETS_RETURN);
+    }
+  }
+  return out as unknown as WorkoutActivityDetail;
 }
 
 export const fetchWorkoutDetail = internalAction({
