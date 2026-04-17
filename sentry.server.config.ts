@@ -4,6 +4,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { getSentryRuntimeConfig } from "./src/lib/deployment";
+import { sentryBeforeSend } from "./src/lib/sentryBeforeSend";
 
 const sentryConfig = getSentryRuntimeConfig({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -15,5 +16,6 @@ if (sentryConfig) {
     ...sentryConfig,
     enableLogs: false,
     sendDefaultPii: false,
+    beforeSend: sentryBeforeSend,
   });
 }
