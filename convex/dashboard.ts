@@ -114,7 +114,7 @@ export const getWorkoutHistory = query({
         activityId: r.activityId,
         date: r.date,
         title: r.title,
-        targetArea: r.targetArea,
+        targetArea: normalizeTargetArea(r.targetArea),
         totalVolume: r.totalVolume,
         totalDuration: r.totalDuration,
         totalWork: r.totalWork,

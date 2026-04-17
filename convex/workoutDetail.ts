@@ -1,6 +1,8 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
+import { normalizeTargetArea } from "./lib/targetArea";
 import type {
   Activity,
   FormattedWorkoutSummary,
@@ -45,14 +47,93 @@ export interface MovementSummary {
   totalSets: number;
   totalReps: number;
   avgWeightLbs: number;
+  /** True when this session's avgWeightLbs is the user's all-time best. */
+  isPR?: boolean;
 }
 
 export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "workoutSetActivity"> {
   workoutSetActivity: EnrichedSetActivity[];
   movementSummaries: MovementSummary[];
+  /** Human-readable workout title from activity history (e.g. "Arms Burnout"). */
+  workoutTitle?: string;
+  /** Target area from activity history (e.g. "Upper Body"). */
+  targetArea?: string;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Return the best avgWeightLbs per movement from exercisePerformance, including the current activity.
+ *  We include the current activity so the comparison uses the same stored value for both sides. */
+export const getHistoricalBests = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const PAGE_SIZE = 1000;
+    const allRows: Doc<"exercisePerformance">[] = [];
+    let cursor: string | null = null;
+
+    // Paginate through all results to avoid truncation
+    while (true) {
+      const query = ctx.db
+        .query("exercisePerformance")
+        .withIndex("by_userId_date", (q) => q.eq("userId", userId));
+
+      const result = await query.paginate({ numItems: PAGE_SIZE, cursor });
+
+      allRows.push(...result.page);
+      cursor = result.continueCursor;
+
+      if (!cursor || result.page.length < PAGE_SIZE) break;
+    }
+
+    // Warn if results approach the old 5000 limit
+    if (allRows.length >= 5000) {
+      console.warn(
+        `getHistoricalBests: fetched ${allRows.length} rows for user ${userId}. ` +
+          `Consider maintaining a dedicated personal bests table for better performance.`,
+      );
+    }
+
+    const bests = new Map<string, { best: number; count: number }>();
+    for (const row of allRows) {
+      if (row.avgWeightLbs == null || row.avgWeightLbs <= 0) continue;
+      const existing = bests.get(row.movementId);
+      if (existing) {
+        existing.count += 1;
+        if (row.avgWeightLbs > existing.best) {
+          existing.best = row.avgWeightLbs;
+        }
+      } else {
+        bests.set(row.movementId, { best: row.avgWeightLbs, count: 1 });
+      }
+    }
+    return Object.fromEntries([...bests].map(([id, { best, count }]) => [id, { best, count }]));
+  },
+});
+
+/** Get exercisePerformance rows for a specific workout — used for PR comparison. */
+export const getWorkoutPerformanceRows = internalQuery({
+  args: { userId: v.id("users"), activityId: v.string() },
+  handler: async (ctx, { userId, activityId }) => {
+    const rows = await ctx.db
+      .query("exercisePerformance")
+      .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", activityId))
+      .take(100);
+    return rows.map((r) => ({ movementId: r.movementId, avgWeightLbs: r.avgWeightLbs }));
+  },
+});
+
+/** Look up completed-workout metadata (title, targetArea) for the activity page header. */
+export const getCompletedWorkoutMeta = internalQuery({
+  args: { userId: v.id("users"), activityId: v.string() },
+  handler: async (ctx, { userId, activityId }) => {
+    const row = await ctx.db
+      .query("completedWorkouts")
+      .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", activityId))
+      .first();
+    if (!row) return null;
+    return { title: row.title, targetArea: row.targetArea, workoutType: row.workoutType };
+  },
+});
 
 export const getWorkoutDetail = action({
   args: { activityId: v.string() },
@@ -63,21 +144,37 @@ export const getWorkoutDetail = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    const [detail, movements, formattedSummary]: [unknown, Movement[], unknown] = await Promise.all(
-      [
-        ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+    const [detail, movements, formattedSummary, workoutMeta, historicalBests, thisWorkoutPerf]: [
+      unknown,
+      Movement[],
+      unknown,
+      { title: string; targetArea: string; workoutType: string } | null,
+      Record<string, { best: number; count: number }>,
+      Array<{ movementId: string; avgWeightLbs?: number }>,
+    ] = await Promise.all([
+      ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+        userId,
+        activityId: args.activityId,
+      }),
+      ctx.runQuery(internal.tonal.movementSync.getAllMovements),
+      ctx
+        .runAction(internal.tonal.proxy.fetchFormattedSummary, {
           userId,
-          activityId: args.activityId,
-        }),
-        ctx.runQuery(internal.tonal.movementSync.getAllMovements),
-        ctx
-          .runAction(internal.tonal.proxy.fetchFormattedSummary, {
-            userId,
-            summaryId: args.activityId,
-          })
-          .catch((): null => null),
-      ],
-    );
+          summaryId: args.activityId,
+        })
+        .catch((): null => null),
+      ctx.runQuery(internal.workoutDetail.getCompletedWorkoutMeta, {
+        userId,
+        activityId: args.activityId,
+      }),
+      ctx.runQuery(internal.workoutDetail.getHistoricalBests, {
+        userId,
+      }),
+      ctx.runQuery(internal.workoutDetail.getWorkoutPerformanceRows, {
+        userId,
+        activityId: args.activityId,
+      }),
+    ]);
     if (!detail) throw new Error("Workout not found");
     const movementMap = new Map(movements.map((m) => [m.id, m]));
 
@@ -104,13 +201,28 @@ export const getWorkoutDetail = action({
       };
     });
 
+    // Detect PRs by comparing this workout's stored exercisePerformance values
+    // against all-time bests (same metric, same source — avoids computation mismatches).
+    const prMovementIds = new Set<string>();
+    for (const perf of thisWorkoutPerf) {
+      if (perf.avgWeightLbs == null || perf.avgWeightLbs <= 0) continue;
+      const hist = historicalBests[perf.movementId];
+      if (!hist) continue;
+      // PR if this workout's stored value equals the all-time best and there are 2+ sessions
+      if (perf.avgWeightLbs >= hist.best && hist.count >= 2) {
+        prMovementIds.add(perf.movementId);
+      }
+    }
+
     // Build movement summaries grouped by movementId
-    const movementSummaries = buildMovementSummaries(enrichedSets, volumeMap);
+    const movementSummaries = buildMovementSummaries(enrichedSets, volumeMap, prMovementIds);
 
     return {
       ...typedDetail,
       workoutSetActivity: enrichedSets,
       movementSummaries,
+      workoutTitle: workoutMeta?.title ?? undefined,
+      targetArea: workoutMeta ? normalizeTargetArea(workoutMeta.targetArea) : undefined,
     };
   },
 });
@@ -119,6 +231,7 @@ export const getWorkoutDetail = action({
 export function buildMovementSummaries(
   sets: readonly EnrichedSetActivity[],
   volumeMap: ReadonlyMap<string, number>,
+  prMovementIds?: ReadonlySet<string>,
 ): MovementSummary[] {
   const grouped = new Map<
     string,
@@ -157,6 +270,8 @@ export function buildMovementSummaries(
 
   return Array.from(grouped.entries()).map(([movementId, data]) => {
     const totalVolume = volumeMap.get(movementId) ?? 0;
+    const avgWeightLbs =
+      data.weightedReps > 0 ? Math.round(data.weightedWeightSum / data.weightedReps) : 0;
     return {
       movementId,
       movementName: data.name,
@@ -164,8 +279,8 @@ export function buildMovementSummaries(
       totalVolume,
       totalSets: data.totalSets,
       totalReps: data.totalReps,
-      avgWeightLbs:
-        data.weightedReps > 0 ? Math.round(data.weightedWeightSum / data.weightedReps) : 0,
+      avgWeightLbs,
+      isPR: prMovementIds?.has(movementId) || undefined,
     };
   });
 }
