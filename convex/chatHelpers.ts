@@ -1,9 +1,11 @@
+import { saveMessage } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { components, internal } from "./_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { type ProviderKeyResult, resolveProviderKey } from "./byok";
-import { classifyByokError } from "./ai/resilience";
+import { buildByokErrorMessage, type ByokErrorCode, classifyByokError } from "./ai/resilience";
+import type { ProviderId } from "./ai/providers";
 
 export const MAX_IMAGES_PER_MESSAGE = 4;
 
@@ -72,6 +74,80 @@ export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promis
     }
     throw err;
   }
+}
+
+const CHAT_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
+const HOUSE_KEY_EXHAUSTED_MESSAGE =
+  "You've used your 500 free AI messages this month. Add your own API key in Settings to keep going.";
+const KEY_MISSING_MESSAGE = "You need to add an API key in Settings before chat can run.";
+const MODEL_MISSING_MESSAGE =
+  "The selected provider needs a model name before chat can start. Add one in Settings and try again.";
+
+const BYOK_FALLBACK_MESSAGES: Record<ByokErrorCode, string> = {
+  byok_key_invalid: "Your API key isn't working anymore. Check it in Settings and try again.",
+  byok_quota_exceeded:
+    "Your AI provider quota or credits are exhausted. Check billing or switch providers in Settings.",
+  byok_safety_blocked: "The AI provider declined to answer this one. Try rephrasing.",
+  byok_unknown_error: "Something went wrong with the AI provider. Try again in a moment.",
+};
+
+const EXPECTED_SCHEDULED_FAILURE_CODES = new Set<string>([
+  "house_key_quota_exhausted",
+  "byok_key_missing",
+  "byok_model_missing",
+  ...Object.keys(BYOK_FALLBACK_MESSAGES),
+]);
+
+export function getScheduledFailureContent(error: unknown, provider?: ProviderId): string {
+  const code = error instanceof Error ? error.message : String(error);
+
+  // Check explicit sentinel codes first so internal control-flow errors do not
+  // get reinterpreted later by substring-based BYOK classification.
+  if (code === "house_key_quota_exhausted") return HOUSE_KEY_EXHAUSTED_MESSAGE;
+  if (code === "byok_key_missing") return KEY_MISSING_MESSAGE;
+  if (code === "byok_model_missing") return MODEL_MISSING_MESSAGE;
+
+  if (Object.hasOwn(BYOK_FALLBACK_MESSAGES, code)) {
+    return provider
+      ? buildByokErrorMessage(code as ByokErrorCode, provider)
+      : BYOK_FALLBACK_MESSAGES[code as ByokErrorCode];
+  }
+
+  if (provider) {
+    const classified = classifyByokError(error);
+    if (classified) return buildByokErrorMessage(classified, provider);
+  }
+
+  return CHAT_ERROR_MESSAGE;
+}
+
+export function shouldNotifyScheduledFailure(error: unknown): boolean {
+  const code = error instanceof Error ? error.message : String(error);
+  if (EXPECTED_SCHEDULED_FAILURE_CODES.has(code)) return false;
+  return classifyByokError(error) === null;
+}
+
+export async function persistScheduledFailure(args: {
+  ctx: ActionCtx;
+  threadId: string;
+  userId: string;
+  error: unknown;
+  provider?: ProviderId;
+}): Promise<void> {
+  await saveMessage(args.ctx, components.agent, {
+    threadId: args.threadId,
+    userId: args.userId,
+    message: { role: "assistant", content: getScheduledFailureContent(args.error, args.provider) },
+  });
+
+  if (!shouldNotifyScheduledFailure(args.error)) return;
+
+  const reason = args.error instanceof Error ? args.error.message : String(args.error);
+  await args.ctx.runAction(internal.discord.notifyError, {
+    source: "chat.processMessage",
+    message: reason,
+    userId: args.userId,
+  });
 }
 
 export async function buildPrompt(
