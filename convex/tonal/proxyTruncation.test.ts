@@ -65,16 +65,21 @@ describe("isConvexSizeError", () => {
     "Array length is too long (8988 > maximum length 8192)",
     "Value is too large (1.26 MiB > maximum size 1 MiB)",
     "Arguments for setCacheEntry are too large (17.96 MiB, limit: 16 MiB)",
-  ])("detects %s", (msg) => {
+  ])("detects Convex size error: %s", (msg) => {
     expect(isConvexSizeError(new Error(msg))).toBe(true);
   });
 
-  it("ignores unrelated errors", () => {
-    expect(isConvexSizeError(new Error("Not authenticated"))).toBe(false);
+  it.each([
+    "Not authenticated",
+    "Request took too long",
+    "Query took too long to complete",
+    "too large a change to apply at once",
+  ])("ignores unrelated message: %s", (msg) => {
+    expect(isConvexSizeError(new Error(msg))).toBe(false);
   });
 
-  it("tolerates non-Error values", () => {
-    expect(isConvexSizeError("too large: plain string")).toBe(true);
+  it("reads size errors from plain string inputs", () => {
+    expect(isConvexSizeError("Value is too large (1 MiB)")).toBe(true);
     expect(isConvexSizeError({})).toBe(false);
   });
 });

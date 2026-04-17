@@ -43,14 +43,12 @@ export async function withTonalToken(
 
 const MAX_CACHE_VALUE_BYTES = 8 * 1024 * 1024;
 
+const CONVEX_SIZE_ERROR_PATTERN =
+  /\b(is|are) too (long|large)\b|\bmaximum (size|length)\b|\bexceeds? the maximum\b/i;
+
 export function isConvexSizeError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes("too long") ||
-    msg.includes("too large") ||
-    msg.includes("maximum size") ||
-    msg.includes("maximum length")
-  );
+  return CONVEX_SIZE_ERROR_PATTERN.test(msg);
 }
 
 /** Generic cache-check-then-fetch helper with stale-while-revalidate. */
@@ -98,7 +96,7 @@ export async function cachedFetch<T>(
 
     let serializedBytes = Number.POSITIVE_INFINITY;
     try {
-      serializedBytes = JSON.stringify(cacheData).length;
+      serializedBytes = Buffer.byteLength(JSON.stringify(cacheData), "utf8");
     } catch {
       // Unserializable payloads (circular refs, bigints) fall through as oversized.
     }
@@ -292,10 +290,12 @@ const MAX_SETS_RETURN = 4000;
 export function truncateWorkoutDetail(
   detail: WorkoutActivityDetail | null,
 ): WorkoutActivityDetail | null {
-  if (!detail?.workoutSetActivity || detail.workoutSetActivity.length <= MAX_SETS_RETURN) {
-    return detail;
-  }
-  return { ...detail, workoutSetActivity: detail.workoutSetActivity.slice(0, MAX_SETS_RETURN) };
+  const sets = detail?.workoutSetActivity;
+  if (!sets || sets.length <= MAX_SETS_RETURN) return detail;
+  console.warn(
+    `truncateWorkoutDetail: capped workoutSetActivity (${sets.length} -> ${MAX_SETS_RETURN}) for activity ${detail.id}`,
+  );
+  return { ...detail, workoutSetActivity: sets.slice(0, MAX_SETS_RETURN) };
 }
 
 export const fetchWorkoutDetail = internalAction({
