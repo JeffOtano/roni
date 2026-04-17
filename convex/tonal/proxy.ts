@@ -41,6 +41,16 @@ export async function withTonalToken(
   return { token, tonalUserId: profile.tonalUserId };
 }
 
+const MAX_CACHE_VALUE_BYTES = 8 * 1024 * 1024;
+
+const CONVEX_SIZE_ERROR_PATTERN =
+  /\b(is|are) too (long|large)\b|\bmaximum (size|length)\b|\bexceeds? the maximum\b/i;
+
+export function isConvexSizeError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return CONVEX_SIZE_ERROR_PATTERN.test(msg);
+}
+
 /** Generic cache-check-then-fetch helper with stale-while-revalidate. */
 export async function cachedFetch<T>(
   ctx: ActionCtx,
@@ -53,46 +63,61 @@ export async function cachedFetch<T>(
 ): Promise<T> {
   const { userId, dataType, ttl, fetcher } = opts;
 
-  const cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, {
-    userId,
-    dataType,
-  });
+  let cached: { data: unknown; expiresAt: number } | null = null;
+  try {
+    cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, { userId, dataType });
+  } catch (readErr) {
+    if (!isConvexSizeError(readErr)) throw readErr;
+    console.warn(`cachedFetch(${dataType}): cached entry invalid on read, evicting`, readErr);
+    await ctx
+      .runMutation(internal.tonal.cache.deleteCacheEntryByType, { userId, dataType })
+      .catch((err: unknown) => console.warn(`cachedFetch(${dataType}): eviction failed`, err));
+  }
 
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data as T;
   }
 
-  // Circuit breaker: if Tonal is unhealthy, serve stale data without attempting fetch
   const circuitOpen = await ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" });
   if (circuitOpen && cached) {
     console.warn(`cachedFetch(${dataType}): circuit open, serving stale data`);
     return cached.data as T;
   }
 
-  // Stale-while-revalidate: try to refresh, fall back to stale data
   try {
     const data = await fetcher();
     const now = Date.now();
 
-    // Truncate large arrays before caching to stay within Convex's
-    // 8192 element limit per array field. The full data is still
-    // returned to the caller; only the cached copy is truncated.
     const MAX_CACHE_ARRAY_LENGTH = 500;
     const cacheData =
       Array.isArray(data) && data.length > MAX_CACHE_ARRAY_LENGTH
         ? data.slice(0, MAX_CACHE_ARRAY_LENGTH)
         : data;
 
+    let serializedBytes = Number.POSITIVE_INFINITY;
     try {
-      await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
-        userId,
-        dataType,
-        data: cacheData,
-        fetchedAt: now,
-        expiresAt: now + ttl,
-      });
-    } catch (cacheErr) {
-      console.warn(`cachedFetch(${dataType}): cache write failed, returning fresh data`, cacheErr);
+      serializedBytes = Buffer.byteLength(JSON.stringify(cacheData), "utf8");
+    } catch {
+      // Unserializable payloads (circular refs, bigints) fall through as oversized.
+    }
+
+    if (serializedBytes > MAX_CACHE_VALUE_BYTES) {
+      console.warn(`cachedFetch(${dataType}): payload too large to cache, skipping write`);
+    } else {
+      try {
+        await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
+          userId,
+          dataType,
+          data: cacheData,
+          fetchedAt: now,
+          expiresAt: now + ttl,
+        });
+      } catch (cacheErr) {
+        console.warn(
+          `cachedFetch(${dataType}): cache write failed, returning fresh data`,
+          cacheErr,
+        );
+      }
     }
 
     await ctx
@@ -262,10 +287,15 @@ export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activ
 // Convex caps array fields at 8192 elements. Tonal can return thousands of
 // set entries for some activities. Apply after every return path (fresh + cached).
 const MAX_SETS_RETURN = 4000;
-function truncateWorkoutDetail(detail: WorkoutActivityDetail | null): WorkoutActivityDetail | null {
-  if (!detail?.workoutSetActivity || detail.workoutSetActivity.length <= MAX_SETS_RETURN)
-    return detail;
-  return { ...detail, workoutSetActivity: detail.workoutSetActivity.slice(0, MAX_SETS_RETURN) };
+export function truncateWorkoutDetail(
+  detail: WorkoutActivityDetail | null,
+): WorkoutActivityDetail | null {
+  const sets = detail?.workoutSetActivity;
+  if (!sets || sets.length <= MAX_SETS_RETURN) return detail;
+  console.warn(
+    `truncateWorkoutDetail: capped workoutSetActivity (${sets.length} -> ${MAX_SETS_RETURN}) for activity ${detail.id}`,
+  );
+  return { ...detail, workoutSetActivity: sets.slice(0, MAX_SETS_RETURN) };
 }
 
 export const fetchWorkoutDetail = internalAction({
