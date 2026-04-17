@@ -107,7 +107,7 @@ export function getScheduledFailureContent(error: unknown, provider?: ProviderId
   if (code === "byok_key_missing") return KEY_MISSING_MESSAGE;
   if (code === "byok_model_missing") return MODEL_MISSING_MESSAGE;
 
-  if (Object.hasOwn(BYOK_FALLBACK_MESSAGES, code)) {
+  if (Object.prototype.hasOwnProperty.call(BYOK_FALLBACK_MESSAGES, code)) {
     return provider
       ? buildByokErrorMessage(code as ByokErrorCode, provider)
       : BYOK_FALLBACK_MESSAGES[code as ByokErrorCode];
