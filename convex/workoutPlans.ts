@@ -85,7 +85,8 @@ export const getRecentMovementIds = internalQuery({
         .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "completed"))
         .collect(),
     ]);
-    const allMovementIds = [...pushed, ...completed].flatMap((p) =>
+    const recentPlans = [...pushed, ...completed].sort((a, b) => a._creationTime - b._creationTime);
+    const allMovementIds = recentPlans.flatMap((p) =>
       p.blocks.flatMap((b) => b.exercises.map((ex) => ex.movementId)),
     );
     return [...new Set(allMovementIds)].slice(-50);
