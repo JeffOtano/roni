@@ -58,20 +58,6 @@ describe("truncateWorkoutDetail", () => {
     const result = truncateWorkoutDetail(detail);
     expect(result?.workoutSetActivity?.length).toBe(4000);
   });
-
-  it("truncates arbitrary oversized top-level array fields from upstream payloads", () => {
-    const detail = {
-      ...makeDetail(10),
-      extraTimeline: Array.from({ length: 9000 }, (_, i) => i),
-    } as WorkoutActivityDetail & { extraTimeline: number[] };
-
-    const result = truncateWorkoutDetail(detail) as unknown as {
-      extraTimeline: number[];
-      workoutSetActivity: SetActivity[];
-    };
-    expect(result.extraTimeline.length).toBe(4000);
-    expect(result.workoutSetActivity.length).toBe(10);
-  });
 });
 
 describe("isConvexSizeError", () => {

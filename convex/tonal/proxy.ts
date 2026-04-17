@@ -43,14 +43,6 @@ export async function withTonalToken(
 
 const MAX_CACHE_VALUE_BYTES = 8 * 1024 * 1024;
 
-async function readCacheEntry(
-  ctx: ActionCtx,
-  userId: Id<"users"> | undefined,
-  dataType: string,
-): Promise<{ data: unknown; expiresAt: number } | null> {
-  return ctx.runQuery(internal.tonal.cache.getCacheEntry, { userId, dataType });
-}
-
 export function isConvexSizeError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return (
@@ -59,14 +51,6 @@ export function isConvexSizeError(err: unknown): boolean {
     msg.includes("maximum size") ||
     msg.includes("maximum length")
   );
-}
-
-function estimatedBytes(value: unknown): number {
-  try {
-    return JSON.stringify(value).length;
-  } catch {
-    return Number.POSITIVE_INFINITY;
-  }
 }
 
 /** Generic cache-check-then-fetch helper with stale-while-revalidate. */
@@ -81,18 +65,15 @@ export async function cachedFetch<T>(
 ): Promise<T> {
   const { userId, dataType, ttl, fetcher } = opts;
 
-  let cached: Awaited<ReturnType<typeof readCacheEntry>> = null;
+  let cached: { data: unknown; expiresAt: number } | null = null;
   try {
-    cached = await readCacheEntry(ctx, userId, dataType);
+    cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, { userId, dataType });
   } catch (readErr) {
-    if (isConvexSizeError(readErr)) {
-      console.warn(`cachedFetch(${dataType}): cached entry invalid on read, evicting`, readErr);
-      await ctx
-        .runMutation(internal.tonal.cache.deleteCacheEntryByType, { userId, dataType })
-        .catch((err: unknown) => console.warn(`cachedFetch(${dataType}): eviction failed`, err));
-    } else {
-      throw readErr;
-    }
+    if (!isConvexSizeError(readErr)) throw readErr;
+    console.warn(`cachedFetch(${dataType}): cached entry invalid on read, evicting`, readErr);
+    await ctx
+      .runMutation(internal.tonal.cache.deleteCacheEntryByType, { userId, dataType })
+      .catch((err: unknown) => console.warn(`cachedFetch(${dataType}): eviction failed`, err));
   }
 
   if (cached && cached.expiresAt > Date.now()) {
@@ -115,7 +96,16 @@ export async function cachedFetch<T>(
         ? data.slice(0, MAX_CACHE_ARRAY_LENGTH)
         : data;
 
-    if (estimatedBytes(cacheData) <= MAX_CACHE_VALUE_BYTES) {
+    let serializedBytes = Number.POSITIVE_INFINITY;
+    try {
+      serializedBytes = JSON.stringify(cacheData).length;
+    } catch {
+      // Unserializable payloads (circular refs, bigints) fall through as oversized.
+    }
+
+    if (serializedBytes > MAX_CACHE_VALUE_BYTES) {
+      console.warn(`cachedFetch(${dataType}): payload too large to cache, skipping write`);
+    } else {
       try {
         await ctx.runMutation(internal.tonal.cache.setCacheEntry, {
           userId,
@@ -130,8 +120,6 @@ export async function cachedFetch<T>(
           cacheErr,
         );
       }
-    } else {
-      console.warn(`cachedFetch(${dataType}): payload too large to cache, skipping write`);
     }
 
     await ctx
@@ -304,14 +292,10 @@ const MAX_SETS_RETURN = 4000;
 export function truncateWorkoutDetail(
   detail: WorkoutActivityDetail | null,
 ): WorkoutActivityDetail | null {
-  if (!detail) return detail;
-  const out: Record<string, unknown> = { ...detail };
-  for (const [key, value] of Object.entries(out)) {
-    if (Array.isArray(value) && value.length > MAX_SETS_RETURN) {
-      out[key] = value.slice(0, MAX_SETS_RETURN);
-    }
+  if (!detail?.workoutSetActivity || detail.workoutSetActivity.length <= MAX_SETS_RETURN) {
+    return detail;
   }
-  return out as unknown as WorkoutActivityDetail;
+  return { ...detail, workoutSetActivity: detail.workoutSetActivity.slice(0, MAX_SETS_RETURN) };
 }
 
 export const fetchWorkoutDetail = internalAction({
