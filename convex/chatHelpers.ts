@@ -133,6 +133,7 @@ export async function persistScheduledFailure(args: {
   userId: string;
   error: unknown;
   provider?: ProviderId;
+  source: string;
 }): Promise<void> {
   await saveMessage(args.ctx, components.agent, {
     threadId: args.threadId,
@@ -144,7 +145,7 @@ export async function persistScheduledFailure(args: {
 
   const reason = args.error instanceof Error ? args.error.message : String(args.error);
   await args.ctx.runAction(internal.discord.notifyError, {
-    source: "chat.processMessage",
+    source: args.source,
     message: reason,
     userId: args.userId,
   });

@@ -45,6 +45,12 @@ describe("getScheduledFailureContent", () => {
       "I'm having trouble right now. Please try again in a moment.",
     );
   });
+
+  it("falls back to the generic chat error for classifiable errors without a known provider", () => {
+    expect(
+      getScheduledFailureContent(new Error("You exceeded your current quota: insufficient_quota.")),
+    ).toBe("I'm having trouble right now. Please try again in a moment.");
+  });
 });
 
 describe("shouldNotifyScheduledFailure", () => {

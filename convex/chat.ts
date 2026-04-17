@@ -199,11 +199,11 @@ export const continueAfterApproval = action({
     await assertThreadOwnership(ctx, threadId, userId);
 
     let provider: ProviderId | undefined;
+    const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
       provider = providerConfig.provider;
 
-      const startTime = Date.now();
       const { primary, fallback } = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
@@ -219,15 +219,23 @@ export const continueAfterApproval = action({
           provider: providerConfig.provider,
         }),
       );
-
-      analytics.capture(userId, "coach_response_received", {
-        response_time_ms: Date.now() - startTime,
-        after_approval: true,
-      });
-      await analytics.flush();
     } catch (error) {
-      await persistScheduledFailure({ ctx, threadId, userId, error, provider });
+      await persistScheduledFailure({
+        ctx,
+        threadId,
+        userId,
+        error,
+        provider,
+        source: "chat.continueAfterApproval",
+      });
+      return;
     }
+
+    analytics.capture(userId, "coach_response_received", {
+      response_time_ms: Date.now() - startTime,
+      after_approval: true,
+    });
+    await analytics.flush();
   },
 });
 
@@ -291,13 +299,13 @@ export const processMessage = internalAction({
     });
 
     let provider: ProviderId | undefined;
+    const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
       provider = providerConfig.provider;
 
-      const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
+      const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds);
 
-      const startTime = Date.now();
       const { primary, fallback } = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
@@ -314,14 +322,22 @@ export const processMessage = internalAction({
           provider: providerConfig.provider,
         }),
       );
-
-      analytics.capture(userId, "coach_response_received", {
-        response_time_ms: Date.now() - startTime,
-        has_images: (imageStorageIds?.length ?? 0) > 0,
-      });
-      await analytics.flush();
     } catch (error) {
-      await persistScheduledFailure({ ctx, threadId, userId, error, provider });
+      await persistScheduledFailure({
+        ctx,
+        threadId,
+        userId,
+        error,
+        provider,
+        source: "chat.processMessage",
+      });
+      return;
     }
+
+    analytics.capture(userId, "coach_response_received", {
+      response_time_ms: Date.now() - startTime,
+      has_images: (imageStorageIds?.length ?? 0) > 0,
+    });
+    await analytics.flush();
   },
 });
