@@ -5,7 +5,7 @@
 <h1 align="center">Roni</h1>
 
 <p align="center">
-  AI-powered custom workouts for your Tonal
+  AI-powered custom workouts, compatible with your Tonal
   <br />
   <a href="https://roni.coach"><strong>roni.coach</strong></a>
 </p>

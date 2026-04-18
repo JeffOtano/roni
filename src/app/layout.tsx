@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — AI Personal Trainer for Tonal`,
+    default: `${SITE_NAME} — AI Personal Trainer, compatible with Tonal`,
     template: `%s | ${SITE_NAME}`,
   },
   description:

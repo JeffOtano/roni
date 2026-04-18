@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "Roni — AI Personal Trainer for Tonal";
+export const alt = "Roni — AI Personal Trainer, compatible with Tonal";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -50,7 +50,7 @@ export default async function OgImage() {
           fontWeight: 700,
         }}
       >
-        AI Personal Trainer for Tonal
+        AI Personal Trainer, compatible with Tonal
       </span>
     </div>,
     {

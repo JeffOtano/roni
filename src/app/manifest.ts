@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Roni",
     short_name: "Roni",
-    description: "AI Personal Trainer for Tonal",
+    description: "AI Personal Trainer, compatible with Tonal",
     start_url: "/",
     display: "standalone",
     background_color: "#0a0a0a",
