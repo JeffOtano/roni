@@ -7,13 +7,29 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "AI Personal Trainer, compatible with Tonal",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0a0a",
-    theme_color: "#00cacb",
+    background_color: "#0F1419",
+    theme_color: "#0F1419",
     icons: [
       {
-        src: "/icon.svg",
+        src: "/favicon.svg",
         sizes: "any",
         type: "image/svg+xml",
+      },
+      {
+        src: "/android-chrome-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: "/android-chrome-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+      {
+        src: "/icon-maskable-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };

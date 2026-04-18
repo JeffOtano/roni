@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AuthCta } from "./AuthCta";
 import { PublicOpenSourceBanner } from "./PublicOpenSourceBanner";
+import { RoniLogo } from "@/components/RoniLogo";
 
 const NAV_LINKS = [
   { href: "/features", label: "Features" },
@@ -18,8 +19,8 @@ export function SiteNav() {
         aria-label="Main"
         className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12"
       >
-        <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
-          Roni
+        <Link href="/" aria-label="Roni" className="flex items-center">
+          <RoniLogo variant="horizontal" priority className="h-7" />
         </Link>
         <div className="flex items-center gap-1 sm:gap-4">
           <ul className="hidden items-center gap-1 sm:flex">

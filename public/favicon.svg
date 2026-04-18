@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Roni">
+  <title>Roni</title>
+  <rect width="64" height="64" rx="14" fill="#0F1419"/>
+  <g transform="translate(3, 20)">
+    <path d="M 9 0 L 19 0 Q 21 0 22 2 L 27 10 Q 28 12 27 14 L 22 22 Q 21 24 19 24 L 9 24 Q 7 24 6 22 L 1 14 Q 0 12 1 10 L 6 2 Q 7 0 9 0 Z" fill="#F4F6F8"/>
+    <path d="M 39 0 L 49 0 Q 51 0 52 2 L 57 10 Q 58 12 57 14 L 52 22 Q 51 24 49 24 L 39 24 Q 37 24 36 22 L 31 14 Q 30 12 31 10 L 36 2 Q 37 0 39 0 Z" fill="#F4F6F8"/>
+    <rect x="20" y="9" width="16" height="6" fill="#F4F6F8"/>
+    <circle cx="14" cy="12" r="4.6" fill="#0F1419"/>
+    <circle cx="15.3" cy="10.8" r="1.7" fill="#3DD6E8"/>
+    <circle cx="44" cy="12" r="4.6" fill="#0F1419"/>
+    <circle cx="45.3" cy="10.8" r="1.7" fill="#3DD6E8"/>
+  </g>
+</svg>
