@@ -19,7 +19,7 @@ export function SiteNav() {
         className="flex items-center justify-between px-4 py-6 sm:px-8 lg:px-12"
       >
         <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
-          roni.coach
+          Roni
         </Link>
         <div className="flex items-center gap-1 sm:gap-4">
           <ul className="hidden items-center gap-1 sm:flex">

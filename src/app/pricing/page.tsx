@@ -132,10 +132,10 @@ export default function PricingPage() {
               </p>
               <p className="mt-3 text-2xl font-bold tracking-tight">You run the AI, not us</p>
               <p className="mt-4 leading-relaxed text-muted-foreground">
-                roni.coach is open source and free to use forever. When you sign up, you paste your
-                own Google Gemini API key during onboarding. The AI coach runs on your key, which
-                means you control usage and never get a bill from us. Gemini keys are free from
-                Google AI Studio and the free tier is generous enough for normal use.
+                Roni is open source and free to use forever. When you sign up, you paste your own
+                Google Gemini API key during onboarding. The AI coach runs on your key, which means
+                you control usage and never get a bill from us. Gemini keys are free from Google AI
+                Studio and the free tier is generous enough for normal use.
               </p>
               <p className="mt-3 text-sm text-muted-foreground/70">
                 Prefer to run your own copy?{" "}

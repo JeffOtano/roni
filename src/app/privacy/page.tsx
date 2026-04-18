@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "Privacy policy for roni.coach. Learn how we handle your data, Tonal credentials, and account information.",
+    "Privacy policy for Roni. Learn how we handle your data, Tonal credentials, and account information.",
   alternates: { canonical: "/privacy" },
   robots: { index: true, follow: true },
 };
@@ -20,11 +20,11 @@ export default function PrivacyPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-foreground">What this service is</h2>
           <p>
-            roni.coach is an independent project built by an individual developer. It is not
-            affiliated with, endorsed by, or connected to Tonal in any way. Tonal is a trademark of
-            Tonal Systems, Inc. This service uses Tonal&apos;s APIs to read your training data and
-            push custom workouts to your machine, but Tonal does not provide a public API or
-            officially support third-party integrations.
+            Roni is an independent project built by an individual developer. It is not affiliated
+            with, endorsed by, or connected to Tonal in any way. Tonal is a trademark of Tonal
+            Systems, Inc. This service uses Tonal&apos;s APIs to read your training data and push
+            custom workouts to your machine, but Tonal does not provide a public API or officially
+            support third-party integrations.
           </p>
         </section>
 
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-foreground">Data we store</h2>
           <ul className="list-inside list-disc space-y-1">
-            <li>Your roni.coach account (email, hashed password)</li>
+            <li>Your Roni account (email, hashed password)</li>
             <li>Encrypted Tonal auth tokens</li>
             <li>Training preferences and goals you set in the app</li>
             <li>Chat conversations with the AI coach</li>
@@ -91,8 +91,8 @@ export default function PrivacyPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-foreground">Data deletion</h2>
           <p>
-            You can disconnect your Tonal account and delete your roni.coach account at any time.
-            All associated data (conversations, feedback, goals, injuries, and cached data) is
+            You can disconnect your Tonal account and delete your Roni account at any time. All
+            associated data (conversations, feedback, goals, injuries, and cached data) is
             permanently deleted with no retention period.
           </p>
         </section>
@@ -102,9 +102,9 @@ export default function PrivacyPage() {
           <p>
             This service accesses Tonal through unofficial APIs that may change or become
             unavailable without notice. Using this service could theoretically affect your Tonal
-            account, though no such issues have been reported. By using roni.coach, you acknowledge
-            this risk and agree that the developer is not liable for any impact to your Tonal
-            account or subscription.
+            account, though no such issues have been reported. By using Roni, you acknowledge this
+            risk and agree that the developer is not liable for any impact to your Tonal account or
+            subscription.
           </p>
         </section>
 

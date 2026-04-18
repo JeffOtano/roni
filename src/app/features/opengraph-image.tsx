@@ -1,6 +1,6 @@
 import { createOgImage, ogContentType, ogSize } from "../_components/createOgImage";
 
-export const alt = "roni.coach Features — AI-Powered Custom Workouts for Tonal";
+export const alt = "Roni Features — AI-Powered Custom Workouts for Tonal";
 export const size = ogSize;
 export const contentType = ogContentType;
 

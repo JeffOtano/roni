@@ -106,7 +106,7 @@ function SettingsPageInner() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Sign out of roni.coach?</DialogTitle>
+                    <DialogTitle>Sign out of Roni?</DialogTitle>
                     <DialogDescription>
                       You&apos;ll need to sign in again to access your coaching data.
                     </DialogDescription>
@@ -169,7 +169,7 @@ function SettingsPageInner() {
         <Card>
           <CardContent className="space-y-3 p-4">
             <p className="text-sm text-muted-foreground">
-              roni.coach is an independent project, not affiliated with Tonal.
+              Roni is an independent project, not affiliated with Tonal.
             </p>
             <div className="flex gap-3">
               <Button

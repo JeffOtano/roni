@@ -1,6 +1,6 @@
 import { createOgImage, ogContentType, ogSize } from "../_components/createOgImage";
 
-export const alt = "How roni.coach Works — Custom Tonal Workouts in 3 Steps";
+export const alt = "How Roni Works — Custom Tonal Workouts in 3 Steps";
 export const size = ogSize;
 export const contentType = ogContentType;
 

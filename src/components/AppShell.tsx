@@ -115,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
           <div className="px-5 py-5">
             <span className="text-base font-bold tracking-tight text-foreground drop-shadow-[0_0_12px_var(--primary)]">
-              roni.coach
+              Roni
             </span>
           </div>
 
@@ -168,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Mobile header -- frosted glass */}
           <header className="flex shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
-            <span className="text-base font-bold tracking-tight text-foreground">roni.coach</span>
+            <span className="text-base font-bold tracking-tight text-foreground">Roni</span>
             <CheckInBell />
           </header>
 

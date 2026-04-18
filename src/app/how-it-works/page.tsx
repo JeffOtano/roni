@@ -51,7 +51,7 @@ const STEPS: Step[] = [
     heading: "Connect Your Tonal Account",
     paragraphs: [
       "Getting started takes about two minutes. Sign up with your email, then link your Tonal account using your existing credentials. The connection is encrypted end-to-end — your password is never stored in plain text and is only used to authenticate with Tonal's servers.",
-      "Once connected, roni.coach reads your workout history, strength scores, and movement data. This is what allows the AI to build workouts calibrated to you specifically — not a generic template built for an average user.",
+      "Once connected, Roni reads your workout history, strength scores, and movement data. This is what allows the AI to build workouts calibrated to you specifically — not a generic template built for an average user.",
       "You stay in control at all times. You can disconnect your Tonal account from your settings at any moment, and we'll never write to your Tonal library without your explicit action.",
     ],
     mockup: <MockConnect />,
@@ -84,8 +84,8 @@ const STEPS: Step[] = [
       "Each workout is built from Tonal's exercise library, so everything your coach selects is something the machine knows how to handle. Digital weight adjustments, Spotter Mode, and all of Tonal's built-in features work exactly as you'd expect.",
       <>
         After each session, your data feeds back into the AI. Completed reps, weights lifted, and
-        RPE ratings all sharpen future recommendations. The longer you train with roni.coach, the
-        more accurate your programming becomes. Have questions?{" "}
+        RPE ratings all sharpen future recommendations. The longer you train with Roni, the more
+        accurate your programming becomes. Have questions?{" "}
         <Link
           href="/faq"
           className="text-primary underline underline-offset-2 hover:text-primary/80"

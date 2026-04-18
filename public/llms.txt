@@ -1,4 +1,4 @@
-# roni.coach
+# Roni
 
 > Free, open-source AI personal trainer for the Tonal home fitness machine. Connects to your Tonal account, analyzes your training history, and programs custom strength workouts using AI coaching. Bring your own Google Gemini API key.
 
@@ -15,7 +15,7 @@
 
 ## Key Facts
 
-- roni.coach is free and open source under the MIT license
+- Roni is free and open source under the MIT license
 - Independent project, not affiliated with or endorsed by Tonal
 - Requires a Tonal account and active Tonal membership
 - New users provide their own Google Gemini API key (free from Google AI Studio) during onboarding

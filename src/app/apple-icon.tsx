@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "roni.coach";
+export const alt = "Roni";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
@@ -23,14 +23,13 @@ export default async function AppleIcon() {
     >
       <span
         style={{
-          fontSize: "100px",
+          fontSize: "110px",
           fontFamily: "DM Sans",
           fontWeight: 700,
           color: "#00cacb",
-          letterSpacing: "-3px",
         }}
       >
-        rc
+        R
       </span>
     </div>,
     {

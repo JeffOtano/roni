@@ -104,10 +104,10 @@ export default function LoginPage() {
             backgroundClip: "text",
           }}
         >
-          roni.coach
+          Roni
         </Link>
         <h1 className="sr-only">
-          {flow === "signIn" ? "Sign in to roni.coach" : "Create a roni.coach account"}
+          {flow === "signIn" ? "Sign in to Roni" : "Create a Roni account"}
         </h1>
 
         {/* Glassmorphic card */}

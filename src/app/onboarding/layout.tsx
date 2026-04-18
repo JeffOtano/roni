@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Get Started - roni.coach",
+  title: "Get Started - Roni",
   robots: { index: false, follow: false },
 };
 
@@ -14,7 +14,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       </div>
       <nav className="relative z-10 flex items-center px-6 py-5">
         <Link href="/" className="text-base font-bold tracking-tight text-foreground">
-          roni.coach
+          Roni
         </Link>
       </nav>
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-8">

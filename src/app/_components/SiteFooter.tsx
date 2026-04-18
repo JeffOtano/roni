@@ -82,7 +82,7 @@ export function SiteFooter() {
         </div>
       </div>
       <p className="mx-auto mt-10 max-w-5xl text-center text-xs text-muted-foreground/70">
-        roni.coach is an independent project. Not affiliated with or endorsed by Tonal.
+        Roni is an independent project. Not affiliated with or endorsed by Tonal.
       </p>
     </footer>
   );
