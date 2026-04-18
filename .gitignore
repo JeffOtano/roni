@@ -61,6 +61,8 @@ docs/superpowers/
 conductor.json
 skills-lock.json
 .env.local
+.cursor/*
+.codex/*
 
 # git worktrees
 .worktrees/
