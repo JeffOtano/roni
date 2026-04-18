@@ -6,6 +6,7 @@ import type { Id } from "../_generated/dataModel";
 import { decrypt } from "./encryption";
 import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
+import { isCacheValueWithinLimit, isConvexSizeError } from "./proxyCacheLimits";
 import { withTokenRetry } from "./tokenRetry";
 import type {
   Activity,
@@ -41,15 +42,7 @@ export async function withTonalToken(
   return { token, tonalUserId: profile.tonalUserId };
 }
 
-const MAX_CACHE_VALUE_BYTES = 8 * 1024 * 1024;
-
-const CONVEX_SIZE_ERROR_PATTERN =
-  /\b(is|are) too (long|large)\b|\bmaximum (size|length)\b|\bexceeds? the maximum\b/i;
-
-export function isConvexSizeError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return CONVEX_SIZE_ERROR_PATTERN.test(msg);
-}
+const MAX_CACHE_ARRAY_LENGTH = 500;
 
 /** Generic cache-check-then-fetch helper with stale-while-revalidate. */
 export async function cachedFetch<T>(
@@ -88,20 +81,12 @@ export async function cachedFetch<T>(
     const data = await fetcher();
     const now = Date.now();
 
-    const MAX_CACHE_ARRAY_LENGTH = 500;
     const cacheData =
       Array.isArray(data) && data.length > MAX_CACHE_ARRAY_LENGTH
         ? data.slice(0, MAX_CACHE_ARRAY_LENGTH)
         : data;
 
-    let serializedBytes = Number.POSITIVE_INFINITY;
-    try {
-      serializedBytes = Buffer.byteLength(JSON.stringify(cacheData), "utf8");
-    } catch {
-      // Unserializable payloads (circular refs, bigints) fall through as oversized.
-    }
-
-    if (serializedBytes > MAX_CACHE_VALUE_BYTES) {
+    if (!isCacheValueWithinLimit(cacheData)) {
       console.warn(`cachedFetch(${dataType}): payload too large to cache, skipping write`);
     } else {
       try {
@@ -224,6 +209,18 @@ export interface WorkoutMeta {
   targetArea?: string;
 }
 
+export function projectWorkoutMeta(raw: unknown): WorkoutMeta {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+
+  const candidate = raw as { title?: unknown; targetArea?: unknown };
+  return {
+    title: typeof candidate.title === "string" ? candidate.title : undefined,
+    targetArea: typeof candidate.targetArea === "string" ? candidate.targetArea : undefined,
+  };
+}
+
 const WORKOUT_META_BATCH_SIZE = 10;
 
 /** Batch-fetch workout metadata for unique workoutIds. Failures are silently skipped. */
@@ -240,7 +237,13 @@ export async function fetchWorkoutMetaBatch(
         const data = await cachedFetch<WorkoutMeta>(ctx, {
           dataType: `workoutMeta:${id}`,
           ttl: CACHE_TTLS.profile,
-          fetcher: () => tonalFetch<WorkoutMeta>(token, `/v6/workouts/${id}`),
+          fetcher: async () => {
+            const raw = await tonalFetch<{ title?: unknown; targetArea?: unknown }>(
+              token,
+              `/v6/workouts/${id}`,
+            );
+            return projectWorkoutMeta(raw);
+          },
         });
         return { id, data };
       }),

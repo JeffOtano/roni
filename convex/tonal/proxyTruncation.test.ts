@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isConvexSizeError, truncateWorkoutDetail } from "./proxy";
+import { projectWorkoutMeta, toActivity, truncateWorkoutDetail } from "./proxy";
+import {
+  estimateCacheValueBytes,
+  isCacheValueWithinLimit,
+  isConvexSizeError,
+  MAX_CACHE_VALUE_BYTES,
+} from "./proxyCacheLimits";
 import type { SetActivity, WorkoutActivityDetail } from "./types";
 
 function makeSet(id: string): SetActivity {
@@ -57,6 +63,79 @@ describe("truncateWorkoutDetail", () => {
     const detail = makeDetail(9000);
     const result = truncateWorkoutDetail(detail);
     expect(result?.workoutSetActivity?.length).toBe(4000);
+  });
+});
+
+describe("projectWorkoutMeta", () => {
+  it("keeps only title and targetArea string fields", () => {
+    const result = projectWorkoutMeta({
+      title: "Push Day",
+      targetArea: "Upper Body",
+      description: "ignored",
+      blocks: [{ id: "b1" }],
+    });
+
+    expect(result).toEqual({
+      title: "Push Day",
+      targetArea: "Upper Body",
+    });
+  });
+
+  it("drops non-string metadata values", () => {
+    const result = projectWorkoutMeta({
+      title: 42,
+      targetArea: ["Upper Body"],
+    });
+
+    expect(result).toEqual({
+      title: undefined,
+      targetArea: undefined,
+    });
+  });
+
+  it("returns empty metadata for null and non-object payloads", () => {
+    expect(projectWorkoutMeta(null)).toEqual({});
+    expect(projectWorkoutMeta("Push Day")).toEqual({});
+    expect(projectWorkoutMeta(["Push Day"])).toEqual({});
+  });
+});
+
+describe("cache size helpers", () => {
+  it("measures serializable values", () => {
+    expect(estimateCacheValueBytes({ title: "Push Day" })).toBeGreaterThan(0);
+  });
+
+  it("treats unserializable values as oversized", () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+
+    expect(estimateCacheValueBytes(circular)).toBe(Number.POSITIVE_INFINITY);
+    expect(isCacheValueWithinLimit(circular)).toBe(false);
+  });
+
+  it("rejects payloads above the safe cache threshold", () => {
+    const oversized = { data: "x".repeat(MAX_CACHE_VALUE_BYTES + 1) };
+
+    expect(isCacheValueWithinLimit(oversized)).toBe(false);
+  });
+});
+
+describe("toActivity", () => {
+  it("fills default title and target area when metadata is missing", () => {
+    const result = toActivity(makeDetail(1));
+
+    expect(result.workoutPreview.workoutTitle).toBe("Tonal Workout");
+    expect(result.workoutPreview.targetArea).toBe("Full Body");
+  });
+
+  it("uses projected metadata when available", () => {
+    const result = toActivity(makeDetail(1), {
+      title: "Leg Day",
+      targetArea: "Lower Body",
+    });
+
+    expect(result.workoutPreview.workoutTitle).toBe("Leg Day");
+    expect(result.workoutPreview.targetArea).toBe("Lower Body");
   });
 });
 
