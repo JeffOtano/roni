@@ -136,7 +136,7 @@ export function ChatMessage({ message, isGrouped, threadId }: ChatMessageProps) 
           <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.6_0.22_300)]">
             <Sparkles className="size-3 text-white" />
           </div>
-          <span className="text-[13px] font-semibold text-foreground">Coach</span>
+          <span className="text-[13px] font-semibold text-foreground">Roni</span>
           <span className="text-xs text-muted-foreground">{formatTime(message._creationTime)}</span>
         </div>
       )}

@@ -188,7 +188,7 @@ export function ChatInput({ threadId, disabled, onSend }: ChatInputProps) {
               autoGrow(e.target);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Ask your coach..."
+            placeholder="Ask Roni..."
             disabled={isDisabled}
             rows={1}
             aria-label="Message input"
