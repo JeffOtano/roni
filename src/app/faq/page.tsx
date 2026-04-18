@@ -12,15 +12,15 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     heading: "Getting Started",
     items: [
       {
-        q: "What is tonal.coach?",
+        q: "What is Roni?",
         aText:
-          "tonal.coach is a free, open-source AI personal trainer that connects to your Tonal home gym. It reads your workout history and programs custom workouts that get pushed directly to your machine. Think of it as having a personal trainer who actually knows your training data - your actual lifts, your strength trends, your recovery.",
+          "Roni is a free, open-source AI personal trainer that connects to your Tonal home gym. It reads your workout history and programs custom workouts that get pushed directly to your machine. Think of it as having a personal trainer who actually knows your training data - your actual lifts, your strength trends, your recovery.",
         a: (
           <>
-            tonal.coach is a free, open-source AI personal trainer that connects to your Tonal home
-            gym. It reads your workout history and programs custom workouts that get pushed directly
-            to your machine. Think of it as having a personal trainer who actually knows your
-            training data - your actual lifts, your strength trends, your recovery.
+            Roni is a free, open-source AI personal trainer that connects to your Tonal home gym. It
+            reads your workout history and programs custom workouts that get pushed directly to your
+            machine. Think of it as having a personal trainer who actually knows your training data
+            - your actual lifts, your strength trends, your recovery.
           </>
         ),
       },
@@ -42,10 +42,10 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         q: "Do I need a Tonal membership?",
         aText:
-          "Yes, an active Tonal membership is required. tonal.coach uses the Tonal API to read your training data and push custom workouts to your machine. If your Tonal subscription lapses, the connection will stop working until it is renewed.",
+          "Yes, an active Tonal membership is required. Roni uses the Tonal API to read your training data and push custom workouts to your machine. If your Tonal subscription lapses, the connection will stop working until it is renewed.",
         a: (
           <>
-            Yes, an active Tonal membership is required. tonal.coach uses the Tonal API to read your
+            Yes, an active Tonal membership is required. Roni uses the Tonal API to read your
             training data and push custom workouts to your machine. If your Tonal subscription
             lapses, the connection will stop working until it is renewed.
           </>
@@ -89,13 +89,13 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         q: "Will it mess up my Tonal account?",
         aText:
-          "No. tonal.coach only reads your data and adds custom workouts to your Tonal account. It never modifies or deletes existing workouts, programs, or account settings. Custom workouts pushed by the coach appear as a separate category and can be deleted from your Tonal app at any time.",
+          "No. Roni only reads your data and adds custom workouts to your Tonal account. It never modifies or deletes existing workouts, programs, or account settings. Custom workouts pushed by the coach appear as a separate category and can be deleted from your Tonal app at any time.",
         a: (
           <>
-            No. tonal.coach only reads your data and adds custom workouts to your Tonal account. It
-            never modifies or deletes existing workouts, programs, or account settings. Custom
-            workouts pushed by the coach appear as a separate category and can be deleted from your
-            Tonal app at any time.
+            No. Roni only reads your data and adds custom workouts to your Tonal account. It never
+            modifies or deletes existing workouts, programs, or account settings. Custom workouts
+            pushed by the coach appear as a separate category and can be deleted from your Tonal app
+            at any time.
           </>
         ),
       },
@@ -136,11 +136,11 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         q: "How is this different from Tonal's built-in programs?",
         aText:
-          "Tonal's programs are pre-built for general audiences. tonal.coach creates fully custom programs based on your data — your actual lifts, your recovery, your goals, your injuries. It also supports custom training splits and adapts week to week as your performance changes, rather than following a fixed script.",
+          "Tonal's programs are pre-built for general audiences. Roni creates fully custom programs based on your data — your actual lifts, your recovery, your goals, your injuries. It also supports custom training splits and adapts week to week as your performance changes, rather than following a fixed script.",
         a: (
           <>
-            Tonal&apos;s programs are pre-built for general audiences. tonal.coach creates fully
-            custom programs based on your data — your actual lifts, your recovery, your goals, your
+            Tonal&apos;s programs are pre-built for general audiences. Roni creates fully custom
+            programs based on your data — your actual lifts, your recovery, your goals, your
             injuries. It also supports custom training splits and adapts week to week as your
             performance changes, rather than following a fixed script.
           </>
@@ -190,13 +190,13 @@ const FAQ_CATEGORIES: FaqCategory[] = [
     heading: "Pricing & Open Source",
     items: [
       {
-        q: "Is tonal.coach free?",
+        q: "Is Roni free?",
         aText:
-          "Yes, tonal.coach is completely free and open source. No credit card is required. All features are available to all users with no limits or hidden tiers. You bring your own Google Gemini API key (free from Google AI Studio) so the AI runs on your quota, not ours.",
+          "Yes, Roni is completely free and open source. No credit card is required. All features are available to all users with no limits or hidden tiers. You bring your own Google Gemini API key (free from Google AI Studio) so the AI runs on your quota, not ours.",
         a: (
           <>
-            Yes, tonal.coach is completely free and open source. No credit card is required. All
-            features are available to all users with no limits or hidden tiers. You bring your own{" "}
+            Yes, Roni is completely free and open source. No credit card is required. All features
+            are available to all users with no limits or hidden tiers. You bring your own{" "}
             <a
               href="https://aistudio.google.com/app/apikey"
               target="_blank"
@@ -212,11 +212,11 @@ const FAQ_CATEGORIES: FaqCategory[] = [
       {
         q: "Why do I need a Gemini API key?",
         aText:
-          "Running AI models costs real money per request. Instead of charging a subscription to cover those costs, tonal.coach asks you to paste your own Google Gemini API key during onboarding. The key stays encrypted in our database and is only used to power your coaching sessions. Gemini keys are free from Google AI Studio and the free tier is generous enough for normal use.",
+          "Running AI models costs real money per request. Instead of charging a subscription to cover those costs, Roni asks you to paste your own Google Gemini API key during onboarding. The key stays encrypted in our database and is only used to power your coaching sessions. Gemini keys are free from Google AI Studio and the free tier is generous enough for normal use.",
         a: (
           <>
             Running AI models costs real money per request. Instead of charging a subscription to
-            cover those costs, tonal.coach asks you to paste your own Google Gemini API key during
+            cover those costs, Roni asks you to paste your own Google Gemini API key during
             onboarding. The key stays encrypted in our database and is only used to power your
             coaching sessions.{" "}
             <a
@@ -232,12 +232,12 @@ const FAQ_CATEGORIES: FaqCategory[] = [
         ),
       },
       {
-        q: "Can I self-host tonal.coach?",
+        q: "Can I self-host Roni?",
         aText:
-          "Yes. tonal.coach is open source under the MIT license. You can clone the repository, deploy it to your own Convex + Vercel setup, and run everything under your control. The README has step-by-step instructions for getting a local or self-hosted deployment running.",
+          "Yes. Roni is open source under the MIT license. You can clone the repository, deploy it to your own Convex + Vercel setup, and run everything under your control. The README has step-by-step instructions for getting a local or self-hosted deployment running.",
         a: (
           <>
-            Yes. tonal.coach is open source under the MIT license. You can clone the{" "}
+            Yes. Roni is open source under the MIT license. You can clone the{" "}
             <a
               href={REPO_URL}
               target="_blank"
@@ -286,9 +286,7 @@ export default function FaqPage() {
             <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">
               Frequently Asked Questions
             </h1>
-            <p className="text-lg text-muted-foreground">
-              Everything you need to know about tonal.coach
-            </p>
+            <p className="text-lg text-muted-foreground">Everything you need to know about Roni</p>
           </header>
 
           <div className="space-y-12">

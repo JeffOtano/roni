@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenSourceBanner } from "./OpenSourceBanner";
 
-const REPO_URL = "https://github.com/example/tonal-coach";
-const STORAGE_KEY = "tonal-coach-oss-banner-dismissed";
+const REPO_URL = "https://github.com/example/roni";
+const STORAGE_KEY = "roni-oss-banner-dismissed";
+const LEGACY_STORAGE_KEY = "tonal-coach-oss-banner-dismissed";
 
 describe("OpenSourceBanner", () => {
   beforeEach(() => {
@@ -19,7 +20,7 @@ describe("OpenSourceBanner", () => {
   it("renders the announcement and repo link when env var is set and not dismissed", async () => {
     render(<OpenSourceBanner />);
 
-    expect(await screen.findByText(/tonal coach is now open source/i)).toBeInTheDocument();
+    expect(await screen.findByText(/roni is now open source/i)).toBeInTheDocument();
     expect(screen.getByText(/your account is unchanged/i)).toBeInTheDocument();
 
     const link = screen.getByRole("link", { name: /read the code/i });
@@ -35,7 +36,7 @@ describe("OpenSourceBanner", () => {
     await waitFor(() => {
       expect(container).toBeEmptyDOMElement();
     });
-    expect(screen.queryByText(/tonal coach is now open source/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/roni is now open source/i)).not.toBeInTheDocument();
   });
 
   it("renders nothing when localStorage already marks the banner dismissed", async () => {
@@ -46,7 +47,7 @@ describe("OpenSourceBanner", () => {
     await waitFor(() => {
       expect(container).toBeEmptyDOMElement();
     });
-    expect(screen.queryByText(/tonal coach is now open source/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/roni is now open source/i)).not.toBeInTheDocument();
   });
 
   it("dismisses when the close button is clicked and persists the flag", async () => {
@@ -55,14 +56,25 @@ describe("OpenSourceBanner", () => {
     render(<OpenSourceBanner />);
 
     // Wait for the banner to appear after mount.
-    await screen.findByText(/tonal coach is now open source/i);
+    await screen.findByText(/roni is now open source/i);
 
     await user.click(screen.getByRole("button", { name: /dismiss/i }));
 
     await waitFor(() => {
-      expect(screen.queryByText(/tonal coach is now open source/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/roni is now open source/i)).not.toBeInTheDocument();
     });
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("true");
+  });
+
+  it("renders nothing when legacy localStorage key marks the banner dismissed", async () => {
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, "true");
+
+    const { container } = render(<OpenSourceBanner />);
+
+    await waitFor(() => {
+      expect(container).toBeEmptyDOMElement();
+    });
+    expect(screen.queryByText(/roni is now open source/i)).not.toBeInTheDocument();
   });
 
   it("opens the repo link in a new tab with safe rel attributes", async () => {

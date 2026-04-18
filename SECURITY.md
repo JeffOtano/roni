@@ -13,7 +13,7 @@ Security fixes are provided on a best-effort basis for:
 
 If you've found a security issue, do not open a public GitHub issue.
 
-Email the maintainer at `jeff.tonalcoach@gmail.com` with:
+Email the maintainer at `jeff@roni.coach` with:
 
 - a clear description of the issue
 - reproduction steps or a proof of concept

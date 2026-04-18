@@ -96,7 +96,7 @@ function ChatPageInner() {
             <span className="inline-block size-2 rounded-full bg-foreground/30 motion-safe:animate-[thinking-dot_1.4s_ease-in-out_0.4s_infinite]" />
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">Your coach is reviewing your data...</p>
+        <p className="text-sm text-muted-foreground">Roni is reviewing your data...</p>
       </div>
     );
   }

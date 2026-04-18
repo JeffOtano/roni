@@ -5,7 +5,7 @@ test("home page loads with primary calls to action", async ({ page }) => {
   expect(response?.status()).toBe(200);
 
   await expect(
-    page.getByRole("heading", { name: "AI-powered custom workouts for your Tonal" }),
+    page.getByRole("heading", { name: "AI-powered custom workouts, compatible with your Tonal" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "See How It Works" })).toBeVisible();
 });

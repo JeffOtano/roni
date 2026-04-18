@@ -125,7 +125,7 @@ export function WelcomeInput({
                 handleSend();
               }
             }}
-            placeholder="Ask your coach..."
+            placeholder="Ask Roni..."
             disabled={isDisabled}
             rows={1}
             aria-label="Message input"

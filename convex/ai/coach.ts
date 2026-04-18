@@ -207,13 +207,13 @@ export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAg
   const config = makeCoachAgentConfig(userTimezone);
 
   const primary = new Agent(components.agent, {
-    name: "Tonal Coach",
+    name: "Roni",
     languageModel: provider("gemini-3-flash-preview"),
     ...config,
   });
 
   const fallback = new Agent(components.agent, {
-    name: "Tonal Coach (Fallback)",
+    name: "Roni (Fallback)",
     languageModel: provider("gemini-2.5-flash"),
     ...config,
   });
@@ -240,7 +240,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
 
   const primaryModel = config.createLanguageModel(apiKey, primaryModelName);
   const primary = new Agent(components.agent, {
-    name: "Tonal Coach",
+    name: "Roni",
     languageModel: primaryModel,
     ...agentConfig,
   });
@@ -249,7 +249,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
   if (config.fallbackModel) {
     const fallbackModel = config.createLanguageModel(apiKey, config.fallbackModel);
     fallback = new Agent(components.agent, {
-      name: "Tonal Coach (Fallback)",
+      name: "Roni (Fallback)",
       languageModel: fallbackModel,
       ...agentConfig,
     });
@@ -265,7 +265,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
 // Uses coachAgentConfig directly -- no contextHandler needed since no LLM call runs.
 export function buildCoachAgentForStorageOnly(): Agent {
   return new Agent(components.agent, {
-    name: "Tonal Coach (Storage Only)",
+    name: "Roni (Storage Only)",
     languageModel: serverProvider("gemini-2.5-flash"),
     ...coachAgentConfig,
   });

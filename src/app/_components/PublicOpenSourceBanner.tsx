@@ -1,7 +1,7 @@
 import { ArrowRight, Star } from "lucide-react";
 import { REPO_URL } from "@/lib/urls";
 
-const REPO_API = "https://api.github.com/repos/JeffOtano/tonal-coach";
+const REPO_API = "https://api.github.com/repos/JeffOtano/roni";
 
 async function getStarCount(): Promise<number | null> {
   const res = await fetch(REPO_API, {
@@ -26,14 +26,14 @@ export async function PublicOpenSourceBanner() {
       href={REPO_URL}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="View Tonal Coach source on GitHub"
+      aria-label="View Roni source on GitHub"
       className="group relative block overflow-hidden border-b border-primary/20 bg-gradient-to-r from-primary/[0.12] via-primary/[0.06] to-transparent"
     >
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
       <div className="relative mx-auto flex max-w-6xl items-center justify-center gap-2 px-4 py-2.5 text-xs sm:gap-3 sm:text-sm">
         <GithubIcon className="size-4 shrink-0 text-foreground/80" />
         <span className="text-foreground/90">
-          <strong className="font-semibold text-foreground">Tonal Coach is open source.</strong>
+          <strong className="font-semibold text-foreground">Roni is open source.</strong>
           <span className="hidden sm:inline"> Audit the code, self-host, or contribute.</span>
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 font-semibold text-primary transition-colors group-hover:bg-primary/20">

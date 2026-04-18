@@ -1,35 +1,35 @@
 <p align="center">
-  <img src="src/app/icon.svg" width="80" alt="Tonal Coach logo" />
+  <img src="src/app/icon.svg" width="80" alt="Roni logo" />
 </p>
 
-<h1 align="center">Tonal Coach</h1>
+<h1 align="center">Roni</h1>
 
 <p align="center">
-  AI-powered custom workouts for your Tonal
+  AI-powered custom workouts, compatible with your Tonal
   <br />
-  <a href="https://tonal.coach"><strong>tonal.coach</strong></a>
+  <a href="https://roni.coach"><strong>roni.coach</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml"><img src="https://github.com/JeffOtano/tonal-coach/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/JeffOtano/tonal-coach/releases/latest"><img src="https://img.shields.io/github/v/release/JeffOtano/tonal-coach?label=release&color=blue" alt="Latest release" /></a>
+  <a href="https://github.com/JeffOtano/roni/actions/workflows/ci.yml"><img src="https://github.com/JeffOtano/roni/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/JeffOtano/roni/releases/latest"><img src="https://img.shields.io/github/v/release/JeffOtano/roni?label=release&color=blue" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <a href="tsconfig.json"><img src="https://img.shields.io/badge/TypeScript-strict-3178c6.svg" alt="TypeScript" /></a>
   <a href="#testing"><img src="https://img.shields.io/badge/tests-Vitest-6E9F18.svg" alt="Vitest" /></a>
   <a href="https://discord.gg/Sa5ewWP5M"><img src="https://img.shields.io/discord/1482942052898574336?logo=discord&logoColor=white&label=Discord&color=5865F2" alt="Discord" /></a>
-  <img src="https://img.shields.io/coderabbit/prs/github/JeffOtano/tonal-coach?utm_source=oss&utm_medium=github&utm_campaign=JeffOtano%2Ftonal-coach&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Pull Request Reviews" />
+  <img src="https://img.shields.io/coderabbit/prs/github/JeffOtano/roni?utm_source=oss&utm_medium=github&utm_campaign=JeffOtano%2Froni&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Pull Request Reviews" />
 </p>
 
 <p align="center">
-  <img src="public/screenshots/hero.png" width="720" alt="Tonal Coach landing page" />
+  <img src="public/screenshots/hero.png" width="720" alt="Roni landing page" />
 </p>
 
 > [!IMPORTANT]
-> **Not affiliated with Tonal Systems, Inc.** Tonal Coach is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
+> **Not affiliated with Tonal Systems, Inc.** Roni is an independent, unofficial tool that works with Tonal fitness machines. "Tonal" is a trademark of Tonal Systems, Inc., used here under nominative fair use. This project is not endorsed by, sponsored by, or associated with Tonal Systems, Inc. in any way.
 
 ## What this is
 
-Tonal Coach is an AI coaching companion for Tonal fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly workout plans. The coach uses Google Gemini models to select exercises, manage periodization, and push approved workouts directly to Tonal with no manual builder work. It is built on Next.js and Convex with real-time sync.
+Roni is an AI coaching companion for Tonal fitness machines. Connect your Tonal account, and the app reads your training history, strength scores, and workout data to program custom weekly workout plans. The coach uses Google Gemini models to select exercises, manage periodization, and push approved workouts directly to Tonal with no manual builder work. It is built on Next.js and Convex with real-time sync.
 
 ## Who it's for
 
@@ -83,8 +83,8 @@ Active, maintained by one person. This is a personal project, not a startup. Iss
 ## Self-Host Setup
 
 ```bash
-git clone <repo-url> tonal-coach
-cd tonal-coach
+git clone https://github.com/JeffOtano/roni.git roni
+cd roni
 npm install
 npm run setup        # interactive: bootstraps Convex, generates secrets, prompts for optional integrations
 

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_NAME, SITE_URL } from "@/lib/urls";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { JsonLd } from "./JsonLd";
@@ -28,16 +29,27 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tonal.coach"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "tonal.coach — AI Personal Trainer for Tonal",
-    template: "%s | tonal.coach",
+    default: `${SITE_NAME} — AI Personal Trainer, compatible with Tonal`,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
     "AI coaching powered by your real Tonal training data. Get personalized advice, push custom workouts, and track your progress.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
-    siteName: "tonal.coach",
-    url: "https://tonal.coach",
+    siteName: SITE_NAME,
+    url: SITE_URL,
     locale: "en_US",
     type: "website",
   },

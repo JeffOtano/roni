@@ -8,7 +8,7 @@ import { QuickStartCards } from "./_components/QuickStartCards";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Free Tonal Workouts | tonal.coach",
+  title: "Free Tonal Workouts | Roni",
   description:
     "Browse 800+ expert-designed Tonal workouts for every goal, muscle group, and experience level.",
   alternates: { canonical: "/workouts" },

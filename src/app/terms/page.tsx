@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Terms of service for tonal.coach.",
+  description: "Terms of service for Roni.",
   alternates: { canonical: "/terms" },
   robots: { index: true, follow: true },
 };
@@ -19,7 +19,7 @@ export default function TermsPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-foreground">Acceptance</h2>
           <p>
-            By creating an account or using tonal.coach, you agree to these terms and our{" "}
+            By creating an account or using Roni, you agree to these terms and our{" "}
             <Link href="/privacy" className="text-primary underline underline-offset-2">
               Privacy Policy
             </Link>
@@ -30,10 +30,10 @@ export default function TermsPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-foreground">What this service is</h2>
           <p>
-            tonal.coach is an independent, experimental project that provides AI-powered coaching
-            for Tonal fitness machine users. It is not affiliated with, endorsed by, or connected to
-            Tonal Systems, Inc. in any way. The service accesses Tonal through unofficial,
-            undocumented APIs.
+            Roni is an independent, experimental project that provides AI-powered coaching for Tonal
+            fitness machine users. It is not affiliated with, endorsed by, or connected to Tonal
+            Systems, Inc. in any way. The service accesses Tonal through unofficial, undocumented
+            APIs.
           </p>
         </section>
 
@@ -71,7 +71,7 @@ export default function TermsPage() {
           <h2 className="mb-2 text-base font-semibold text-foreground">Your responsibilities</h2>
           <ul className="list-inside list-disc space-y-1">
             <li>You must have an active Tonal membership to use this service</li>
-            <li>You are responsible for the security of your tonal.coach account</li>
+            <li>You are responsible for the security of your Roni account</li>
             <li>
               You should not rely solely on AI advice for training decisions, especially regarding
               pain or injury
@@ -100,11 +100,8 @@ export default function TermsPage() {
           <h2 className="mb-2 text-base font-semibold text-foreground">Contact</h2>
           <p>
             Questions about these terms? Email{" "}
-            <a
-              href="mailto:jeff.tonalcoach@gmail.com"
-              className="text-primary underline underline-offset-2"
-            >
-              jeff.tonalcoach@gmail.com
+            <a href="mailto:jeff@roni.coach" className="text-primary underline underline-offset-2">
+              jeff@roni.coach
             </a>
             .
           </p>

@@ -55,7 +55,7 @@ const STEPS: Step[] = [
 
 async function main(): Promise<void> {
   assertInteractive();
-  console.log("Tonal Coach setup\n");
+  console.log("Roni setup\n");
 
   const total = STEPS.length;
   let ctx: Context | null = null;

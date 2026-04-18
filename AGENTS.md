@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents (Claude Code, GitHub Copilot, Cu
 
 ## What This Project Is
 
-Tonal Coach is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes approved workouts directly to Tonal.
+Roni is an AI coaching companion for Tonal fitness machines. Users connect their Tonal account, and the AI coach reads their training history, strength scores, and workout data to program custom weekly plans. The coach pushes approved workouts directly to Tonal.
 
 ## Stack
 

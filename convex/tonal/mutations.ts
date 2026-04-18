@@ -8,6 +8,7 @@ import { type BlockInput, expandBlocksToSets } from "./transforms";
 import { validateWorkoutBlocks } from "./validation";
 import type { Activity, WorkoutEstimate, WorkoutSetInput } from "./types";
 import { cachedFetch } from "./proxy";
+import { WORKOUT_SOURCE } from "../workoutPlans";
 import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
@@ -212,7 +213,7 @@ export const createWorkout = internalAction({
       const planId = await ctx.runMutation(internal.workoutPlans.create, {
         userId,
         tonalWorkoutId: id,
-        source: "tonal_coach",
+        source: WORKOUT_SOURCE,
         title,
         blocks,
         status: "pushed",

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in Tonal Coach. This is a personal project maintained by one person on a best-effort basis. PRs are welcome but may take time to review.
+Thanks for your interest in Roni. This is a personal project maintained by one person on a best-effort basis. PRs are welcome but may take time to review.
 
 ## Before you file an issue
 
@@ -15,8 +15,8 @@ Search existing issues first. Then pick the right channel:
 See the [Self-host setup](README.md#self-host-setup) section of the README for the full onboarding path. The short version:
 
 ```bash
-git clone https://github.com/JeffOtano/tonal-coach.git
-cd tonal-coach
+git clone https://github.com/JeffOtano/roni.git
+cd roni
 npm install
 npm run setup        # interactive: bootstraps Convex, generates required secrets
 npx convex dev       # in one terminal

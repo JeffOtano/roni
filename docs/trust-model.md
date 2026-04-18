@@ -1,6 +1,6 @@
 # Trust Model
 
-Tonal Coach is open source so users can inspect how credentials, workout data,
+Roni is open source so users can inspect how credentials, workout data,
 and AI keys are handled before deciding to use the hosted product or self-host
 their own copy.
 

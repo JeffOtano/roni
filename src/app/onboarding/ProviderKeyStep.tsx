@@ -37,8 +37,8 @@ export function ProviderKeyStep({ onComplete }: { readonly onComplete: () => voi
         <div className="mb-6 text-center">
           <h1 className="text-xl font-semibold text-foreground">One last step</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Tonal Coach uses an AI model to design your workouts. Pick your preferred provider and
-            enter your API key. Pricing varies by provider.
+            Roni uses an AI model to design your workouts. Pick your preferred provider and enter
+            your API key. Pricing varies by provider.
           </p>
         </div>
 

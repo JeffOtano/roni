@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Features — AI-Powered Custom Workouts for Tonal",
+  title: "Features — AI-Powered Custom Workouts, compatible with Tonal",
   description:
     "AI coaching, push-to-Tonal custom workouts, progressive overload, periodization, injury management, muscle readiness, and RPE tracking. Everything your Tonal is missing.",
   alternates: { canonical: "/features" },
