@@ -38,7 +38,6 @@ export function RoniLogo({ variant = "horizontal", className, priority = false }
         alt="Roni"
         width={width}
         height={height}
-        priority={priority}
         className={cn("block w-auto dark:hidden", className)}
       />
     </>
