@@ -62,7 +62,7 @@ export const requestEmailChange = action({
     // Send verification email to the NEW address
     await sendEmail({
       to: normalizedEmail,
-      subject: "Verify your new email for tonal.coach",
+      subject: "Verify your new email for Roni",
       html: emailChangeHtml(code),
     });
   },

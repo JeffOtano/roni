@@ -120,7 +120,7 @@ export default function ResetPasswordPage() {
             backgroundClip: "text",
           }}
         >
-          tonal.coach
+          Roni
         </Link>
 
         {/* Glassmorphic card */}

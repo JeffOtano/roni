@@ -26,11 +26,11 @@ const FORMAT_LABELS: Record<ExportFormat, string> = {
 };
 
 const FORMAT_FILENAMES: Record<ExportFormat, (date: string) => string> = {
-  json: (d) => `tonal-coach-export-${d}.json`,
-  "csv-workouts": (d) => `tonal-coach-workouts-${d}.csv`,
-  "csv-exercises": (d) => `tonal-coach-exercises-${d}.csv`,
-  "csv-strength": (d) => `tonal-coach-strength-scores-${d}.csv`,
-  "csv-activities": (d) => `tonal-coach-external-activities-${d}.csv`,
+  json: (d) => `roni-export-${d}.json`,
+  "csv-workouts": (d) => `roni-workouts-${d}.csv`,
+  "csv-exercises": (d) => `roni-exercises-${d}.csv`,
+  "csv-strength": (d) => `roni-strength-scores-${d}.csv`,
+  "csv-activities": (d) => `roni-external-activities-${d}.csv`,
 };
 
 export function DataExport() {

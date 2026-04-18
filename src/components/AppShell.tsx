@@ -23,6 +23,7 @@ import { OpenSourceBanner } from "@/components/OpenSourceBanner";
 import { CheckInBell } from "@/components/CheckInBell";
 import { Button } from "@/components/ui/button";
 import { ReconnectModal } from "@/components/ReconnectModal";
+import { RoniLogo } from "@/components/RoniLogo";
 import { useTheme } from "@/components/ThemeProvider";
 
 const navLinks: Array<{
@@ -114,9 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Desktop sidebar -- darker than main content */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
           <div className="px-5 py-5">
-            <span className="text-base font-bold tracking-tight text-foreground drop-shadow-[0_0_12px_var(--primary)]">
-              tonal.coach
-            </span>
+            <RoniLogo variant="horizontal" priority className="h-6" />
           </div>
 
           <nav className="flex flex-col gap-1.5 px-3">
@@ -168,7 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Mobile header -- frosted glass */}
           <header className="flex shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl lg:hidden">
-            <span className="text-base font-bold tracking-tight text-foreground">tonal.coach</span>
+            <RoniLogo variant="mark" priority className="h-7" />
             <CheckInBell />
           </header>
 

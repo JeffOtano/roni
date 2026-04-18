@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "../../convex/_generated/api";
+import { SITE_URL } from "@/lib/urls";
 
 export const dynamic = "force-dynamic";
 
@@ -9,55 +10,55 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticUrls: MetadataRoute.Sitemap = [
     {
-      url: "https://tonal.coach",
+      url: SITE_URL,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 1.0,
     },
     {
-      url: "https://tonal.coach/features",
+      url: `${SITE_URL}/features`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: "https://tonal.coach/how-it-works",
+      url: `${SITE_URL}/how-it-works`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: "https://tonal.coach/workouts",
+      url: `${SITE_URL}/workouts`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
-      url: "https://tonal.coach/faq",
+      url: `${SITE_URL}/faq`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: "https://tonal.coach/pricing",
+      url: `${SITE_URL}/pricing`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: "https://tonal.coach/contact",
+      url: `${SITE_URL}/contact`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
-      url: "https://tonal.coach/privacy",
+      url: `${SITE_URL}/privacy`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
     },
     {
-      url: "https://tonal.coach/terms",
+      url: `${SITE_URL}/terms`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.3,
@@ -81,7 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       cursor = result.continueCursor;
     }
     workoutUrls = allSlugs.map((slug: string) => ({
-      url: `https://tonal.coach/workouts/${slug}`,
+      url: `${SITE_URL}/workouts/${slug}`,
       lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.8,

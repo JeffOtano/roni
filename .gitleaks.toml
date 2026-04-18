@@ -2,7 +2,7 @@
 useDefault = true
 
 [allowlist]
-description = "Known false positives in the tonal-coach repo"
+description = "Known false positives in the roni repo"
 paths = [
   # BYOK test fixtures. These strings look like real Gemini API keys because
   # the tests exercise the format validator in convex/byok.ts, so they have

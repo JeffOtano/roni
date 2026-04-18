@@ -124,7 +124,7 @@ export default function HomePage() {
                 backgroundClip: "text",
               }}
             >
-              AI-powered custom workouts for your Tonal
+              AI-powered custom workouts, compatible with your Tonal
             </h1>
 
             <p className="anim-fade-up anim-delay-2 mx-auto mt-8 max-w-lg text-lg leading-relaxed text-muted-foreground sm:text-xl">

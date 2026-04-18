@@ -72,7 +72,7 @@ interface FaqItem {
 
 const FAQ_ITEMS: FaqItem[] = [
   {
-    q: "Is tonal.coach free?",
+    q: "Is Roni free?",
     a: "Yes, completely free and open source. No credit card required. You bring your own Google Gemini API key (free from Google AI Studio) so the AI runs on your quota, not ours.",
   },
   {
@@ -85,7 +85,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "How is this different from Tonal's built-in programs?",
-    a: "Tonal's programs are pre-built for general audiences. tonal.coach creates fully custom programs based on your data — your lifts, recovery, goals, and injuries. It adapts week to week as your performance changes.",
+    a: "Tonal's programs are pre-built for general audiences. Roni creates fully custom programs based on your data — your lifts, recovery, goals, and injuries. It adapts week to week as your performance changes.",
   },
 ];
 
@@ -144,7 +144,7 @@ export function FeatureDeepDives() {
     <section className="border-t border-border px-6 py-20 sm:py-24">
       <div className="mx-auto max-w-5xl">
         <p className="mb-4 text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
-          Why tonal.coach
+          Why Roni
         </p>
         <h2 className="mx-auto mb-14 max-w-lg text-center text-3xl font-bold tracking-tight text-foreground">
           Custom AI programming for every Tonal owner

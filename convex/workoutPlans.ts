@@ -11,6 +11,16 @@ import { workflow } from "./workflows";
 
 type RetryPushResult = { success: true; started: true } | { success: false; error: string };
 
+/** Current source tag written to new workout plans. */
+export const WORKOUT_SOURCE = "roni" as const;
+
+/** All source values that identify app-created plans (current + legacy). */
+const ALLOWED_SOURCES: ReadonlySet<string | undefined> = new Set([
+  WORKOUT_SOURCE,
+  "tonal_coach", // legacy, pre-rebrand
+  undefined, // plans created before the source field existed
+]);
+
 const statusValidator = v.union(
   v.literal("draft"),
   v.literal("pushing"),
@@ -47,10 +57,7 @@ export const getPushedAiWorkoutIds = internalQuery({
       .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "pushed"))
       .collect();
     return plans
-      .filter(
-        (p) =>
-          p.tonalWorkoutId !== undefined && (p.source === "tonal_coach" || p.source === undefined),
-      )
+      .filter((p) => p.tonalWorkoutId !== undefined && ALLOWED_SOURCES.has(p.source))
       .map((p) => p.tonalWorkoutId as string);
   },
 });

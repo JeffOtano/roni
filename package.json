@@ -1,7 +1,7 @@
 {
-  "name": "tonal-coach",
+  "name": "roni",
   "version": "0.4.0",
-  "description": "Unofficial AI coach for Tonal fitness machines. Not affiliated with Tonal Systems, Inc.",
+  "description": "Unofficial AI coach, compatible with Tonal fitness machines. Not affiliated with Tonal Systems, Inc.",
   "license": "MIT",
   "keywords": [
     "tonal",
@@ -15,11 +15,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JeffOtano/tonal-coach.git"
+    "url": "git+https://github.com/JeffOtano/roni.git"
   },
-  "homepage": "https://tonal.coach",
+  "homepage": "https://roni.coach",
   "bugs": {
-    "url": "https://github.com/JeffOtano/tonal-coach/issues"
+    "url": "https://github.com/JeffOtano/roni/issues"
   },
   "scripts": {
     "dev": "next dev",

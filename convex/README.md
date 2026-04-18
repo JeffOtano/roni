@@ -1,6 +1,6 @@
 # Convex Backend
 
-This directory contains the Tonal Coach backend: schema, queries, mutations, actions, HTTP endpoints, cron jobs, and the Tonal/AI integration layers.
+This directory contains the Roni backend: schema, queries, mutations, actions, HTTP endpoints, cron jobs, and the Tonal/AI integration layers.
 
 ## Layout
 

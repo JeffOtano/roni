@@ -14,6 +14,7 @@ import {
   preferredSplitValidator,
 } from "./weekPlanHelpers";
 import { blockInputValidator } from "./validators";
+import { WORKOUT_SOURCE } from "./workoutPlans";
 import { normalizeBlocksAgainstCatalog } from "./coach/normalizeBlocks";
 
 /** Internal: get week plan by userId and weekStartDate (for cron/check-ins). */
@@ -173,7 +174,7 @@ export const createDraftWorkoutInternal = internalMutation({
       title: args.title,
       blocks: normalizedBlocks,
       status: "draft",
-      source: "tonal_coach",
+      source: WORKOUT_SOURCE,
       estimatedDuration: args.estimatedDuration,
       createdAt: Date.now(),
     });
