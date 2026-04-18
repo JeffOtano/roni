@@ -14,10 +14,12 @@ import { buildCoachAgentForStorageOnly, buildCoachAgentsForProvider } from "./ai
 import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
 import { rateLimiter } from "./rateLimits";
 import { sanitizeTimezone } from "./ai/timeDecay";
+import type { ProviderId } from "./ai/providers";
 import * as analytics from "./lib/posthog";
 import {
   assertThreadOwnership,
   buildPrompt,
+  persistScheduledFailure,
   resolveUserProviderConfig,
   validateUserProviderKey,
   withByokErrorSanitization,
@@ -196,24 +198,38 @@ export const continueAfterApproval = action({
     if (!userId) throw new Error("Not authenticated");
     await assertThreadOwnership(ctx, threadId, userId);
 
-    const providerConfig = await resolveUserProviderConfig(ctx, userId);
-
+    let provider: ProviderId | undefined;
     const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgentsForProvider({
-      ...providerConfig,
-      userTimezone,
-    });
-    await withByokErrorSanitization(() =>
-      streamWithRetry(ctx, {
-        primaryAgent: primary,
-        fallbackAgent: fallback,
+    try {
+      const providerConfig = await resolveUserProviderConfig(ctx, userId);
+      provider = providerConfig.provider;
+
+      const { primary, fallback } = buildCoachAgentsForProvider({
+        ...providerConfig,
+        userTimezone,
+      });
+      await withByokErrorSanitization(() =>
+        streamWithRetry(ctx, {
+          primaryAgent: primary,
+          fallbackAgent: fallback,
+          threadId,
+          userId,
+          promptMessageId: messageId,
+          isByok: !providerConfig.isHouseKey,
+          provider: providerConfig.provider,
+        }),
+      );
+    } catch (error) {
+      await persistScheduledFailure({
+        ctx,
         threadId,
         userId,
-        promptMessageId: messageId,
-        isByok: !providerConfig.isHouseKey,
-        provider: providerConfig.provider,
-      }),
-    );
+        error,
+        provider,
+        source: "chat.continueAfterApproval",
+      });
+      return;
+    }
 
     analytics.capture(userId, "coach_response_received", {
       response_time_ms: Date.now() - startTime,
@@ -274,10 +290,6 @@ export const processMessage = internalAction({
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
 
-    const providerConfig = await resolveUserProviderConfig(ctx, userId);
-
-    const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds ?? undefined);
-
     // Pre-save the user message once so retries use promptMessageId
     // instead of re-saving, re-embedding, and duplicating the message.
     const { messageId } = await saveMessage(ctx, components.agent, {
@@ -286,23 +298,41 @@ export const processMessage = internalAction({
       message: { role: "user" as const, content: prompt },
     });
 
+    let provider: ProviderId | undefined;
     const startTime = Date.now();
-    const { primary, fallback } = buildCoachAgentsForProvider({
-      ...providerConfig,
-      userTimezone,
-    });
-    await withByokErrorSanitization(() =>
-      streamWithRetry(ctx, {
-        primaryAgent: primary,
-        fallbackAgent: fallback,
+    try {
+      const providerConfig = await resolveUserProviderConfig(ctx, userId);
+      provider = providerConfig.provider;
+
+      const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds);
+
+      const { primary, fallback } = buildCoachAgentsForProvider({
+        ...providerConfig,
+        userTimezone,
+      });
+      await withByokErrorSanitization(() =>
+        streamWithRetry(ctx, {
+          primaryAgent: primary,
+          fallbackAgent: fallback,
+          threadId,
+          userId,
+          promptMessageId: messageId,
+          prompt: typeof resolvedPrompt === "string" ? undefined : resolvedPrompt,
+          isByok: !providerConfig.isHouseKey,
+          provider: providerConfig.provider,
+        }),
+      );
+    } catch (error) {
+      await persistScheduledFailure({
+        ctx,
         threadId,
         userId,
-        promptMessageId: messageId,
-        prompt: typeof resolvedPrompt === "string" ? undefined : resolvedPrompt,
-        isByok: !providerConfig.isHouseKey,
-        provider: providerConfig.provider,
-      }),
-    );
+        error,
+        provider,
+        source: "chat.processMessage",
+      });
+      return;
+    }
 
     analytics.capture(userId, "coach_response_received", {
       response_time_ms: Date.now() - startTime,

@@ -1,6 +1,7 @@
 import { Agent } from "@convex-dev/agent";
 import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import type { ModelMessage } from "ai";
 import { components, internal } from "../_generated/api";
 import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
@@ -78,6 +79,8 @@ const serverProvider = createGoogleGenerativeAI({
 });
 const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
 
+const STATIC_INSTRUCTIONS = buildInstructions();
+
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
@@ -93,7 +96,7 @@ export const coachAgentConfig = {
     },
   },
 
-  instructions: buildInstructions(),
+  // No `instructions` here — STATIC_INSTRUCTIONS is injected by contextHandler so it can carry cacheControl.
 
   tools: {
     search_exercises: searchExercisesTool,
@@ -174,12 +177,22 @@ export function makeCoachAgentConfig(userTimezone?: string) {
           stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
         ),
       );
-      if (!args.userId) return messages;
-      const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
-      return [
-        { role: "system" as const, content: `<training-data>\n${snapshot}\n</training-data>` },
-        ...messages,
+      // Snapshot is added after this so the per-call snapshot doesn't bust the prefix cache.
+      const systemMessages: ModelMessage[] = [
+        {
+          role: "system",
+          content: STATIC_INSTRUCTIONS,
+          providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+        },
       ];
+      if (args.userId) {
+        const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
+        systemMessages.push({
+          role: "system",
+          content: `<training-data>\n${snapshot}\n</training-data>`,
+        });
+      }
+      return [...systemMessages, ...messages];
     }) satisfies ContextHandler,
   };
 }

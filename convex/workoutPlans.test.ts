@@ -11,15 +11,28 @@ async function seedPlan(
   t: ReturnType<typeof convexTest>,
   status: Doc<"workoutPlans">["status"],
 ): Promise<Id<"workoutPlans">> {
-  return t.run(async (ctx) => {
-    const userId = await ctx.db.insert("users", {});
-    return ctx.db.insert("workoutPlans", {
-      userId,
-      title: "test",
-      blocks: [],
-      status,
-      createdAt: Date.now(),
-    });
+  const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+  return insertPlan(t, { userId, status, movementId: "seed-movement" });
+}
+
+async function insertPlan(
+  t: ReturnType<typeof convexTest>,
+  {
+    userId,
+    status,
+    movementId,
+  }: {
+    userId: Id<"users">;
+    status: Doc<"workoutPlans">["status"];
+    movementId: string;
+  },
+): Promise<Id<"workoutPlans">> {
+  return t.mutation(internal.workoutPlans.create, {
+    userId,
+    title: movementId,
+    blocks: [{ exercises: [{ movementId, sets: 3 }] }],
+    status,
+    createdAt: Date.now(),
   });
 }
 
@@ -62,5 +75,36 @@ describe("transitionToPushing — atomic claim for retry", () => {
     const claimed = await t.mutation(internal.workoutPlans.transitionToPushing, { planId });
 
     expect(claimed).toBe(false);
+  });
+});
+
+describe("getRecentMovementIds", () => {
+  test("keeps the 50 most recent movement IDs across completed and pushed plans", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+
+    for (let i = 1; i <= 26; i++) {
+      await insertPlan(t, {
+        userId,
+        status: "completed",
+        movementId: `completed-${i}`,
+      });
+    }
+
+    for (let i = 1; i <= 26; i++) {
+      await insertPlan(t, {
+        userId,
+        status: "pushed",
+        movementId: `pushed-${i}`,
+      });
+    }
+
+    const recentMovementIds = await t.query(internal.workoutPlans.getRecentMovementIds, { userId });
+
+    expect(recentMovementIds).toHaveLength(50);
+    expect(recentMovementIds).not.toContain("completed-1");
+    expect(recentMovementIds).not.toContain("completed-2");
+    expect(recentMovementIds).toContain("pushed-1");
+    expect(recentMovementIds).toContain("pushed-2");
   });
 });

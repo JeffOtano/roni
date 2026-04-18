@@ -5,6 +5,7 @@
 import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
 import { getSentryRuntimeConfig } from "@/lib/deployment";
+import { sentryBeforeSend } from "@/lib/sentryBeforeSend";
 
 if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, {
@@ -39,6 +40,7 @@ if (sentryConfig) {
         : [],
     enableLogs: false,
     sendDefaultPii: false,
+    beforeSend: sentryBeforeSend,
   });
 }
 

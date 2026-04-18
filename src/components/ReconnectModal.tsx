@@ -57,12 +57,19 @@ export function ReconnectModal({ tonalEmail, open, onDismiss }: ReconnectModalPr
     setPhase("submitting");
 
     try {
-      await connectTonal({ tonalEmail, tonalPassword: password });
+      const result = await connectTonal({ tonalEmail, tonalPassword: password });
+      if (!result.success) {
+        track("tonal_reconnect_failed", { error: result.error });
+        setError("Wrong password. Please try again.");
+        setPhase("idle");
+        passwordRef.current?.focus();
+        return;
+      }
       track("tonal_reconnected");
       setPhase("success");
     } catch {
-      track("tonal_reconnect_failed", { error: "Wrong password" });
-      setError("Wrong password. Please try again.");
+      track("tonal_reconnect_failed", { error: "Connection failed" });
+      setError("Something went wrong. Please try again.");
       setPhase("idle");
       passwordRef.current?.focus();
     }
