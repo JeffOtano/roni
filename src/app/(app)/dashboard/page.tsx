@@ -11,11 +11,13 @@ import type {
   StrengthScore,
 } from "../../../../convex/tonal/types";
 import type { DashboardExternalActivity, DashboardWorkout } from "../../../../convex/dashboard";
+import type { RecentPRSummary } from "../../../../convex/prs";
 import { StrengthScoreCard } from "@/features/dashboard/StrengthScoreCard";
 import { MuscleReadinessMap } from "@/features/dashboard/MuscleReadinessMap";
 import { TrainingFrequencyChart } from "@/features/dashboard/TrainingFrequencyChart";
 import { RecentWorkoutsList } from "@/features/dashboard/RecentWorkoutsList";
 import { ExternalActivitiesList } from "@/features/dashboard/ExternalActivitiesList";
+import { PRHighlightsCard } from "@/features/dashboard/PRHighlightsCard";
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
 import { ArrowRight } from "lucide-react";
@@ -77,6 +79,7 @@ function getGreeting(): string {
 const NAV_PILLS = [
   { label: "View stats", href: "/stats" },
   { label: "Strength trends", href: "/strength" },
+  { label: "Personal records", href: "/prs" },
   { label: "Browse exercises", href: "/exercises" },
 ] as const;
 
@@ -98,6 +101,7 @@ export default function DashboardPage() {
   const workouts = useQuery(api.dashboard.getWorkoutHistory);
   const frequency = useQuery(api.dashboard.getTrainingFrequency);
   const externalActivities = useQuery(api.dashboard.getExternalActivities);
+  const prSummary = useQuery(api.prs.getRecentPRSummary);
 
   const me = useQuery(api.users.getMe);
   const firstName = me?.tonalName?.split(" ")[0] ?? "there";
@@ -178,6 +182,9 @@ export default function DashboardPage() {
         </QueryCard>
         <QueryCard<DashboardWorkout[]> data={workouts} title="Recent Workouts" tall>
           {(d) => <RecentWorkoutsList workouts={d} />}
+        </QueryCard>
+        <QueryCard<RecentPRSummary> data={prSummary} title="Personal Records">
+          {(d) => <PRHighlightsCard summary={d} />}
         </QueryCard>
         <QueryCard<DashboardExternalActivity[]> data={externalActivities} title="Other Activities">
           {(d) => <ExternalActivitiesList activities={d} />}

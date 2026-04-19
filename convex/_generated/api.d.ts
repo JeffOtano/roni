@@ -75,6 +75,7 @@ import type * as migrations from "../migrations.js";
 import type * as migrations_backfillAvgWeight from "../migrations/backfillAvgWeight.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
+import type * as prs from "../prs.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as schedule from "../schedule.js";
 import type * as stats from "../stats.js";
@@ -200,6 +201,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/backfillAvgWeight": typeof migrations_backfillAvgWeight;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   progressiveOverload: typeof progressiveOverload;
+  prs: typeof prs;
   rateLimits: typeof rateLimits;
   schedule: typeof schedule;
   stats: typeof stats;
