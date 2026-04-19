@@ -22,7 +22,7 @@ import { TableAggregate } from "@convex-dev/aggregate";
 import type { Doc, Id } from "./_generated/dataModel";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 
 /** Namespace: one bucket per (user, movement). */
 type PerfNamespace = [Id<"users">, string];
@@ -45,36 +45,6 @@ function hasWeight(row: Doc<"exercisePerformance">): boolean {
   return row.avgWeightLbs != null && row.avgWeightLbs > 0;
 }
 
-async function findProjection(
-  ctx: QueryCtx,
-  userId: Id<"users">,
-  movementId: string,
-): Promise<Doc<"personalRecords"> | null> {
-  return ctx.db
-    .query("personalRecords")
-    .withIndex("by_userId_movementId", (q) => q.eq("userId", userId).eq("movementId", movementId))
-    .unique();
-}
-
-/**
- * Prefer the user-local date from `completedWorkouts` over the UTC date stored
- * on `exercisePerformance`. Falls back to the UTC date if the workout row
- * hasn't been written yet (sync order isn't guaranteed).
- */
-async function resolveAchievedDate(
-  ctx: QueryCtx,
-  userId: Id<"users">,
-  row: Doc<"exercisePerformance">,
-): Promise<string> {
-  const workout = await ctx.db
-    .query("completedWorkouts")
-    .withIndex("by_userId_activityId", (q) =>
-      q.eq("userId", userId).eq("activityId", row.activityId),
-    )
-    .first();
-  return workout?.date ?? row.date;
-}
-
 /**
  * Exported for the backfill. Normal writes should go through the `afterInsert`
  * / `afterPatch` / `afterDelete` helpers instead — they call this.
@@ -85,7 +55,10 @@ export async function recomputeProjection(
   movementId: string,
 ): Promise<void> {
   const namespace: PerfNamespace = [userId, movementId];
-  const existing = await findProjection(ctx, userId, movementId);
+  const existing = await ctx.db
+    .query("personalRecords")
+    .withIndex("by_userId_movementId", (q) => q.eq("userId", userId).eq("movementId", movementId))
+    .unique();
   const count = await perfByMovement.count(ctx, { namespace });
 
   if (count === 0) {
@@ -98,11 +71,7 @@ export async function recomputeProjection(
   // weight. Earliest wins under ties so the PR badge stays on the session
   // that first achieved the weight, not every subsequent session that
   // matches it.
-  const maxItem = await perfByMovement.at(ctx, -1, { namespace }).catch((): null => null);
-  if (!maxItem) {
-    if (existing) await ctx.db.delete(existing._id);
-    return;
-  }
+  const maxItem = await perfByMovement.at(ctx, -1, { namespace });
   const winnerItem = await perfByMovement.at(ctx, 0, {
     namespace,
     bounds: {
@@ -112,16 +81,28 @@ export async function recomputeProjection(
   });
   const row = await ctx.db.get(winnerItem.id);
   if (!row || !hasWeight(row)) {
+    // Aggregate is ahead of the table (e.g. a row got deleted between the
+    // count read and now); the next write will reconcile.
     if (existing) await ctx.db.delete(existing._id);
     return;
   }
+
+  // Prefer the user-local date from `completedWorkouts` over the UTC date
+  // stored on `exercisePerformance`. Falls back to the UTC date if the
+  // workout row hasn't been written yet (sync order isn't guaranteed).
+  const workout = await ctx.db
+    .query("completedWorkouts")
+    .withIndex("by_userId_activityId", (q) =>
+      q.eq("userId", userId).eq("activityId", row.activityId),
+    )
+    .first();
 
   const next = {
     userId,
     movementId,
     bestAvgWeightLbs: row.avgWeightLbs!,
     achievedActivityId: row.activityId,
-    achievedDate: await resolveAchievedDate(ctx, userId, row),
+    achievedDate: workout?.date ?? row.date,
     totalSessions: count,
     updatedAt: Date.now(),
   };
