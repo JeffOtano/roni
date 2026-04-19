@@ -15,6 +15,7 @@ import type { Movement, WorkoutActivityDetail } from "../tonal/types";
 import { aggregateDetailToSessions } from "../progressiveOverload";
 import { withTokenRetry } from "../tonal/tokenRetry";
 import { tonalFetch } from "../tonal/client";
+import { afterPatch as afterPerformancePatch } from "../personalRecords";
 
 const BATCH_SIZE = 10;
 
@@ -48,6 +49,8 @@ export const patchAvgWeights = internalMutation({
       const weight = weightMap.get(row.movementId);
       if (weight != null) {
         await ctx.db.patch(row._id, { avgWeightLbs: weight });
+        const updated = await ctx.db.get(row._id);
+        if (updated) await afterPerformancePatch(ctx, row, updated);
       }
     }
   },

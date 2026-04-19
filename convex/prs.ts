@@ -1,4 +1,3 @@
-import type { PaginationResult } from "convex/server";
 import { query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { generatePerformanceSummary } from "./coach/prDetection";
@@ -31,27 +30,12 @@ export interface RecentPRSummary {
   totalMovementsTracked: number;
 }
 
-/** Max exercisePerformance rows to scan for the recent-PR summary (recent data is enough). */
-const MAX_RECENT_PERFORMANCE_ROWS = 5000;
-
-/** Page size for full scans that accumulate every row. */
-const PAGE_SIZE = 1000;
-
-interface Paginable<T> {
-  paginate: (opts: { numItems: number; cursor: string | null }) => Promise<PaginationResult<T>>;
-}
-
-async function collectAllPages<T>(buildQuery: () => Paginable<T>): Promise<T[]> {
-  const all: T[] = [];
-  let cursor: string | null = null;
-  while (true) {
-    const result = await buildQuery().paginate({ numItems: PAGE_SIZE, cursor });
-    all.push(...result.page);
-    cursor = result.continueCursor;
-    if (result.isDone) break;
-  }
-  return all;
-}
+/**
+ * Days of recent exercisePerformance history fed into the recent-trend
+ * analyzer. Covers ~4 months of training, which is longer than every window
+ * `generatePerformanceSummary` currently looks at.
+ */
+const RECENT_WINDOW_DAYS = 120;
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
@@ -65,64 +49,6 @@ export interface PerfRow {
   sets: number;
   totalReps: number;
   avgWeightLbs?: number;
-}
-
-interface MovementMeta {
-  name: string;
-  muscleGroups: string[];
-}
-
-/** Group performance rows into all-time bests per movement. */
-export function aggregateAllTimePRs(
-  rows: readonly PerfRow[],
-  metaMap: ReadonlyMap<string, MovementMeta>,
-  /** Map activityId → date from completedWorkouts (corrected local date). */
-  workoutDateMap?: ReadonlyMap<string, string>,
-): AllTimePREntry[] {
-  const byMovement = new Map<
-    string,
-    { bestWeight: number; bestDate: string; bestActivityId: string; sessions: number }
-  >();
-
-  for (const row of rows) {
-    const weight = row.avgWeightLbs;
-    if (weight == null || weight <= 0) continue;
-
-    const existing = byMovement.get(row.movementId);
-    if (existing) {
-      existing.sessions += 1;
-      if (weight > existing.bestWeight) {
-        existing.bestWeight = weight;
-        existing.bestDate = row.date;
-        existing.bestActivityId = row.activityId;
-      }
-    } else {
-      byMovement.set(row.movementId, {
-        bestWeight: weight,
-        bestDate: row.date,
-        bestActivityId: row.activityId,
-        sessions: 1,
-      });
-    }
-  }
-
-  const entries: AllTimePREntry[] = [];
-  for (const [movementId, data] of byMovement) {
-    const meta = metaMap.get(movementId);
-    // Prefer the completedWorkouts date (local time) over exercisePerformance date (UTC)
-    const date = workoutDateMap?.get(data.bestActivityId) ?? data.bestDate;
-    entries.push({
-      movementId,
-      movementName: meta?.name ?? "Unknown",
-      bestWeightLbs: Math.round(data.bestWeight),
-      achievedDate: date,
-      muscleGroups: meta?.muscleGroups ?? [],
-      totalSessions: data.sessions,
-    });
-  }
-
-  entries.sort((a, b) => b.bestWeightLbs - a.bestWeightLbs);
-  return entries;
 }
 
 /** Group performance rows into PerMovementHistoryEntry[] for prDetection. */
@@ -175,8 +101,14 @@ export function buildRecentPRSummary(
   };
 }
 
+/** YYYY-MM-DD string for `daysAgo` days before `now`, in UTC. */
+export function isoDateDaysAgo(now: Date, daysAgo: number): string {
+  const cutoff = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  return cutoff.toISOString().slice(0, 10);
+}
+
 // ---------------------------------------------------------------------------
-// getAllTimePRs — best avgWeightLbs per movement, all time
+// getAllTimePRs — one indexed scan of the personalRecords projection.
 // ---------------------------------------------------------------------------
 
 export const getAllTimePRs = query({
@@ -185,31 +117,34 @@ export const getAllTimePRs = query({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const [rows, workouts, movementDocs] = await Promise.all([
-      collectAllPages(() =>
-        ctx.db
-          .query("exercisePerformance")
-          .withIndex("by_userId_date", (q) => q.eq("userId", userId))
-          .order("desc"),
-      ),
-      // Used for local-date mapping (exercisePerformance stores UTC dates).
-      collectAllPages(() =>
-        ctx.db.query("completedWorkouts").withIndex("by_userId", (q) => q.eq("userId", userId)),
-      ),
-      collectAllPages(() => ctx.db.query("movements")),
-    ]);
+    const records = await ctx.db
+      .query("personalRecords")
+      .withIndex("by_userId_best", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+    if (records.length === 0) return [];
 
-    const workoutDateMap = new Map(workouts.map((w) => [w.activityId, w.date]));
+    const movementDocs = await ctx.db.query("movements").collect();
     const metaMap = new Map(
       movementDocs.map((m) => [m.tonalId, { name: m.name, muscleGroups: m.muscleGroups }]),
     );
 
-    return aggregateAllTimePRs(rows, metaMap, workoutDateMap);
+    return records.map((r) => {
+      const meta = metaMap.get(r.movementId);
+      return {
+        movementId: r.movementId,
+        movementName: meta?.name ?? "Unknown",
+        bestWeightLbs: Math.round(r.bestAvgWeightLbs),
+        achievedDate: r.achievedDate,
+        muscleGroups: meta?.muscleGroups ?? [],
+        totalSessions: r.totalSessions,
+      };
+    });
   },
 });
 
 // ---------------------------------------------------------------------------
-// getRecentPRSummary — recent PRs, plateaus, regressions via prDetection
+// getRecentPRSummary — recent PRs, plateaus, regressions via prDetection.
 // ---------------------------------------------------------------------------
 
 export const getRecentPRSummary = query({
@@ -218,13 +153,15 @@ export const getRecentPRSummary = query({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    const since = isoDateDaysAgo(new Date(), RECENT_WINDOW_DAYS);
+
     const [rows, movementDocs] = await Promise.all([
       ctx.db
         .query("exercisePerformance")
-        .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+        .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", since))
         .order("desc")
-        .take(MAX_RECENT_PERFORMANCE_ROWS),
-      collectAllPages(() => ctx.db.query("movements")),
+        .collect(),
+      ctx.db.query("movements").collect(),
     ]);
 
     const history = buildHistoryFromRows(rows);

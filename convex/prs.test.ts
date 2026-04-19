@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  aggregateAllTimePRs,
-  buildHistoryFromRows,
-  buildRecentPRSummary,
-  type PerfRow,
-} from "./prs";
+import { buildHistoryFromRows, buildRecentPRSummary, isoDateDaysAgo, type PerfRow } from "./prs";
 
 // ---------------------------------------------------------------------------
 // Test data builders
@@ -22,12 +17,6 @@ function row(
   return { activityId: `act-${++rowCounter}`, movementId, date, sets, totalReps, avgWeightLbs };
 }
 
-const meta = new Map([
-  ["bench", { name: "Bench Press", muscleGroups: ["Chest", "Triceps"] }],
-  ["squat", { name: "Squat", muscleGroups: ["Quads", "Glutes"] }],
-  ["curl", { name: "Bicep Curl", muscleGroups: ["Biceps"] }],
-]);
-
 const names = new Map([
   ["bench", "Bench Press"],
   ["squat", "Squat"],
@@ -35,107 +24,18 @@ const names = new Map([
 ]);
 
 // ---------------------------------------------------------------------------
-// aggregateAllTimePRs
+// isoDateDaysAgo
 // ---------------------------------------------------------------------------
 
-describe("aggregateAllTimePRs", () => {
-  it("returns empty array for no rows", () => {
-    expect(aggregateAllTimePRs([], meta)).toEqual([]);
+describe("isoDateDaysAgo", () => {
+  it("returns YYYY-MM-DD N days before the given date", () => {
+    expect(isoDateDaysAgo(new Date("2026-04-15T12:00:00Z"), 0)).toBe("2026-04-15");
+    expect(isoDateDaysAgo(new Date("2026-04-15T12:00:00Z"), 7)).toBe("2026-04-08");
+    expect(isoDateDaysAgo(new Date("2026-04-15T12:00:00Z"), 120)).toBe("2025-12-16");
   });
 
-  it("finds the best weight per movement", () => {
-    const rows = [
-      row("bench", "2025-03-14", 3, 30, 100),
-      row("bench", "2025-03-10", 3, 30, 90),
-      row("bench", "2025-03-07", 3, 30, 95),
-      row("squat", "2025-03-14", 4, 40, 150),
-      row("squat", "2025-03-10", 4, 40, 140),
-    ];
-
-    const result = aggregateAllTimePRs(rows, meta);
-
-    expect(result).toHaveLength(2);
-    // Sorted by best weight desc — squat first
-    expect(result[0]).toEqual({
-      movementId: "squat",
-      movementName: "Squat",
-      bestWeightLbs: 150,
-      achievedDate: "2025-03-14",
-      muscleGroups: ["Quads", "Glutes"],
-      totalSessions: 2,
-    });
-    expect(result[1]).toEqual({
-      movementId: "bench",
-      movementName: "Bench Press",
-      bestWeightLbs: 100,
-      achievedDate: "2025-03-14",
-      muscleGroups: ["Chest", "Triceps"],
-      totalSessions: 3,
-    });
-  });
-
-  it("skips rows with no weight or zero weight", () => {
-    const rows = [
-      row("bench", "2025-03-14", 3, 30, 100),
-      row("bench", "2025-03-10", 3, 30, undefined),
-      row("squat", "2025-03-14", 4, 40, 0),
-    ];
-
-    const result = aggregateAllTimePRs(rows, meta);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].movementId).toBe("bench");
-    expect(result[0].totalSessions).toBe(1);
-  });
-
-  it("uses 'Unknown' for movements not in the meta map", () => {
-    const rows = [row("unknown-id", "2025-03-14", 3, 30, 50)];
-
-    const result = aggregateAllTimePRs(rows, meta);
-
-    expect(result[0].movementName).toBe("Unknown");
-    expect(result[0].muscleGroups).toEqual([]);
-  });
-
-  it("tracks the date of the best weight, not the latest date", () => {
-    const rows = [
-      row("bench", "2025-03-14", 3, 30, 80), // latest, lower weight
-      row("bench", "2025-03-07", 3, 30, 100), // older, best weight
-    ];
-
-    const result = aggregateAllTimePRs(rows, meta);
-
-    expect(result[0].bestWeightLbs).toBe(100);
-    expect(result[0].achievedDate).toBe("2025-03-07");
-  });
-
-  it("rounds fractional weights", () => {
-    const rows = [row("bench", "2025-03-14", 3, 30, 97.7)];
-
-    const result = aggregateAllTimePRs(rows, meta);
-
-    expect(result[0].bestWeightLbs).toBe(98);
-  });
-
-  it("uses workoutDateMap date when available", () => {
-    const rows = [
-      row("bench", "2025-03-08", 3, 30, 100), // UTC date is 03-08
-    ];
-    // completedWorkouts has the local date as 03-07
-    const workoutDateMap = new Map([[rows[0].activityId, "2025-03-07"]]);
-
-    const result = aggregateAllTimePRs(rows, meta, workoutDateMap);
-
-    expect(result[0].achievedDate).toBe("2025-03-07");
-  });
-
-  it("falls back to exercisePerformance date when workoutDateMap has no entry", () => {
-    const rows = [row("bench", "2025-03-08", 3, 30, 100)];
-    const workoutDateMap = new Map<string, string>(); // empty
-
-    const result = aggregateAllTimePRs(rows, meta, workoutDateMap);
-
-    expect(result[0].achievedDate).toBe("2025-03-08");
+  it("handles year boundaries", () => {
+    expect(isoDateDaysAgo(new Date("2026-01-05T12:00:00Z"), 10)).toBe("2025-12-26");
   });
 });
 

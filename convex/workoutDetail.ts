@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
 import { normalizeTargetArea } from "./lib/targetArea";
 import type {
   Activity,
@@ -62,65 +61,26 @@ export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "work
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Return the best avgWeightLbs per movement from prior exercisePerformance rows.
- *  Rows for `currentActivityId` (when provided) are excluded so callers can compare
- *  the current workout strictly against its history. */
-export const getHistoricalBests = internalQuery({
-  args: { userId: v.id("users"), currentActivityId: v.optional(v.string()) },
-  handler: async (ctx, { userId, currentActivityId }) => {
-    const PAGE_SIZE = 1000;
-    const allRows: Doc<"exercisePerformance">[] = [];
-    let cursor: string | null = null;
-
-    // Paginate through all results to avoid truncation
-    while (true) {
-      const query = ctx.db
-        .query("exercisePerformance")
-        .withIndex("by_userId_date", (q) => q.eq("userId", userId));
-
-      const result = await query.paginate({ numItems: PAGE_SIZE, cursor });
-
-      allRows.push(...result.page);
-      cursor = result.continueCursor;
-
-      if (!cursor || result.page.length < PAGE_SIZE) break;
-    }
-
-    // Warn if results approach the old 5000 limit
-    if (allRows.length >= 5000) {
-      console.warn(
-        `getHistoricalBests: fetched ${allRows.length} rows. ` +
-          `Consider maintaining a dedicated personal bests table for better performance.`,
-      );
-    }
-
-    const bests = new Map<string, { best: number; count: number }>();
-    for (const row of allRows) {
-      if (currentActivityId && row.activityId === currentActivityId) continue;
-      if (row.avgWeightLbs == null || row.avgWeightLbs <= 0) continue;
-      const existing = bests.get(row.movementId);
-      if (existing) {
-        existing.count += 1;
-        if (row.avgWeightLbs > existing.best) {
-          existing.best = row.avgWeightLbs;
-        }
-      } else {
-        bests.set(row.movementId, { best: row.avgWeightLbs, count: 1 });
-      }
-    }
-    return Object.fromEntries([...bests].map(([id, { best, count }]) => [id, { best, count }]));
-  },
-});
-
-/** Get exercisePerformance rows for a specific workout — used for PR comparison. */
-export const getWorkoutPerformanceRows = internalQuery({
+/**
+ * Return the movementIds that got a new all-time PR in the given activity.
+ *
+ * Reads the materialized `personalRecords` projection: a movement's PR row
+ * points back to the single activity that set the best weight
+ * (`achievedActivityId`), with ties broken by earliest insertion. So a
+ * movement's PR belongs to this activity iff its projection row points here
+ * AND there were prior weighted sessions (`totalSessions > 1`) — otherwise
+ * the very first session of every movement would falsely register as a PR.
+ */
+export const getPRMovementIdsForActivity = internalQuery({
   args: { userId: v.id("users"), activityId: v.string() },
-  handler: async (ctx, { userId, activityId }) => {
-    const rows = await ctx.db
-      .query("exercisePerformance")
-      .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", activityId))
-      .take(100);
-    return rows.map((r) => ({ movementId: r.movementId, avgWeightLbs: r.avgWeightLbs }));
+  handler: async (ctx, { userId, activityId }): Promise<string[]> => {
+    const records = await ctx.db
+      .query("personalRecords")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    return records
+      .filter((r) => r.achievedActivityId === activityId && r.totalSessions > 1)
+      .map((r) => r.movementId);
   },
 });
 
@@ -146,13 +106,12 @@ export const getWorkoutDetail = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    const [detail, movements, formattedSummary, workoutMeta, historicalBests, thisWorkoutPerf]: [
+    const [detail, movements, formattedSummary, workoutMeta, prMovementIdList]: [
       unknown,
       Movement[],
       unknown,
       { title: string; targetArea: string; workoutType: string } | null,
-      Record<string, { best: number; count: number }>,
-      Array<{ movementId: string; avgWeightLbs?: number }>,
+      string[],
     ] = await Promise.all([
       ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
         userId,
@@ -169,11 +128,7 @@ export const getWorkoutDetail = action({
         userId,
         activityId: args.activityId,
       }),
-      ctx.runQuery(internal.workoutDetail.getHistoricalBests, {
-        userId,
-        currentActivityId: args.activityId,
-      }),
-      ctx.runQuery(internal.workoutDetail.getWorkoutPerformanceRows, {
+      ctx.runQuery(internal.workoutDetail.getPRMovementIdsForActivity, {
         userId,
         activityId: args.activityId,
       }),
@@ -204,19 +159,7 @@ export const getWorkoutDetail = action({
       };
     });
 
-    // Detect PRs by comparing this workout's stored exercisePerformance values
-    // against prior bests (which exclude this activity — see getHistoricalBests).
-    // The movement must have at least one prior weighted session, otherwise the
-    // first workout of a movement would always register as a PR.
-    const prMovementIds = new Set<string>();
-    for (const perf of thisWorkoutPerf) {
-      if (perf.avgWeightLbs == null || perf.avgWeightLbs <= 0) continue;
-      const hist = historicalBests[perf.movementId];
-      if (!hist) continue;
-      if (perf.avgWeightLbs > hist.best) {
-        prMovementIds.add(perf.movementId);
-      }
-    }
+    const prMovementIds = new Set(prMovementIdList);
 
     // Build movement summaries grouped by movementId
     const movementSummaries = buildMovementSummaries(enrichedSets, volumeMap, prMovementIds);

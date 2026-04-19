@@ -9,6 +9,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { isDeletionInProgress } from "../lib/auth";
+import { afterInsert as afterPerformanceInsert } from "../personalRecords";
 
 // ---------------------------------------------------------------------------
 // Shared validators (exported for action payload typing)
@@ -105,7 +106,13 @@ export const persistExercisePerformance = internalMutation({
         )
         .first();
       if (existing) continue;
-      await ctx.db.insert("exercisePerformance", { userId, ...p, syncedAt: Date.now() });
+      const id = await ctx.db.insert("exercisePerformance", {
+        userId,
+        ...p,
+        syncedAt: Date.now(),
+      });
+      const inserted = await ctx.db.get(id);
+      if (inserted) await afterPerformanceInsert(ctx, inserted);
     }
   },
 });

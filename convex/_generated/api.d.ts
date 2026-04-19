@@ -73,7 +73,9 @@ import type * as lib_targetArea from "../lib/targetArea.js";
 import type * as libraryWorkouts from "../libraryWorkouts.js";
 import type * as migrations from "../migrations.js";
 import type * as migrations_backfillAvgWeight from "../migrations/backfillAvgWeight.js";
+import type * as migrations_backfillPersonalRecords from "../migrations/backfillPersonalRecords.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
+import type * as personalRecords from "../personalRecords.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
 import type * as prs from "../prs.js";
 import type * as rateLimits from "../rateLimits.js";
@@ -101,6 +103,7 @@ import type * as tonal_mutations from "../tonal/mutations.js";
 import type * as tonal_profileBackfill from "../tonal/profileBackfill.js";
 import type * as tonal_profileData from "../tonal/profileData.js";
 import type * as tonal_proxy from "../tonal/proxy.js";
+import type * as tonal_proxyCacheLimits from "../tonal/proxyCacheLimits.js";
 import type * as tonal_refresh from "../tonal/refresh.js";
 import type * as tonal_refreshPublic from "../tonal/refreshPublic.js";
 import type * as tonal_resync from "../tonal/resync.js";
@@ -199,7 +202,9 @@ declare const fullApi: ApiFromModules<{
   libraryWorkouts: typeof libraryWorkouts;
   migrations: typeof migrations;
   "migrations/backfillAvgWeight": typeof migrations_backfillAvgWeight;
+  "migrations/backfillPersonalRecords": typeof migrations_backfillPersonalRecords;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
+  personalRecords: typeof personalRecords;
   progressiveOverload: typeof progressiveOverload;
   prs: typeof prs;
   rateLimits: typeof rateLimits;
@@ -227,6 +232,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/profileBackfill": typeof tonal_profileBackfill;
   "tonal/profileData": typeof tonal_profileData;
   "tonal/proxy": typeof tonal_proxy;
+  "tonal/proxyCacheLimits": typeof tonal_proxyCacheLimits;
   "tonal/refresh": typeof tonal_refresh;
   "tonal/refreshPublic": typeof tonal_refreshPublic;
   "tonal/resync": typeof tonal_resync;
@@ -282,6 +288,7 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   agent: import("@convex-dev/agent/_generated/component.js").ComponentApi<"agent">;
+  perfByMovement: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"perfByMovement">;
   migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;

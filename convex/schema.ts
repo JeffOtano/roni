@@ -448,6 +448,24 @@ export default defineSchema({
     .index("by_userId_activityId_movementId", ["userId", "activityId", "movementId"])
     .index("by_userId_date", ["userId", "date"]),
 
+  /**
+   * Materialized all-time best avgWeightLbs per (user, movement).
+   * Maintained by convex/personalRecords.ts hooks in every mutation that
+   * writes to `exercisePerformance`.
+   */
+  personalRecords: defineTable({
+    userId: v.id("users"),
+    movementId: v.string(),
+    bestAvgWeightLbs: v.number(),
+    achievedActivityId: v.string(),
+    achievedDate: v.string(),
+    totalSessions: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_movementId", ["userId", "movementId"])
+    .index("by_userId_best", ["userId", "bestAvgWeightLbs"])
+    .index("by_userId", ["userId"]),
+
   /** Strength score snapshots over time (synced from Tonal history). */
   strengthScoreSnapshots: defineTable({
     userId: v.id("users"),
