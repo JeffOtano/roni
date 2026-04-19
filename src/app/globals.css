@@ -180,3 +180,26 @@
     opacity: 0.5;
   }
 }
+
+/* Auth shell animated orb -- shared by login and reset-password */
+@keyframes auth-orb-float {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1) rotate(180deg);
+    opacity: 0.7;
+  }
+}
+
+.auth-orb {
+  animation: auth-orb-float 20s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-orb {
+    animation: none;
+  }
+}

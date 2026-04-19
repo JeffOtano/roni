@@ -10,24 +10,20 @@ import { Label } from "@/components/ui/label";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { useAnalytics } from "@/lib/analytics";
 import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { AuthShell } from "@/app/_components/AuthShell";
 
 type ResetStep = "enter-email" | "enter-code" | "success";
 
 const RESET_STYLES = `
-  @keyframes float-orb-reset {
-    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.5; }
-    50% { transform: scale(1.1) rotate(180deg); opacity: 0.7; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .reset-orb { animation: none !important; }
-    .reset-fade-in { animation: none !important; opacity: 1 !important; }
-  }
   @keyframes reset-fade-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
   .reset-fade-in {
     animation: reset-fade-in 300ms ease-out forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reset-fade-in { animation: none; opacity: 1; }
   }
 `;
 
@@ -93,234 +89,192 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6">
+    <AuthShell>
       <style dangerouslySetInnerHTML={{ __html: RESET_STYLES }} />
+      {step === "enter-email" && (
+        <div className="reset-fade-in">
+          <div className="mb-6 flex justify-center">
+            <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
+              <Mail className="size-6 text-primary" />
+            </div>
+          </div>
 
-      {/* Animated orb */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div
-          className="reset-orb h-[500px] w-[500px] rounded-full blur-[120px] sm:h-[600px] sm:w-[600px]"
-          style={{
-            background:
-              "conic-gradient(from 0deg, oklch(0.78 0.154 195), oklch(0.65 0.19 265), oklch(0.6 0.22 300), oklch(0.78 0.154 195))",
-            animation: "float-orb-reset 20s ease-in-out infinite",
-          }}
-        />
-      </div>
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-semibold text-foreground">Reset your password</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Enter your email and we&apos;ll send you a verification code.
+            </p>
+          </div>
 
-      <div className="relative z-10 w-full max-w-sm">
-        {/* Wordmark — links back to landing */}
-        <Link
-          href="/"
-          className="mb-10 block text-center text-2xl font-bold tracking-tight"
-          style={{
-            background: "linear-gradient(135deg, oklch(0.78 0.154 195), oklch(0.6 0.22 300))",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          Roni
-        </Link>
+          <form onSubmit={handleSendCode} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email" className="text-sm font-medium">
+                Email
+              </Label>
+              <Input
+                id="reset-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                autoComplete="email"
+                disabled={submitting}
+                className="h-11 rounded-xl px-4 text-base"
+              />
+            </div>
 
-        {/* Glassmorphic card */}
-        <div
-          className="rounded-2xl p-px"
-          style={{
-            background:
-              "linear-gradient(135deg, oklch(1 0 0 / 12%), oklch(0.78 0.154 195 / 20%), oklch(1 0 0 / 8%))",
-          }}
-        >
-          <div className="rounded-2xl bg-card/80 px-8 py-8 backdrop-blur-xl">
-            {step === "enter-email" && (
-              <div className="reset-fade-in">
-                <div className="mb-6 flex justify-center">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
-                    <Mail className="size-6 text-primary" />
-                  </div>
-                </div>
+            {error && <ErrorAlert message={error} />}
 
-                <div className="mb-6 text-center">
-                  <h2 className="text-xl font-semibold text-foreground">Reset your password</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Enter your email and we&apos;ll send you a verification code.
-                  </p>
-                </div>
+            <Button
+              type="submit"
+              className="h-11 w-full text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
+              size="lg"
+              disabled={submitting}
+            >
+              {submitting ? <Loader2 className="size-5 animate-spin" /> : "Send Reset Code"}
+            </Button>
+          </form>
 
-                <form onSubmit={handleSendCode} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-email" className="text-sm font-medium">
-                      Email
-                    </Label>
-                    <Input
-                      id="reset-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      required
-                      autoComplete="email"
-                      disabled={submitting}
-                      className="h-11 rounded-xl px-4 text-base"
-                    />
-                  </div>
-
-                  {error && <ErrorAlert message={error} />}
-
-                  <Button
-                    type="submit"
-                    className="h-11 w-full text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
-                    size="lg"
-                    disabled={submitting}
-                  >
-                    {submitting ? <Loader2 className="size-5 animate-spin" /> : "Send Reset Code"}
-                  </Button>
-                </form>
-
-                <div className="mt-6 text-center">
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors duration-300 hover:decoration-primary"
-                  >
-                    <ArrowLeft className="size-3.5" />
-                    Back to sign in
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {step === "enter-code" && (
-              <div className="reset-fade-in">
-                <div className="mb-6 flex justify-center">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
-                    <ShieldCheck className="size-6 text-primary" />
-                  </div>
-                </div>
-
-                <div className="mb-6 text-center">
-                  <h2 className="text-xl font-semibold text-foreground">Check your email</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    We sent a verification code to{" "}
-                    <span className="font-medium text-foreground">{email}</span>
-                  </p>
-                </div>
-
-                <form onSubmit={handleVerifyCode} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-code" className="text-sm font-medium">
-                      Verification code
-                    </Label>
-                    <Input
-                      id="reset-code"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={8}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                      placeholder="Enter code"
-                      required
-                      autoComplete="one-time-code"
-                      disabled={submitting}
-                      className="h-11 rounded-xl px-4 text-center text-lg tracking-widest"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-new-password" className="text-sm font-medium">
-                      New password
-                    </Label>
-                    <Input
-                      id="reset-new-password"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="At least 8 characters"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      disabled={submitting}
-                      className="h-11 rounded-xl px-4 text-base"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-confirm-password" className="text-sm font-medium">
-                      Confirm new password
-                    </Label>
-                    <Input
-                      id="reset-confirm-password"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat new password"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      disabled={submitting}
-                      className="h-11 rounded-xl px-4 text-base"
-                    />
-                  </div>
-
-                  {error && <ErrorAlert message={error} />}
-
-                  <Button
-                    type="submit"
-                    className="h-11 w-full text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
-                    size="lg"
-                    disabled={submitting}
-                  >
-                    {submitting ? <Loader2 className="size-5 animate-spin" /> : "Reset Password"}
-                  </Button>
-                </form>
-
-                <div className="mt-6 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("enter-email");
-                      setCode("");
-                      setNewPassword("");
-                      setConfirmPassword("");
-                      setError(null);
-                    }}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors duration-300 hover:decoration-primary"
-                  >
-                    <ArrowLeft className="size-3.5" />
-                    Use a different email
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === "success" && (
-              <div className="reset-fade-in">
-                <div className="mb-6 flex justify-center">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-green-500/10">
-                    <CheckCircle2 className="size-6 text-green-500" />
-                  </div>
-                </div>
-
-                <div className="mb-6 text-center">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    Password reset successfully
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Your password has been updated. You can now sign in with your new password.
-                  </p>
-                </div>
-
-                <Button
-                  className="h-11 w-full text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
-                  size="lg"
-                  onClick={() => router.push("/login")}
-                >
-                  Sign In
-                </Button>
-              </div>
-            )}
+          <div className="mt-6 text-center">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors duration-300 hover:decoration-primary"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back to sign in
+            </Link>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {step === "enter-code" && (
+        <div className="reset-fade-in">
+          <div className="mb-6 flex justify-center">
+            <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
+              <ShieldCheck className="size-6 text-primary" />
+            </div>
+          </div>
+
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-semibold text-foreground">Check your email</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              We sent a verification code to{" "}
+              <span className="font-medium text-foreground">{email}</span>
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifyCode} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="reset-code" className="text-sm font-medium">
+                Verification code
+              </Label>
+              <Input
+                id="reset-code"
+                type="text"
+                inputMode="numeric"
+                maxLength={8}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="Enter code"
+                required
+                autoComplete="one-time-code"
+                disabled={submitting}
+                className="h-11 rounded-xl px-4 text-center text-lg tracking-widest"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reset-new-password" className="text-sm font-medium">
+                New password
+              </Label>
+              <Input
+                id="reset-new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                disabled={submitting}
+                className="h-11 rounded-xl px-4 text-base"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reset-confirm-password" className="text-sm font-medium">
+                Confirm new password
+              </Label>
+              <Input
+                id="reset-confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repeat new password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                disabled={submitting}
+                className="h-11 rounded-xl px-4 text-base"
+              />
+            </div>
+
+            {error && <ErrorAlert message={error} />}
+
+            <Button
+              type="submit"
+              className="h-11 w-full text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
+              size="lg"
+              disabled={submitting}
+            >
+              {submitting ? <Loader2 className="size-5 animate-spin" /> : "Reset Password"}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setStep("enter-email");
+                setCode("");
+                setNewPassword("");
+                setConfirmPassword("");
+                setError(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors duration-300 hover:decoration-primary"
+            >
+              <ArrowLeft className="size-3.5" />
+              Use a different email
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === "success" && (
+        <div className="reset-fade-in">
+          <div className="mb-6 flex justify-center">
+            <div className="flex size-12 items-center justify-center rounded-xl bg-green-500/10">
+              <CheckCircle2 className="size-6 text-green-500" />
+            </div>
+          </div>
+
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-semibold text-foreground">Password reset successfully</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your password has been updated. You can now sign in with your new password.
+            </p>
+          </div>
+
+          <Button
+            className="h-11 w-full text-base shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40"
+            size="lg"
+            onClick={() => router.push("/login")}
+          >
+            Sign In
+          </Button>
+        </div>
+      )}
+    </AuthShell>
   );
 }
