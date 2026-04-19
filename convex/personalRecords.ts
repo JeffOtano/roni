@@ -27,14 +27,23 @@ import type { MutationCtx } from "./_generated/server";
 /** Namespace: one bucket per (user, movement). */
 type PerfNamespace = [Id<"users">, string];
 
+/**
+ * SortKey is the tuple `[avgWeightLbs, -_creationTime]` so the aggregate's
+ * natural ordering places max weight last (what we want for `at(-1)`) AND
+ * breaks ties in favor of the earliest-inserted row. The aggregate compares
+ * tuples lexicographically, so within a tied weight the row with the larger
+ * `-_creationTime` (= smaller `_creationTime` = earliest insertion) sorts
+ * last. Without this, ties would fall back to the Convex `_id` string, which
+ * is random and non-chronological.
+ */
 export const perfByMovement = new TableAggregate<{
   Namespace: PerfNamespace;
-  Key: number;
+  Key: [number, number];
   DataModel: DataModel;
   TableName: "exercisePerformance";
 }>(components.perfByMovement, {
   namespace: (doc) => [doc.userId, doc.movementId],
-  sortKey: (doc) => doc.avgWeightLbs ?? 0,
+  sortKey: (doc) => [doc.avgWeightLbs ?? 0, -doc._creationTime],
 });
 
 // ---------------------------------------------------------------------------
@@ -66,19 +75,9 @@ export async function recomputeProjection(
     return;
   }
 
-  // Two-step max lookup: `at(-1)` gives the largest avgWeightLbs, then
-  // `at(0, { bounds: [key,key] })` gives the *earliest-inserted* row at that
-  // weight. Earliest wins under ties so the PR badge stays on the session
-  // that first achieved the weight, not every subsequent session that
-  // matches it.
-  const maxItem = await perfByMovement.at(ctx, -1, { namespace });
-  const winnerItem = await perfByMovement.at(ctx, 0, {
-    namespace,
-    bounds: {
-      lower: { key: maxItem.key, inclusive: true },
-      upper: { key: maxItem.key, inclusive: true },
-    },
-  });
+  // `at(-1)` returns the row with the largest sortKey tuple, which the
+  // sortKey function defines as max weight then earliest insertion.
+  const winnerItem = await perfByMovement.at(ctx, -1, { namespace });
   const row = await ctx.db.get(winnerItem.id);
   if (!row || !hasWeight(row)) {
     // Aggregate is ahead of the table (e.g. a row got deleted between the
