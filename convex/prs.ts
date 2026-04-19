@@ -1,3 +1,4 @@
+import type { PaginationResult } from "convex/server";
 import { query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { generatePerformanceSummary } from "./coach/prDetection";
@@ -30,8 +31,27 @@ export interface RecentPRSummary {
   totalMovementsTracked: number;
 }
 
-/** Max exercisePerformance rows to scan per user (bounds query cost). */
-const MAX_PERFORMANCE_ROWS = 5000;
+/** Max exercisePerformance rows to scan for the recent-PR summary (recent data is enough). */
+const MAX_RECENT_PERFORMANCE_ROWS = 5000;
+
+/** Page size for full scans that accumulate every row. */
+const PAGE_SIZE = 1000;
+
+interface Paginable<T> {
+  paginate: (opts: { numItems: number; cursor: string | null }) => Promise<PaginationResult<T>>;
+}
+
+async function collectAllPages<T>(buildQuery: () => Paginable<T>): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | null = null;
+  while (true) {
+    const result = await buildQuery().paginate({ numItems: PAGE_SIZE, cursor });
+    all.push(...result.page);
+    cursor = result.continueCursor;
+    if (result.isDone) break;
+  }
+  return all;
+}
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
@@ -165,20 +185,21 @@ export const getAllTimePRs = query({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const rows = await ctx.db
-      .query("exercisePerformance")
-      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(MAX_PERFORMANCE_ROWS);
+    const [rows, workouts, movementDocs] = await Promise.all([
+      collectAllPages(() =>
+        ctx.db
+          .query("exercisePerformance")
+          .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+          .order("desc"),
+      ),
+      // Used for local-date mapping (exercisePerformance stores UTC dates).
+      collectAllPages(() =>
+        ctx.db.query("completedWorkouts").withIndex("by_userId", (q) => q.eq("userId", userId)),
+      ),
+      collectAllPages(() => ctx.db.query("movements")),
+    ]);
 
-    // Build date map from completedWorkouts (local dates, not UTC)
-    const workouts = await ctx.db
-      .query("completedWorkouts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(MAX_PERFORMANCE_ROWS);
     const workoutDateMap = new Map(workouts.map((w) => [w.activityId, w.date]));
-
-    const movementDocs = await ctx.db.query("movements").take(5000);
     const metaMap = new Map(
       movementDocs.map((m) => [m.tonalId, { name: m.name, muscleGroups: m.muscleGroups }]),
     );
@@ -197,15 +218,16 @@ export const getRecentPRSummary = query({
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const rows = await ctx.db
-      .query("exercisePerformance")
-      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(MAX_PERFORMANCE_ROWS);
+    const [rows, movementDocs] = await Promise.all([
+      ctx.db
+        .query("exercisePerformance")
+        .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(MAX_RECENT_PERFORMANCE_ROWS),
+      collectAllPages(() => ctx.db.query("movements")),
+    ]);
 
     const history = buildHistoryFromRows(rows);
-
-    const movementDocs = await ctx.db.query("movements").take(5000);
     const nameMap = new Map(movementDocs.map((m) => [m.tonalId, m.name]));
 
     return buildRecentPRSummary(history, nameMap);

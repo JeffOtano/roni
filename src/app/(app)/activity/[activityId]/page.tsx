@@ -114,7 +114,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           {detail.workoutTitle ?? workoutTypeLabel(detail.workoutType)}
         </h1>
-        {(detail.targetArea || detail.workoutType) && (
+        {(detail.targetArea || detail.workoutTitle) && (
           <span className="text-sm text-muted-foreground">
             {detail.targetArea}
             {detail.targetArea && detail.workoutType && " · "}

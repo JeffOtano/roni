@@ -43,6 +43,7 @@ function FilterPill({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200",
         active
@@ -198,7 +199,7 @@ export default function PRsPage() {
                 {recentSummary.recentPRs.length} PR{recentSummary.recentPRs.length !== 1 ? "s" : ""}
               </span>
             )}
-            {recentSummary.steadyCount > 0 && <span>{recentSummary.steadyCount} progressing</span>}
+            {recentSummary.steadyCount > 0 && <span>{recentSummary.steadyCount} steady</span>}
             {recentSummary.plateauCount > 0 && <span>{recentSummary.plateauCount} plateaued</span>}
             {recentSummary.regressionCount > 0 && (
               <span className="flex items-center gap-1">

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import type { RecentPRSummary } from "../../../convex/prs";
 
+const RECENT_PR_DISPLAY_LIMIT = 3;
+
 interface PRHighlightsCardProps {
   summary: RecentPRSummary;
 }
@@ -18,7 +20,7 @@ export function PRHighlightsCard({ summary }: PRHighlightsCardProps) {
   }
 
   const hasPRs = summary.recentPRs.length > 0;
-  const displayPRs = summary.recentPRs.slice(0, 3);
+  const displayPRs = summary.recentPRs.slice(0, RECENT_PR_DISPLAY_LIMIT);
 
   return (
     <div className="flex flex-col gap-3">
@@ -39,9 +41,9 @@ export function PRHighlightsCard({ summary }: PRHighlightsCardProps) {
               </div>
             </div>
           ))}
-          {summary.recentPRs.length > 3 && (
+          {summary.recentPRs.length > RECENT_PR_DISPLAY_LIMIT && (
             <p className="text-[11px] text-muted-foreground/60">
-              +{summary.recentPRs.length - 3} more
+              +{summary.recentPRs.length - RECENT_PR_DISPLAY_LIMIT} more
             </p>
           )}
         </div>
@@ -52,7 +54,7 @@ export function PRHighlightsCard({ summary }: PRHighlightsCardProps) {
       )}
 
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground/60">
-        {summary.steadyCount > 0 && <span>{summary.steadyCount} progressing</span>}
+        {summary.steadyCount > 0 && <span>{summary.steadyCount} steady</span>}
         {summary.plateauCount > 0 && <span>{summary.plateauCount} plateaued</span>}
         {summary.regressionCount > 0 && <span>{summary.regressionCount} regressed</span>}
       </div>

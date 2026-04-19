@@ -62,11 +62,12 @@ export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "work
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Return the best avgWeightLbs per movement from exercisePerformance, including the current activity.
- *  We include the current activity so the comparison uses the same stored value for both sides. */
+/** Return the best avgWeightLbs per movement from prior exercisePerformance rows.
+ *  Rows for `currentActivityId` (when provided) are excluded so callers can compare
+ *  the current workout strictly against its history. */
 export const getHistoricalBests = internalQuery({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
+  args: { userId: v.id("users"), currentActivityId: v.optional(v.string()) },
+  handler: async (ctx, { userId, currentActivityId }) => {
     const PAGE_SIZE = 1000;
     const allRows: Doc<"exercisePerformance">[] = [];
     let cursor: string | null = null;
@@ -88,13 +89,14 @@ export const getHistoricalBests = internalQuery({
     // Warn if results approach the old 5000 limit
     if (allRows.length >= 5000) {
       console.warn(
-        `getHistoricalBests: fetched ${allRows.length} rows for user ${userId}. ` +
+        `getHistoricalBests: fetched ${allRows.length} rows. ` +
           `Consider maintaining a dedicated personal bests table for better performance.`,
       );
     }
 
     const bests = new Map<string, { best: number; count: number }>();
     for (const row of allRows) {
+      if (currentActivityId && row.activityId === currentActivityId) continue;
       if (row.avgWeightLbs == null || row.avgWeightLbs <= 0) continue;
       const existing = bests.get(row.movementId);
       if (existing) {
@@ -169,6 +171,7 @@ export const getWorkoutDetail = action({
       }),
       ctx.runQuery(internal.workoutDetail.getHistoricalBests, {
         userId,
+        currentActivityId: args.activityId,
       }),
       ctx.runQuery(internal.workoutDetail.getWorkoutPerformanceRows, {
         userId,
@@ -202,14 +205,15 @@ export const getWorkoutDetail = action({
     });
 
     // Detect PRs by comparing this workout's stored exercisePerformance values
-    // against all-time bests (same metric, same source — avoids computation mismatches).
+    // against prior bests (which exclude this activity — see getHistoricalBests).
+    // The movement must have at least one prior weighted session, otherwise the
+    // first workout of a movement would always register as a PR.
     const prMovementIds = new Set<string>();
     for (const perf of thisWorkoutPerf) {
       if (perf.avgWeightLbs == null || perf.avgWeightLbs <= 0) continue;
       const hist = historicalBests[perf.movementId];
       if (!hist) continue;
-      // PR if this workout's stored value equals the all-time best and there are 2+ sessions
-      if (perf.avgWeightLbs >= hist.best && hist.count >= 2) {
+      if (perf.avgWeightLbs > hist.best) {
         prMovementIds.add(perf.movementId);
       }
     }
