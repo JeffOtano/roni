@@ -47,7 +47,10 @@ export const patchAvgWeights = internalMutation({
       .collect();
     for (const row of rows) {
       const weight = weightMap.get(row.movementId);
-      if (weight != null) {
+      // Only fill in rows that had their weight nulled out (the migration's
+      // stated purpose); skipping already-weighted rows avoids needlessly
+      // churning the aggregate via afterPerformancePatch.
+      if (weight != null && row.avgWeightLbs == null) {
         await ctx.db.patch(row._id, { avgWeightLbs: weight });
         const updated = await ctx.db.get(row._id);
         if (updated) await afterPerformancePatch(ctx, row, updated);

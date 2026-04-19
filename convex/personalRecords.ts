@@ -161,18 +161,37 @@ export async function afterDelete(
   await recomputeProjection(ctx, row.userId, row.movementId);
 }
 
-/** Clear all projections + aggregate entries for a user (account deletion). */
+/**
+ * Clear all projections + aggregate entries for a user (account deletion).
+ *
+ * Namespaces are derived from BOTH `personalRecords` and `exercisePerformance`
+ * because a partial backfill populates the aggregate before the projection
+ * rows are reconciled — a user who deletes their account between those two
+ * phases would otherwise leave orphaned aggregate entries behind.
+ */
 export async function clearForUser(
   ctx: MutationCtx,
   userId: Id<"users">,
   batchSize: number,
 ): Promise<boolean> {
-  const records = await ctx.db
-    .query("personalRecords")
-    .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .take(batchSize);
+  const [records, perfRows] = await Promise.all([
+    ctx.db
+      .query("personalRecords")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(batchSize),
+    ctx.db
+      .query("exercisePerformance")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+      .take(batchSize),
+  ]);
+
+  const movementIds = new Set<string>();
+  for (const r of records) movementIds.add(r.movementId);
+  for (const r of perfRows) movementIds.add(r.movementId);
+  for (const movementId of movementIds) {
+    await perfByMovement.clear(ctx, { namespace: [userId, movementId] });
+  }
   for (const record of records) {
-    await perfByMovement.clear(ctx, { namespace: [userId, record.movementId] });
     await ctx.db.delete(record._id);
   }
   return records.length === batchSize;

@@ -17,7 +17,6 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
 import { perfByMovement, recomputeProjection } from "../personalRecords";
 
 const PAGE_SIZE = 500;
@@ -95,7 +94,7 @@ export const backfillAll = internalAction({
     });
     for (const profile of users) {
       await ctx.scheduler.runAfter(0, internal.migrations.backfillPersonalRecords.backfillUser, {
-        userId: profile.userId as Id<"users">,
+        userId: profile.userId,
       });
     }
     console.log(`[backfillPersonalRecords] Scheduled backfill for ${users.length} users`);

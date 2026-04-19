@@ -142,11 +142,17 @@ export default function PRsPage() {
     return <PRPageSkeleton />;
   }
 
-  // Derive available muscle groups from data
+  // Derive available muscle groups from data.
   const muscleGroups = [...new Set(allTimePRs.flatMap((p) => p.muscleGroups))].sort();
 
-  const filteredPRs = muscleFilter
-    ? allTimePRs.filter((p) => p.muscleGroups.includes(muscleFilter))
+  // Ignore a stale filter whose group has dropped out of the current data
+  // (e.g. last PR for that muscle was deleted) — deriving the effective
+  // filter keeps the list and the "All" pill consistent without a
+  // setState-in-effect dance.
+  const effectiveFilter = muscleFilter && muscleGroups.includes(muscleFilter) ? muscleFilter : null;
+
+  const filteredPRs = effectiveFilter
+    ? allTimePRs.filter((p) => p.muscleGroups.includes(effectiveFilter))
     : allTimePRs;
 
   const chatPrompt = encodeURIComponent(
@@ -214,14 +220,14 @@ export default function PRsPage() {
             <div className="mb-6 flex flex-wrap gap-2">
               <FilterPill
                 label="All"
-                active={muscleFilter === null}
+                active={effectiveFilter === null}
                 onClick={() => setMuscleFilter(null)}
               />
               {muscleGroups.map((g) => (
                 <FilterPill
                   key={g}
                   label={g}
-                  active={muscleFilter === g}
+                  active={effectiveFilter === g}
                   onClick={() => setMuscleFilter(g)}
                 />
               ))}
