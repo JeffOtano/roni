@@ -110,9 +110,22 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ activi
         </Button>
       </Link>
 
-      <h1 className="text-2xl font-bold tracking-tight text-foreground">
-        {workoutTypeLabel(detail.workoutType)}
-      </h1>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          {detail.workoutTitle ?? workoutTypeLabel(detail.workoutType)}
+        </h1>
+        {(detail.targetArea || detail.workoutTitle) && (
+          <span className="text-sm text-muted-foreground">
+            {detail.targetArea}
+            {detail.targetArea && detail.workoutType && detail.workoutTitle && " · "}
+            {detail.workoutType && detail.workoutTitle && (
+              <em className="not-italic text-muted-foreground/80">
+                ({workoutTypeLabel(detail.workoutType)})
+              </em>
+            )}
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(detail.beginTime)}</p>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">

@@ -134,6 +134,9 @@ export const deleteAccount = action({
       }
 
       for (const mutation of [
+        // personalRecords is drained first so its aggregate entries are cleared
+        // before the exercisePerformance rows it mirrors are deleted.
+        internal.accountDeletion.deletePersonalRecordsBatch,
         internal.accountDeletion.deleteExercisePerformanceBatch,
         internal.accountDeletion.deleteTonalCacheBatch,
         internal.accountDeletion.deleteExternalActivitiesBatch,

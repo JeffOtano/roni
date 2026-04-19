@@ -60,6 +60,7 @@ type AnalyticsEvents = {
   strength_scores_viewed: Record<string, never>;
   muscle_readiness_viewed: Record<string, never>;
   exercises_viewed: Record<string, never>;
+  prs_viewed: Record<string, never>;
   activity_detail_viewed: { activity_id: string };
   settings_viewed: Record<string, never>;
   profile_viewed: Record<string, never>;

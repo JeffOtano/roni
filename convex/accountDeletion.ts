@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { BY_USER_ID_BATCH_TABLES, type ByUserIdBatchTable } from "./userData";
+import { clearForUser as clearPersonalRecordsForUser } from "./personalRecords";
 
 const BATCH_SIZE = 500;
 // tonalCache rows can hold up to ~1 MiB each, so a 500-row batch can blow past
@@ -43,6 +44,18 @@ export const deleteExercisePerformanceBatch = internalMutation({
       await ctx.db.delete(doc._id);
     }
     return docs.length === BATCH_SIZE;
+  },
+});
+
+/**
+ * Delete one batch of personalRecords rows, also clearing the corresponding
+ * aggregate namespaces. Run before `deleteExercisePerformanceBatch` so the
+ * aggregate is empty by the time the source rows go away.
+ */
+export const deletePersonalRecordsBatch = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<boolean> => {
+    return clearPersonalRecordsForUser(ctx, userId, BATCH_SIZE);
   },
 });
 

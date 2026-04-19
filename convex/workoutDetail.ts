@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { normalizeTargetArea } from "./lib/targetArea";
 import type {
   Activity,
   FormattedWorkoutSummary,
@@ -45,14 +46,56 @@ export interface MovementSummary {
   totalSets: number;
   totalReps: number;
   avgWeightLbs: number;
+  /** True when this session's avgWeightLbs is the user's all-time best. */
+  isPR?: boolean;
 }
 
 export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "workoutSetActivity"> {
   workoutSetActivity: EnrichedSetActivity[];
   movementSummaries: MovementSummary[];
+  /** Human-readable workout title from activity history (e.g. "Arms Burnout"). */
+  workoutTitle?: string;
+  /** Target area from activity history (e.g. "Upper Body"). */
+  targetArea?: string;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Return the movementIds that got a new all-time PR in the given activity.
+ *
+ * Reads the materialized `personalRecords` projection: a movement's PR row
+ * points back to the single activity that set the best weight
+ * (`achievedActivityId`), with ties broken by earliest insertion. So a
+ * movement's PR belongs to this activity iff its projection row points here
+ * AND there were prior weighted sessions (`totalSessions > 1`) — otherwise
+ * the very first session of every movement would falsely register as a PR.
+ */
+export const getPRMovementIdsForActivity = internalQuery({
+  args: { userId: v.id("users"), activityId: v.string() },
+  handler: async (ctx, { userId, activityId }): Promise<string[]> => {
+    const records = await ctx.db
+      .query("personalRecords")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    return records
+      .filter((r) => r.achievedActivityId === activityId && r.totalSessions > 1)
+      .map((r) => r.movementId);
+  },
+});
+
+/** Look up completed-workout metadata (title, targetArea) for the activity page header. */
+export const getCompletedWorkoutMeta = internalQuery({
+  args: { userId: v.id("users"), activityId: v.string() },
+  handler: async (ctx, { userId, activityId }) => {
+    const row = await ctx.db
+      .query("completedWorkouts")
+      .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", activityId))
+      .first();
+    if (!row) return null;
+    return { title: row.title, targetArea: row.targetArea, workoutType: row.workoutType };
+  },
+});
 
 export const getWorkoutDetail = action({
   args: { activityId: v.string() },
@@ -63,21 +106,33 @@ export const getWorkoutDetail = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    const [detail, movements, formattedSummary]: [unknown, Movement[], unknown] = await Promise.all(
-      [
-        ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+    const [detail, movements, formattedSummary, workoutMeta, prMovementIdList]: [
+      unknown,
+      Movement[],
+      unknown,
+      { title: string; targetArea: string; workoutType: string } | null,
+      string[],
+    ] = await Promise.all([
+      ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+        userId,
+        activityId: args.activityId,
+      }),
+      ctx.runQuery(internal.tonal.movementSync.getAllMovements),
+      ctx
+        .runAction(internal.tonal.proxy.fetchFormattedSummary, {
           userId,
-          activityId: args.activityId,
-        }),
-        ctx.runQuery(internal.tonal.movementSync.getAllMovements),
-        ctx
-          .runAction(internal.tonal.proxy.fetchFormattedSummary, {
-            userId,
-            summaryId: args.activityId,
-          })
-          .catch((): null => null),
-      ],
-    );
+          summaryId: args.activityId,
+        })
+        .catch((): null => null),
+      ctx.runQuery(internal.workoutDetail.getCompletedWorkoutMeta, {
+        userId,
+        activityId: args.activityId,
+      }),
+      ctx.runQuery(internal.workoutDetail.getPRMovementIdsForActivity, {
+        userId,
+        activityId: args.activityId,
+      }),
+    ]);
     if (!detail) throw new Error("Workout not found");
     const movementMap = new Map(movements.map((m) => [m.id, m]));
 
@@ -104,13 +159,17 @@ export const getWorkoutDetail = action({
       };
     });
 
+    const prMovementIds = new Set(prMovementIdList);
+
     // Build movement summaries grouped by movementId
-    const movementSummaries = buildMovementSummaries(enrichedSets, volumeMap);
+    const movementSummaries = buildMovementSummaries(enrichedSets, volumeMap, prMovementIds);
 
     return {
       ...typedDetail,
       workoutSetActivity: enrichedSets,
       movementSummaries,
+      workoutTitle: workoutMeta?.title ?? undefined,
+      targetArea: workoutMeta ? normalizeTargetArea(workoutMeta.targetArea) : undefined,
     };
   },
 });
@@ -119,6 +178,7 @@ export const getWorkoutDetail = action({
 export function buildMovementSummaries(
   sets: readonly EnrichedSetActivity[],
   volumeMap: ReadonlyMap<string, number>,
+  prMovementIds?: ReadonlySet<string>,
 ): MovementSummary[] {
   const grouped = new Map<
     string,
@@ -157,6 +217,8 @@ export function buildMovementSummaries(
 
   return Array.from(grouped.entries()).map(([movementId, data]) => {
     const totalVolume = volumeMap.get(movementId) ?? 0;
+    const avgWeightLbs =
+      data.weightedReps > 0 ? Math.round(data.weightedWeightSum / data.weightedReps) : 0;
     return {
       movementId,
       movementName: data.name,
@@ -164,8 +226,8 @@ export function buildMovementSummaries(
       totalVolume,
       totalSets: data.totalSets,
       totalReps: data.totalReps,
-      avgWeightLbs:
-        data.weightedReps > 0 ? Math.round(data.weightedWeightSum / data.weightedReps) : 0,
+      avgWeightLbs,
+      isPR: prMovementIds?.has(movementId) || undefined,
     };
   });
 }
