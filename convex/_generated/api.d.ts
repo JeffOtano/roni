@@ -74,6 +74,7 @@ import type * as libraryWorkouts from "../libraryWorkouts.js";
 import type * as migrations from "../migrations.js";
 import type * as migrations_backfillAvgWeight from "../migrations/backfillAvgWeight.js";
 import type * as migrations_backfillPersonalRecords from "../migrations/backfillPersonalRecords.js";
+import type * as migrations_repairOrphanedAuthAccounts from "../migrations/repairOrphanedAuthAccounts.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as personalRecords from "../personalRecords.js";
 import type * as progressiveOverload from "../progressiveOverload.js";
@@ -203,6 +204,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   "migrations/backfillAvgWeight": typeof migrations_backfillAvgWeight;
   "migrations/backfillPersonalRecords": typeof migrations_backfillPersonalRecords;
+  "migrations/repairOrphanedAuthAccounts": typeof migrations_repairOrphanedAuthAccounts;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   personalRecords: typeof personalRecords;
   progressiveOverload: typeof progressiveOverload;
