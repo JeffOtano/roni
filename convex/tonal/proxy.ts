@@ -305,7 +305,13 @@ export const fetchWorkoutDetail = internalAction({
               token,
               `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
             );
-            return projectWorkoutDetail(raw);
+            const detail = projectWorkoutDetail(raw);
+            // Reserve `null` for the 404 path below. Schema drift must surface
+            // and re-fetch, not poison the cache as "workout not found".
+            if (detail === null) {
+              throw new Error(`projectWorkoutDetail rejected payload for activity ${activityId}`);
+            }
+            return detail;
           } catch (error) {
             if (error instanceof TonalApiError && error.status === 404) {
               return null;

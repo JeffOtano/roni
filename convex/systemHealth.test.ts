@@ -1,12 +1,22 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
+const SUCCESS_NOW = 1_700_000_000_000;
 
 describe("systemHealth.recordSuccess", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SUCCESS_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   test("inserts the first row when service has never been recorded", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.systemHealth.recordSuccess, { service: "tonal" });
@@ -21,6 +31,7 @@ describe("systemHealth.recordSuccess", () => {
     expect(row).not.toBeNull();
     expect(row?.circuitOpen).toBe(false);
     expect(row?.consecutiveFailures).toBe(0);
+    expect(row?.lastSuccessAt).toBe(SUCCESS_NOW);
   });
 
   test("skips the write when the circuit is closed (steady state)", async () => {
@@ -73,6 +84,6 @@ describe("systemHealth.recordSuccess", () => {
     const row = await t.run((ctx) => ctx.db.get(id));
     expect(row?.circuitOpen).toBe(false);
     expect(row?.consecutiveFailures).toBe(0);
-    expect(row?.lastSuccessAt).toBeGreaterThan(0);
+    expect(row?.lastSuccessAt).toBe(SUCCESS_NOW);
   });
 });
