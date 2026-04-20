@@ -64,7 +64,7 @@
     "@convex-dev/rate-limiter": "^0.3.2",
     "@convex-dev/workflow": "^0.3.10",
     "@convex-dev/workpool": "^0.4.6",
-    "@sentry/nextjs": "^10.47.0",
+    "@sentry/nextjs": "^10.49.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.151",
