@@ -4,11 +4,12 @@
 
 import { v } from "convex/values";
 import { saveMessage } from "@convex-dev/agent";
-import { action, internalAction } from "./_generated/server";
+import { action, type ActionCtx, internalAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
-import { buildCoachAgentsForProvider } from "./ai/coach";
+import { buildCoachAgentsForProvider, STATIC_INSTRUCTIONS_HASH } from "./ai/coach";
 import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
 import { flushTelemetry } from "./ai/otel";
+import type { RunAccumulator } from "./ai/runTelemetry";
 import { sanitizeTimezone } from "./ai/timeDecay";
 import type { ProviderId } from "./ai/providers";
 import * as analytics from "./lib/posthog";
@@ -19,6 +20,19 @@ import {
   resolveUserProviderConfig,
   withByokErrorSanitization,
 } from "./chatHelpers";
+
+// Dev Convex URLs look like `https://<adj>-<animal>-123.convex.cloud` and
+// prod ones look the same, so we flag prod on Vercel's build env instead.
+const ENVIRONMENT: "dev" | "prod" = process.env.VERCEL_ENV === "production" ? "prod" : "dev";
+const RELEASE_SHA = process.env.VERCEL_GIT_COMMIT_SHA;
+
+async function persistRun(ctx: ActionCtx, accumulator: RunAccumulator): Promise<void> {
+  try {
+    await ctx.runMutation(internal.aiUsage.recordRun, accumulator.toRow());
+  } catch {
+    // Never fail the turn on telemetry persistence error.
+  }
+}
 
 export const processMessage = internalAction({
   args: {
@@ -42,6 +56,7 @@ export const processMessage = internalAction({
     });
 
     let provider: ProviderId | undefined;
+    let accumulator: RunAccumulator | undefined;
     const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
@@ -53,7 +68,7 @@ export const processMessage = internalAction({
         ...providerConfig,
         userTimezone,
       });
-      await withByokErrorSanitization(() =>
+      accumulator = await withByokErrorSanitization(() =>
         streamWithRetry(ctx, {
           primaryAgent: primary,
           fallbackAgent: fallback,
@@ -63,6 +78,10 @@ export const processMessage = internalAction({
           prompt: typeof resolvedPrompt === "string" ? undefined : resolvedPrompt,
           isByok: !providerConfig.isHouseKey,
           provider: providerConfig.provider,
+          source: "chat",
+          environment: ENVIRONMENT,
+          release: RELEASE_SHA,
+          promptVersion: STATIC_INSTRUCTIONS_HASH,
         }),
       );
     } catch (error) {
@@ -76,6 +95,7 @@ export const processMessage = internalAction({
       });
       return;
     } finally {
+      if (accumulator) await persistRun(ctx, accumulator);
       await flushTelemetry();
     }
 
@@ -100,6 +120,7 @@ export const continueAfterApproval = action({
     await assertThreadOwnership(ctx, threadId, userId);
 
     let provider: ProviderId | undefined;
+    let accumulator: RunAccumulator | undefined;
     const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
@@ -109,7 +130,7 @@ export const continueAfterApproval = action({
         ...providerConfig,
         userTimezone,
       });
-      await withByokErrorSanitization(() =>
+      accumulator = await withByokErrorSanitization(() =>
         streamWithRetry(ctx, {
           primaryAgent: primary,
           fallbackAgent: fallback,
@@ -118,6 +139,10 @@ export const continueAfterApproval = action({
           promptMessageId: messageId,
           isByok: !providerConfig.isHouseKey,
           provider: providerConfig.provider,
+          source: "approval_continuation",
+          environment: ENVIRONMENT,
+          release: RELEASE_SHA,
+          promptVersion: STATIC_INSTRUCTIONS_HASH,
         }),
       );
     } catch (error) {
@@ -131,6 +156,7 @@ export const continueAfterApproval = action({
       });
       return;
     } finally {
+      if (accumulator) await persistRun(ctx, accumulator);
       await flushTelemetry();
     }
 

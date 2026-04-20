@@ -8,6 +8,56 @@ export const DAILY_TOKEN_BUDGET = 500_000;
 /** 80% threshold for early warning Discord alert. */
 export const BUDGET_WARNING_THRESHOLD = 0.8;
 
+/**
+ * Validator for one `aiRun` row. Kept in sync with the schema by hand;
+ * if a field is added in schema.ts it MUST be added here too, otherwise
+ * `recordRun` rejects the insert at runtime.
+ */
+const aiRunArgs = {
+  runId: v.string(),
+  userId: v.id("users"),
+  threadId: v.string(),
+  messageId: v.optional(v.string()),
+  source: v.union(v.literal("chat"), v.literal("approval_continuation")),
+  environment: v.union(v.literal("dev"), v.literal("prod")),
+  release: v.optional(v.string()),
+  promptVersion: v.optional(v.string()),
+  totalSteps: v.number(),
+  toolSequence: v.array(v.string()),
+  retryCount: v.number(),
+  fallbackReason: v.optional(
+    v.union(v.literal("transient_exhaustion"), v.literal("primary_error")),
+  ),
+  finishReason: v.optional(
+    v.union(
+      v.literal("stop"),
+      v.literal("tool-calls"),
+      v.literal("length"),
+      v.literal("content-filter"),
+      v.literal("error"),
+      v.literal("other"),
+      v.literal("unknown"),
+    ),
+  ),
+  terminalErrorClass: v.optional(v.string()),
+  modelId: v.optional(v.string()),
+  provider: v.optional(v.string()),
+  inputTokens: v.number(),
+  outputTokens: v.number(),
+  cacheReadTokens: v.number(),
+  cacheWriteTokens: v.number(),
+  totalCostUsd: v.optional(v.number()),
+  timeToFirstTokenMs: v.optional(v.number()),
+  timeToLastTokenMs: v.optional(v.number()),
+  outputTokensPerSec: v.optional(v.number()),
+  approvalPauses: v.number(),
+  workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
+  workoutPushOutcome: v.optional(
+    v.union(v.literal("pushed"), v.literal("failed"), v.literal("none")),
+  ),
+  createdAt: v.number(),
+};
+
 export const record = internalMutation({
   args: {
     userId: v.optional(v.id("users")),
@@ -45,6 +95,14 @@ export const recordRouting = internalMutation({
       routedIntent: intent,
       createdAt: Date.now(),
     });
+  },
+});
+
+/** Persist a single per-turn telemetry row built by `RunAccumulator`. */
+export const recordRun = internalMutation({
+  args: aiRunArgs,
+  handler: async (ctx, args) => {
+    await ctx.db.insert("aiRun", args);
   },
 });
 

@@ -81,6 +81,22 @@ const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding
 
 const STATIC_INSTRUCTIONS = buildInstructions();
 
+/**
+ * Cheap fingerprint of the static system prompt. Surfaces in `aiRun.promptVersion`
+ * so telemetry can correlate metric shifts with prompt edits. Not cryptographic;
+ * just stable across restarts of the same build.
+ */
+export const STATIC_INSTRUCTIONS_HASH = hashString(STATIC_INSTRUCTIONS);
+
+function hashString(input: string): string {
+  let h = 0x811c9dc5; // FNV-1a 32-bit offset basis
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 

@@ -413,6 +413,69 @@ export default defineSchema({
     .index("by_tool", ["toolName", "createdAt"])
     .index("by_createdAt", ["createdAt"]),
 
+  /**
+   * One row per user turn with Roni-specific outcomes and denormalized
+   * aggregates. PostHog handles most metrics; this table stores domain
+   * fields (approval, workout plan outcomes), enables Convex joins, and
+   * retains data beyond PostHog's free-tier 30-day window.
+   * `runId` matches PostHog's `$ai_trace_id` for cross-system joins.
+   */
+  aiRun: defineTable({
+    runId: v.string(),
+    userId: v.id("users"),
+    threadId: v.string(),
+    messageId: v.optional(v.string()),
+    source: v.union(v.literal("chat"), v.literal("approval_continuation")),
+
+    environment: v.union(v.literal("dev"), v.literal("prod")),
+    release: v.optional(v.string()),
+    promptVersion: v.optional(v.string()),
+
+    totalSteps: v.number(),
+    toolSequence: v.array(v.string()),
+    retryCount: v.number(),
+    fallbackReason: v.optional(
+      v.union(v.literal("transient_exhaustion"), v.literal("primary_error")),
+    ),
+    finishReason: v.optional(
+      v.union(
+        v.literal("stop"),
+        v.literal("tool-calls"),
+        v.literal("length"),
+        v.literal("content-filter"),
+        v.literal("error"),
+        v.literal("other"),
+        v.literal("unknown"),
+      ),
+    ),
+    terminalErrorClass: v.optional(v.string()),
+
+    modelId: v.optional(v.string()),
+    provider: v.optional(v.string()),
+
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    cacheReadTokens: v.number(),
+    cacheWriteTokens: v.number(),
+    totalCostUsd: v.optional(v.number()),
+
+    timeToFirstTokenMs: v.optional(v.number()),
+    timeToLastTokenMs: v.optional(v.number()),
+    outputTokensPerSec: v.optional(v.number()),
+
+    approvalPauses: v.number(),
+    workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
+    workoutPushOutcome: v.optional(
+      v.union(v.literal("pushed"), v.literal("failed"), v.literal("none")),
+    ),
+
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_threadId", ["threadId"])
+    .index("by_runId", ["runId"]),
+
   /** Permanent record of completed Tonal workouts (synced from activity history). */
   completedWorkouts: defineTable({
     userId: v.id("users"),

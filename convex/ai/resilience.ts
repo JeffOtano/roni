@@ -2,12 +2,18 @@ import type { Agent } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
 import { APICallError } from "@ai-sdk/provider";
-import type { TelemetrySettings } from "ai";
+import type { StepResult, TelemetrySettings, ToolSet } from "ai";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { BUDGET_WARNING_THRESHOLD, DAILY_TOKEN_BUDGET } from "../aiUsage";
-import { getProviderConfig, type ProviderId } from "./providers";
+import { type ProviderId } from "./providers";
+import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
+import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
+
+// Re-export for backwards compatibility with existing callers/tests.
+export { buildByokErrorMessage, classifyByokError, withByokErrorSanitization } from "./byokErrors";
+export type { ByokErrorCode } from "./byokErrors";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 const BUDGET_EXCEEDED_MESSAGE =
@@ -15,25 +21,8 @@ const BUDGET_EXCEEDED_MESSAGE =
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
 
-const SETTINGS_LINK = "[Settings](/settings)";
-
-export function buildByokErrorMessage(code: ByokErrorCode, provider: ProviderId): string {
-  const config = getProviderConfig(provider);
-  const billingLink = `[${config.label} billing](${config.billingUrl})`;
-  switch (code) {
-    case "byok_key_invalid":
-      return `**${config.label} rejected your API key.** Check or replace it in ${SETTINGS_LINK}, then try again.`;
-    case "byok_quota_exceeded":
-      return `**${config.label} is rejecting requests** — your account is out of credit or over quota. Top up at ${billingLink}, or switch providers in ${SETTINGS_LINK}, then try again.`;
-    case "byok_safety_blocked":
-      return `**${config.label} blocked that response for safety.** Try rephrasing and sending again.`;
-    case "byok_unknown_error":
-      return `**${config.label} returned an unexpected error.** Check your key in ${SETTINGS_LINK} or try again later.`;
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Error classification
+// Transient error classification
 // ---------------------------------------------------------------------------
 
 const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
@@ -69,91 +58,6 @@ export function isTransientError(error: unknown): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// BYOK error classification
-// ---------------------------------------------------------------------------
-
-export type ByokErrorCode =
-  | "byok_key_invalid"
-  | "byok_quota_exceeded"
-  | "byok_safety_blocked"
-  | "byok_unknown_error";
-
-// Vercel AI SDK wraps provider errors: .message is generic, the real text
-// lives on .responseBody / .cause.message. Pattern-match across all of them.
-function gatherErrorText(error: Error): string {
-  const parts: string[] = [error.message];
-  if ("responseBody" in error && typeof error.responseBody === "string") {
-    parts.push(error.responseBody);
-  }
-  if ("cause" in error && error.cause instanceof Error) {
-    parts.push(error.cause.message);
-  }
-  if ("data" in error && error.data && typeof error.data === "object") {
-    parts.push(JSON.stringify(error.data));
-  }
-  return parts.join(" ").toLowerCase();
-}
-
-export function classifyByokError(error: unknown): ByokErrorCode | null {
-  if (!(error instanceof Error)) return null;
-
-  // APICallError exposes a typed statusCode; fall back to ad-hoc `.status`
-  // on bare errors (raw fetch, provider SDKs that don't wrap in APICallError).
-  const status = APICallError.isInstance(error)
-    ? error.statusCode
-    : (error as Error & { status?: number }).status;
-  const lower = gatherErrorText(error);
-
-  if (status === 401 || status === 403) return "byok_key_invalid";
-  if (
-    lower.includes("api key not valid") ||
-    lower.includes("api_key_invalid") ||
-    lower.includes("authentication_error") ||
-    lower.includes("invalid_api_key") ||
-    lower.includes("incorrect api key")
-  ) {
-    return "byok_key_invalid";
-  }
-
-  if (status === 429) return "byok_quota_exceeded";
-  if (
-    lower.includes("resource_exhausted") ||
-    lower.includes("quota") ||
-    lower.includes("rate_limit_error") ||
-    lower.includes("rate_limit_exceeded") ||
-    lower.includes("credits are depleted") ||
-    lower.includes("credit balance") ||
-    lower.includes("insufficient_quota") ||
-    lower.includes("billing")
-  ) {
-    return "byok_quota_exceeded";
-  }
-
-  if (
-    lower.includes("safety") ||
-    lower.includes("blocked") ||
-    lower.includes("content_policy") ||
-    lower.includes("output_blocked") ||
-    lower.includes("content_policy_violation")
-  ) {
-    return "byok_safety_blocked";
-  }
-
-  return null;
-}
-
-// Google AI error bodies can echo the decrypted key — never rethrow raw.
-export async function withByokErrorSanitization<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    const code = classifyByokError(err);
-    if (code !== null) throw new Error(code);
-    throw err;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Stream with retry + fallback
 // ---------------------------------------------------------------------------
 
@@ -168,6 +72,14 @@ interface StreamWithRetryArgs {
   isByok: boolean;
   /** The active provider. Drives the provider-specific BYOK error message. */
   provider: ProviderId;
+  /** Distinguishes a fresh user message from an approval-continuation turn. */
+  source: "chat" | "approval_continuation";
+  /** Deployment environment — surfaces in dashboards to slice dev vs prod. */
+  environment: "dev" | "prod";
+  /** Vercel commit SHA when available. */
+  release?: string;
+  /** Hash of STATIC_INSTRUCTIONS; lets us correlate prompt changes to metrics. */
+  promptVersion?: string;
 }
 
 type PromptArgs =
@@ -184,8 +96,22 @@ const ATTEMPT_TIMEOUT_MS = 180_000;
 
 type AttemptOutcome = { done: true } | { done: false; error: unknown };
 
-export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs): Promise<void> {
-  const { primaryAgent, fallbackAgent, threadId, userId, isByok, provider } = args;
+export async function streamWithRetry(
+  ctx: ActionCtx,
+  args: StreamWithRetryArgs,
+): Promise<RunAccumulator> {
+  const {
+    primaryAgent,
+    fallbackAgent,
+    threadId,
+    userId,
+    isByok,
+    provider,
+    source,
+    environment,
+    release,
+    promptVersion,
+  } = args;
   const promptArgs: PromptArgs = args.promptMessageId
     ? args.prompt !== undefined
       ? {
@@ -200,16 +126,33 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   const runId = crypto.randomUUID();
   const telemetry: TelemetryArgs = { runId, userId, threadId, provider };
 
+  const accInit: AccumulatorInit = {
+    runId,
+    userId: userId as Id<"users">,
+    threadId,
+    messageId: args.promptMessageId,
+    source,
+    environment,
+    release,
+    promptVersion,
+    startedAt: Date.now(),
+  };
+  const accumulator = new RunAccumulator(accInit);
+
   const errorReport = { threadId, userId, isByok, provider };
 
   // `done` = success or terminal-error-already-reported; otherwise retryable transient.
   const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
     try {
-      await attemptStream({ ctx, agent, promptArgs, telemetry });
+      await attemptStream({ ctx, agent, promptArgs, telemetry, accumulator });
       return { done: true };
     } catch (error) {
-      if (await tryReportByok(ctx, { ...errorReport, error })) return { done: true };
+      if (await tryReportByok(ctx, { ...errorReport, error })) {
+        accumulator.setTerminalErrorClass(classifyByokError(error) ?? "byok_unknown_error");
+        return { done: true };
+      }
       if (!isTransientError(error)) {
+        accumulator.setTerminalErrorClass(errorClassName(error));
         await reportError(ctx, { ...errorReport, error });
         return { done: true };
       }
@@ -217,14 +160,24 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
     }
   };
 
-  if ((await runAttempt(primaryAgent)).done) return;
+  if ((await runAttempt(primaryAgent)).done) return accumulator;
+  accumulator.markRetry();
   await delay(RETRY_DELAY_MS);
-  if ((await runAttempt(primaryAgent)).done) return;
+  if ((await runAttempt(primaryAgent)).done) return accumulator;
+  accumulator.markRetry();
 
+  accumulator.markFallback("transient_exhaustion");
   const final = await runAttempt(fallbackAgent);
-  if (final.done) return;
+  if (final.done) return accumulator;
   // Fallback also hit a transient error — terminal now, surface the generic message.
+  accumulator.setTerminalErrorClass(errorClassName(final.error));
   await reportError(ctx, { ...errorReport, error: final.error });
+  return accumulator;
+}
+
+function errorClassName(error: unknown): string {
+  if (error instanceof Error) return error.name;
+  return "Unknown";
 }
 
 interface TelemetryArgs {
@@ -239,6 +192,7 @@ interface AttemptStreamOptions {
   agent: Agent;
   promptArgs: PromptArgs;
   telemetry: TelemetryArgs;
+  accumulator: RunAccumulator;
 }
 
 async function attemptStream({
@@ -246,6 +200,7 @@ async function attemptStream({
   agent,
   promptArgs,
   telemetry,
+  accumulator,
 }: AttemptStreamOptions): Promise<void> {
   const { threadId, userId } = telemetry;
   const controller = new AbortController();
@@ -257,6 +212,13 @@ async function attemptStream({
         ...promptArgs,
         abortSignal: controller.signal,
         experimental_telemetry: buildTelemetryConfig(telemetry),
+        onStepFinish: (step: StepResult<ToolSet>) => {
+          try {
+            accumulator.onStepFinish(step);
+          } catch {
+            // Telemetry must never fail the LLM turn.
+          }
+        },
       },
       STREAM_OPTIONS,
     );
