@@ -3,27 +3,16 @@ import { paginationOptsValidator } from "convex/server";
 import {
   createThread as agentCreateThread,
   listUIMessages,
-  saveMessage,
   syncStreams,
   vStreamArgs,
 } from "@convex-dev/agent";
-import { action, internalAction, mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
-import { buildCoachAgentForStorageOnly, buildCoachAgentsForProvider } from "./ai/coach";
-import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
+import { buildCoachAgentForStorageOnly } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
 import { sanitizeTimezone } from "./ai/timeDecay";
-import type { ProviderId } from "./ai/providers";
-import * as analytics from "./lib/posthog";
-import {
-  assertThreadOwnership,
-  buildPrompt,
-  persistScheduledFailure,
-  resolveUserProviderConfig,
-  validateUserProviderKey,
-  withByokErrorSanitization,
-} from "./chatHelpers";
+import { assertThreadOwnership, validateUserProviderKey } from "./chatHelpers";
 
 export const generateImageUploadUrl = mutation({
   args: {},
@@ -112,7 +101,7 @@ export const createThreadWithMessage = action({
     // Schedule the LLM response asynchronously so the frontend gets the
     // threadId back immediately. processMessage handles BYOK resolution,
     // budget checks, streaming, retries, and analytics.
-    await ctx.scheduler.runAfter(0, internal.chat.processMessage, {
+    await ctx.scheduler.runAfter(0, internal.chatProcessing.processMessage, {
       threadId: targetThreadId,
       userId,
       prompt,
@@ -186,59 +175,6 @@ export const respondToToolApproval = mutation({
   },
 });
 
-export const continueAfterApproval = action({
-  args: {
-    threadId: v.string(),
-    messageId: v.string(),
-    userTimezone: v.optional(v.string()),
-  },
-  handler: async (ctx, { threadId, messageId, userTimezone: rawTz }) => {
-    const userTimezone = sanitizeTimezone(rawTz);
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    if (!userId) throw new Error("Not authenticated");
-    await assertThreadOwnership(ctx, threadId, userId);
-
-    let provider: ProviderId | undefined;
-    const startTime = Date.now();
-    try {
-      const providerConfig = await resolveUserProviderConfig(ctx, userId);
-      provider = providerConfig.provider;
-
-      const { primary, fallback } = buildCoachAgentsForProvider({
-        ...providerConfig,
-        userTimezone,
-      });
-      await withByokErrorSanitization(() =>
-        streamWithRetry(ctx, {
-          primaryAgent: primary,
-          fallbackAgent: fallback,
-          threadId,
-          userId,
-          promptMessageId: messageId,
-          isByok: !providerConfig.isHouseKey,
-          provider: providerConfig.provider,
-        }),
-      );
-    } catch (error) {
-      await persistScheduledFailure({
-        ctx,
-        threadId,
-        userId,
-        error,
-        provider,
-        source: "chat.continueAfterApproval",
-      });
-      return;
-    }
-
-    analytics.capture(userId, "coach_response_received", {
-      response_time_ms: Date.now() - startTime,
-      after_approval: true,
-    });
-    await analytics.flush();
-  },
-});
-
 /**
  * Appends a message to an existing thread. Schedules the LLM response
  * asynchronously. Use this for all in-thread messages once the thread exists.
@@ -265,7 +201,7 @@ export const sendMessageToThread = mutation({
       throws: true,
     });
 
-    await ctx.scheduler.runAfter(0, internal.chat.processMessage, {
+    await ctx.scheduler.runAfter(0, internal.chatProcessing.processMessage, {
       threadId,
       userId,
       prompt,
@@ -274,70 +210,5 @@ export const sendMessageToThread = mutation({
     });
 
     return { threadId };
-  },
-});
-
-export const processMessage = internalAction({
-  args: {
-    threadId: v.string(),
-    userId: v.id("users"),
-    prompt: v.string(),
-    imageStorageIds: v.optional(v.array(v.id("_storage"))),
-    userTimezone: v.optional(v.string()),
-  },
-  handler: async (ctx, { threadId, userId, prompt, imageStorageIds, userTimezone: rawTz }) => {
-    const userTimezone = sanitizeTimezone(rawTz);
-    const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
-    if (budgetExceeded) return;
-
-    // Pre-save the user message once so retries use promptMessageId
-    // instead of re-saving, re-embedding, and duplicating the message.
-    const { messageId } = await saveMessage(ctx, components.agent, {
-      threadId,
-      userId,
-      message: { role: "user" as const, content: prompt },
-    });
-
-    let provider: ProviderId | undefined;
-    const startTime = Date.now();
-    try {
-      const providerConfig = await resolveUserProviderConfig(ctx, userId);
-      provider = providerConfig.provider;
-
-      const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds);
-
-      const { primary, fallback } = buildCoachAgentsForProvider({
-        ...providerConfig,
-        userTimezone,
-      });
-      await withByokErrorSanitization(() =>
-        streamWithRetry(ctx, {
-          primaryAgent: primary,
-          fallbackAgent: fallback,
-          threadId,
-          userId,
-          promptMessageId: messageId,
-          prompt: typeof resolvedPrompt === "string" ? undefined : resolvedPrompt,
-          isByok: !providerConfig.isHouseKey,
-          provider: providerConfig.provider,
-        }),
-      );
-    } catch (error) {
-      await persistScheduledFailure({
-        ctx,
-        threadId,
-        userId,
-        error,
-        provider,
-        source: "chat.processMessage",
-      });
-      return;
-    }
-
-    analytics.capture(userId, "coach_response_received", {
-      response_time_ms: Date.now() - startTime,
-      has_images: (imageStorageIds?.length ?? 0) > 0,
-    });
-    await analytics.flush();
   },
 });
