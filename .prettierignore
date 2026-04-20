@@ -6,3 +6,7 @@ coverage
 .vercel
 convex/_generated
 *.tsbuildinfo
+
+# Managed by release-please; its template uses double blank lines that
+# Prettier would otherwise reformat on every release PR.
+CHANGELOG.md
