@@ -49,7 +49,8 @@ export default function ResetPasswordPage() {
       await signIn("password", { email, flow: "reset" });
       track("password_reset_requested");
       setStep("enter-code");
-    } catch {
+    } catch (err) {
+      console.error("[reset-password] send failed:", err);
       setError("Could not send reset code. Please check your email and try again.");
     } finally {
       setSubmitting(false);
@@ -81,7 +82,8 @@ export default function ResetPasswordPage() {
       });
       track("password_reset_completed");
       setStep("success");
-    } catch {
+    } catch (err) {
+      console.error("[reset-password] verify failed:", err);
       setError("Invalid or expired code. Please check the code and try again.");
     } finally {
       setSubmitting(false);
