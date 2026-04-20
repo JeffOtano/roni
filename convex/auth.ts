@@ -29,7 +29,7 @@ export async function createOrUpdateUser(
 
   return await ctx.db.insert("users", {
     ...(args.profile.email ? { email: args.profile.email } : {}),
-    ...(args.profile.name ? { name: args.profile.name as string } : {}),
+    ...(args.profile.name ? { name: args.profile.name } : {}),
   });
 }
 
@@ -40,6 +40,6 @@ export const { auth, signIn, signOut, store } = convexAuth({
     }),
   ],
   callbacks: {
-    createOrUpdateUser: (ctx, args) => createOrUpdateUser(ctx, args),
+    createOrUpdateUser,
   },
 });
