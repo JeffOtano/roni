@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectWorkoutMeta, toActivity, truncateWorkoutDetail } from "./proxy";
+import { projectWorkoutMeta, toActivity } from "./proxy";
 import {
   estimateCacheValueBytes,
   isCacheValueWithinLimit,
@@ -7,6 +7,7 @@ import {
   MAX_CACHE_VALUE_BYTES,
 } from "./proxyCacheLimits";
 import type { SetActivity, WorkoutActivityDetail } from "./types";
+import { projectWorkoutDetail } from "./workoutDetailProjection";
 
 function makeSet(id: string): SetActivity {
   return {
@@ -48,21 +49,38 @@ function makeDetail(setCount: number): WorkoutActivityDetail {
   };
 }
 
-describe("truncateWorkoutDetail", () => {
-  it("returns null unchanged", () => {
-    expect(truncateWorkoutDetail(null)).toBeNull();
+describe("projectWorkoutDetail", () => {
+  it("returns null for null and undefined", () => {
+    expect(projectWorkoutDetail(null)).toBeNull();
+    expect(projectWorkoutDetail(undefined)).toBeNull();
+  });
+
+  it("returns null for non-object payloads", () => {
+    expect(projectWorkoutDetail("x")).toBeNull();
+    expect(projectWorkoutDetail([1, 2, 3])).toBeNull();
   });
 
   it("passes through details under the cap", () => {
     const detail = makeDetail(100);
-    const result = truncateWorkoutDetail(detail);
+    const result = projectWorkoutDetail(detail);
     expect(result?.workoutSetActivity?.length).toBe(100);
   });
 
   it("truncates workoutSetActivity arrays above the cap", () => {
     const detail = makeDetail(9000);
-    const result = truncateWorkoutDetail(detail);
+    const result = projectWorkoutDetail(detail);
     expect(result?.workoutSetActivity?.length).toBe(4000);
+  });
+
+  it("drops undeclared array fields that exceed Convex's 8192 limit", () => {
+    const detail: WorkoutActivityDetail & { heartRateSamples: number[] } = {
+      ...makeDetail(10),
+      heartRateSamples: Array.from({ length: 10_000 }, (_, i) => i),
+    };
+    const result = projectWorkoutDetail(detail) as unknown as Record<string, unknown>;
+
+    expect(result).not.toHaveProperty("heartRateSamples");
+    expect(result.workoutSetActivity).toHaveLength(10);
   });
 });
 

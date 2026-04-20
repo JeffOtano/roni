@@ -8,6 +8,7 @@ import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { isCacheValueWithinLimit, isConvexSizeError } from "./proxyCacheLimits";
 import { withTokenRetry } from "./tokenRetry";
+import { projectWorkoutDetail } from "./workoutDetailProjection";
 import type {
   Activity,
   ExternalActivity,
@@ -287,20 +288,6 @@ export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activ
 // fetchWorkoutHistory and fetchWorkoutHistoryPage live in workoutHistoryProxy.ts
 // to keep this file under the 400-line cap.
 
-// Convex caps array fields at 8192 elements. Tonal can return thousands of
-// set entries for some activities. Apply after every return path (fresh + cached).
-const MAX_SETS_RETURN = 4000;
-export function truncateWorkoutDetail(
-  detail: WorkoutActivityDetail | null,
-): WorkoutActivityDetail | null {
-  const sets = detail?.workoutSetActivity;
-  if (!sets || sets.length <= MAX_SETS_RETURN) return detail;
-  console.warn(
-    `truncateWorkoutDetail: capped workoutSetActivity (${sets.length} -> ${MAX_SETS_RETURN}) for activity ${detail.id}`,
-  );
-  return { ...detail, workoutSetActivity: sets.slice(0, MAX_SETS_RETURN) };
-}
-
 export const fetchWorkoutDetail = internalAction({
   args: {
     userId: v.id("users"),
@@ -314,11 +301,11 @@ export const fetchWorkoutDetail = internalAction({
         ttl: CACHE_TTLS.workoutHistory,
         fetcher: async () => {
           try {
-            const detail = await tonalFetch<WorkoutActivityDetail>(
+            const raw = await tonalFetch<unknown>(
               token,
               `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
             );
-            return truncateWorkoutDetail(detail);
+            return projectWorkoutDetail(raw);
           } catch (error) {
             if (error instanceof TonalApiError && error.status === 404) {
               return null;
@@ -328,8 +315,8 @@ export const fetchWorkoutDetail = internalAction({
         },
       }),
     );
-    // Truncate after cachedFetch too: stale cache may predate the truncation.
-    return truncateWorkoutDetail(result);
+    // Project after cachedFetch too: stale cache may predate the projection.
+    return projectWorkoutDetail(result);
   },
 });
 
