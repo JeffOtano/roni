@@ -2,6 +2,36 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ResendOTP } from "./ResendOTP";
 import { rateLimiter } from "./rateLimits";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+
+type CreateOrUpdateUserArgs = {
+  existingUserId: Id<"users"> | null;
+  profile: Record<string, unknown> & { email?: string; name?: string };
+};
+
+/**
+ * Called by `@convex-dev/auth` whenever the library needs to resolve a user
+ * for an auth event (sign-up, email-OTP verification, password reset). On the
+ * update path (`existingUserId !== null`) we MUST return that existing ID —
+ * otherwise the auth library re-points the authAccount at a freshly-inserted
+ * row and the user loses access to their data. See #228 for the incident.
+ */
+export async function createOrUpdateUser(
+  ctx: MutationCtx,
+  args: CreateOrUpdateUserArgs,
+): Promise<Id<"users">> {
+  if (args.existingUserId !== null) {
+    return args.existingUserId;
+  }
+
+  await rateLimiter.limit(ctx, "newSignup", { throws: true });
+
+  return await ctx.db.insert("users", {
+    ...(args.profile.email ? { email: args.profile.email } : {}),
+    ...(args.profile.name ? { name: args.profile.name } : {}),
+  });
+}
 
 export const { auth, signIn, signOut, store } = convexAuth({
   providers: [
@@ -10,22 +40,6 @@ export const { auth, signIn, signOut, store } = convexAuth({
     }),
   ],
   callbacks: {
-    async createOrUpdateUser(ctx, args) {
-      // Update path: auth library is linking an existing user (email
-      // verification, password reset). Return the existing ID so the
-      // authAccount stays pointed at the original user row.
-      if (args.existingUserId !== null) {
-        return args.existingUserId;
-      }
-
-      // Create path: rate-limit before inserting so the auth library
-      // rolls back the half-created auth account if the bucket is empty.
-      await rateLimiter.limit(ctx, "newSignup", { throws: true });
-
-      return await ctx.db.insert("users", {
-        ...(args.profile.email ? { email: args.profile.email } : {}),
-        ...(args.profile.name ? { name: args.profile.name as string } : {}),
-      });
-    },
+    createOrUpdateUser,
   },
 });
