@@ -129,6 +129,27 @@ export const planEmail = internalQuery({
   },
 });
 
+/**
+ * Safety scan for a single userId. Returns the first table that has a row
+ * for this user, or `null` if the user has no data across all 18
+ * user-scoped app tables.
+ */
+export const findFirstDataHit = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }): Promise<string | null> => {
+    for (const [table, idx] of Object.entries(SAFETY_INDEXES)) {
+      const row = await ctx.db
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .query(table as any)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .withIndex(idx as any, (q: any) => q.eq("userId", userId))
+        .first();
+      if (row) return table;
+    }
+    return null;
+  },
+});
+
 export const repointAuthAccount = internalMutation({
   args: {
     authAccountId: v.id("authAccounts"),
@@ -200,6 +221,68 @@ export const run = internalAction({
       }
 
       results.push(base);
+    }
+
+    return { dryRun, results };
+  },
+});
+
+type EmptyOrphanResult = {
+  userId: Id<"users">;
+  status: "skipped" | "aborted" | "planned" | "applied";
+  reason?: string;
+  dataHitTable?: string;
+};
+
+/**
+ * Targeted cleanup for a specific list of userIds known to be empty orphan
+ * rows. Unlike `run`, this does NOT touch `authAccounts` — useful for the
+ * chris24mansfield / ricardovasq case where the auth account is correctly
+ * pointing at a different (data-bearing) orphan and we just want to remove
+ * the stale empty duplicates.
+ *
+ * Each userId is independently safety-checked: if any of the 18 user-scoped
+ * tables has a row for it, that userId is aborted and reported. Otherwise
+ * the full account-deletion sequence runs (agent component → by-userId
+ * tables → specialized tables → auth data → user record).
+ *
+ * Dry run:  npx convex run migrations/repairOrphanedAuthAccounts:deleteEmptyOrphans \
+ *             '{"dryRun": true, "userIds": ["k5...", ...]}' --prod
+ */
+export const deleteEmptyOrphans = internalAction({
+  args: {
+    dryRun: v.boolean(),
+    userIds: v.array(v.id("users")),
+  },
+  handler: async (
+    ctx,
+    { dryRun, userIds },
+  ): Promise<{ dryRun: boolean; results: EmptyOrphanResult[] }> => {
+    const results: EmptyOrphanResult[] = [];
+
+    for (const userId of userIds) {
+      const hit: string | null = await ctx.runQuery(
+        internal.migrations.repairOrphanedAuthAccounts.findFirstDataHit,
+        { userId },
+      );
+
+      if (hit !== null) {
+        results.push({
+          userId,
+          status: "aborted",
+          reason: "userId has app data — refusing to delete",
+          dataHitTable: hit,
+        });
+        continue;
+      }
+
+      if (dryRun) {
+        results.push({ userId, status: "planned" });
+        continue;
+      }
+
+      await deleteOneOrphan(ctx, userId);
+      results.push({ userId, status: "applied" });
     }
 
     return { dryRun, results };
