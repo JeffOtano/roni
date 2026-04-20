@@ -28,6 +28,8 @@ import type { SessionType } from "./weekProgrammingHelpers";
 // swapExerciseInDraft
 // ---------------------------------------------------------------------------
 
+export type DraftModificationResult = { ok: true } | { ok: false; error: string };
+
 /** Replace a movementId in a draft workout's blocks. */
 export const swapExerciseInDraft = internalMutation({
   args: {
@@ -36,28 +38,30 @@ export const swapExerciseInDraft = internalMutation({
     oldMovementId: v.string(),
     newMovementId: v.string(),
   },
-  handler: async (ctx, { userId, workoutPlanId, oldMovementId, newMovementId }) => {
+  handler: async (
+    ctx,
+    { userId, workoutPlanId, oldMovementId, newMovementId },
+  ): Promise<DraftModificationResult> => {
     const wp = await ctx.db.get(workoutPlanId);
     if (!wp || wp.userId !== userId) {
-      throw new Error("Workout plan not found or access denied");
+      return { ok: false, error: "Workout plan not found or access denied" };
     }
     if (wp.status !== "draft") {
-      throw new Error("Can only swap exercises in draft workout plans");
+      return { ok: false, error: "Can only swap exercises in draft workout plans" };
     }
 
-    // Validate the new movement ID exists in the catalog
     const movement = await ctx.db
       .query("movements")
       .withIndex("by_tonalId", (q) => q.eq("tonalId", newMovementId))
       .first();
     if (!movement) {
-      throw new Error(
-        `Invalid movementId: ${newMovementId}. Use search_exercises to get valid IDs from the catalog.`,
-      );
+      return {
+        ok: false,
+        error: `Invalid movementId: ${newMovementId}. Use search_exercises to get valid IDs from the catalog.`,
+      };
     }
 
-    const blocks = wp.blocks;
-    const updatedBlocks = blocks.map((block) => ({
+    const updatedBlocks = wp.blocks.map((block) => ({
       ...block,
       exercises: block.exercises.map((ex) =>
         ex.movementId === oldMovementId ? { ...ex, movementId: newMovementId } : ex,
@@ -66,6 +70,7 @@ export const swapExerciseInDraft = internalMutation({
 
     const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, updatedBlocks);
     await ctx.db.patch(workoutPlanId, { blocks: normalizedBlocks });
+    return { ok: true };
   },
 });
 
@@ -89,42 +94,44 @@ export const addExerciseToDraft = internalMutation({
     burnout: v.optional(v.boolean()),
     dropSet: v.optional(v.boolean()),
   },
-  handler: async (ctx, { userId, workoutPlanId, movementId, sets, ...opts }) => {
+  handler: async (
+    ctx,
+    { userId, workoutPlanId, movementId, sets, ...opts },
+  ): Promise<DraftModificationResult> => {
     const wp = await ctx.db.get(workoutPlanId);
     if (!wp || wp.userId !== userId) {
-      throw new Error("Workout plan not found or access denied");
+      return { ok: false, error: "Workout plan not found or access denied" };
     }
     if (wp.status !== "draft") {
-      throw new Error("Can only add exercises to draft workout plans");
+      return { ok: false, error: "Can only add exercises to draft workout plans" };
     }
 
-    // Validate the movement ID exists in the catalog
     const movement = await ctx.db
       .query("movements")
       .withIndex("by_tonalId", (q) => q.eq("tonalId", movementId))
       .first();
     if (!movement) {
-      throw new Error(
-        `Invalid movementId: ${movementId}. Use search_exercises to get valid IDs from the catalog.`,
-      );
+      return {
+        ok: false,
+        error: `Invalid movementId: ${movementId}. Use search_exercises to get valid IDs from the catalog.`,
+      };
     }
 
     const blocks = [...wp.blocks];
     const newExercise = { movementId, sets, ...opts };
 
-    // Find the last non-cooldown block. Cooldown is always the last block
-    // and warmup is always the first. Insert before cooldown.
+    // Warmup is always the first block and cooldown the last. Insert the
+    // new single-exercise block before the cooldown when one exists.
     if (blocks.length <= 1) {
-      // Only warmup or empty — add as a new block
       blocks.push({ exercises: [newExercise] });
     } else {
-      // Insert a new single-exercise block before the cooldown (last block)
       const cooldownIdx = blocks.length - 1;
       blocks.splice(cooldownIdx, 0, { exercises: [newExercise] });
     }
 
     const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, blocks);
     await ctx.db.patch(workoutPlanId, { blocks: normalizedBlocks });
+    return { ok: true };
   },
 });
 

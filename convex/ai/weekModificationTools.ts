@@ -11,20 +11,9 @@ import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
+import type { DraftModificationResult } from "../coach/weekModifications";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import { requireUserId, toSessionDuration, withToolTracking } from "./helpers";
-
-const VALIDATION_PREFIXES = [
-  "Invalid movementId",
-  "Workout plan not found",
-  "Can only swap",
-  "Can only add",
-];
-
-function isValidationError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  return VALIDATION_PREFIXES.some((p) => err.message.startsWith(p));
-}
 
 // ---------------------------------------------------------------------------
 // swapExerciseTool
@@ -73,19 +62,13 @@ export const swapExerciseTool = createTool({
         };
       }
 
-      try {
-        await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
-          userId,
-          workoutPlanId: day.workoutPlanId,
-          oldMovementId: input.oldMovementId,
-          newMovementId: input.newMovementId,
-        });
-      } catch (err) {
-        if (isValidationError(err)) {
-          return { success: false, error: (err as Error).message };
-        }
-        throw err;
-      }
+      const result = (await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
+        userId,
+        workoutPlanId: day.workoutPlanId,
+        oldMovementId: input.oldMovementId,
+        newMovementId: input.newMovementId,
+      })) as DraftModificationResult;
+      if (!result.ok) return { success: false, error: result.error };
 
       return {
         success: true,
@@ -148,20 +131,14 @@ export const addExerciseTool = createTool({
       }
 
       const { dayIndex: _, movementId, sets, ...opts } = input;
-      try {
-        await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
-          userId,
-          workoutPlanId: day.workoutPlanId,
-          movementId,
-          sets,
-          ...opts,
-        });
-      } catch (err) {
-        if (isValidationError(err)) {
-          return { success: false, error: (err as Error).message };
-        }
-        throw err;
-      }
+      const result = (await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
+        userId,
+        workoutPlanId: day.workoutPlanId,
+        movementId,
+        sets,
+        ...opts,
+      })) as DraftModificationResult;
+      if (!result.ok) return { success: false, error: result.error };
 
       return {
         success: true,
