@@ -9,19 +9,10 @@ import {
 import { action, mutation, query } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
-import { buildCoachAgentForStorageOnly, buildCoachAgentsForProvider } from "./ai/coach";
-import { streamWithRetry } from "./ai/resilience";
+import { buildCoachAgentForStorageOnly } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
 import { sanitizeTimezone } from "./ai/timeDecay";
-import type { ProviderId } from "./ai/providers";
-import * as analytics from "./lib/posthog";
-import {
-  assertThreadOwnership,
-  persistScheduledFailure,
-  resolveUserProviderConfig,
-  validateUserProviderKey,
-  withByokErrorSanitization,
-} from "./chatHelpers";
+import { assertThreadOwnership, validateUserProviderKey } from "./chatHelpers";
 
 export const generateImageUploadUrl = mutation({
   args: {},
@@ -181,59 +172,6 @@ export const respondToToolApproval = mutation({
       }));
     }
     return { messageId };
-  },
-});
-
-export const continueAfterApproval = action({
-  args: {
-    threadId: v.string(),
-    messageId: v.string(),
-    userTimezone: v.optional(v.string()),
-  },
-  handler: async (ctx, { threadId, messageId, userTimezone: rawTz }) => {
-    const userTimezone = sanitizeTimezone(rawTz);
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    if (!userId) throw new Error("Not authenticated");
-    await assertThreadOwnership(ctx, threadId, userId);
-
-    let provider: ProviderId | undefined;
-    const startTime = Date.now();
-    try {
-      const providerConfig = await resolveUserProviderConfig(ctx, userId);
-      provider = providerConfig.provider;
-
-      const { primary, fallback } = buildCoachAgentsForProvider({
-        ...providerConfig,
-        userTimezone,
-      });
-      await withByokErrorSanitization(() =>
-        streamWithRetry(ctx, {
-          primaryAgent: primary,
-          fallbackAgent: fallback,
-          threadId,
-          userId,
-          promptMessageId: messageId,
-          isByok: !providerConfig.isHouseKey,
-          provider: providerConfig.provider,
-        }),
-      );
-    } catch (error) {
-      await persistScheduledFailure({
-        ctx,
-        threadId,
-        userId,
-        error,
-        provider,
-        source: "chat.continueAfterApproval",
-      });
-      return;
-    }
-
-    analytics.capture(userId, "coach_response_received", {
-      response_time_ms: Date.now() - startTime,
-      after_approval: true,
-    });
-    await analytics.flush();
   },
 });
 

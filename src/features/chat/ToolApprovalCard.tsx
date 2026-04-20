@@ -26,7 +26,7 @@ interface ToolApprovalCardProps {
 export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprovalCardProps) {
   const [status, setStatus] = useState<"pending" | "approving" | "denying" | "done">("pending");
   const respond = useMutation(api.chat.respondToToolApproval);
-  const continueAgent = useAction(api.chat.continueAfterApproval);
+  const continueAgent = useAction(api.chatProcessing.continueAfterApproval);
   const { track } = useAnalytics();
   const shownTimeRef = useRef(Date.now());
 

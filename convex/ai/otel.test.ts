@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { translatedAttributes, translateSpan } from "./otel";
+import { translateAttributes, translateSpan } from "./otel";
 
 const USER_ID = "k5762r1m174t2cmjgb9178ptk582y3p6";
 const TRACE_ID = "1049455d-e028-452c-94b2-2b6ef905ba4d";
@@ -27,9 +27,9 @@ function buildSpan(attrs: ReadableSpan["attributes"]): ReadableSpan {
   } as unknown as ReadableSpan;
 }
 
-describe("translatedAttributes", () => {
+describe("translateAttributes", () => {
   it("promotes ai.telemetry.metadata.<key> to top-level <key>", () => {
-    const out = translatedAttributes({
+    const out = translateAttributes({
       "ai.telemetry.metadata.threadId": "thread-1",
       "ai.telemetry.metadata.provider": "gemini",
     });
@@ -38,14 +38,14 @@ describe("translatedAttributes", () => {
   });
 
   it("rewrites ai.telemetry.metadata.posthog_trace_id to posthog.trace_id", () => {
-    const out = translatedAttributes({
+    const out = translateAttributes({
       "ai.telemetry.metadata.posthog_trace_id": TRACE_ID,
     });
     expect(out["posthog.trace_id"]).toBe(TRACE_ID);
   });
 
   it("skips posthog_distinct_id at the attribute level (handled via Resource)", () => {
-    const out = translatedAttributes({
+    const out = translateAttributes({
       "ai.telemetry.metadata.posthog_distinct_id": USER_ID,
     });
     expect(out["posthog.distinct_id"]).toBeUndefined();
@@ -53,17 +53,33 @@ describe("translatedAttributes", () => {
   });
 
   it("converts ai.response.msToFirstChunk (ms) to $ai_time_to_first_token (s)", () => {
-    const out = translatedAttributes({ "ai.response.msToFirstChunk": 2500 });
+    const out = translateAttributes({ "ai.response.msToFirstChunk": 2500 });
     expect(out["$ai_time_to_first_token"]).toBe(2.5);
   });
 
   it("leaves non-telemetry attributes untouched", () => {
-    const out = translatedAttributes({
+    const out = translateAttributes({
       "ai.model.id": "gemini-3-flash-preview",
       "ai.usage.inputTokens": 100,
     });
     expect(out["ai.model.id"]).toBe("gemini-3-flash-preview");
     expect(out["ai.usage.inputTokens"]).toBe(100);
+  });
+
+  it("falls back to plain shortKey when posthog_trace_id is non-string", () => {
+    const out = translateAttributes({
+      "ai.telemetry.metadata.posthog_trace_id": 42 as unknown as string,
+    });
+    expect(out["posthog.trace_id"]).toBeUndefined();
+    expect(out.posthog_trace_id).toBe(42);
+  });
+
+  it("skips $ai_time_to_first_token when msToFirstChunk is non-numeric", () => {
+    const out = translateAttributes({
+      "ai.response.msToFirstChunk": "oops" as unknown as number,
+    });
+    expect(out["$ai_time_to_first_token"]).toBeUndefined();
+    expect(out["ai.response.msToFirstChunk"]).toBe("oops");
   });
 });
 

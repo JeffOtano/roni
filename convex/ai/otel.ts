@@ -18,9 +18,7 @@ import { PostHogTraceExporter } from "@posthog/ai/otel";
 // skips `msToFirstChunk` → `$ai_time_to_first_token`, and ignores distinct_id on
 // span attributes (only reads it from the OTel Resource). Remove once PostHog
 // catches up to AI SDK v6.
-export function translatedAttributes(
-  attrs: ReadableSpan["attributes"],
-): ReadableSpan["attributes"] {
+export function translateAttributes(attrs: ReadableSpan["attributes"]): ReadableSpan["attributes"] {
   const out: Record<string, unknown> = { ...attrs };
   const METADATA_PREFIX = "ai.telemetry.metadata.";
   for (const [key, value] of Object.entries(attrs)) {
@@ -41,7 +39,7 @@ export function translatedAttributes(
 }
 
 export function translateSpan(span: ReadableSpan): ReadableSpan {
-  const translatedAttrs = translatedAttributes(span.attributes);
+  const translatedAttrs = translateAttributes(span.attributes);
   const distinctId = span.attributes["ai.telemetry.metadata.posthog_distinct_id"];
   const mergedResource =
     typeof distinctId === "string"
@@ -73,6 +71,8 @@ class TranslatingExporter implements SpanExporter {
   }
 }
 
+// Assumes this is the only OTel provider in the process. A later
+// setGlobalTracerProvider call would silently override ours.
 function initProvider(): BasicTracerProvider | null {
   const apiKey = process.env.POSTHOG_API_KEY;
   if (!apiKey) return null;

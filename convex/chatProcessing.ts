@@ -4,8 +4,8 @@
 
 import { v } from "convex/values";
 import { saveMessage } from "@convex-dev/agent";
-import { internalAction } from "./_generated/server";
-import { components } from "./_generated/api";
+import { action, internalAction } from "./_generated/server";
+import { components, internal } from "./_generated/api";
 import { buildCoachAgentsForProvider } from "./ai/coach";
 import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
 import { flushTelemetry } from "./ai/otel";
@@ -13,6 +13,7 @@ import { sanitizeTimezone } from "./ai/timeDecay";
 import type { ProviderId } from "./ai/providers";
 import * as analytics from "./lib/posthog";
 import {
+  assertThreadOwnership,
   buildPrompt,
   persistScheduledFailure,
   resolveUserProviderConfig,
@@ -81,6 +82,61 @@ export const processMessage = internalAction({
     analytics.capture(userId, "coach_response_received", {
       response_time_ms: Date.now() - startTime,
       has_images: (imageStorageIds?.length ?? 0) > 0,
+    });
+    await analytics.flush();
+  },
+});
+
+export const continueAfterApproval = action({
+  args: {
+    threadId: v.string(),
+    messageId: v.string(),
+    userTimezone: v.optional(v.string()),
+  },
+  handler: async (ctx, { threadId, messageId, userTimezone: rawTz }) => {
+    const userTimezone = sanitizeTimezone(rawTz);
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    if (!userId) throw new Error("Not authenticated");
+    await assertThreadOwnership(ctx, threadId, userId);
+
+    let provider: ProviderId | undefined;
+    const startTime = Date.now();
+    try {
+      const providerConfig = await resolveUserProviderConfig(ctx, userId);
+      provider = providerConfig.provider;
+
+      const { primary, fallback } = buildCoachAgentsForProvider({
+        ...providerConfig,
+        userTimezone,
+      });
+      await withByokErrorSanitization(() =>
+        streamWithRetry(ctx, {
+          primaryAgent: primary,
+          fallbackAgent: fallback,
+          threadId,
+          userId,
+          promptMessageId: messageId,
+          isByok: !providerConfig.isHouseKey,
+          provider: providerConfig.provider,
+        }),
+      );
+    } catch (error) {
+      await persistScheduledFailure({
+        ctx,
+        threadId,
+        userId,
+        error,
+        provider,
+        source: "chatProcessing.continueAfterApproval",
+      });
+      return;
+    } finally {
+      await flushTelemetry();
+    }
+
+    analytics.capture(userId, "coach_response_received", {
+      response_time_ms: Date.now() - startTime,
+      after_approval: true,
     });
     await analytics.flush();
   },

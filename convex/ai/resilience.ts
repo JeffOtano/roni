@@ -2,6 +2,7 @@ import type { Agent } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
 import { APICallError } from "@ai-sdk/provider";
+import type { TelemetrySettings } from "ai";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
@@ -204,7 +205,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   // `done` = success or terminal-error-already-reported; otherwise retryable transient.
   const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
     try {
-      await attemptStream(ctx, agent, threadId, userId, promptArgs, telemetry);
+      await attemptStream({ ctx, agent, promptArgs, telemetry });
       return { done: true };
     } catch (error) {
       if (await tryReportByok(ctx, { ...errorReport, error })) return { done: true };
@@ -233,14 +234,20 @@ interface TelemetryArgs {
   provider: ProviderId;
 }
 
-async function attemptStream(
-  ctx: ActionCtx,
-  agent: Agent,
-  threadId: string,
-  userId: string,
-  promptArgs: PromptArgs,
-  telemetry: TelemetryArgs,
-): Promise<void> {
+interface AttemptStreamOptions {
+  ctx: ActionCtx;
+  agent: Agent;
+  promptArgs: PromptArgs;
+  telemetry: TelemetryArgs;
+}
+
+async function attemptStream({
+  ctx,
+  agent,
+  promptArgs,
+  telemetry,
+}: AttemptStreamOptions): Promise<void> {
+  const { threadId, userId } = telemetry;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("Stream timeout"), ATTEMPT_TIMEOUT_MS);
   try {
@@ -260,7 +267,7 @@ async function attemptStream(
 }
 
 // recordInputs/recordOutputs off: training snapshots and workout plans are PII.
-function buildTelemetryConfig(telemetry: TelemetryArgs) {
+function buildTelemetryConfig(telemetry: TelemetryArgs): TelemetrySettings {
   return {
     isEnabled: true,
     functionId: "coach-agent",
