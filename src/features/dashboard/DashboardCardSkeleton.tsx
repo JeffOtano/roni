@@ -1,14 +1,26 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 function ShimmerBar({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-primary/6 ${className ?? ""}`} />;
+  return <div className={cn("animate-pulse rounded-md bg-primary/6", className)} />;
 }
 
-export function DashboardCardSkeleton({ tall }: { tall?: boolean }) {
+export function DashboardCardSkeleton({
+  tall,
+  wide,
+}: {
+  tall?: boolean;
+  /** Span both columns on the 2-col dashboard grid. */
+  wide?: boolean;
+}) {
   return (
-    <Card className={tall ? "min-h-[300px]" : "min-h-[200px]"} role="status" aria-label="Loading">
+    <Card
+      className={cn(tall ? "min-h-[300px]" : "min-h-[200px]", wide && "sm:col-span-2")}
+      role="status"
+      aria-label="Loading"
+    >
       <CardHeader>
         <ShimmerBar className="h-4 w-32" />
       </CardHeader>

@@ -14,7 +14,6 @@ import {
   Settings,
   Sun,
   TrendingUp,
-  Trophy,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,9 +36,10 @@ const navLinks: Array<{
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/progress", label: "Progress", icon: TrendingUp },
-  { href: "/prs", label: "PRs", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+// Note: /prs is intentionally not in the nav — it's surfaced as a hero tile on
+// the dashboard (PRHighlightsCard) and reached via that tile's CTA.
 
 function mobileIsActive(pathname: string, href: string, exact?: boolean) {
   if (href === "/dashboard") return pathname.startsWith("/dashboard");

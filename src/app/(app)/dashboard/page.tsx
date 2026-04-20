@@ -21,6 +21,7 @@ import { PRHighlightsCard } from "@/features/dashboard/PRHighlightsCard";
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
 import { ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardCardSkeleton } from "@/features/dashboard/DashboardCardSkeleton";
 
@@ -32,17 +33,20 @@ function QueryCard<T>({
   data,
   title,
   tall,
+  wide,
   children,
 }: {
   data: T | undefined;
   title: string;
   tall?: boolean;
+  /** Span both columns on the 2-col dashboard grid. */
+  wide?: boolean;
   children: (data: T) => React.ReactNode;
 }) {
-  if (data === undefined) return <DashboardCardSkeleton tall={tall} />;
+  if (data === undefined) return <DashboardCardSkeleton tall={tall} wide={wide} />;
 
   return (
-    <Card className="animate-in fade-in duration-300">
+    <Card className={cn("animate-in fade-in duration-300", wide && "sm:col-span-2")}>
       <CardHeader>
         <CardTitle>
           <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
@@ -183,7 +187,7 @@ export default function DashboardPage() {
         <QueryCard<DashboardWorkout[]> data={workouts} title="Recent Workouts" tall>
           {(d) => <RecentWorkoutsList workouts={d} />}
         </QueryCard>
-        <QueryCard<RecentPRSummary> data={prSummary} title="Personal Records">
+        <QueryCard<RecentPRSummary> data={prSummary} title="Personal Records" wide>
           {(d) => <PRHighlightsCard summary={d} />}
         </QueryCard>
         <QueryCard<DashboardExternalActivity[]> data={externalActivities} title="Other Activities">
