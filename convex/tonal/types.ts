@@ -173,7 +173,8 @@ export interface WorkoutActivityDetail {
 export interface SetActivity {
   id: string;
   movementId: string;
-  prescribedReps: number;
+  /** Tonal omits this for alternating-side follow-ups, burnouts, and dropsets. */
+  prescribedReps?: number;
   repetition: number;
   repetitionTotal: number;
   blockNumber: number;

@@ -306,10 +306,14 @@ export const fetchWorkoutDetail = internalAction({
               `/v6/users/${tonalUserId}/workout-activities/${activityId}`,
             );
             const detail = projectWorkoutDetail(raw);
-            // Reserve `null` for the 404 path below. Schema drift must surface
-            // and re-fetch, not poison the cache as "workout not found".
             if (detail === null) {
-              throw new Error(`projectWorkoutDetail rejected payload for activity ${activityId}`);
+              // Schema drift — projectWorkoutDetail already logged Zod issues.
+              // Return null so the caller gracefully renders "not found"; the
+              // cache short-circuits repeat requests for CACHE_TTLS.workoutHistory.
+              console.error(
+                `fetchWorkoutDetail: projectWorkoutDetail rejected payload for activity ${activityId}`,
+              );
+              return null;
             }
             return detail;
           } catch (error) {

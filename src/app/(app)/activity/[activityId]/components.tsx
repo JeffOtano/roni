@@ -179,7 +179,7 @@ function SetRow({
           {setNumber}
         </span>
         <span className="tabular-nums text-foreground">
-          {reps}/{set.prescribedReps} reps
+          {set.prescribedReps != null ? `${reps}/${set.prescribedReps}` : reps} reps
         </span>
         {hasWeight ? (
           <span className="tabular-nums text-muted-foreground">

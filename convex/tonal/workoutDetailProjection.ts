@@ -9,7 +9,9 @@ const MAX_SETS_RETURN = 4000;
 const setActivitySchema = z.object({
   id: z.string(),
   movementId: z.string(),
-  prescribedReps: z.number(),
+  // Tonal omits prescribedReps for some sets (e.g. alternating-side follow-ups,
+  // burnouts, dropsets) — leaving it out rather than sending a sentinel.
+  prescribedReps: z.number().optional(),
   repetition: z.number(),
   repetitionTotal: z.number(),
   blockNumber: z.number(),

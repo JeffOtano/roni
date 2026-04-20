@@ -19,7 +19,7 @@ export interface EnrichedSetActivity {
   movementId: string;
   movementName: string | null;
   muscleGroups: string[];
-  prescribedReps: number;
+  prescribedReps?: number;
   repetition: number;
   repetitionTotal: number;
   blockNumber: number;
@@ -115,10 +115,12 @@ export const getWorkoutDetail = action({
       { title: string; targetArea: string; workoutType: string } | null,
       string[],
     ] = await Promise.all([
-      ctx.runAction(internal.tonal.proxy.fetchWorkoutDetail, {
-        userId,
-        activityId: args.activityId,
-      }),
+      ctx
+        .runAction(internal.tonal.proxy.fetchWorkoutDetail, {
+          userId,
+          activityId: args.activityId,
+        })
+        .catch((): null => null),
       ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx
         .runAction(internal.tonal.proxy.fetchFormattedSummary, {
