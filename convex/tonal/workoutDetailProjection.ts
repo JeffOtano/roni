@@ -45,18 +45,7 @@ const workoutActivityDetailSchema = z.object({
   totalVolume: z.number(),
   totalConcentricWork: z.number(),
   percentCompleted: z.number(),
-  workoutSetActivity: z
-    .array(setActivitySchema)
-    .transform((sets, ctx) => {
-      if (sets.length > MAX_SETS_RETURN) {
-        console.warn(
-          `projectWorkoutDetail: capped workoutSetActivity (${sets.length} -> ${MAX_SETS_RETURN}) for activity ${ctx.path.join(".") || "unknown"}`,
-        );
-        return sets.slice(0, MAX_SETS_RETURN);
-      }
-      return sets;
-    })
-    .optional(),
+  workoutSetActivity: z.array(setActivitySchema).optional(),
 });
 
 /**
@@ -72,5 +61,13 @@ export function projectWorkoutDetail(raw: unknown): WorkoutActivityDetail | null
     console.warn("projectWorkoutDetail: schema mismatch", result.error.issues);
     return null;
   }
-  return result.data;
+
+  const detail = result.data;
+  const sets = detail.workoutSetActivity;
+  if (!sets || sets.length <= MAX_SETS_RETURN) return detail;
+
+  console.warn(
+    `projectWorkoutDetail: capped workoutSetActivity (${sets.length} -> ${MAX_SETS_RETURN}) for activity ${detail.id}`,
+  );
+  return { ...detail, workoutSetActivity: sets.slice(0, MAX_SETS_RETURN) };
 }
