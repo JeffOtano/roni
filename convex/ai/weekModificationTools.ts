@@ -11,7 +11,6 @@ import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
-import type { DraftModificationResult } from "../coach/weekModifications";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import { requireUserId, toSessionDuration, withToolTracking } from "./helpers";
 
@@ -62,12 +61,12 @@ export const swapExerciseTool = createTool({
         };
       }
 
-      const result = (await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
+      const result = await ctx.runMutation(internal.coach.weekModifications.swapExerciseInDraft, {
         userId,
         workoutPlanId: day.workoutPlanId,
         oldMovementId: input.oldMovementId,
         newMovementId: input.newMovementId,
-      })) as DraftModificationResult;
+      });
       if (!result.ok) return { success: false, error: result.error };
 
       return {
@@ -131,13 +130,13 @@ export const addExerciseTool = createTool({
       }
 
       const { dayIndex: _, movementId, sets, ...opts } = input;
-      const result = (await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
+      const result = await ctx.runMutation(internal.coach.weekModifications.addExerciseToDraft, {
         userId,
         workoutPlanId: day.workoutPlanId,
         movementId,
         sets,
         ...opts,
-      })) as DraftModificationResult;
+      });
       if (!result.ok) return { success: false, error: result.error };
 
       return {

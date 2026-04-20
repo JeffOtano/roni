@@ -61,6 +61,16 @@ export const swapExerciseInDraft = internalMutation({
       };
     }
 
+    const hasOldMovement = wp.blocks.some((block) =>
+      block.exercises.some((ex) => ex.movementId === oldMovementId),
+    );
+    if (!hasOldMovement) {
+      return {
+        ok: false,
+        error: `No exercise with movementId "${oldMovementId}" found in this workout.`,
+      };
+    }
+
     const updatedBlocks = wp.blocks.map((block) => ({
       ...block,
       exercises: block.exercises.map((ex) =>
