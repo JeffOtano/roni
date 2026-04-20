@@ -195,7 +195,7 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
     : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  // One PostHog trace per user turn groups all retries + fallback spans together.
+  // One PostHog trace per user turn; retries + fallback share this ID.
   const runId = crypto.randomUUID();
   const telemetry: TelemetryArgs = { runId, userId, threadId, provider };
 
@@ -259,14 +259,7 @@ async function attemptStream(
   }
 }
 
-// recordInputs/recordOutputs stay false in production: training-snapshot prompts
-// and workout-plan outputs are user PII. Token counts, TTFT, latency, and finish
-// reasons flow regardless, which is what the dashboards need.
-//
-// `metadata` values must be OTel AttributeValue primitives (string/number/bool
-// or arrays of those). PostHog's exporter treats `posthog_distinct_id` and
-// `posthog_trace_id` specially; other entries land as flat span attributes,
-// queryable in PostHog insights.
+// recordInputs/recordOutputs off: training snapshots and workout plans are PII.
 function buildTelemetryConfig(telemetry: TelemetryArgs) {
   return {
     isEnabled: true,

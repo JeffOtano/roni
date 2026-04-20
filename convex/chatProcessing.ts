@@ -1,7 +1,6 @@
 "use node";
 
-// Runs in the Node.js runtime so OpenTelemetry (used by ai/otel.ts) can rely on
-// Node's built-in `performance` global, which the default V8 isolate lacks.
+// Node runtime required: ai/otel.ts loads OpenTelemetry, which needs `performance`.
 
 import { v } from "convex/values";
 import { saveMessage } from "@convex-dev/agent";
@@ -76,8 +75,6 @@ export const processMessage = internalAction({
       });
       return;
     } finally {
-      // Flush OTel spans before the Node runtime returns; in-flight exports
-      // would otherwise be killed and PostHog would miss the turn.
       await flushTelemetry();
     }
 

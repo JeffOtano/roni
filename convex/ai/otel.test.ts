@@ -11,7 +11,6 @@ function buildSpan(attrs: ReadableSpan["attributes"]): ReadableSpan {
     name: "ai.streamText",
     attributes: attrs,
     resource: resourceFromAttributes({ "service.name": "roni-coach" }),
-    // Unused methods/fields filled with stubs so the Proxy passthrough has something to delegate to.
     events: [],
     links: [],
     status: { code: 0 },
