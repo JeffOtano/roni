@@ -39,7 +39,7 @@ export const getProviderSettings = action({
   args: {},
   handler: async (ctx): Promise<ProviderSettings | null> => {
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return null;
 
     await rateLimiter.limit(ctx, "getProviderSettings", { key: userId, throws: true });
 
