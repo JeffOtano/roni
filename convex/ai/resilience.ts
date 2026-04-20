@@ -195,12 +195,16 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
       : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
     : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
+  // One PostHog trace per user turn groups all retries + fallback spans together.
+  const runId = crypto.randomUUID();
+  const telemetry: TelemetryArgs = { runId, userId, threadId, provider };
+
   const errorReport = { threadId, userId, isByok, provider };
 
   // `done` = success or terminal-error-already-reported; otherwise retryable transient.
   const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
     try {
-      await attemptStream(ctx, agent, threadId, userId, promptArgs);
+      await attemptStream(ctx, agent, threadId, userId, promptArgs, telemetry);
       return { done: true };
     } catch (error) {
       if (await tryReportByok(ctx, { ...errorReport, error })) return { done: true };
@@ -222,25 +226,60 @@ export async function streamWithRetry(ctx: ActionCtx, args: StreamWithRetryArgs)
   await reportError(ctx, { ...errorReport, error: final.error });
 }
 
+interface TelemetryArgs {
+  runId: string;
+  userId: string;
+  threadId: string;
+  provider: ProviderId;
+}
+
 async function attemptStream(
   ctx: ActionCtx,
   agent: Agent,
   threadId: string,
   userId: string,
   promptArgs: PromptArgs,
+  telemetry: TelemetryArgs,
 ): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("Stream timeout"), ATTEMPT_TIMEOUT_MS);
   try {
     const { thread } = await agent.continueThread(ctx, { threadId, userId });
     const result = await thread.streamText(
-      { ...promptArgs, abortSignal: controller.signal },
+      {
+        ...promptArgs,
+        abortSignal: controller.signal,
+        experimental_telemetry: buildTelemetryConfig(telemetry),
+      },
       STREAM_OPTIONS,
     );
     await result.text;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// recordInputs/recordOutputs stay false in production: training-snapshot prompts
+// and workout-plan outputs are user PII. Token counts, TTFT, latency, and finish
+// reasons flow regardless, which is what the dashboards need.
+//
+// `metadata` values must be OTel AttributeValue primitives (string/number/bool
+// or arrays of those). PostHog's exporter treats `posthog_distinct_id` and
+// `posthog_trace_id` specially; other entries land as flat span attributes,
+// queryable in PostHog insights.
+function buildTelemetryConfig(telemetry: TelemetryArgs) {
+  return {
+    isEnabled: true,
+    functionId: "coach-agent",
+    recordInputs: false,
+    recordOutputs: false,
+    metadata: {
+      posthog_distinct_id: telemetry.userId,
+      posthog_trace_id: telemetry.runId,
+      threadId: telemetry.threadId,
+      provider: telemetry.provider,
+    },
+  };
 }
 
 interface ErrorReport {
