@@ -22,8 +22,10 @@ export const isCircuitOpen = internalQuery({
   },
 });
 
-/** Record a successful API call. Skips the write in steady state (circuit
- *  closed, no failures) to avoid OCC contention under concurrent load. */
+/** Record a successful API call. Writes only on the rare circuit-close
+ *  transition; sporadic non-open failure counts reset naturally via
+ *  recordFailure's windowed check. Skipping in every non-open state keeps
+ *  recordSuccess contention-free under bursts of concurrent traffic. */
 export const recordSuccess = internalMutation({
   args: { service: v.string() },
   handler: async (ctx, { service }) => {
@@ -42,18 +44,14 @@ export const recordSuccess = internalMutation({
       return;
     }
 
-    // Skip write when circuit is already closed and healthy
-    if (!health.circuitOpen && health.consecutiveFailures === 0) return;
+    if (!health.circuitOpen) return;
 
     await ctx.db.patch(health._id, {
       consecutiveFailures: 0,
       circuitOpen: false,
       lastSuccessAt: Date.now(),
     });
-
-    if (health.circuitOpen) {
-      console.log(`[circuitBreaker] Circuit CLOSED for ${service} - API recovered`);
-    }
+    console.log(`[circuitBreaker] Circuit CLOSED for ${service} - API recovered`);
   },
 });
 
