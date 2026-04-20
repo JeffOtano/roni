@@ -99,12 +99,14 @@ export const getCompletedWorkoutMeta = internalQuery({
 
 export const getWorkoutDetail = action({
   args: { activityId: v.string() },
-  handler: async (ctx, args): Promise<EnrichedWorkoutDetail> => {
+  handler: async (ctx, args): Promise<EnrichedWorkoutDetail | null> => {
     if (!UUID_RE.test(args.activityId)) {
       throw new Error(`Invalid activityId: expected UUID, got "${args.activityId}"`);
     }
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    if (!userId) throw new Error("Not authenticated");
+    // Session expired or user not signed in — AppShell will redirect to /login.
+    // Returning null keeps this out of Sentry (vs. throwing "Not authenticated").
+    if (!userId) return null;
 
     const [detail, movements, formattedSummary, workoutMeta, prMovementIdList]: [
       unknown,
@@ -133,7 +135,7 @@ export const getWorkoutDetail = action({
         activityId: args.activityId,
       }),
     ]);
-    if (!detail) throw new Error("Workout not found");
+    if (!detail) return null;
     const movementMap = new Map(movements.map((m) => [m.id, m]));
 
     const typedDetail = detail as WorkoutActivityDetail;
