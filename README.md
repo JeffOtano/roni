@@ -200,6 +200,23 @@ Full AI traces (user messages, system instructions, training snapshots, tool arg
 - `aiToolCalls` stores per-tool args and a bounded result preview for post-hoc tool analysis.
 - Eval scenarios live in `convex/ai/evalScenarios.ts` and drive both local `vitest` runs and the Phoenix smoke suite under `scripts/evals/phoenix/`.
 
+### GitHub Actions secrets
+
+Two workflows exercise the coach and need repo secrets configured under **Settings → Secrets and variables → Actions**:
+
+- `ci.yml` → `AI prompt smoke evals` job (runs on every PR)
+- `ai-evals-nightly.yml` → `Phoenix agent experiment` job (runs nightly at 04:17 UTC)
+
+| Secret                         | Required?                                  | Notes                                                                                                   |
+| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Required for real runs                     | Smoke script soft-fails (exit 0) when missing so fork PRs without access to secrets don't block merges. |
+| `PHOENIX_API_KEY`              | Required for traces to reach Phoenix Cloud | Nightly experiment fails hard without it.                                                               |
+| `PHOENIX_COLLECTOR_ENDPOINT`   | Optional                                   | Defaults to `https://app.phoenix.arize.com`.                                                            |
+| `PHOENIX_PROJECT_NAME`         | Optional                                   | Defaults to `roni-coach`; segments traces in the Phoenix UI.                                            |
+| `PHOENIX_HOST`                 | Optional                                   | Alternate host; `PHOENIX_COLLECTOR_ENDPOINT` takes precedence when both are set.                        |
+
+Fork PRs inherit no secrets by design. The smoke job detects a missing `GOOGLE_GENERATIVE_AI_API_KEY` and skips gracefully; the nightly workflow runs only on the base repo, so fork contributors don't need to worry about it.
+
 ## Testing
 
 Vitest with two projects: `backend` (Node environment, `convex/**/*.test.ts`) and `frontend` (jsdom, `src/**/*.test.{ts,tsx}`). Test files are co-located next to source files.
