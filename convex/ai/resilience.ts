@@ -1,3 +1,10 @@
+"use node";
+
+// Node runtime required: this module imports ./otel, which loads
+// @arizeai/phoenix-otel → @opentelemetry/sdk-trace-node → context-async-hooks's
+// require("async_hooks"). Marking it "use node" keeps the Convex bundler
+// from trying to ship async_hooks into the V8 isolate.
+
 import type { Agent } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
