@@ -120,31 +120,27 @@ async function drainUserTableBatch(
 describe("deleteAuthData", () => {
   // 1002 inserts + batched drain is fast locally (~500ms) but grazes Vitest's
   // 5000ms default on slower CI runners. Bump the cap to keep this green.
-  test(
-    "drains more than 500 auth sessions and accounts across repeated calls",
-    async () => {
-      const t = convexTest(schema, modules);
-      const userId = await createUser(t);
-      const otherUserId = await createUser(t);
+  test("drains more than 500 auth sessions and accounts across repeated calls", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const otherUserId = await createUser(t);
 
-      for (let i = 0; i < 501; i += 1) {
-        await createSession(t, userId, `user-${i}`);
-        await createAccount(t, userId, `user-${i}`);
-      }
+    for (let i = 0; i < 501; i += 1) {
+      await createSession(t, userId, `user-${i}`);
+      await createAccount(t, userId, `user-${i}`);
+    }
 
-      await createSession(t, otherUserId, "other");
-      await createAccount(t, otherUserId, "other");
+    await createSession(t, otherUserId, "other");
+    await createAccount(t, otherUserId, "other");
 
-      const iterations = await drainAuthData(t, userId);
+    const iterations = await drainAuthData(t, userId);
 
-      expect(iterations).toBeGreaterThan(1);
-      expect(await countUserSessions(t, userId)).toHaveLength(0);
-      expect(await countUserAccounts(t, userId)).toHaveLength(0);
-      expect(await countUserSessions(t, otherUserId)).toHaveLength(1);
-      expect(await countUserAccounts(t, otherUserId)).toHaveLength(1);
-    },
-    15_000,
-  );
+    expect(iterations).toBeGreaterThan(1);
+    expect(await countUserSessions(t, userId)).toHaveLength(0);
+    expect(await countUserAccounts(t, userId)).toHaveLength(0);
+    expect(await countUserSessions(t, otherUserId)).toHaveLength(1);
+    expect(await countUserAccounts(t, otherUserId)).toHaveLength(1);
+  }, 15_000);
 
   test("deletes refresh tokens in batches before deleting the session", async () => {
     const t = convexTest(schema, modules);
