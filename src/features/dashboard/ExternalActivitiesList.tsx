@@ -2,34 +2,7 @@
 
 import type { DashboardExternalActivity } from "../../../convex/dashboard";
 import { cn } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function relativeTime(dateString: string): string {
-  const now = Date.now();
-  const then = new Date(dateString).getTime();
-  const diffMs = now - then;
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-  const diffWeek = Math.floor(diffDay / 7);
-
-  if (diffSec < 60) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  if (diffDay === 1) return "yesterday";
-  if (diffDay < 7) return `${diffDay}d ago`;
-  if (diffWeek === 1) return "1 week ago";
-  if (diffWeek < 5) return `${diffWeek} weeks ago`;
-
-  return new Date(dateString).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
+import { formatRelativeTime } from "@/lib/relativeTime";
 
 function formatDuration(seconds: number): string {
   const mins = Math.round(seconds / 60);
@@ -66,25 +39,25 @@ function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity
         <span className="text-sm font-medium leading-tight text-foreground/80">
           {capitalizeType(activity.workoutType)}
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/60">
-          {relativeTime(activity.beginTime)}
+        <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
+          {formatRelativeTime(activity.beginTime)}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+        <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
           {formatDuration(activity.totalDuration)}
         </span>
         {showCalories && (
-          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
             {Math.round(activity.totalCalories)} cal
           </span>
         )}
         {showHr && (
-          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
             {Math.round(activity.averageHeartRate)} bpm
           </span>
         )}
-        <span className="rounded-md bg-muted/40 px-1.5 py-0.5 text-[11px] text-muted-foreground/50">
+        <span className="rounded-md bg-muted/40 px-1.5 py-0.5 text-2xs text-muted-foreground/50">
           {activity.source}
         </span>
       </div>

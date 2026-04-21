@@ -57,7 +57,7 @@ export function PRHighlightsCard({ summary }: PRHighlightsCardProps) {
             </li>
           ))}
           {hiddenCount > 0 && (
-            <li className="text-[11px] text-muted-foreground/60">
+            <li className="text-2xs text-muted-foreground/60">
               +{hiddenCount} more new PR{hiddenCount === 1 ? "" : "s"}
             </li>
           )}
@@ -110,7 +110,7 @@ function TrendLegend({ summary }: { summary: RecentPRSummary }) {
   const hasAny = summary.steadyCount > 0 || summary.plateauCount > 0 || summary.regressionCount > 0;
   if (!hasAny) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground/70">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground/70">
       {summary.steadyCount > 0 && <span>{summary.steadyCount} steady</span>}
       {summary.plateauCount > 0 && <span>{summary.plateauCount} plateaued</span>}
       {summary.regressionCount > 0 && <span>{summary.regressionCount} regressed</span>}
