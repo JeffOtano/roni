@@ -22,6 +22,18 @@ import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./lib/thresholds";
 const DATASET_NAME = process.env.PHOENIX_DATASET_NAME ?? "roni-coach-smoke";
 const EXPERIMENT_NAME = process.env.PHOENIX_EXPERIMENT_NAME ?? `roni-nightly-${Date.now()}`;
 
+/** Reject NaN/<=0 so Phoenix never sees an invalid concurrency value. */
+function positiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    console.warn(`${name}="${raw}" is not a positive integer — using default ${fallback}`);
+    return fallback;
+  }
+  return parsed;
+}
+
 function requirePhoenixKey(): string {
   const key = process.env.PHOENIX_API_KEY;
   if (!key) throw new Error("PHOENIX_API_KEY is required to run a Phoenix experiment");
@@ -148,7 +160,7 @@ async function main(): Promise<void> {
       };
     },
     evaluators: [rubricEvaluator, bannedPhraseEvaluator, correctnessEvaluator],
-    concurrency: Number(process.env.PHOENIX_EXPERIMENT_CONCURRENCY ?? 2),
+    concurrency: positiveIntEnv("PHOENIX_EXPERIMENT_CONCURRENCY", 2),
   });
 
   const failed = ran.failedRunCount;

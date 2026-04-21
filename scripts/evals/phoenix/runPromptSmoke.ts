@@ -19,7 +19,20 @@ import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./lib/thresholds";
 import { decide, printReport, type Report, type ScenarioResult } from "./lib/report";
 
 const MODEL_ID = process.env.PHOENIX_SMOKE_MODEL ?? "gemini-3-flash-preview";
-const CONCURRENCY = Number(process.env.PHOENIX_SMOKE_CONCURRENCY ?? 4);
+
+/** Positive-integer env guard. `Number("abc")` is NaN and `Number("-4")` is negative
+ *  — both would hang `runAll` by never advancing `i`. Fall back to `fallback`. */
+function positiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    console.warn(`${name}="${raw}" is not a positive integer — using default ${fallback}`);
+    return fallback;
+  }
+  return parsed;
+}
+const CONCURRENCY = positiveIntEnv("PHOENIX_SMOKE_CONCURRENCY", 4);
 
 /**
  * Fork PRs from contributors don't get repo secrets, so the CI job runs with

@@ -424,10 +424,10 @@ export default defineSchema({
 
   /**
    * One row per user turn with Roni-specific outcomes and denormalized
-   * aggregates. PostHog handles most metrics; this table stores domain
-   * fields (approval, workout plan outcomes), enables Convex joins, and
-   * retains data beyond PostHog's free-tier 30-day window.
-   * `runId` matches PostHog's `$ai_trace_id` for cross-system joins.
+   * aggregates. Phoenix Cloud handles raw trace capture; this table stores
+   * domain fields (approval, workout plan outcomes), enables Convex joins,
+   * and outlives any trace retention window on the Phoenix side.
+   * `runId` equals the Phoenix Cloud trace id for cross-system joins.
    */
   aiRun: defineTable({
     runId: v.string(),

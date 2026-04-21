@@ -108,6 +108,15 @@ export async function runInRunSpan<T>(
   const { span, handle } = startRunSpan(meta);
   try {
     return await context.with(trace.setSpan(context.active(), span), () => fn(handle));
+  } catch (error) {
+    // Surface unhandled errors from the callback as a failed span so Phoenix
+    // flags them. The caller still sees the rethrow.
+    span.recordException(error instanceof Error ? error : new Error(String(error)));
+    span.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   } finally {
     await handle.end();
   }

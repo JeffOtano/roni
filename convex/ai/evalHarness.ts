@@ -34,8 +34,6 @@ export interface HarnessResult {
 export interface HarnessOptions {
   /** Override the model used for the agent run; defaults to the flash preview. */
   modelId?: string;
-  /** Extra metadata to attach to the experiment run. */
-  metadata?: Record<string, unknown>;
 }
 
 /**

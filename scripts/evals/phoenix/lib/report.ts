@@ -65,11 +65,19 @@ export function decide(report: Report): ThresholdDecision {
       `overall pass rate ${overall.toFixed(2)} below threshold ${OVERALL_PASS_RATE.toFixed(2)}`,
     );
   }
-  for (const [cap, bucket] of rateByCapability(report)) {
-    const r = bucket.total === 0 ? 1 : bucket.passed / bucket.total;
-    const floor = CAPABILITY_PASS_RATE[cap];
-    if (r < floor)
+  // Iterate declared capabilities rather than bucket keys so a capability with
+  // zero scenarios shows up as a miss instead of silently passing.
+  const buckets = rateByCapability(report);
+  for (const [cap, floor] of Object.entries(CAPABILITY_PASS_RATE) as Array<[Capability, number]>) {
+    const bucket = buckets.get(cap);
+    if (!bucket || bucket.total === 0) {
+      reasons.push(`${cap} has no scenarios — cannot meet threshold ${floor.toFixed(2)}`);
+      continue;
+    }
+    const r = bucket.passed / bucket.total;
+    if (r < floor) {
       reasons.push(`${cap} pass rate ${r.toFixed(2)} below threshold ${floor.toFixed(2)}`);
+    }
   }
   return { passed: reasons.length === 0, reasons };
 }

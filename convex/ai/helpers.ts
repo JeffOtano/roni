@@ -17,7 +17,7 @@ export function toSessionDuration(value: string | number): 30 | 45 | 60 {
 
 /** ToolCtx.userId is `string | undefined`; recordToolCall accepts `v.optional(v.string())` to avoid forbidden `as` casts. */
 
-const MAX_JSON_BYTES = 4096;
+const MAX_JSON_CHARS = 4096;
 const TRUNCATION_SUFFIX = "...[truncated]";
 
 function extractRunId(context: unknown): string | undefined {
@@ -29,7 +29,9 @@ function extractRunId(context: unknown): string | undefined {
 /**
  * Stable, bounded JSON snapshot. Circular refs or non-serializable values
  * fall back to a short sentinel so telemetry never throws. Result is truncated
- * to {@link MAX_JSON_BYTES} to keep Convex rows small.
+ * to {@link MAX_JSON_CHARS} (JS string length, not UTF-8 bytes) to keep Convex
+ * rows small; 4096 chars at worst-case UTF-8 is still well under Convex's
+ * per-field ceiling.
  */
 function safeStringify(value: unknown): string {
   let json: string;
@@ -43,8 +45,12 @@ function safeStringify(value: unknown): string {
     return "[unserializable]";
   }
   if (json === undefined) return "";
-  if (json.length <= MAX_JSON_BYTES) return json;
-  return json.slice(0, MAX_JSON_BYTES - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
+  if (json.length <= MAX_JSON_CHARS) return json;
+  // Avoid cutting in the middle of a UTF-16 surrogate pair (emoji, etc.).
+  let cut = MAX_JSON_CHARS - TRUNCATION_SUFFIX.length;
+  const code = json.charCodeAt(cut - 1);
+  if (code >= 0xd800 && code <= 0xdbff) cut -= 1;
+  return json.slice(0, cut) + TRUNCATION_SUFFIX;
 }
 
 export function withToolTracking<TInput, TOutput>(

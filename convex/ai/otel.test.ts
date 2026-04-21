@@ -99,7 +99,11 @@ describe("flushTelemetry", () => {
 });
 
 describe("isPhoenixEnabled", () => {
-  it("reports false in environments without PHOENIX_API_KEY", () => {
-    expect(isPhoenixEnabled()).toBe(false);
+  // Provider wiring is decided at module-load time, so assert against the
+  // ambient env rather than hard-coding false. Both CI (key set) and local
+  // dev (key absent) exercise the same branch this way.
+  it("mirrors whether PHOENIX_API_KEY was set at module load", () => {
+    const expected = Boolean(process.env.PHOENIX_API_KEY);
+    expect(isPhoenixEnabled()).toBe(expected);
   });
 });

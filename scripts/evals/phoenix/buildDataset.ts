@@ -5,15 +5,15 @@
  *   PHOENIX_API_KEY=... npm run ai:dataset
  *
  * Reads PHOENIX_COLLECTOR_ENDPOINT (or PHOENIX_HOST) for the base URL and
- * PHOENIX_PROJECT_NAME for labelling; falls back to sensible defaults.
+ * PHOENIX_PROJECT_NAME to label the dataset description; falls back to defaults.
  */
 import { createClient } from "@arizeai/phoenix-client";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import { EVAL_SCENARIOS } from "../../../convex/ai/evalScenarios";
 
 const DATASET_NAME = process.env.PHOENIX_DATASET_NAME ?? "roni-coach-smoke";
-const DATASET_DESCRIPTION =
-  "Prompt-level smoke scenarios for the Roni coach. Synced from convex/ai/evalScenarios.ts.";
+const PROJECT_NAME = process.env.PHOENIX_PROJECT_NAME ?? "roni-coach";
+const DATASET_DESCRIPTION = `Prompt-level smoke scenarios for the Roni coach. Project: ${PROJECT_NAME}. Synced from convex/ai/evalScenarios.ts.`;
 
 function requireApiKey(): string {
   const key = process.env.PHOENIX_API_KEY;
