@@ -229,6 +229,74 @@ describe("RunAccumulator", () => {
     expect(acc.toRow().approvalPauses).toBe(2);
   });
 
+  it("increments approvalPauses on a successful create_workout tool result", () => {
+    const planId = "p_workoutplan_xyz" as unknown as Id<"workoutPlans">;
+    const acc = new RunAccumulator(baseInit());
+    acc.onStepFinish(
+      buildStep({
+        toolCalls: [{ toolName: "create_workout" }],
+        toolResults: [
+          {
+            toolName: "create_workout",
+            output: {
+              success: true,
+              workoutId: "w1",
+              title: "Chest",
+              setCount: 9,
+              planId,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(acc.toRow().approvalPauses).toBe(1);
+  });
+
+  it("increments approvalPauses on a successful program_week tool result", () => {
+    const acc = new RunAccumulator(baseInit());
+    acc.onStepFinish(
+      buildStep({
+        toolCalls: [{ toolName: "program_week" }],
+        toolResults: [
+          { toolName: "program_week", output: { success: true, weekPlanId: "w_abc" } },
+        ],
+      }),
+    );
+
+    expect(acc.toRow().approvalPauses).toBe(1);
+  });
+
+  it("records TTFT, TTLT, and throughput when the stream emits tokens", () => {
+    const acc = new RunAccumulator(baseInit({ startedAt: 1_000_000 }));
+    acc.onStepFinish(
+      buildStep({
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 100 },
+      }),
+    );
+    acc.markFirstChunk(1_000_200); // 200ms TTFT
+    acc.markFinished(1_001_200); // 1200ms TTLT
+    const row = acc.toRow();
+
+    expect(row.timeToFirstTokenMs).toBe(200);
+    expect(row.timeToLastTokenMs).toBe(1200);
+    // 100 tokens streamed over 1000ms between first chunk and finish = 100 tok/s
+    expect(row.outputTokensPerSec).toBeCloseTo(100, 5);
+  });
+
+  it("ignores additional markFirstChunk calls after the first one", () => {
+    const acc = new RunAccumulator(baseInit({ startedAt: 1_000_000 }));
+    acc.markFirstChunk(1_000_200);
+    acc.markFirstChunk(1_000_500); // second call ignored
+    expect(acc.toRow().timeToFirstTokenMs).toBe(200);
+  });
+
+  it("leaves totalCostUsd undefined because per-model cost is not modeled today", () => {
+    const acc = new RunAccumulator(baseInit());
+    expect(acc.toRow().totalCostUsd).toBeUndefined();
+  });
+
   it("uses approval_continuation source when configured and preserves messageId undefined", () => {
     const acc = new RunAccumulator(
       baseInit({ source: "approval_continuation", messageId: undefined }),

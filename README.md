@@ -111,7 +111,11 @@ By default, self-hosted deployments start with analytics, Sentry, and the public
 | `EMAIL_CHANGE_CODE_PEPPER`     | 64-char hex string. HMAC pepper for email-change verification codes     |
 | `DISCORD_CONTACT_WEBHOOK`      | Optional Discord webhook for the public `/contact` form                 |
 | `DISCORD_WEBHOOK_URL`          | Optional Discord webhook for operator notifications                     |
-| `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side analytics                |
+| `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side product analytics        |
+| `PHOENIX_API_KEY`              | Optional Phoenix Cloud API key. Enables AI conversation/eval tracing    |
+| `PHOENIX_COLLECTOR_ENDPOINT`   | Optional Phoenix OTLP collector URL. Defaults to `https://app.phoenix.arize.com` |
+| `PHOENIX_PROJECT_NAME`         | Optional Phoenix project name for trace segmentation. Defaults to `roni-coach`   |
+| `PHOENIX_HOST`                 | Optional alternate Phoenix host. `PHOENIX_COLLECTOR_ENDPOINT` takes precedence  |
 | `BYOK_DISABLED`                | Optional kill switch that forces all users onto the shared Gemini key   |
 | `TOKEN_ENCRYPTION_KEY_OLD`     | Optional old key used only during encryption-key rotation               |
 | `DISABLE_CRONS`                | Optional `true` to silence all cron jobs. Useful on dev deployments     |
@@ -185,6 +189,16 @@ scripts/               Build and CI helper scripts
 | `npm run format`                | Prettier (write)                         |
 | `npm run format:check`          | Prettier (check only)                    |
 | `npm run knip`                  | Dead code detection                      |
+| `npm run ai:dataset`            | Sync shared eval scenarios to a Phoenix dataset |
+| `npm run ai:eval:smoke`         | Run prompt-only smoke evals against Phoenix thresholds |
+
+## AI Observability & Evals
+
+Full AI traces (user messages, system instructions, training snapshots, tool args/results, assistant outputs, token/latency metadata) stream to Phoenix Cloud via OpenTelemetry. Set `PHOENIX_API_KEY` in the Convex backend to enable capture. Product analytics continue to flow to PostHog.
+
+- `aiRun.runId` matches the Phoenix trace id for each user turn so dashboards can join on it.
+- `aiToolCalls` stores per-tool args and a bounded result preview for post-hoc tool analysis.
+- Eval scenarios live in `convex/ai/evalScenarios.ts` and drive both local `vitest` runs and the Phoenix smoke suite under `scripts/evals/phoenix/`.
 
 ## Testing
 

@@ -114,6 +114,10 @@ export const recordToolCall = internalMutation({
     durationMs: v.number(),
     success: v.boolean(),
     error: v.optional(v.string()),
+    runId: v.optional(v.string()),
+    toolCallId: v.optional(v.string()),
+    argsJson: v.optional(v.string()),
+    resultPreview: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("aiToolCalls", { ...args, createdAt: Date.now() });

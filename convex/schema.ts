@@ -408,10 +408,19 @@ export default defineSchema({
     durationMs: v.number(),
     success: v.boolean(),
     error: v.optional(v.string()),
+    /** Phoenix trace id for the enclosing user turn. Joins to `aiRun.runId`. */
+    runId: v.optional(v.string()),
+    /** AI SDK tool-call id — pairs a tool-call request with its result. */
+    toolCallId: v.optional(v.string()),
+    /** JSON-serialized tool arguments, bounded to avoid blowing up row size. */
+    argsJson: v.optional(v.string()),
+    /** Bounded stringified preview of the tool result, for post-hoc inspection. */
+    resultPreview: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_tool", ["toolName", "createdAt"])
-    .index("by_createdAt", ["createdAt"]),
+    .index("by_createdAt", ["createdAt"])
+    .index("by_runId", ["runId"]),
 
   /**
    * One row per user turn with Roni-specific outcomes and denormalized

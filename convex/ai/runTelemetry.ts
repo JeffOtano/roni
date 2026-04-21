@@ -121,9 +121,29 @@ export class RunAccumulator {
   private workoutPlanCreatedId?: Id<"workoutPlans">;
   private workoutPushOutcome?: AiRunRow["workoutPushOutcome"];
   private readonly startedAt: number;
+  private timeToFirstTokenMs?: number;
+  private timeToLastTokenMs?: number;
+  private outputTokensPerSec?: number;
 
   constructor(private readonly init: AccumulatorInit) {
     this.startedAt = init.startedAt ?? Date.now();
+  }
+
+  /** First text delta from the model — used for TTFT. Ignored after the first call. */
+  markFirstChunk(now: number = Date.now()): void {
+    if (this.timeToFirstTokenMs !== undefined) return;
+    this.timeToFirstTokenMs = Math.max(0, now - this.startedAt);
+  }
+
+  /** Called once from `onFinish`. Records TTLT and throughput when possible. */
+  markFinished(now: number = Date.now()): void {
+    this.timeToLastTokenMs = Math.max(0, now - this.startedAt);
+    if (this.timeToFirstTokenMs !== undefined && this.outputTokens > 0) {
+      const streamMs = this.timeToLastTokenMs - this.timeToFirstTokenMs;
+      if (streamMs > 0) {
+        this.outputTokensPerSec = this.outputTokens / (streamMs / 1000);
+      }
+    }
   }
 
   /** Called once per step (inner LLM call) inside `streamText`. */
@@ -207,6 +227,14 @@ export class RunAccumulator {
       outputTokens: this.outputTokens,
       cacheReadTokens: this.cacheReadTokens,
       cacheWriteTokens: this.cacheWriteTokens,
+      // totalCostUsd intentionally left undefined: AI SDK v6 usage doesn't
+      // surface per-token USD, and Roni runs on a mix of BYOK and house keys
+      // so a single per-model rate would be wrong. Compute downstream from
+      // token counts + per-model rates if needed.
+      totalCostUsd: undefined,
+      timeToFirstTokenMs: this.timeToFirstTokenMs,
+      timeToLastTokenMs: this.timeToLastTokenMs,
+      outputTokensPerSec: this.outputTokensPerSec,
       approvalPauses: this.approvalPauses,
       workoutPlanCreatedId: this.workoutPlanCreatedId,
       workoutPushOutcome: this.workoutPushOutcome,
@@ -221,7 +249,16 @@ export class RunAccumulator {
       if (result.toolName === "create_workout" && isCreateWorkoutOutput(result.output)) {
         if (result.output.success) {
           this.workoutPlanCreatedId = result.output.planId;
+          // A successful create_workout leaves a draft needing user approval.
+          this.markApprovalPause();
         }
+        continue;
+      }
+
+      // program_week builds a full 7-day plan that the user must approve
+      // before anything pushes to Tonal. Treat each success as a pause.
+      if (result.toolName === "program_week" && isSuccessToolOutput(result.output)) {
+        this.markApprovalPause();
         continue;
       }
 
@@ -237,4 +274,9 @@ export class RunAccumulator {
       }
     }
   }
+}
+
+function isSuccessToolOutput(value: unknown): value is { success: true } {
+  if (!value || typeof value !== "object") return false;
+  return (value as { success?: unknown }).success === true;
 }

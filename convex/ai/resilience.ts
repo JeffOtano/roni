@@ -10,6 +10,7 @@ import { BUDGET_WARNING_THRESHOLD, DAILY_TOKEN_BUDGET } from "../aiUsage";
 import { type ProviderId } from "./providers";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
+import { runInRunSpan } from "./otel";
 
 // Re-export for backwards compatibility with existing callers/tests.
 export { buildByokErrorMessage, classifyByokError, withByokErrorSanitization } from "./byokErrors";
@@ -80,6 +81,8 @@ interface StreamWithRetryArgs {
   release?: string;
   /** Hash of STATIC_INSTRUCTIONS; lets us correlate prompt changes to metrics. */
   promptVersion?: string;
+  /** True when the user attached at least one image to this turn. */
+  hasImages?: boolean;
 }
 
 type PromptArgs =
@@ -111,6 +114,7 @@ export async function streamWithRetry(
     environment,
     release,
     promptVersion,
+    hasImages,
   } = args;
   const promptArgs: PromptArgs = args.promptMessageId
     ? args.prompt !== undefined
@@ -122,57 +126,88 @@ export async function streamWithRetry(
       : { promptMessageId: args.promptMessageId, maxOutputTokens: MAX_OUTPUT_TOKENS }
     : { prompt: args.prompt!, maxOutputTokens: MAX_OUTPUT_TOKENS };
 
-  // One PostHog trace per user turn; retries + fallback share this ID.
-  const runId = crypto.randomUUID();
-  const telemetry: TelemetryArgs = { runId, userId, threadId, provider };
+  return runInRunSpan(
+    {
+      userId,
+      threadId,
+      source,
+      provider,
+      environment,
+      release,
+      promptVersion,
+      hasImages,
+      isByok,
+    },
+    async (span) => {
+      // runId matches the Phoenix trace id so `aiRun.runId` joins to Phoenix traces.
+      const runId = span.runId;
+      const telemetry: TelemetryArgs = {
+        runId,
+        userId,
+        threadId,
+        provider,
+        source,
+        environment,
+        release,
+        promptVersion,
+        hasImages,
+        isByok,
+      };
 
-  const accInit: AccumulatorInit = {
-    runId,
-    userId: userId as Id<"users">,
-    threadId,
-    messageId: args.promptMessageId,
-    source,
-    environment,
-    release,
-    promptVersion,
-    startedAt: Date.now(),
-  };
-  const accumulator = new RunAccumulator(accInit);
+      const accInit: AccumulatorInit = {
+        runId,
+        userId: userId as Id<"users">,
+        threadId,
+        messageId: args.promptMessageId,
+        source,
+        environment,
+        release,
+        promptVersion,
+        startedAt: Date.now(),
+      };
+      const accumulator = new RunAccumulator(accInit);
 
-  const errorReport = { threadId, userId, isByok, provider };
+      const errorReport = { threadId, userId, isByok, provider };
 
-  // `done` = success or terminal-error-already-reported; otherwise retryable transient.
-  const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
-    try {
-      await attemptStream({ ctx, agent, promptArgs, telemetry, accumulator });
-      return { done: true };
-    } catch (error) {
-      if (await tryReportByok(ctx, { ...errorReport, error })) {
-        accumulator.setTerminalErrorClass(classifyByokError(error) ?? "byok_unknown_error");
-        return { done: true };
-      }
-      if (!isTransientError(error)) {
-        accumulator.setTerminalErrorClass(errorClassName(error));
-        await reportError(ctx, { ...errorReport, error });
-        return { done: true };
-      }
-      return { done: false, error };
-    }
-  };
+      const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
+        try {
+          await attemptStream({ ctx, agent, promptArgs, telemetry, accumulator });
+          return { done: true };
+        } catch (error) {
+          if (await tryReportByok(ctx, { ...errorReport, error })) {
+            const cls = classifyByokError(error) ?? "byok_unknown_error";
+            accumulator.setTerminalErrorClass(cls);
+            span.recordError(cls);
+            return { done: true };
+          }
+          if (!isTransientError(error)) {
+            const cls = errorClassName(error);
+            accumulator.setTerminalErrorClass(cls);
+            span.recordError(cls);
+            await reportError(ctx, { ...errorReport, error });
+            return { done: true };
+          }
+          return { done: false, error };
+        }
+      };
 
-  if ((await runAttempt(primaryAgent)).done) return accumulator;
-  accumulator.markRetry();
-  await delay(RETRY_DELAY_MS);
-  if ((await runAttempt(primaryAgent)).done) return accumulator;
-  accumulator.markRetry();
+      if ((await runAttempt(primaryAgent)).done) return accumulator;
+      accumulator.markRetry();
+      await delay(RETRY_DELAY_MS);
+      if ((await runAttempt(primaryAgent)).done) return accumulator;
+      accumulator.markRetry();
 
-  accumulator.markFallback("transient_exhaustion");
-  const final = await runAttempt(fallbackAgent);
-  if (final.done) return accumulator;
-  // Fallback also hit a transient error — terminal now, surface the generic message.
-  accumulator.setTerminalErrorClass(errorClassName(final.error));
-  await reportError(ctx, { ...errorReport, error: final.error });
-  return accumulator;
+      accumulator.markFallback("transient_exhaustion");
+      const final = await runAttempt(fallbackAgent);
+      if (final.done) return accumulator;
+      // Fallback also hit a transient error — terminal now, surface the generic message.
+      const cls = errorClassName(final.error);
+      accumulator.setTerminalErrorClass(cls);
+      span.recordError(cls);
+      await reportError(ctx, { ...errorReport, error: final.error });
+      return accumulator;
+    },
+  );
 }
 
 function errorClassName(error: unknown): string {
@@ -185,6 +220,12 @@ interface TelemetryArgs {
   userId: string;
   threadId: string;
   provider: ProviderId;
+  source: "chat" | "approval_continuation";
+  environment: "dev" | "prod";
+  release?: string;
+  promptVersion?: string;
+  hasImages?: boolean;
+  isByok: boolean;
 }
 
 interface AttemptStreamOptions {
@@ -212,9 +253,24 @@ async function attemptStream({
         ...promptArgs,
         abortSignal: controller.signal,
         experimental_telemetry: buildTelemetryConfig(telemetry),
+        experimental_context: { runId: telemetry.runId },
+        onChunk: (event: { chunk: { type: string } }) => {
+          try {
+            if (event.chunk.type === "text-delta") accumulator.markFirstChunk();
+          } catch {
+            // Telemetry must never fail the LLM turn.
+          }
+        },
         onStepFinish: (step: StepResult<ToolSet>) => {
           try {
             accumulator.onStepFinish(step);
+          } catch {
+            // Telemetry must never fail the LLM turn.
+          }
+        },
+        onFinish: () => {
+          try {
+            accumulator.markFinished();
           } catch {
             // Telemetry must never fail the LLM turn.
           }
@@ -228,19 +284,29 @@ async function attemptStream({
   }
 }
 
-// recordInputs/recordOutputs off: training snapshots and workout plans are PII.
+// Raw inputs/outputs go to Phoenix Cloud for conversation capture. BYOK keys
+// and Tonal tokens are sanitized upstream in byokErrors/chatHelpers so AI SDK
+// messages never carry secrets by the time they reach this layer.
 function buildTelemetryConfig(telemetry: TelemetryArgs): TelemetrySettings {
+  const metadata: Record<string, string | boolean> = {
+    runId: telemetry.runId,
+    threadId: telemetry.threadId,
+    userId: telemetry.userId,
+    provider: telemetry.provider,
+    source: telemetry.source,
+    environment: telemetry.environment,
+    isByok: telemetry.isByok,
+  };
+  if (telemetry.release) metadata.release = telemetry.release;
+  if (telemetry.promptVersion) metadata.promptVersion = telemetry.promptVersion;
+  if (typeof telemetry.hasImages === "boolean") metadata.hasImages = telemetry.hasImages;
+
   return {
     isEnabled: true,
     functionId: "coach-agent",
-    recordInputs: false,
-    recordOutputs: false,
-    metadata: {
-      posthog_distinct_id: telemetry.userId,
-      posthog_trace_id: telemetry.runId,
-      threadId: telemetry.threadId,
-      provider: telemetry.provider,
-    },
+    recordInputs: true,
+    recordOutputs: true,
+    metadata,
   };
 }
 
