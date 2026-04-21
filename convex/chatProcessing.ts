@@ -8,7 +8,6 @@ import { action, type ActionCtx, internalAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { buildCoachAgentsForProvider, STATIC_INSTRUCTIONS_HASH } from "./ai/coach";
 import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
-import { flushTelemetry } from "./ai/otel";
 import type { RunAccumulator } from "./ai/runTelemetry";
 import { sanitizeTimezone } from "./ai/timeDecay";
 import type { ProviderId } from "./ai/providers";
@@ -82,6 +81,7 @@ export const processMessage = internalAction({
           environment: ENVIRONMENT,
           release: RELEASE_SHA,
           promptVersion: STATIC_INSTRUCTIONS_HASH,
+          hasImages: (imageStorageIds?.length ?? 0) > 0,
         }),
       );
     } catch (error) {
@@ -96,7 +96,6 @@ export const processMessage = internalAction({
       return;
     } finally {
       if (accumulator) await persistRun(ctx, accumulator);
-      await flushTelemetry();
     }
 
     analytics.capture(userId, "coach_response_received", {
@@ -157,7 +156,6 @@ export const continueAfterApproval = action({
       return;
     } finally {
       if (accumulator) await persistRun(ctx, accumulator);
-      await flushTelemetry();
     }
 
     analytics.capture(userId, "coach_response_received", {

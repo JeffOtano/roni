@@ -13,7 +13,6 @@ import {
   stripOrphanedToolCalls,
 } from "./contextWindow";
 import { buildInstructions } from "./promptSections";
-import { captureAiGeneration } from "../lib/posthog";
 // ---------------------------------------------------------------------------
 // Tool registry (31 tools across 4 files)
 // ---------------------------------------------------------------------------
@@ -156,6 +155,8 @@ export const coachAgentConfig = {
   // Without this, a terminal error like quota exhaustion triggers 9 API calls.
   callSettings: { maxRetries: 0 },
 
+  // AI traces now flow to Phoenix Cloud via OpenTelemetry (see convex/ai/otel.ts);
+  // this handler is retained only for app-side token accounting on `aiUsage`.
   usageHandler: (async (ctx, { userId, threadId, agentName, usage, model, provider }) => {
     await ctx.runMutation(internal.aiUsage.record, {
       userId: userId as Id<"users"> | undefined,
@@ -166,17 +167,6 @@ export const coachAgentConfig = {
       inputTokens: usage.inputTokens ?? 0,
       outputTokens: usage.outputTokens ?? 0,
       totalTokens: usage.totalTokens ?? 0,
-      cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
-      cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
-    });
-    await captureAiGeneration({
-      distinctId: userId ?? "anonymous",
-      traceId: threadId,
-      spanName: agentName,
-      model,
-      provider,
-      inputTokens: usage.inputTokens ?? 0,
-      outputTokens: usage.outputTokens ?? 0,
       cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? undefined,
       cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? undefined,
     });

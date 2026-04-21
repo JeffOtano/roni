@@ -154,6 +154,31 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+  # Only runs on PRs; fork PRs without access to repo secrets skip via the runner
+  # checking for an empty key at the script level (soft-fail) — see runPromptSmoke.ts.
+  ai-smoke:
+    name: AI prompt smoke evals
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run prompt smoke evals
+        run: npm run ai:eval:smoke
+        env:
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          PHOENIX_PROJECT_NAME: ${{ secrets.PHOENIX_PROJECT_NAME }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+
   e2e:
     name: E2E Smoke
     runs-on: ubuntu-latest

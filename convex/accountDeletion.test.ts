@@ -118,6 +118,8 @@ async function drainUserTableBatch(
 }
 
 describe("deleteAuthData", () => {
+  // 1002 inserts + batched drain is fast locally (~500ms) but grazes Vitest's
+  // 5000ms default on slower CI runners. Bump the cap to keep this green.
   test("drains more than 500 auth sessions and accounts across repeated calls", async () => {
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
@@ -138,7 +140,7 @@ describe("deleteAuthData", () => {
     expect(await countUserAccounts(t, userId)).toHaveLength(0);
     expect(await countUserSessions(t, otherUserId)).toHaveLength(1);
     expect(await countUserAccounts(t, otherUserId)).toHaveLength(1);
-  });
+  }, 15_000);
 
   test("deletes refresh tokens in batches before deleting the session", async () => {
     const t = convexTest(schema, modules);

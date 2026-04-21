@@ -408,17 +408,26 @@ export default defineSchema({
     durationMs: v.number(),
     success: v.boolean(),
     error: v.optional(v.string()),
+    /** Phoenix trace id for the enclosing user turn. Joins to `aiRun.runId`. */
+    runId: v.optional(v.string()),
+    /** AI SDK tool-call id — pairs a tool-call request with its result. */
+    toolCallId: v.optional(v.string()),
+    /** JSON-serialized tool arguments, bounded to avoid blowing up row size. */
+    argsJson: v.optional(v.string()),
+    /** Bounded stringified preview of the tool result, for post-hoc inspection. */
+    resultPreview: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_tool", ["toolName", "createdAt"])
-    .index("by_createdAt", ["createdAt"]),
+    .index("by_createdAt", ["createdAt"])
+    .index("by_runId", ["runId"]),
 
   /**
    * One row per user turn with Roni-specific outcomes and denormalized
-   * aggregates. PostHog handles most metrics; this table stores domain
-   * fields (approval, workout plan outcomes), enables Convex joins, and
-   * retains data beyond PostHog's free-tier 30-day window.
-   * `runId` matches PostHog's `$ai_trace_id` for cross-system joins.
+   * aggregates. Phoenix Cloud handles raw trace capture; this table stores
+   * domain fields (approval, workout plan outcomes), enables Convex joins,
+   * and outlives any trace retention window on the Phoenix side.
+   * `runId` equals the Phoenix Cloud trace id for cross-system joins.
    */
   aiRun: defineTable({
     runId: v.string(),

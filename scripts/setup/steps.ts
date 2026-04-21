@@ -172,9 +172,14 @@ const OPTIONAL_INTEGRATIONS: OptionalIntegration[] = [
   },
   {
     key: "POSTHOG_PROJECT_TOKEN",
-    label: "PostHog project token (server + client analytics)",
+    label: "PostHog project token (server + client product analytics)",
     helpUrl: "https://posthog.com",
     clientSideMirror: "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
+  },
+  {
+    key: "PHOENIX_API_KEY",
+    label: "Phoenix Cloud API key (AI observability and evals)",
+    helpUrl: "https://phoenix.arize.com",
   },
   {
     key: "NEXT_PUBLIC_SENTRY_DSN",

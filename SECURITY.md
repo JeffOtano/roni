@@ -26,7 +26,7 @@ You'll get an initial response within 7 days on a best-effort basis. There is no
 
 - Public disclosure should wait until a fix or mitigation is available.
 - Self-hosted deployments are responsible for their own infrastructure security, secret management, and access control.
-- Third-party platforms such as Tonal, Google AI Studio, Convex, Resend, and Vercel have their own security boundaries and incident processes.
+- Third-party platforms such as Tonal, Google AI Studio, Convex, Resend, Vercel, and Arize Phoenix (when AI tracing is enabled) have their own security boundaries and incident processes.
 
 ## Data handling
 

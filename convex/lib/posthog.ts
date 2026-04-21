@@ -1,52 +1,6 @@
+// AI tracing (formerly captureAiGeneration) moved to Phoenix Cloud in
+// convex/ai/otel.ts. PostHog keeps only product-analytics events below.
 const POSTHOG_HOST = "https://us.i.posthog.com";
-
-/**
- * Capture a PostHog $ai_generation event from a Convex action.
- * Uses direct fetch (no batching) since this is called once per LLM response.
- * Errors are swallowed — analytics must never break the primary flow.
- */
-export async function captureAiGeneration(args: {
-  distinctId: string;
-  traceId?: string;
-  spanName?: string;
-  model: string;
-  provider: string;
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-}): Promise<void> {
-  const apiKey = getApiKey();
-  if (!apiKey) return;
-
-  const properties: Record<string, unknown> = {
-    $ai_model: args.model,
-    $ai_provider: args.provider,
-    $ai_input_tokens: args.inputTokens,
-    $ai_output_tokens: args.outputTokens,
-  };
-  if (args.traceId !== undefined) properties.$ai_trace_id = args.traceId;
-  if (args.spanName !== undefined) properties.$ai_span_name = args.spanName;
-  if (args.cacheReadTokens !== undefined)
-    properties.$ai_cache_read_input_tokens = args.cacheReadTokens;
-  if (args.cacheWriteTokens !== undefined)
-    properties.$ai_cache_creation_input_tokens = args.cacheWriteTokens;
-
-  try {
-    await fetch(`${POSTHOG_HOST}/capture/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: apiKey,
-        event: "$ai_generation",
-        distinct_id: args.distinctId,
-        properties,
-      }),
-    });
-  } catch {
-    // Intentionally swallowed
-  }
-}
 
 const pending: Array<{ distinctId: string; event: string; properties?: Record<string, unknown> }> =
   [];

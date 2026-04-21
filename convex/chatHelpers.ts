@@ -4,7 +4,9 @@ import { components, internal } from "./_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { type ProviderKeyResult, resolveProviderKey } from "./byok";
-import { buildByokErrorMessage, type ByokErrorCode, classifyByokError } from "./ai/resilience";
+// Import directly from byokErrors — importing through ./ai/resilience would
+// pull Phoenix-otel's Node-only deps into this V8-runtime module's graph.
+import { buildByokErrorMessage, type ByokErrorCode, classifyByokError } from "./ai/byokErrors";
 import type { ProviderId } from "./ai/providers";
 
 export const MAX_IMAGES_PER_MESSAGE = 4;
