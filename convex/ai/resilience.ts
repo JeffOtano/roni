@@ -1,7 +1,6 @@
 import type { Agent } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
-import { APICallError } from "@ai-sdk/provider";
 import type { StepResult, TelemetrySettings, ToolSet } from "ai";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
@@ -11,52 +10,18 @@ import { type ProviderId } from "./providers";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
 import { runInRunSpan } from "./otel";
+import { isTransientError } from "./transientErrors";
 
 // Re-export for backwards compatibility with existing callers/tests.
 export { buildByokErrorMessage, classifyByokError, withByokErrorSanitization } from "./byokErrors";
 export type { ByokErrorCode } from "./byokErrors";
+export { isTransientError } from "./transientErrors";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 const BUDGET_EXCEEDED_MESSAGE =
   "I've hit my daily thinking limit -- let's pick this up tomorrow. Your limit resets at midnight UTC.";
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
-
-// ---------------------------------------------------------------------------
-// Transient error classification
-// ---------------------------------------------------------------------------
-
-const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
-
-const TRANSIENT_MESSAGE_PATTERNS = [
-  "high demand",
-  "unavailable",
-  "overloaded",
-  "try again later",
-  "rate limit",
-  "resource_exhausted",
-];
-
-export function isTransientError(error: unknown): boolean {
-  // Prefer the SDK's own retry decision — it knows provider-specific cases
-  // like Anthropic 529 "overloaded" that our pattern list would miss.
-  if (APICallError.isInstance(error)) return error.isRetryable;
-
-  if (error instanceof TypeError && error.message.includes("fetch")) return true;
-
-  if (error instanceof Error) {
-    if (error.name === "TimeoutError" || error.name === "AbortError") return true;
-
-    const lower = error.message.toLowerCase();
-    if (lower.includes("timeout") || lower.includes("aborted")) return true;
-    if (TRANSIENT_MESSAGE_PATTERNS.some((p) => lower.includes(p))) return true;
-
-    const status = (error as Error & { status?: number }).status;
-    if (typeof status === "number" && TRANSIENT_STATUS_CODES.has(status)) return true;
-  }
-
-  return false;
-}
 
 // ---------------------------------------------------------------------------
 // Stream with retry + fallback
