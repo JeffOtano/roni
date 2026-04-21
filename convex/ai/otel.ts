@@ -3,9 +3,22 @@
 // `"use node"` required: @opentelemetry/core reads `performance` at import,
 // which the default V8 isolate doesn't expose.
 
-import { context, type Span, SpanStatusCode, trace, type Tracer } from "@opentelemetry/api";
+import {
+  context,
+  diag,
+  DiagConsoleLogger,
+  DiagLogLevel,
+  type Span,
+  SpanStatusCode,
+  trace,
+  type Tracer,
+} from "@opentelemetry/api";
 import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { register } from "@arizeai/phoenix-otel";
+
+// Temporary: surface OTLP exporter failures (auth, network) to convex logs.
+// Remove once Phoenix tracing is verified end-to-end.
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 
 const DEFAULT_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com";
 const DEFAULT_PROJECT_NAME = "roni-coach";
@@ -20,19 +33,29 @@ const ROOT_SPAN_NAME = "roni.user_turn";
  */
 function initProvider(): NodeTracerProvider | null {
   const apiKey = process.env.PHOENIX_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.log("[phoenix] PHOENIX_API_KEY not set — tracing disabled");
+    return null;
+  }
   const url =
     process.env.PHOENIX_COLLECTOR_ENDPOINT ??
     process.env.PHOENIX_HOST ??
     DEFAULT_COLLECTOR_ENDPOINT;
   const projectName = process.env.PHOENIX_PROJECT_NAME ?? DEFAULT_PROJECT_NAME;
-  return register({
-    projectName,
-    url,
-    apiKey,
-    batch: true,
-    global: true,
-  });
+  try {
+    const provider = register({
+      projectName,
+      url,
+      apiKey,
+      batch: true,
+      global: true,
+    });
+    console.log(`[phoenix] provider registered: url=${url} project=${projectName}`);
+    return provider;
+  } catch (error) {
+    console.error("[phoenix] register() threw:", error);
+    return null;
+  }
 }
 
 const telemetryProvider: NodeTracerProvider | null = initProvider();
@@ -124,6 +147,10 @@ export async function runInRunSpan<T>(
 
 function buildSpanAttributes(meta: RunSpanMetadata): Record<string, string | boolean> {
   const attrs: Record<string, string | boolean> = {
+    // Tag as an OpenInference CHAIN so Phoenix's Traces/Spans views include it.
+    // Child AI SDK spans get LLM/TOOL kinds auto-translated by phoenix-otel's
+    // OpenInferenceBatchSpanProcessor.
+    "openinference.span.kind": "CHAIN",
     "roni.user_id": meta.userId,
     "roni.thread_id": meta.threadId,
     "roni.source": meta.source,
@@ -141,11 +168,15 @@ function buildSpanAttributes(meta: RunSpanMetadata): Record<string, string | boo
 
 /** Flush pending spans — Convex kills in-flight exports on action exit. */
 export async function flushTelemetry(): Promise<void> {
-  if (!telemetryProvider) return;
+  if (!telemetryProvider) {
+    console.log("[phoenix] flushTelemetry: no provider configured");
+    return;
+  }
   try {
     await telemetryProvider.forceFlush();
-  } catch {
-    // Never break the primary flow on telemetry failure.
+    console.log("[phoenix] flushTelemetry: spans flushed");
+  } catch (error) {
+    console.error("[phoenix] flushTelemetry failed:", error);
   }
 }
 
