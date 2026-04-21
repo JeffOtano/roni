@@ -15,11 +15,7 @@ import { createClient } from "@arizeai/phoenix-client";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { Evaluator } from "@arizeai/phoenix-client/types/experiments";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
-import {
-  EVAL_SCENARIOS,
-  type EvalScenario,
-  type Rubric,
-} from "../../../convex/ai/evalScenarios";
+import { EVAL_SCENARIOS, type EvalScenario, type Rubric } from "../../../convex/ai/evalScenarios";
 import { runScenarioAgainstPrompt } from "../../../convex/ai/evalHarness";
 import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./lib/thresholds";
 

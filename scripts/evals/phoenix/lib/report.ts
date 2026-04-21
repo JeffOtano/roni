@@ -68,7 +68,8 @@ export function decide(report: Report): ThresholdDecision {
   for (const [cap, bucket] of rateByCapability(report)) {
     const r = bucket.total === 0 ? 1 : bucket.passed / bucket.total;
     const floor = CAPABILITY_PASS_RATE[cap];
-    if (r < floor) reasons.push(`${cap} pass rate ${r.toFixed(2)} below threshold ${floor.toFixed(2)}`);
+    if (r < floor)
+      reasons.push(`${cap} pass rate ${r.toFixed(2)} below threshold ${floor.toFixed(2)}`);
   }
   return { passed: reasons.length === 0, reasons };
 }

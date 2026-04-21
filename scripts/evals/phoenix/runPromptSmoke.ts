@@ -14,11 +14,7 @@
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 import { buildInstructions } from "../../../convex/ai/promptSections";
-import {
-  EVAL_SCENARIOS,
-  type EvalScenario,
-  type Rubric,
-} from "../../../convex/ai/evalScenarios";
+import { EVAL_SCENARIOS, type EvalScenario, type Rubric } from "../../../convex/ai/evalScenarios";
 import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./lib/thresholds";
 import { decide, printReport, type Report, type ScenarioResult } from "./lib/report";
 

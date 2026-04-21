@@ -103,23 +103,23 @@ By default, self-hosted deployments start with analytics, Sentry, and the public
 
 ### Convex backend - set via `npx convex env set KEY value`
 
-| Variable                       | Description                                                             |
-| ------------------------------ | ----------------------------------------------------------------------- |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used for the shared Gemini key and embeddings |
-| `AUTH_RESEND_KEY`              | Optional Resend API key (`re_...`). Sends password-reset OTP emails     |
-| `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens and BYOK Gemini keys    |
-| `EMAIL_CHANGE_CODE_PEPPER`     | 64-char hex string. HMAC pepper for email-change verification codes     |
-| `DISCORD_CONTACT_WEBHOOK`      | Optional Discord webhook for the public `/contact` form                 |
-| `DISCORD_WEBHOOK_URL`          | Optional Discord webhook for operator notifications                     |
-| `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side product analytics        |
-| `PHOENIX_API_KEY`              | Optional Phoenix Cloud API key. Enables AI conversation/eval tracing    |
+| Variable                       | Description                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio API key. Used for the shared Gemini key and embeddings          |
+| `AUTH_RESEND_KEY`              | Optional Resend API key (`re_...`). Sends password-reset OTP emails              |
+| `TOKEN_ENCRYPTION_KEY`         | 64-char hex string. Encrypts Tonal OAuth tokens and BYOK Gemini keys             |
+| `EMAIL_CHANGE_CODE_PEPPER`     | 64-char hex string. HMAC pepper for email-change verification codes              |
+| `DISCORD_CONTACT_WEBHOOK`      | Optional Discord webhook for the public `/contact` form                          |
+| `DISCORD_WEBHOOK_URL`          | Optional Discord webhook for operator notifications                              |
+| `POSTHOG_PROJECT_TOKEN`        | Optional PostHog project token for server-side product analytics                 |
+| `PHOENIX_API_KEY`              | Optional Phoenix Cloud API key. Enables AI conversation/eval tracing             |
 | `PHOENIX_COLLECTOR_ENDPOINT`   | Optional Phoenix OTLP collector URL. Defaults to `https://app.phoenix.arize.com` |
 | `PHOENIX_PROJECT_NAME`         | Optional Phoenix project name for trace segmentation. Defaults to `roni-coach`   |
-| `PHOENIX_HOST`                 | Optional alternate Phoenix host. `PHOENIX_COLLECTOR_ENDPOINT` takes precedence  |
-| `BYOK_DISABLED`                | Optional kill switch that forces all users onto the shared Gemini key   |
-| `TOKEN_ENCRYPTION_KEY_OLD`     | Optional old key used only during encryption-key rotation               |
-| `DISABLE_CRONS`                | Optional `true` to silence all cron jobs. Useful on dev deployments     |
-| `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                        |
+| `PHOENIX_HOST`                 | Optional alternate Phoenix host. `PHOENIX_COLLECTOR_ENDPOINT` takes precedence   |
+| `BYOK_DISABLED`                | Optional kill switch that forces all users onto the shared Gemini key            |
+| `TOKEN_ENCRYPTION_KEY_OLD`     | Optional old key used only during encryption-key rotation                        |
+| `DISABLE_CRONS`                | Optional `true` to silence all cron jobs. Useful on dev deployments              |
+| `CONVEX_SITE_URL`              | Set automatically by Convex. Do not set manually                                 |
 
 ### Next.js - set in `.env.local`
 
@@ -173,23 +173,23 @@ scripts/               Build and CI helper scripts
 
 ## Commands
 
-| Command                         | Description                              |
-| ------------------------------- | ---------------------------------------- |
-| `npm run dev`                   | Start Next.js dev server (port 3000)     |
-| `npx convex dev`                | Start Convex dev backend with hot reload |
-| `npm run typecheck`             | Type check with `tsc --noEmit`           |
-| `npm test`                      | Run all tests once                       |
-| `npx vitest --project backend`  | Backend tests only                       |
-| `npx vitest --project frontend` | Frontend tests only                      |
-| `npm run test:watch`            | Run tests in watch mode                  |
-| `npm run test:coverage`         | Run tests with coverage report           |
-| `npm run test:e2e`              | Run Playwright smoke tests               |
-| `npm run build`                 | Production build                         |
-| `npm run lint`                  | ESLint                                   |
-| `npm run format`                | Prettier (write)                         |
-| `npm run format:check`          | Prettier (check only)                    |
-| `npm run knip`                  | Dead code detection                      |
-| `npm run ai:dataset`            | Sync shared eval scenarios to a Phoenix dataset |
+| Command                         | Description                                            |
+| ------------------------------- | ------------------------------------------------------ |
+| `npm run dev`                   | Start Next.js dev server (port 3000)                   |
+| `npx convex dev`                | Start Convex dev backend with hot reload               |
+| `npm run typecheck`             | Type check with `tsc --noEmit`                         |
+| `npm test`                      | Run all tests once                                     |
+| `npx vitest --project backend`  | Backend tests only                                     |
+| `npx vitest --project frontend` | Frontend tests only                                    |
+| `npm run test:watch`            | Run tests in watch mode                                |
+| `npm run test:coverage`         | Run tests with coverage report                         |
+| `npm run test:e2e`              | Run Playwright smoke tests                             |
+| `npm run build`                 | Production build                                       |
+| `npm run lint`                  | ESLint                                                 |
+| `npm run format`                | Prettier (write)                                       |
+| `npm run format:check`          | Prettier (check only)                                  |
+| `npm run knip`                  | Dead code detection                                    |
+| `npm run ai:dataset`            | Sync shared eval scenarios to a Phoenix dataset        |
 | `npm run ai:eval:smoke`         | Run prompt-only smoke evals against Phoenix thresholds |
 
 ## AI Observability & Evals

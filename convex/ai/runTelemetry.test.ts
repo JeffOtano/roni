@@ -258,9 +258,7 @@ describe("RunAccumulator", () => {
     acc.onStepFinish(
       buildStep({
         toolCalls: [{ toolName: "program_week" }],
-        toolResults: [
-          { toolName: "program_week", output: { success: true, weekPlanId: "w_abc" } },
-        ],
+        toolResults: [{ toolName: "program_week", output: { success: true, weekPlanId: "w_abc" } }],
       }),
     );
 

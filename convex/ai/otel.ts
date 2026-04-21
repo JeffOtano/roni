@@ -22,7 +22,9 @@ function initProvider(): NodeTracerProvider | null {
   const apiKey = process.env.PHOENIX_API_KEY;
   if (!apiKey) return null;
   const url =
-    process.env.PHOENIX_COLLECTOR_ENDPOINT ?? process.env.PHOENIX_HOST ?? DEFAULT_COLLECTOR_ENDPOINT;
+    process.env.PHOENIX_COLLECTOR_ENDPOINT ??
+    process.env.PHOENIX_HOST ??
+    DEFAULT_COLLECTOR_ENDPOINT;
   const projectName = process.env.PHOENIX_PROJECT_NAME ?? DEFAULT_PROJECT_NAME;
   return register({
     projectName,
