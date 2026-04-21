@@ -35,8 +35,18 @@ describe("formatRelativeTime", () => {
     expect(formatRelativeTime("2026-04-14")).toBe("yesterday");
   });
 
-  it("handles a full ISO timestamp as the source", () => {
+  it("returns 'Xm ago' for full timestamps within the last hour", () => {
+    // Build "now" and the input from the same local Date components so the
+    // assertion holds in any runner timezone — a hard-coded UTC literal would
+    // shift across the local day boundary in far-west zones.
     vi.setSystemTime(new Date(2026, 3, 14, 21, 0, 0));
-    expect(formatRelativeTime("2026-04-14T10:03:00Z")).toBe("today");
+    const tenMinutesAgo = new Date(2026, 3, 14, 20, 50, 0).toISOString();
+    expect(formatRelativeTime(tenMinutesAgo)).toBe("10m ago");
+  });
+
+  it("returns 'Xh ago' for full timestamps earlier the same day", () => {
+    vi.setSystemTime(new Date(2026, 3, 14, 21, 0, 0));
+    const threeHoursAgo = new Date(2026, 3, 14, 18, 0, 0).toISOString();
+    expect(formatRelativeTime(threeHoursAgo)).toBe("3h ago");
   });
 });
