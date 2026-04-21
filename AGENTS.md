@@ -83,6 +83,15 @@ User (chat) --> send message --> AI Coach Agent (Gemini, 31 tools) --> reads con
 - **`tonal/`** -- Tonal API integration: OAuth token management (AES-256 encrypted at rest), proxy layer with stale-while-revalidate caching, history sync, movement/workout catalog sync
 - **`lib/auth.ts`** -- `getEffectiveUserId()` helper used by all user-facing queries/mutations; thin wrapper over `getAuthUserId`
 
+### AI Observability & Evals
+
+- **Phoenix Cloud** is the canonical AI trace destination. `convex/ai/otel.ts` registers an OpenTelemetry provider via `@arizeai/phoenix-otel` when `PHOENIX_API_KEY` is set; it falls back to a no-op provider otherwise. Both `convex/ai/otel.ts` and `convex/ai/resilience.ts` run under `"use node"` because phoenix-otel pulls `@opentelemetry/sdk-trace-node`. Do not import either module from a V8-runtime file.
+- **One Phoenix trace per user turn.** `streamWithRetry` wraps each turn in `runInRunSpan`; retries + fallback share the same trace. The span's `traceId` is persisted as `aiRun.runId`, so dashboards join Convex ↔ Phoenix on that column.
+- **Per-turn telemetry:** `aiRun` (one row per turn, tool sequence, token counts, finish reason, retry/fallback, outcomes) and `aiToolCalls` (per-tool args + result preview). See `convex/ai/runTelemetry.ts` for the `RunAccumulator`.
+- **Eval scenarios** live in `convex/ai/evalScenarios.ts`, tagged by capability, consumed by both `convex/ai/coachEvals.test.ts` and the Phoenix scripts under `scripts/evals/phoenix/`.
+- **Raw capture** (user messages, system instructions, tool args/results, assistant outputs) is intentionally on — product decision. Secrets (BYOK keys, Tonal tokens) are sanitized upstream in `convex/ai/byokErrors.ts` and `convex/chatHelpers.ts`; never weaken that guarantee.
+- **PostHog keeps only product analytics.** `convex/lib/posthog.ts` no longer exports AI-generation events; don't add them back.
+
 ### Auth & Signup Policy
 
 - Password auth via `@convex-dev/auth` with Resend OTP for password reset

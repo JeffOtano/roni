@@ -194,7 +194,7 @@ scripts/               Build and CI helper scripts
 
 ## AI Observability & Evals
 
-Full AI traces (user messages, system instructions, training snapshots, tool args/results, assistant outputs, token/latency metadata) stream to Phoenix Cloud via OpenTelemetry. Set `PHOENIX_API_KEY` in the Convex backend to enable capture. Product analytics continue to flow to PostHog.
+Full AI traces (user messages, system instructions, training snapshots, tool args/results, assistant outputs, token/latency metadata) stream to Phoenix Cloud via OpenTelemetry. Set `PHOENIX_API_KEY` in the Convex backend to enable capture. Product analytics continue to flow to PostHog. See [docs/trust-model.md](docs/trust-model.md#what-the-app-sends-to-third-parties) for what data leaves the backend and what is scrubbed before it does.
 
 - `aiRun.runId` matches the Phoenix trace id for each user turn so dashboards can join on it.
 - `aiToolCalls` stores per-tool args and a bounded result preview for post-hoc tool analysis.
