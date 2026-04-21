@@ -78,8 +78,9 @@ const rubricEvaluator: Evaluator = {
     if (!scenario) {
       return { score: 0, label: "missing-scenario", explanation: "no source scenario match" };
     }
-    const text = extractText(output);
-    const notes = rubricChecks(text, scenario.rubric);
+    // Code rubric intentionally sees tool names — scenarios assert on them
+    // (e.g., "must call get_workout_history").
+    const notes = rubricChecks(extractTextWithTools(output), scenario.rubric);
     return {
       score: notes.length === 0 ? 1 : 0,
       label: notes.length === 0 ? "pass" : "fail",
@@ -88,22 +89,34 @@ const rubricEvaluator: Evaluator = {
   },
 };
 
-function extractText(output: unknown): string {
-  if (typeof output === "string") return output;
+function getOutputParts(output: unknown): { text: string; toolNames: string } {
+  if (typeof output === "string") return { text: output, toolNames: "" };
   if (output && typeof output === "object") {
     const outputObj = output as { text?: unknown; toolNames?: unknown };
     const text = typeof outputObj.text === "string" ? outputObj.text : "";
-    const tools = Array.isArray(outputObj.toolNames) ? outputObj.toolNames.join(" ") : "";
-    return [text, tools].filter(Boolean).join("\n");
+    const toolNames = Array.isArray(outputObj.toolNames) ? outputObj.toolNames.join(" ") : "";
+    return { text, toolNames };
   }
-  return JSON.stringify(output ?? "");
+  return { text: JSON.stringify(output ?? ""), toolNames: "" };
+}
+
+/** Prose + tool names, for code-based rubric and banned-phrase checks. */
+function extractTextWithTools(output: unknown): string {
+  const { text, toolNames } = getOutputParts(output);
+  return [text, toolNames].filter(Boolean).join("\n");
+}
+
+/** Prose only, for the LLM judge — tool names would pollute prose evaluation. */
+function extractJudgeText(output: unknown): string {
+  return getOutputParts(output).text;
 }
 
 const bannedPhraseEvaluator: Evaluator = {
   name: "banned-phrases",
   kind: "CODE",
   evaluate: ({ output }) => {
-    const text = extractText(output);
+    // Ban phrases anywhere the user could see — including tool-call surfacing.
+    const text = extractTextWithTools(output);
     const lower = text.toLowerCase();
     const hits = BANNED_PHRASES.filter((p) => lower.includes(p));
     return {
@@ -135,8 +148,8 @@ async function main(): Promise<void> {
     evaluate: async ({ input, output }) => {
       const scenario = scenarioByName((input as { scenarioName?: unknown }).scenarioName);
       const question = scenario?.userMessage ?? "";
-      const text = extractText(output);
-      return correctnessJudge.evaluate({ input: question, output: text });
+      // Judge sees prose only — tool names would distort prose quality scoring.
+      return correctnessJudge.evaluate({ input: question, output: extractJudgeText(output) });
     },
   };
 
