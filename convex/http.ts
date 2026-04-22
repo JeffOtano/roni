@@ -70,7 +70,7 @@ for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
       const rawBody = await req.text();
       const sigCheck = await verifyGarminWebhookSignature(req, rawBody);
       if (!sigCheck.valid) {
-        return new Response(sigCheck.reason ?? "Invalid signature", { status: 401 });
+        return new Response(sigCheck.reason, { status: 401 });
       }
 
       let payload: unknown;

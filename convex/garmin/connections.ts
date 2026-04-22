@@ -13,11 +13,11 @@ const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 export const getActiveConnectionByUserId = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    const rows = await ctx.db
+    const row = await ctx.db
       .query("garminConnections")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-    return rows.find((r) => r.status === "active") ?? null;
+      .unique();
+    return row?.status === "active" ? row : null;
   },
 });
 

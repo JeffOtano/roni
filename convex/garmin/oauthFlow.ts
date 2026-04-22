@@ -22,11 +22,14 @@
  */
 
 import { v } from "convex/values";
+import { z } from "zod";
 import { action, internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
 import { decryptGarminSecret, encryptGarminSecret, getGarminAppConfig } from "./credentials";
 import { signOAuth1Request } from "./oauth1";
+
+const userIdResponseSchema = z.object({ userId: z.string().min(1) });
+const permissionsResponseSchema = z.array(z.string());
 
 const REQUEST_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/request_token";
 const ACCESS_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/access_token";
@@ -90,11 +93,6 @@ export const startGarminOAuth = action({
   },
 });
 
-type CompleteOAuthArgs = {
-  oauthToken: string;
-  oauthVerifier: string;
-};
-
 export type CompleteGarminOAuthResult =
   | { success: true; garminUserId: string }
   | { success: false; error: string };
@@ -104,12 +102,12 @@ export const completeGarminOAuth = internalAction({
     oauthToken: v.string(),
     oauthVerifier: v.string(),
   },
-  handler: async (ctx, args: CompleteOAuthArgs): Promise<CompleteGarminOAuthResult> => {
+  handler: async (ctx, args): Promise<CompleteGarminOAuthResult> => {
     const claim = await ctx.runMutation(internal.garmin.connections.claimOauthState, {
       requestToken: args.oauthToken,
     });
     if (!claim) return { success: false, error: "Unknown or expired OAuth state" };
-    const userId = claim.userId as Id<"users">;
+    const { userId } = claim;
     const requestTokenSecret = await decryptGarminSecret(claim.requestTokenSecretEncrypted);
 
     const config = getGarminAppConfig();
@@ -158,11 +156,11 @@ export const completeGarminOAuth = internalAction({
     if (!userIdRes.ok) {
       return { success: false, error: `Garmin /user/id failed: ${userIdRes.status}` };
     }
-    const userIdBody = (await userIdRes.json()) as { userId?: string };
-    const garminUserId = userIdBody.userId;
-    if (!garminUserId) {
-      return { success: false, error: "Missing userId in Garmin response" };
+    const userIdParsed = userIdResponseSchema.safeParse(await userIdRes.json());
+    if (!userIdParsed.success) {
+      return { success: false, error: "Malformed Garmin /user/id response" };
     }
+    const garminUserId = userIdParsed.data.userId;
 
     // Fetch permissions (at least WORKOUT_IMPORT is expected).
     const permSigned = await signOAuth1Request(
@@ -177,7 +175,9 @@ export const completeGarminOAuth = internalAction({
     const permRes = await fetch(PERMISSIONS_URL, {
       headers: { Authorization: permSigned.authorizationHeader },
     });
-    const permissions = permRes.ok ? ((await permRes.json()) as string[]) : [];
+    const permissions = permRes.ok
+      ? (permissionsResponseSchema.safeParse(await permRes.json()).data ?? [])
+      : [];
 
     await ctx.runMutation(internal.garmin.connections.upsertConnection, {
       userId,

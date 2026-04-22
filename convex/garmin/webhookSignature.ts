@@ -14,10 +14,7 @@
  * real HMAC comparison and remove the `skip` escape hatch.
  */
 
-export interface SignatureCheckResult {
-  valid: boolean;
-  reason?: string;
-}
+export type SignatureCheckResult = { valid: true } | { valid: false; reason: string };
 
 export async function verifyGarminWebhookSignature(
   req: Request,

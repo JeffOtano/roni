@@ -18,6 +18,10 @@ import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /**
  * Garmin Push event types we subscribe to. Each string is the camelCase
  * summary name Garmin uses in both the Portal config and the payload
@@ -45,10 +49,10 @@ export const dispatchGarminWebhook = internalAction({
     // userPermissionChange / deregistration carry no domain data — they
     // update the connection row directly.
     if (eventType === "deregistration") {
-      return await handleDeregistration(ctx, eventId, rawPayload);
+      return await handleDeregistration({ ctx, eventId, rawPayload });
     }
     if (eventType === "userPermissionChange") {
-      return await handlePermissionChange(ctx, eventId, rawPayload);
+      return await handlePermissionChange({ ctx, eventId, rawPayload });
     }
 
     // All other types require partner-PDF field schemas to normalize
@@ -62,11 +66,17 @@ export const dispatchGarminWebhook = internalAction({
   },
 });
 
-async function handleDeregistration(
-  ctx: ActionCtx,
-  eventId: Id<"garminWebhookEvents">,
-  rawPayload: unknown,
-): Promise<void> {
+interface WebhookHandlerArgs {
+  ctx: ActionCtx;
+  eventId: Id<"garminWebhookEvents">;
+  rawPayload: unknown;
+}
+
+async function handleDeregistration({
+  ctx,
+  eventId,
+  rawPayload,
+}: WebhookHandlerArgs): Promise<void> {
   const garminUserId = extractSingleGarminUserId(rawPayload);
   if (!garminUserId) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
@@ -100,11 +110,11 @@ async function handleDeregistration(
   });
 }
 
-async function handlePermissionChange(
-  ctx: ActionCtx,
-  eventId: Id<"garminWebhookEvents">,
-  rawPayload: unknown,
-): Promise<void> {
+async function handlePermissionChange({
+  ctx,
+  eventId,
+  rawPayload,
+}: WebhookHandlerArgs): Promise<void> {
   const parsed = parsePermissionChangePayload(rawPayload);
   if (!parsed) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
@@ -154,32 +164,27 @@ async function handlePermissionChange(
  * log the rest in a follow-up.
  */
 export function extractSingleGarminUserId(rawPayload: unknown): string | null {
-  if (!rawPayload || typeof rawPayload !== "object") return null;
-  const envelope = rawPayload as Record<string, unknown>;
-  const list = envelope.deregistrations;
-  if (Array.isArray(list) && list.length > 0) {
-    const first = list[0] as Record<string, unknown> | null;
-    const id = first?.userId;
-    if (typeof id === "string") return id;
-  }
-  return null;
+  if (!isRecord(rawPayload)) return null;
+  const list = rawPayload.deregistrations;
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const first = list[0];
+  if (!isRecord(first)) return null;
+  return typeof first.userId === "string" ? first.userId : null;
 }
 
 export interface ParsedPermissionChange {
-  garminUserId: string;
-  permissions: string[];
+  readonly garminUserId: string;
+  readonly permissions: string[];
 }
 
 export function parsePermissionChangePayload(rawPayload: unknown): ParsedPermissionChange | null {
-  if (!rawPayload || typeof rawPayload !== "object") return null;
-  const envelope = rawPayload as Record<string, unknown>;
-  const list = envelope.userPermissionsChange;
+  if (!isRecord(rawPayload)) return null;
+  const list = rawPayload.userPermissionsChange;
   if (!Array.isArray(list) || list.length === 0) return null;
-  const entry = list[0] as Record<string, unknown> | null;
-  if (!entry) return null;
-  const garminUserId = typeof entry.userId === "string" ? entry.userId : null;
-  const perms = entry.permissions;
-  if (!garminUserId || !Array.isArray(perms)) return null;
-  const permissions = perms.filter((p): p is string => typeof p === "string");
-  return { garminUserId, permissions };
+  const entry = list[0];
+  if (!isRecord(entry)) return null;
+  if (typeof entry.userId !== "string") return null;
+  if (!Array.isArray(entry.permissions)) return null;
+  const permissions = entry.permissions.filter((p): p is string => typeof p === "string");
+  return { garminUserId: entry.userId, permissions };
 }
