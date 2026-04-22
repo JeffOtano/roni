@@ -23,7 +23,7 @@
 
 import { v } from "convex/values";
 import { z } from "zod";
-import { action, internalAction } from "../_generated/server";
+import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { decryptGarminSecret, encryptGarminSecret, getGarminAppConfig } from "./credentials";
 import { signOAuth1Request } from "./oauth1";
@@ -106,18 +106,23 @@ export type CompleteGarminOAuthResult =
   | { success: true; garminUserId: string }
   | { success: false; error: string };
 
-export const completeGarminOAuth = internalAction({
+export const completeGarminOAuth = action({
   args: {
     oauthToken: v.string(),
     oauthVerifier: v.string(),
-    sessionUserId: v.id("users"),
   },
   handler: async (ctx, args): Promise<CompleteGarminOAuthResult> => {
+    // Identify the user completing the flow from their authenticated
+    // session. This runs from the Next.js `/garmin/callback` page, so
+    // the Convex client carries the session cookie/token.
+    const sessionUserId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    if (!sessionUserId) return { success: false, error: "Not authenticated" };
+
     const claim = await ctx.runMutation(internal.garmin.connections.claimOauthState, {
       requestToken: args.oauthToken,
     });
     if (!claim) return { success: false, error: "Unknown or expired OAuth state" };
-    if (claim.userId !== args.sessionUserId) {
+    if (claim.userId !== sessionUserId) {
       // Either a CSRF attempt or the user switched accounts mid-flow.
       // Either way, refuse to link.
       return { success: false, error: "Session mismatch" };

@@ -195,6 +195,13 @@ export const acquireOauthStartSlot = internalMutation({
   },
 });
 
+export const acquireBackfillSlot = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await rateLimiter.limit(ctx, "backfillGarminData", { key: userId, throws: true });
+  },
+});
+
 export const saveOauthState = internalMutation({
   args: {
     userId: v.id("users"),

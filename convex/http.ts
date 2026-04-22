@@ -9,14 +9,21 @@ const http = httpRouter();
 auth.addHttpRoutes(http);
 
 /**
- * Destination the browser lands on after a Garmin OAuth handshake. Set
- * via env so each environment (local, preview, prod) can redirect to its
- * own Next.js host. Defaults to a relative `/settings` path, which is
- * why we emit the redirect with a plain Location header — the spec-
- * strict `Response.redirect` constructor throws on non-absolute URLs.
+ * Resolve the Next.js app origin (e.g. `http://localhost:3000`) from
+ * the configured post-oauth redirect URL, with a safe fallback.
+ * Absolute redirects across hosts require a full URL in the Location
+ * header; a relative path would resolve against `.convex.site`.
  */
-function resolvePostOauthRedirect(): string {
-  return process.env.GARMIN_OAUTH_POST_REDIRECT_URL ?? "/settings";
+function resolveAppOrigin(): string {
+  const redirect = process.env.GARMIN_OAUTH_POST_REDIRECT_URL;
+  if (redirect) {
+    try {
+      return new URL(redirect).origin;
+    } catch {
+      // fall through to default
+    }
+  }
+  return "http://localhost:3000";
 }
 
 function redirectResponse(location: string): Response {
@@ -25,42 +32,37 @@ function redirectResponse(location: string): Response {
 
 /**
  * Garmin redirects the user's browser here at the end of the OAuth 1.0a
- * handshake with `oauth_token` and `oauth_verifier` query params. We look
- * up the request-token row we persisted at step 1, exchange for a
- * user-access-token pair, and upsert garminConnections.
+ * handshake with `oauth_token` and `oauth_verifier` query params.
+ *
+ * We do NOT complete the token exchange here. The Convex HTTP host
+ * (`.convex.site`) is a different origin from the Next.js app, so the
+ * user's session cookie is not attached to this request — we would
+ * have no way to verify the browser session belongs to the user who
+ * started the flow.
+ *
+ * Instead we bounce to `${appOrigin}/garmin/callback` on the Next.js
+ * host, which has the session cookie. That page calls the public
+ * `completeGarminOAuth` action, which derives the user from the
+ * authenticated Convex client and enforces the session-binding CSRF
+ * check before linking.
  */
 http.route({
   path: "/garmin/oauth/callback",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, req) => {
     const url = new URL(req.url);
     const oauthToken = url.searchParams.get("oauth_token");
     const oauthVerifier = url.searchParams.get("oauth_verifier");
-    const base = resolvePostOauthRedirect();
+    const appOrigin = resolveAppOrigin();
 
     if (!oauthToken || !oauthVerifier) {
-      return redirectResponse(`${base}?garmin=error&reason=missing_params`);
+      return redirectResponse(`${appOrigin}/settings?garmin=error&reason=missing_params`);
     }
 
-    // Resolve the current browser session's user. Without this check a
-    // flow started by user A but completed in user B's browser would
-    // link user A's Garmin to user B's Roni account.
-    const sessionUserId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    if (!sessionUserId) {
-      return redirectResponse(`${base}?garmin=error&reason=not_authenticated`);
-    }
-
-    const result = await ctx.runAction(internal.garmin.oauthFlow.completeGarminOAuth, {
-      oauthToken,
-      oauthVerifier,
-      sessionUserId,
-    });
-
-    if (!result.success) {
-      const reason = encodeURIComponent(result.error);
-      return redirectResponse(`${base}?garmin=error&reason=${reason}`);
-    }
-    return redirectResponse(`${base}?garmin=connected`);
+    const bounce = new URL("/garmin/callback", appOrigin);
+    bounce.searchParams.set("oauth_token", oauthToken);
+    bounce.searchParams.set("oauth_verifier", oauthVerifier);
+    return redirectResponse(bounce.toString());
   }),
 });
 
