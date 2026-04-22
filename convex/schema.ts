@@ -640,4 +640,66 @@ export default defineSchema({
     circuitOpenedAt: v.optional(v.number()),
     lastSuccessAt: v.optional(v.number()),
   }).index("by_service", ["service"]),
+
+  /**
+   * Per-user Garmin Connect OAuth 1.0a credentials + granted permissions.
+   * Kept separate from `userProfiles` so Garmin is not overloaded onto
+   * Tonal-specific rows and can be attached/detached independently.
+   *
+   * OAuth 1.0a UATs do not expire; there is no refresh-token flow. A
+   * revocation at Garmin surfaces as 401/403 on API calls or a
+   * permission-change webhook, at which point `status` becomes
+   * "disconnected".
+   */
+  garminConnections: defineTable({
+    userId: v.id("users"),
+    /** Garmin's opaque user id from `GET /wellness-api/rest/user/id`. */
+    garminUserId: v.string(),
+    /** OAuth 1.0a access token, AES-GCM encrypted with TOKEN_ENCRYPTION_KEY. */
+    accessTokenEncrypted: v.string(),
+    /** OAuth 1.0a access token secret, AES-GCM encrypted. Required to sign. */
+    accessTokenSecretEncrypted: v.string(),
+    /** Granted permission strings (e.g. "WORKOUT_IMPORT", "ACTIVITY_EXPORT"). */
+    permissions: v.array(v.string()),
+    /** First time this user authorized this app. */
+    connectedAt: v.number(),
+    /** Last time we refreshed permissions from /userPermissions/. */
+    permissionsRefreshedAt: v.optional(v.number()),
+    /** Null while active; set when disconnected or revoked. */
+    disconnectedAt: v.optional(v.number()),
+    disconnectReason: v.optional(
+      v.union(
+        v.literal("user_disconnected"),
+        v.literal("permission_revoked"),
+        v.literal("token_invalid"),
+      ),
+    ),
+    status: v.union(v.literal("active"), v.literal("disconnected")),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_garminUserId", ["garminUserId"])
+    .index("by_status", ["status"]),
+
+  /**
+   * Short-lived OAuth 1.0a request-token state keyed by the request token
+   * issued by Garmin at step 1 of the 3-legged handshake. Holds the
+   * request token secret needed to sign the access-token exchange, plus
+   * the Roni user id so the callback can associate the returned access
+   * token with the correct user. Rows are single-use and expire after 15
+   * minutes via a periodic sweeper.
+   */
+  garminOauthStates: defineTable({
+    userId: v.id("users"),
+    /** Request token returned by Garmin. Indexed for callback lookup. */
+    requestToken: v.string(),
+    /** Request token secret, AES-GCM encrypted with TOKEN_ENCRYPTION_KEY. */
+    requestTokenSecretEncrypted: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    /** Set when the callback consumes this row. Prevents replay. */
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_requestToken", ["requestToken"])
+    .index("by_expiresAt", ["expiresAt"])
+    .index("by_userId", ["userId"]),
 });
