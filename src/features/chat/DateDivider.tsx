@@ -23,7 +23,7 @@ export function DateDivider({ timestamp }: DateDividerProps) {
   return (
     <div className="flex items-center gap-4 px-4 py-3 sm:px-6">
       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
-      <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+      <span className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
         {label}
       </span>
       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />

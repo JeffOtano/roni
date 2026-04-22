@@ -46,8 +46,20 @@ Every pull request runs through CI, which enforces:
 - `npm audit --audit-level=high`
 - Playwright E2E smoke tests
 - A file-size check (300-line soft cap, 400-line hard limit)
+- `npm run ai:eval:smoke` — AI coach prompt-level smoke evals against Gemini
 
 Run the relevant commands locally before pushing so the PR stays green.
+
+### AI eval jobs and fork PRs
+
+The `ai-smoke` job hits Google Gemini through `GOOGLE_GENERATIVE_AI_API_KEY` and optionally exports traces to Phoenix Cloud through `PHOENIX_API_KEY`. GitHub does not expose repo secrets to workflows triggered by forks, so PRs from forks run the smoke job with empty secrets and the script soft-fails (exit 0) rather than marking the PR red. Maintainers re-run the job on the base repo after merge so regressions are still caught.
+
+If you maintain your own fork and want to run the smoke evals in your fork's CI, add these secrets in **Settings → Secrets and variables → Actions**:
+
+- `GOOGLE_GENERATIVE_AI_API_KEY` (required)
+- `PHOENIX_API_KEY`, `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_PROJECT_NAME`, `PHOENIX_HOST` (optional — for trace export)
+
+The README's [GitHub Actions secrets](README.md#github-actions-secrets) table has the full list.
 
 ## Pull request guidelines
 

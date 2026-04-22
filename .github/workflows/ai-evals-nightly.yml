@@ -1,0 +1,46 @@
+name: AI evals (nightly)
+
+on:
+  schedule:
+    # 04:17 UTC daily — off-peak so Gemini rate limits don't block us
+    - cron: "17 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-evals-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agent-experiment:
+    name: Phoenix agent experiment
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Sync Phoenix dataset from evalScenarios
+        run: npm run ai:dataset
+        env:
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          PHOENIX_PROJECT_NAME: ${{ secrets.PHOENIX_PROJECT_NAME }}
+
+      - name: Run full-agent experiment
+        run: npx tsx scripts/evals/phoenix/runAgentExperiment.ts
+        env:
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          PHOENIX_PROJECT_NAME: ${{ secrets.PHOENIX_PROJECT_NAME }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}

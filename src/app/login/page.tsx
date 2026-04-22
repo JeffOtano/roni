@@ -145,7 +145,7 @@ export default function LoginPage() {
       </form>
 
       {flow === "signUp" && (
-        <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="mt-3 text-center text-2xs leading-relaxed text-muted-foreground/70">
           By signing up you agree to our{" "}
           <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
             Terms of Service
