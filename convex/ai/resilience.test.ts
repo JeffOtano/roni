@@ -61,6 +61,16 @@ describe("isTransientError", () => {
     expect(isTransientError(error)).toBe(true);
   });
 
+  it("returns true for 504 gateway timeout with non-pattern message", () => {
+    const error = Object.assign(new Error("Bad"), { status: 504 });
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for 529 Anthropic overloaded via bare status", () => {
+    const error = Object.assign(new Error("overload"), { status: 529 });
+    expect(isTransientError(error)).toBe(true);
+  });
+
   it("returns true for timeout errors", () => {
     const error = new Error("Request timed out");
     error.name = "TimeoutError";
@@ -274,6 +284,12 @@ describe("classifyTransientError", () => {
 
   it("returns 'server_error' for a bare 500", () => {
     expect(classifyTransientError(Object.assign(new Error("Internal"), { status: 500 }))).toBe(
+      "server_error",
+    );
+  });
+
+  it("returns 'server_error' for a bare 504 gateway timeout", () => {
+    expect(classifyTransientError(Object.assign(new Error("Bad"), { status: 504 }))).toBe(
       "server_error",
     );
   });

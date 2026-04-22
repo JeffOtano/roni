@@ -176,7 +176,10 @@ export async function streamWithRetry(
       accumulator.markFallback("transient_exhaustion");
       const final = await runAttempt(fallbackAgent);
       if (final.done) return accumulator;
-      // Fallback also hit a transient error — terminal now, surface the generic message.
+      // Fallback also hit a transient error. Classify it, record the terminal
+      // class on the accumulator + span, then hand off to reportError — which
+      // surfaces a provider-attributed message for transient outages and falls
+      // back to the generic "trouble right now" message otherwise.
       const cls = errorClassName(final.error);
       accumulator.setTerminalErrorClass(cls);
       span.recordError(cls);

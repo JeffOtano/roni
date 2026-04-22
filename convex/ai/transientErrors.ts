@@ -5,8 +5,6 @@ import { getProviderConfig, type ProviderId } from "./providers";
 // Transient error classification
 // ---------------------------------------------------------------------------
 
-const TRANSIENT_STATUS_CODES = new Set([429, 500, 502, 503]);
-
 const TRANSIENT_MESSAGE_PATTERNS = [
   "high demand",
   "unavailable",
@@ -33,7 +31,9 @@ export function isTransientError(error: unknown): boolean {
     if (TRANSIENT_MESSAGE_PATTERNS.some((p) => lower.includes(p))) return true;
 
     const status = (error as Error & { status?: number }).status;
-    if (typeof status === "number" && TRANSIENT_STATUS_CODES.has(status)) return true;
+    if (typeof status === "number") {
+      if (status === 429 || (status >= 500 && status <= 599)) return true;
+    }
   }
 
   return false;
