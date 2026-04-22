@@ -30,6 +30,17 @@ const MIN_DAYS = 1;
 const MAX_DAYS = 90;
 const SECONDS_PER_DAY = 86_400;
 
+/** Throttle between requests to stay under Garmin's per-user-per-minute cap. */
+const REQUEST_SPACING_MS = 500;
+/** Statuses that suggest a retry will likely succeed. */
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+/** Backoff before retrying one failed request. */
+const RETRY_BACKOFF_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export type RequestGarminBackfillResult =
   | {
       success: true;
@@ -79,28 +90,40 @@ export const requestGarminBackfill = action({
     const accepted: string[] = [];
     const rejected: { summaryType: string; status: number }[] = [];
 
-    for (const summaryType of BACKFILL_SUMMARY_TYPES) {
+    for (let i = 0; i < BACKFILL_SUMMARY_TYPES.length; i++) {
+      if (i > 0) await sleep(REQUEST_SPACING_MS);
+
+      const summaryType = BACKFILL_SUMMARY_TYPES[i];
       const url = new URL(`${BACKFILL_BASE}/${summaryType}`);
       url.searchParams.set("summaryStartTimeInSeconds", String(startSeconds));
       url.searchParams.set("summaryEndTimeInSeconds", String(endSeconds));
 
-      const signed = await signOAuth1Request(
-        {
-          consumerKey: config.consumerKey,
-          consumerSecret: config.consumerSecret,
-          token: accessToken,
-          tokenSecret: accessTokenSecret,
-        },
-        { method: "POST", url: url.toString() },
-      );
+      const postOnce = async (): Promise<Response> => {
+        // Signature must be fresh per attempt — nonce + timestamp are
+        // re-generated so retries aren't flagged as replays.
+        const signed = await signOAuth1Request(
+          {
+            consumerKey: config.consumerKey,
+            consumerSecret: config.consumerSecret,
+            token: accessToken,
+            tokenSecret: accessTokenSecret,
+          },
+          { method: "POST", url: url.toString() },
+        );
+        return fetch(url.toString(), {
+          method: "POST",
+          headers: { Authorization: signed.authorizationHeader },
+        });
+      };
 
-      const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { Authorization: signed.authorizationHeader },
-      });
+      let res = await postOnce();
+      if (RETRYABLE_STATUSES.has(res.status)) {
+        await sleep(RETRY_BACKOFF_MS);
+        res = await postOnce();
+      }
 
-      // Garmin returns 202 Accepted for queued backfills; 200 can also
-      // appear for immediate processing. Anything in 2xx is success.
+      // 202 Accepted is the documented happy path; 200 also appears for
+      // some tenants. Any 2xx counts.
       if (res.status >= 200 && res.status < 300) {
         accepted.push(summaryType);
       } else {
