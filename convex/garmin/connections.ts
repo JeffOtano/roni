@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "../_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
+import { getEffectiveUserId } from "../lib/auth";
 import { rateLimiter } from "../rateLimits";
 
 const disconnectReasonValidator = v.union(
@@ -10,6 +11,76 @@ const disconnectReasonValidator = v.union(
 
 /** OAuth request-token TTL. Garmin's authorize step is typically < 1m. */
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
+
+// ---------------------------------------------------------------------------
+// Public surface for the settings UI
+// ---------------------------------------------------------------------------
+
+export type GarminConnectionStatus =
+  | { state: "none" }
+  | {
+      state: "active";
+      garminUserId: string;
+      connectedAt: number;
+      permissions: readonly string[];
+    }
+  | {
+      state: "disconnected";
+      disconnectedAt: number;
+      reason?: "user_disconnected" | "permission_revoked" | "token_invalid";
+    };
+
+export const getMyGarminStatus = query({
+  args: {},
+  handler: async (ctx): Promise<GarminConnectionStatus> => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) return { state: "none" };
+
+    const row = await ctx.db
+      .query("garminConnections")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!row) return { state: "none" };
+
+    if (row.status === "active") {
+      return {
+        state: "active",
+        garminUserId: row.garminUserId,
+        connectedAt: row.connectedAt,
+        permissions: row.permissions,
+      };
+    }
+
+    return {
+      state: "disconnected",
+      disconnectedAt: row.disconnectedAt ?? row._creationTime,
+      reason: row.disconnectReason,
+    };
+  },
+});
+
+export const disconnectMyGarmin = mutation({
+  args: {},
+  handler: async (ctx): Promise<{ success: boolean }> => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const existing = await ctx.db
+      .query("garminConnections")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!existing || existing.status === "disconnected") {
+      return { success: true };
+    }
+
+    await ctx.db.patch(existing._id, {
+      status: "disconnected",
+      disconnectedAt: Date.now(),
+      disconnectReason: "user_disconnected",
+    });
+    return { success: true };
+  },
+});
 
 export const getActiveConnectionByUserId = internalQuery({
   args: { userId: v.id("users") },

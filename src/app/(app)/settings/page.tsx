@@ -29,6 +29,7 @@ import {
   TonalConnectionCard,
   type TonalConnectionState,
 } from "@/features/settings/TonalConnectionCard";
+import { GarminConnectionCard } from "@/features/settings/GarminConnectionCard";
 import { ProviderSection } from "@/features/byok/ProviderSection";
 import { DISCORD_URL, REPO_URL } from "@/lib/urls";
 import { LogOut, MessageSquare } from "lucide-react";
@@ -137,6 +138,12 @@ function SettingsPageInner() {
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Tonal Connection</h2>
         <TonalConnectionCard connection={tonalConnection} />
+      </section>
+
+      {/* Garmin Connection */}
+      <section className="mb-10">
+        <h2 className={SECTION_HEADING}>Garmin Connection</h2>
+        <GarminConnectionCard />
       </section>
 
       {/* Equipment */}
