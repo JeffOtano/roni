@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "Privacy policy for Roni. Learn how we handle your data, Tonal credentials, and account information.",
+    "Privacy policy for Roni. How we handle your Tonal credentials, Garmin Connect data, and account information.",
   alternates: { canonical: "/privacy" },
   robots: { index: true, follow: true },
 };
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-1 text-2xl font-bold text-foreground">Privacy Policy</h1>
-      <p className="mb-8 text-sm text-muted-foreground">Last updated: March 15, 2026</p>
+      <p className="mb-8 text-sm text-muted-foreground">Last updated: April 22, 2026</p>
 
       <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
         <section>
@@ -85,6 +85,73 @@ export default function PrivacyPage() {
           <p className="mt-2">
             The service is hosted on Convex (database and backend) and Vercel (frontend). Error
             monitoring is provided by Sentry. No other third parties receive your data.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-base font-semibold text-foreground">
+            Garmin Connect integration
+          </h2>
+          <p>
+            Connecting Garmin Connect is optional. When you connect, Roni uses Garmin&apos;s
+            official Activity API and Health API so the AI coach can factor rides, runs, and other
+            non-Tonal sessions into your training plan. Roni is not affiliated with, endorsed by, or
+            sponsored by Garmin. Garmin and Garmin Connect are trademarks of Garmin Ltd.
+          </p>
+          <p className="mt-2">
+            The connection uses Garmin&apos;s OAuth 1.0a user-authorized flow. You enter your Garmin
+            username and password on Garmin&apos;s own site; those credentials are never sent to or
+            seen by Roni. Garmin returns a long-lived access token and access token secret, both of
+            which are encrypted with AES-256-GCM before being written to our database.
+          </p>
+          <p className="mt-2">
+            During the handshake we may request the following Garmin permissions. You decide which
+            to grant, and you can change them any time from your Garmin Connect account settings:
+          </p>
+          <ul className="mt-2 list-inside list-disc space-y-1">
+            <li>
+              <span className="font-medium text-foreground">ACTIVITY_EXPORT</span> — lets Garmin
+              send summaries of your completed activities (workouts, runs, rides, and similar
+              sessions) to Roni so the coach can account for non-Tonal training.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">HEALTH_EXPORT</span> — lets Garmin send
+              daily wellness summaries (such as sleep, stress, resting heart rate, HRV, body
+              battery, and steps) to Roni so the coach can factor recovery and readiness into your
+              plan.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">WORKOUT_IMPORT</span> — lets Roni send
+              coach-generated workouts from Roni to your Garmin device.
+            </li>
+          </ul>
+          <p className="mt-2">
+            We store only the summary data Garmin sends us — activity metrics such as activity type,
+            start time, duration, distance, elevation gain, pace, calories, and heart rate, and
+            daily wellness rollups such as sleep, stress, resting heart rate, HRV, body battery, and
+            step counts. We do not store GPS tracks, per-second samples, or route details. Raw
+            webhook payloads are retained briefly — currently up to 14 days — for operational replay
+            and error recovery, then automatically deleted.
+          </p>
+          <p className="mt-2">
+            When you first connect, Roni may request a limited initial backfill of your recent
+            history (currently up to 30 days of activities) so the coach has context from the start.
+            After that, Garmin pushes new data to Roni automatically as it is recorded — we do not
+            poll or scrape your account.
+          </p>
+          <p className="mt-2">
+            We do not sell, rent, or share Garmin data with advertisers, data brokers, or any other
+            third party. Garmin data is used inside Roni only to power the coach, and it is
+            processed under the same infrastructure and AI terms described in the &ldquo;AI and
+            third parties&rdquo; section above.
+          </p>
+          <p className="mt-2">
+            You can disconnect Garmin at any time from the Settings page in Roni, which marks the
+            connection inactive so no further webhooks are processed. You can also revoke
+            Roni&apos;s access directly from your Garmin Connect account settings; Garmin sends us a
+            deregistration webhook and we mark the connection disconnected in response. Deleting
+            your Roni account additionally removes all stored Garmin connection records, activity
+            summaries, wellness summaries, and webhook-event log entries.
           </p>
         </section>
 
