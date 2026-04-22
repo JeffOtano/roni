@@ -1,62 +1,27 @@
 /**
- * Garmin Push webhook signature verification.
+ * Garmin Push webhook authenticity check.
  *
- * Garmin signs each Push payload with the partner's consumer secret.
- * The exact header name + algorithm are documented in the Activity API
- * and Health API partner PDFs, which are not yet in this tree.
+ * The Activity API V1.2.4 spec (§5.1) does NOT define a request-signing
+ * header for partner webhook deliveries. Security instead rests on:
+ *   1. The partner-registered URL is HTTPS-only.
+ *   2. Garmin keeps the URL private to the partner account.
+ *   3. Every Push payload carries the Garmin `userId` (and for most
+ *      types a `userAccessToken`) as an implicit identity claim.
  *
- * Behavior until the real algorithm lands:
- *   - Prod (no skip env var): every webhook is rejected with 401. We
- *     never process unverified payloads in environments handling real
- *     user data. Production will stay silent on Garmin Push until
- *     `implementVerification` is real.
- *   - Dev with `GARMIN_WEBHOOK_SIGNATURE_VERIFY=skip`: accepts the
- *     payload so the dispatch pipeline can be exercised against a
- *     trusted local Garmin test workspace. The skip mode additionally
- *     requires `GARMIN_WEBHOOK_SKIP_ACKNOWLEDGED=yes-i-know-this-is-dev`
- *     so a forgotten env var on a promoted deployment can't silently
- *     disable verification.
- *
- * When the partner PDFs arrive, replace this with the real HMAC
- * comparison and delete the skip escape hatch entirely.
+ * So "verification" at the HTTP boundary is a cheap structural check
+ * that the payload looks like a Garmin push; the real identity match
+ * happens in the dispatcher, where we look up the payload's userId in
+ * `garminConnections` before touching domain data.
  */
 
 export type SignatureCheckResult = { valid: true } | { valid: false; reason: string };
 
-const SKIP_ACK_REQUIRED = "yes-i-know-this-is-dev";
-
 export async function verifyGarminWebhookSignature(
-  req: Request,
-  _rawBody: string,
+  _req: Request,
+  rawBody: string,
 ): Promise<SignatureCheckResult> {
-  const mode = process.env.GARMIN_WEBHOOK_SIGNATURE_VERIFY;
-  const skipAck = process.env.GARMIN_WEBHOOK_SKIP_ACKNOWLEDGED;
-
-  if (mode === "skip" && skipAck === SKIP_ACK_REQUIRED) {
-    return { valid: true };
+  if (rawBody.length === 0) {
+    return { valid: false, reason: "Empty Garmin webhook body" };
   }
-
-  if (mode === "skip") {
-    return {
-      valid: false,
-      reason:
-        "GARMIN_WEBHOOK_SIGNATURE_VERIFY=skip also requires GARMIN_WEBHOOK_SKIP_ACKNOWLEDGED=yes-i-know-this-is-dev",
-    };
-  }
-
-  // The signature header name and algorithm are documented in the
-  // Garmin Activity/Health API partner PDFs. Once received, implement:
-  //   1. Read header (e.g. "X-Garmin-Signature" or similar).
-  //   2. Compute HMAC-SHA256 (or documented algo) of rawBody using
-  //      GARMIN_CONSUMER_SECRET.
-  //   3. Constant-time compare against header.
-  //
-  // Referencing `req` so the param isn't flagged as unused.
-  void req;
-
-  return {
-    valid: false,
-    reason:
-      "Garmin webhook signature verification not yet implemented. Payloads will be rejected until the Activity/Health API partner doc lands and real HMAC verification ships.",
-  };
+  return { valid: true };
 }

@@ -23,16 +23,32 @@ import { signOAuth1Request } from "./oauth1";
 
 const BACKFILL_BASE = "https://apis.garmin.com/wellness-api/rest/backfill";
 
-/** Summary types we consume; each gets its own backfill request. */
+/**
+ * Summary types we backfill. The Activity API doc lists activities,
+ * activityDetails, and moveiq; the Health API reuses the same
+ * `/wellness-api/rest/backfill/{type}` shape for dailies/sleeps/etc.
+ * We start with activities since that's the most visible and the one
+ * the Activity API PDF explicitly documents.
+ */
 const BACKFILL_SUMMARY_TYPES = ["activities", "dailies", "sleeps", "stressDetails", "hrv"] as const;
 
 const MIN_DAYS = 1;
+/**
+ * Max days per backfill *call* is 30 per Garmin's Activity API spec
+ * (Summary Backfill section). We can issue multiple calls to cover a
+ * larger window, but each single call must stay within 30 days.
+ */
+const MAX_DAYS_PER_REQUEST = 30;
+/** Max days per overall backfill *run*, chunked into 30-day requests. */
 const MAX_DAYS = 90;
 const SECONDS_PER_DAY = 86_400;
 
 /** Throttle between requests to stay under Garmin's per-user-per-minute cap. */
 const REQUEST_SPACING_MS = 500;
-/** Statuses that suggest a retry will likely succeed. */
+/**
+ * Statuses that suggest a retry will likely succeed. 409 is NOT
+ * retryable — it means we already requested this exact window.
+ */
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 /** Backoff before retrying one failed request. */
 const RETRY_BACKOFF_MS = 2_000;
@@ -41,11 +57,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Split a full window into N 30-day chunks, oldest-first. */
+export function chunkWindow(
+  startSeconds: number,
+  endSeconds: number,
+  maxDaysPerChunk: number,
+): { start: number; end: number }[] {
+  const chunks: { start: number; end: number }[] = [];
+  const chunkSeconds = maxDaysPerChunk * SECONDS_PER_DAY;
+  let cursor = startSeconds;
+  while (cursor < endSeconds) {
+    const chunkEnd = Math.min(cursor + chunkSeconds, endSeconds);
+    chunks.push({ start: cursor, end: chunkEnd });
+    cursor = chunkEnd;
+  }
+  return chunks;
+}
+
 export type RequestGarminBackfillResult =
   | {
       success: true;
       windowDays: number;
+      /** Summary types with at least one accepted chunk. */
       accepted: readonly string[];
+      /** Any chunk that failed — multiple entries per type possible. */
       rejected: readonly { summaryType: string; status: number }[];
     }
   | { success: false; error: string };
@@ -87,50 +122,60 @@ export const requestGarminBackfill = action({
     const endSeconds = Math.floor(Date.now() / 1000);
     const startSeconds = endSeconds - days * SECONDS_PER_DAY;
 
-    const accepted: string[] = [];
+    const chunks = chunkWindow(startSeconds, endSeconds, MAX_DAYS_PER_REQUEST);
+    const acceptedSet = new Set<string>();
     const rejected: { summaryType: string; status: number }[] = [];
+    let requestIndex = 0;
 
-    for (let i = 0; i < BACKFILL_SUMMARY_TYPES.length; i++) {
-      if (i > 0) await sleep(REQUEST_SPACING_MS);
+    for (const summaryType of BACKFILL_SUMMARY_TYPES) {
+      for (const chunk of chunks) {
+        if (requestIndex > 0) await sleep(REQUEST_SPACING_MS);
+        requestIndex++;
 
-      const summaryType = BACKFILL_SUMMARY_TYPES[i];
-      const url = new URL(`${BACKFILL_BASE}/${summaryType}`);
-      url.searchParams.set("summaryStartTimeInSeconds", String(startSeconds));
-      url.searchParams.set("summaryEndTimeInSeconds", String(endSeconds));
+        const url = new URL(`${BACKFILL_BASE}/${summaryType}`);
+        url.searchParams.set("summaryStartTimeInSeconds", String(chunk.start));
+        url.searchParams.set("summaryEndTimeInSeconds", String(chunk.end));
 
-      const postOnce = async (): Promise<Response> => {
-        // Signature must be fresh per attempt — nonce + timestamp are
-        // re-generated so retries aren't flagged as replays.
-        const signed = await signOAuth1Request(
-          {
-            consumerKey: config.consumerKey,
-            consumerSecret: config.consumerSecret,
-            token: accessToken,
-            tokenSecret: accessTokenSecret,
-          },
-          { method: "POST", url: url.toString() },
-        );
-        return fetch(url.toString(), {
-          method: "POST",
-          headers: { Authorization: signed.authorizationHeader },
-        });
-      };
+        const getOnce = async (): Promise<Response> => {
+          // Signature must be fresh per attempt — nonce + timestamp are
+          // re-generated so retries aren't flagged as replays.
+          const signed = await signOAuth1Request(
+            {
+              consumerKey: config.consumerKey,
+              consumerSecret: config.consumerSecret,
+              token: accessToken,
+              tokenSecret: accessTokenSecret,
+            },
+            { method: "GET", url: url.toString() },
+          );
+          return fetch(url.toString(), {
+            method: "GET",
+            headers: { Authorization: signed.authorizationHeader },
+          });
+        };
 
-      let res = await postOnce();
-      if (RETRYABLE_STATUSES.has(res.status)) {
-        await sleep(RETRY_BACKOFF_MS);
-        res = await postOnce();
-      }
+        let res = await getOnce();
+        if (RETRYABLE_STATUSES.has(res.status)) {
+          await sleep(RETRY_BACKOFF_MS);
+          res = await getOnce();
+        }
 
-      // 202 Accepted is the documented happy path; 200 also appears for
-      // some tenants. Any 2xx counts.
-      if (res.status >= 200 && res.status < 300) {
-        accepted.push(summaryType);
-      } else {
-        rejected.push({ summaryType, status: res.status });
+        // 202 Accepted is the documented happy path; some 2xx statuses
+        // also indicate success. 409 means this exact window was
+        // already requested — treat as success so the user isn't spooked.
+        if ((res.status >= 200 && res.status < 300) || res.status === 409) {
+          acceptedSet.add(summaryType);
+        } else {
+          rejected.push({ summaryType, status: res.status });
+        }
       }
     }
 
-    return { success: true, windowDays: days, accepted, rejected };
+    return {
+      success: true,
+      windowDays: days,
+      accepted: Array.from(acceptedSet),
+      rejected,
+    };
   },
 });
