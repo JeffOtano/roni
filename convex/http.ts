@@ -2,6 +2,8 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
+import { GARMIN_PUSH_EVENT_TYPES } from "./garmin/webhookDispatch";
+import { verifyGarminWebhookSignature } from "./garmin/webhookSignature";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
@@ -46,5 +48,52 @@ http.route({
     return Response.redirect(`${base}?garmin=connected`, 302);
   }),
 });
+
+/**
+ * Garmin Push webhooks. One URL per push type (Garmin's Developer Portal
+ * requires this — each API summary type registers its own URL). Each
+ * handler:
+ *   1. Verifies the Garmin signature header (fails-closed until the
+ *      Activity/Health API doc lands; set GARMIN_WEBHOOK_SIGNATURE_VERIFY=skip
+ *      on dev only).
+ *   2. Logs the raw payload to garminWebhookEvents before any parsing so
+ *      a normalizer bug never drops data we can't replay.
+ *   3. Dispatches a normalizer action, then ACKs 200 regardless of
+ *      downstream processing outcome so Garmin's 24h retry doesn't fire
+ *      for a bug we already recorded.
+ */
+for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
+  http.route({
+    path: `/garmin/webhook/${eventType}`,
+    method: "POST",
+    handler: httpAction(async (ctx, req) => {
+      const rawBody = await req.text();
+      const sigCheck = await verifyGarminWebhookSignature(req, rawBody);
+      if (!sigCheck.valid) {
+        return new Response(sigCheck.reason ?? "Invalid signature", { status: 401 });
+      }
+
+      let payload: unknown;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const eventId = await ctx.runMutation(internal.garmin.webhookEvents.recordReceived, {
+        eventType,
+        rawPayload: payload,
+      });
+
+      await ctx.runAction(internal.garmin.webhookDispatch.dispatchGarminWebhook, {
+        eventId,
+        eventType,
+        rawPayload: payload,
+      });
+
+      return new Response(null, { status: 200 });
+    }),
+  });
+}
 
 export default http;

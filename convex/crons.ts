@@ -46,6 +46,18 @@ if (cronsEnabled()) {
   crons.interval("vacuum-unused-files", { hours: 6 }, internal.fileGc.vacuumUnusedFiles);
 
   crons.cron("data-retention", "0 2 * * *", internal.dataRetention.runDataRetention, {});
+
+  crons.interval(
+    "sweep-garmin-oauth-states",
+    { hours: 1 },
+    internal.garmin.connections.sweepExpiredOauthStates,
+  );
+
+  crons.interval(
+    "sweep-garmin-webhook-events",
+    { hours: 6 },
+    internal.garmin.webhookEvents.sweepExpired,
+  );
 }
 
 export default crons;

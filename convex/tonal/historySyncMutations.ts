@@ -161,11 +161,14 @@ export const externalActivityValidator = v.object({
   workoutType: v.string(),
   beginTime: v.string(),
   totalDuration: v.number(),
-  activeCalories: v.number(),
-  totalCalories: v.number(),
-  averageHeartRate: v.number(),
+  activeCalories: v.optional(v.number()),
+  totalCalories: v.optional(v.number()),
+  averageHeartRate: v.optional(v.number()),
+  maxHeartRate: v.optional(v.number()),
   source: v.string(),
-  distance: v.number(),
+  distance: v.optional(v.number()),
+  elevationGainMeters: v.optional(v.number()),
+  avgPaceSecondsPerKm: v.optional(v.number()),
 });
 
 /** Replace all current strength scores for a user (delete old, insert fresh). */

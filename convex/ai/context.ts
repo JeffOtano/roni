@@ -272,21 +272,27 @@ export async function buildTrainingSnapshot(
         .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
       const mins = Math.round(ext.totalDuration / 60);
-      const cal = Math.round(ext.totalCalories);
-      let line = `${ext.beginTime.split("T")[0]} — ${type} (${ext.source}) | ${mins}min | ${cal} cal`;
-      if (ext.distance > 0) {
+      let line = `${ext.beginTime.split("T")[0]} — ${type} (${ext.source}) | ${mins}min`;
+      if (ext.totalCalories !== undefined) {
+        line += ` | ${Math.round(ext.totalCalories)} cal`;
+      }
+      if (ext.distance !== undefined && ext.distance > 0) {
         const miles = (ext.distance / 1609.34).toFixed(1);
         line += ` | ${miles} mi`;
       }
-      const hrLabel = getHrIntensityLabel(ext.averageHeartRate);
-      if (hrLabel) {
-        line += ` | Avg HR ${Math.round(ext.averageHeartRate)} (${hrLabel})`;
+      const avgHr = ext.averageHeartRate;
+      if (avgHr !== undefined) {
+        const hrLabel = getHrIntensityLabel(avgHr);
+        if (hrLabel) {
+          line += ` | Avg HR ${Math.round(avgHr)} (${hrLabel})`;
+        }
       }
       el.push(tag + line);
       if (
         r !== "last week" &&
         r !== "older" &&
-        getHrIntensityLabel(ext.averageHeartRate) === "vigorous"
+        avgHr !== undefined &&
+        getHrIntensityLabel(avgHr) === "vigorous"
       ) {
         vigorousThisWeek++;
       }

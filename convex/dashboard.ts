@@ -35,8 +35,10 @@ export interface DashboardExternalActivity {
   workoutType: string;
   beginTime: string;
   totalDuration: number;
-  totalCalories: number;
-  averageHeartRate: number;
+  /** Optional: some sources (e.g. Garmin strength) omit calorie data. */
+  totalCalories?: number;
+  /** Optional: some devices don't record HR for every session. */
+  averageHeartRate?: number;
   source: string;
 }
 

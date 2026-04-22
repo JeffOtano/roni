@@ -94,11 +94,11 @@ interface ExternalActivityRow {
   workoutType: string;
   beginTime: string;
   totalDuration: number;
-  activeCalories: number;
-  totalCalories: number;
-  averageHeartRate: number;
+  activeCalories?: number;
+  totalCalories?: number;
+  averageHeartRate?: number;
   source: string;
-  distance: number;
+  distance?: number;
 }
 
 export function externalActivitiesToCsv(activities: readonly ExternalActivityRow[]): string {
@@ -117,10 +117,10 @@ export function externalActivitiesToCsv(activities: readonly ExternalActivityRow
     a.workoutType,
     a.source,
     a.totalDuration,
-    a.activeCalories,
-    a.totalCalories,
-    a.averageHeartRate,
-    a.distance,
+    a.activeCalories ?? "",
+    a.totalCalories ?? "",
+    a.averageHeartRate ?? "",
+    a.distance ?? "",
   ]);
   return toCsv(headers, rows);
 }

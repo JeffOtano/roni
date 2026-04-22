@@ -39,6 +39,8 @@ export const USER_DATA_TABLES = [
   { table: "authAccounts", delete: "authData", jsonExportKey: null },
   { table: "garminConnections", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "garminOauthStates", delete: "byUserIdBatch", jsonExportKey: null },
+  { table: "garminWellnessDaily", delete: "byUserIdBatch", jsonExportKey: null },
+  { table: "garminWebhookEvents", delete: "byUserIdBatch", jsonExportKey: null },
 ] as const;
 
 type UserDataEntry = (typeof USER_DATA_TABLES)[number];

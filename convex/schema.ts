@@ -566,17 +566,32 @@ export default defineSchema({
     fetchedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  /**
+   * Completed activities synced from sources other than the primary Tonal
+   * account (Apple Watch, Garmin, etc.). Tonal's history sync populated
+   * fields like HR and distance for every row; Garmin activities may omit
+   * them (e.g. strength training has no distance; some devices don't
+   * record HR). All signal-dependent fields are therefore optional.
+   *
+   * `source` identifies the upstream system — "appleHealth", "garmin", etc.
+   * `externalId` is globally unique within a single source.
+   */
   externalActivities: defineTable({
     userId: v.id("users"),
     externalId: v.string(),
     workoutType: v.string(),
     beginTime: v.string(),
     totalDuration: v.number(),
-    activeCalories: v.number(),
-    totalCalories: v.number(),
-    averageHeartRate: v.number(),
+    activeCalories: v.optional(v.number()),
+    totalCalories: v.optional(v.number()),
+    averageHeartRate: v.optional(v.number()),
+    maxHeartRate: v.optional(v.number()),
     source: v.string(),
-    distance: v.number(),
+    distance: v.optional(v.number()),
+    /** Meters climbed — Garmin-specific, not populated by legacy Tonal sync. */
+    elevationGainMeters: v.optional(v.number()),
+    /** Average pace in seconds per kilometer for running/cycling activities. */
+    avgPaceSecondsPerKm: v.optional(v.number()),
     syncedAt: v.number(),
   })
     .index("by_userId_externalId", ["userId", "externalId"])
@@ -678,6 +693,90 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_garminUserId", ["garminUserId"])
+    .index("by_status", ["status"]),
+
+  /**
+   * Daily wellness rollup from Garmin Health API. Garmin sends separate
+   * Push payloads per domain (Daily Summary, Sleep Summary, Stress
+   * Details, HRV Summary, Body Battery); all merge into a single row per
+   * (userId, calendarDate) so the coach reads one document. Rows are
+   * upserted — Garmin may revise same-day summaries as late data arrives.
+   */
+  garminWellnessDaily: defineTable({
+    userId: v.id("users"),
+    /** ISO date (YYYY-MM-DD) in the user's local timezone per Garmin's summary. */
+    calendarDate: v.string(),
+
+    // Sleep summary
+    sleepDurationSeconds: v.optional(v.number()),
+    deepSleepSeconds: v.optional(v.number()),
+    lightSleepSeconds: v.optional(v.number()),
+    remSleepSeconds: v.optional(v.number()),
+    awakeSeconds: v.optional(v.number()),
+    sleepStartTime: v.optional(v.string()),
+    sleepEndTime: v.optional(v.string()),
+    /** 0-100 Garmin sleep score when provided by the device. */
+    sleepScore: v.optional(v.number()),
+
+    // Recovery signals
+    restingHeartRate: v.optional(v.number()),
+    /** Daily average stress score 0-100; null windows excluded. */
+    avgStress: v.optional(v.number()),
+    maxStress: v.optional(v.number()),
+    /** Overnight HRV average in milliseconds. */
+    hrvLastNightAvg: v.optional(v.number()),
+    /** Garmin's HRV status label: BALANCED / UNBALANCED / LOW / POOR. */
+    hrvStatus: v.optional(v.string()),
+    bodyBatteryCharged: v.optional(v.number()),
+    bodyBatteryDrained: v.optional(v.number()),
+    bodyBatteryHighestValue: v.optional(v.number()),
+    bodyBatteryLowestValue: v.optional(v.number()),
+
+    // Activity baseline
+    steps: v.optional(v.number()),
+    distanceMeters: v.optional(v.number()),
+    activeKilocalories: v.optional(v.number()),
+    bmrKilocalories: v.optional(v.number()),
+    moderateIntensityMinutes: v.optional(v.number()),
+    vigorousIntensityMinutes: v.optional(v.number()),
+
+    /** Last time any webhook updated this row. */
+    lastIngestedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_calendarDate", ["userId", "calendarDate"])
+    .index("by_calendarDate", ["calendarDate"]),
+
+  /**
+   * Raw Garmin Push webhook payloads. Written on receipt before any
+   * processing so we can replay on normalizer bugs. Auto-expires after
+   * 14 days via sweeper cron.
+   */
+  garminWebhookEvents: defineTable({
+    /** Garmin-provided user id if we could parse it from the payload. */
+    garminUserId: v.optional(v.string()),
+    /** Our user id, resolved via garminConnections lookup. Null on miss. */
+    userId: v.optional(v.id("users")),
+    /** Push type, e.g. "activities", "dailies", "sleeps", "stressDetails". */
+    eventType: v.string(),
+    /** Status of this payload's processing. */
+    status: v.union(
+      v.literal("received"),
+      v.literal("processed"),
+      v.literal("rejected"),
+      v.literal("error"),
+    ),
+    /** Reason on rejected/error; null on success. */
+    errorReason: v.optional(v.string()),
+    /** Raw JSON payload for replay. */
+    rawPayload: v.any(),
+    receivedAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_receivedAt", ["userId", "receivedAt"])
+    .index("by_garminUserId", ["garminUserId"])
+    .index("by_expiresAt", ["expiresAt"])
     .index("by_status", ["status"]),
 
   /**

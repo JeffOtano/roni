@@ -1,0 +1,185 @@
+/**
+ * Normalizes already-logged Garmin Push payloads into domain tables.
+ *
+ * Each handler here is invoked after the raw payload has been written
+ * to `garminWebhookEvents` with `status: "received"`. It updates that
+ * row's status to "processed", "rejected", or "error" and writes to
+ * the appropriate domain table.
+ *
+ * Exact payload shapes are partner-documented in the Activity/Health
+ * API PDFs. Until those are wired through, normalizers here fail closed
+ * (status "error") so we never corrupt domain data with a guess. The
+ * `garminWebhookEvents` log retains the raw payload for replay.
+ */
+
+import { v } from "convex/values";
+import { internalAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
+
+/**
+ * Garmin Push event types we subscribe to. Each string is the camelCase
+ * summary name Garmin uses in both the Portal config and the payload
+ * envelope (e.g. `{ "activities": [...] }` for the activities push).
+ */
+export const GARMIN_PUSH_EVENT_TYPES = [
+  "activities",
+  "dailies",
+  "sleeps",
+  "stressDetails",
+  "hrv",
+  "userPermissionChange",
+  "deregistration",
+] as const;
+
+export type GarminPushEventType = (typeof GARMIN_PUSH_EVENT_TYPES)[number];
+
+export const dispatchGarminWebhook = internalAction({
+  args: {
+    eventId: v.id("garminWebhookEvents"),
+    eventType: v.string(),
+    rawPayload: v.any(),
+  },
+  handler: async (ctx, { eventId, eventType, rawPayload }) => {
+    // userPermissionChange / deregistration carry no domain data — they
+    // update the connection row directly.
+    if (eventType === "deregistration") {
+      return await handleDeregistration(ctx, eventId, rawPayload);
+    }
+    if (eventType === "userPermissionChange") {
+      return await handlePermissionChange(ctx, eventId, rawPayload);
+    }
+
+    // All other types require partner-PDF field schemas to normalize
+    // safely. Fail closed: log as error; the raw payload is preserved
+    // in garminWebhookEvents for replay once normalizers land.
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "error",
+      errorReason: `Normalizer for "${eventType}" pending Garmin Activity/Health API doc`,
+    });
+  },
+});
+
+async function handleDeregistration(
+  ctx: ActionCtx,
+  eventId: Id<"garminWebhookEvents">,
+  rawPayload: unknown,
+): Promise<void> {
+  const garminUserId = extractSingleGarminUserId(rawPayload);
+  if (!garminUserId) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "rejected",
+      errorReason: "deregistration payload missing userId",
+    });
+    return;
+  }
+
+  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+    garminUserId,
+  });
+  if (!connection) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "processed",
+      errorReason: "no matching connection",
+    });
+    return;
+  }
+
+  await ctx.runMutation(internal.garmin.connections.markDisconnected, {
+    userId: connection.userId,
+    reason: "user_disconnected",
+  });
+  await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+    eventId,
+    status: "processed",
+    userId: connection.userId,
+  });
+}
+
+async function handlePermissionChange(
+  ctx: ActionCtx,
+  eventId: Id<"garminWebhookEvents">,
+  rawPayload: unknown,
+): Promise<void> {
+  const parsed = parsePermissionChangePayload(rawPayload);
+  if (!parsed) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "rejected",
+      errorReason: "permission change payload malformed",
+    });
+    return;
+  }
+
+  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+    garminUserId: parsed.garminUserId,
+  });
+  if (!connection) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "processed",
+      errorReason: "no matching connection",
+    });
+    return;
+  }
+
+  await ctx.runMutation(internal.garmin.connections.refreshPermissions, {
+    userId: connection.userId,
+    permissions: parsed.permissions,
+  });
+
+  if (parsed.permissions.length === 0) {
+    await ctx.runMutation(internal.garmin.connections.markDisconnected, {
+      userId: connection.userId,
+      reason: "permission_revoked",
+    });
+  }
+
+  await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+    eventId,
+    status: "processed",
+    userId: connection.userId,
+  });
+}
+
+/**
+ * Best-effort extraction of a single garmin userId from a deregistration
+ * payload. Garmin sends `{ deregistrations: [{ userId: "...", ... }] }`
+ * with one entry per deregistered user. We process one event at a time;
+ * if Garmin batches multiple users in one push, handle the first and
+ * log the rest in a follow-up.
+ */
+export function extractSingleGarminUserId(rawPayload: unknown): string | null {
+  if (!rawPayload || typeof rawPayload !== "object") return null;
+  const envelope = rawPayload as Record<string, unknown>;
+  const list = envelope.deregistrations;
+  if (Array.isArray(list) && list.length > 0) {
+    const first = list[0] as Record<string, unknown> | null;
+    const id = first?.userId;
+    if (typeof id === "string") return id;
+  }
+  return null;
+}
+
+export interface ParsedPermissionChange {
+  garminUserId: string;
+  permissions: string[];
+}
+
+export function parsePermissionChangePayload(rawPayload: unknown): ParsedPermissionChange | null {
+  if (!rawPayload || typeof rawPayload !== "object") return null;
+  const envelope = rawPayload as Record<string, unknown>;
+  const list = envelope.userPermissionsChange;
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const entry = list[0] as Record<string, unknown> | null;
+  if (!entry) return null;
+  const garminUserId = typeof entry.userId === "string" ? entry.userId : null;
+  const perms = entry.permissions;
+  if (!garminUserId || !Array.isArray(perms)) return null;
+  const permissions = perms.filter((p): p is string => typeof p === "string");
+  return { garminUserId, permissions };
+}

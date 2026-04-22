@@ -53,8 +53,8 @@ function capitalizeType(workoutType: string): string {
 // ---------------------------------------------------------------------------
 
 function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity }) {
-  const showCalories = activity.totalCalories > 0;
-  const showHr = activity.averageHeartRate > 0;
+  const totalCalories = activity.totalCalories;
+  const averageHeartRate = activity.averageHeartRate;
 
   return (
     <div
@@ -74,14 +74,14 @@ function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity
         <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
           {formatDuration(activity.totalDuration)}
         </span>
-        {showCalories && (
+        {totalCalories !== undefined && totalCalories > 0 && (
           <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-            {Math.round(activity.totalCalories)} cal
+            {Math.round(totalCalories)} cal
           </span>
         )}
-        {showHr && (
+        {averageHeartRate !== undefined && averageHeartRate > 0 && (
           <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-            {Math.round(activity.averageHeartRate)} bpm
+            {Math.round(averageHeartRate)} bpm
           </span>
         )}
         <span className="rounded-md bg-muted/40 px-1.5 py-0.5 text-[11px] text-muted-foreground/50">
