@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0](https://github.com/JeffOtano/roni/compare/v0.5.0...v0.6.0) (2026-04-22)
+
+
+### Features
+
+* **ai:** add aiRun telemetry table for per-turn observability ([#249](https://github.com/JeffOtano/roni/issues/249)) ([f61df11](https://github.com/JeffOtano/roni/commit/f61df11e238dec0d5e7cbd57e0eefec3566b699f))
+* **ai:** migrate AI observability from PostHog to Phoenix Cloud ([#251](https://github.com/JeffOtano/roni/issues/251)) ([946053c](https://github.com/JeffOtano/roni/commit/946053c5193639bfa8d5d84f8f2df1d8acae892b))
+* **ai:** wire PostHog LLM Analytics via Vercel AI SDK telemetry ([#246](https://github.com/JeffOtano/roni/issues/246)) ([749930d](https://github.com/JeffOtano/roni/commit/749930d39712898cfbd3dc481f3c00a2546e6458))
+* **nav:** drop /prs from nav, elevate Dashboard PR tile as the destination ([#247](https://github.com/JeffOtano/roni/issues/247)) ([2b7f1a0](https://github.com/JeffOtano/roni/commit/2b7f1a0b554c81de79054f5c21b5a06171b64267))
+
+
+### Bug Fixes
+
+* **dashboard:** workout date shows 'yesterday' instead of 'today' for same-day workouts ([#250](https://github.com/JeffOtano/roni/issues/250)) ([f7c5d40](https://github.com/JeffOtano/roni/commit/f7c5d40e65ff3c54edfe3a93c584382b50467f44))
+* **tonal:** accept optional prescribedReps on workout set activity ([#248](https://github.com/JeffOtano/roni/issues/248)) ([6946df7](https://github.com/JeffOtano/roni/commit/6946df7b0fa7f8a4d616f32e0c6ea4bc29774b75))
+* triage 7 Sentry issues (~1500 events, 30+ users) ([#244](https://github.com/JeffOtano/roni/issues/244)) ([3190a77](https://github.com/JeffOtano/roni/commit/3190a777969096631d564a0f46235da82f61e32e))
+
 ## [0.5.0](https://github.com/JeffOtano/roni/compare/v0.4.0...v0.5.0) (2026-04-20)
 
 
