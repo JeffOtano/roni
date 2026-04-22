@@ -18,6 +18,14 @@ import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { extractFirstUserIdFromSummary, normalizeGarminActivities } from "./activityNormalizer";
+import {
+  extractFirstUserIdFromWellness,
+  normalizeDailies,
+  normalizeHrv,
+  normalizeSleeps,
+  normalizeStressDetails,
+  type WellnessDailyPartial,
+} from "./wellnessNormalizers";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -58,15 +66,19 @@ export const dispatchGarminWebhook = internalAction({
     if (eventType === "activities") {
       return await handleActivities({ ctx, eventId, rawPayload });
     }
+    if (
+      eventType === "dailies" ||
+      eventType === "sleeps" ||
+      eventType === "stressDetails" ||
+      eventType === "hrv"
+    ) {
+      return await handleWellness({ ctx, eventId, rawPayload, summaryKey: eventType });
+    }
 
-    // Remaining types (Health API: dailies/sleeps/hrv/stressDetails)
-    // still need their partner-doc field schemas before we can write
-    // to a domain table. Fail closed so raw payloads in
-    // garminWebhookEvents are preserved for replay once those land.
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
       status: "error",
-      errorReason: `Normalizer for "${eventType}" pending Garmin Health API doc`,
+      errorReason: `Unhandled Garmin push event type: ${eventType}`,
     });
   },
 });
@@ -114,6 +126,76 @@ async function handleActivities({ ctx, eventId, rawPayload }: WebhookHandlerArgs
   await ctx.runMutation(internal.tonal.historySyncMutations.persistExternalActivities, {
     userId: connection.userId,
     activities: normalized,
+  });
+
+  await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+    eventId,
+    status: "processed",
+    userId: connection.userId,
+  });
+}
+
+type WellnessSummaryKey = "dailies" | "sleeps" | "stressDetails" | "hrv";
+
+interface WellnessHandlerArgs extends WebhookHandlerArgs {
+  summaryKey: WellnessSummaryKey;
+}
+
+function normalizeForKey(key: WellnessSummaryKey, rawPayload: unknown): WellnessDailyPartial[] {
+  switch (key) {
+    case "dailies":
+      return normalizeDailies(rawPayload);
+    case "sleeps":
+      return normalizeSleeps(rawPayload);
+    case "stressDetails":
+      return normalizeStressDetails(rawPayload);
+    case "hrv":
+      return normalizeHrv(rawPayload);
+  }
+}
+
+async function handleWellness({
+  ctx,
+  eventId,
+  rawPayload,
+  summaryKey,
+}: WellnessHandlerArgs): Promise<void> {
+  const garminUserId = extractFirstUserIdFromWellness(summaryKey, rawPayload);
+  if (!garminUserId) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "rejected",
+      errorReason: `${summaryKey} payload missing userId`,
+    });
+    return;
+  }
+
+  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+    garminUserId,
+  });
+  if (!connection) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "processed",
+      errorReason: "no matching connection",
+    });
+    return;
+  }
+
+  const entries = normalizeForKey(summaryKey, rawPayload);
+  if (entries.length === 0) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "rejected",
+      errorReason: `no well-formed ${summaryKey} entries in payload`,
+      userId: connection.userId,
+    });
+    return;
+  }
+
+  await ctx.runMutation(internal.garmin.wellnessDaily.upsertWellnessDaily, {
+    userId: connection.userId,
+    entries,
   });
 
   await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {

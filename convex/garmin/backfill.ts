@@ -24,14 +24,16 @@ import { signOAuth1Request } from "./oauth1";
 const BACKFILL_BASE = "https://apis.garmin.com/wellness-api/rest/backfill";
 
 /**
- * Summary types we backfill. The Activity API V1.2.4 doc §8 also lists
- * `activityDetails` and `moveiq`, but those are rejected with 400
- * unless the partner has enabled those endpoint types in the Developer
- * Portal. We only consume activities today, so keep the list aligned
- * with what's enabled. Health API summaries (dailies, sleeps, etc.)
- * live under a different backfill surface.
+ * Summary types we backfill. Activity API V1.2.4 §8 + Health API V1.2.3
+ * §8 both document GET /wellness-api/rest/backfill/{summaryType}. We
+ * only request types we actually consume today; `activityDetails` and
+ * `moveiq` remain "on hold" in the Developer Portal.
+ *
+ * Per-user cap: Garmin enforces 1 month of backfill per summary type
+ * per user since first connection, so each summary type has its own
+ * quota and can safely coexist in one run.
  */
-const BACKFILL_SUMMARY_TYPES = ["activities"] as const;
+const BACKFILL_SUMMARY_TYPES = ["activities", "dailies", "sleeps", "stressDetails", "hrv"] as const;
 
 const MIN_DAYS = 1;
 /**

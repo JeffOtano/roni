@@ -78,6 +78,8 @@ import type * as garmin_oauthFlow from "../garmin/oauthFlow.js";
 import type * as garmin_webhookDispatch from "../garmin/webhookDispatch.js";
 import type * as garmin_webhookEvents from "../garmin/webhookEvents.js";
 import type * as garmin_webhookSignature from "../garmin/webhookSignature.js";
+import type * as garmin_wellnessDaily from "../garmin/wellnessDaily.js";
+import type * as garmin_wellnessNormalizers from "../garmin/wellnessNormalizers.js";
 import type * as goals from "../goals.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
@@ -225,6 +227,8 @@ declare const fullApi: ApiFromModules<{
   "garmin/webhookDispatch": typeof garmin_webhookDispatch;
   "garmin/webhookEvents": typeof garmin_webhookEvents;
   "garmin/webhookSignature": typeof garmin_webhookSignature;
+  "garmin/wellnessDaily": typeof garmin_wellnessDaily;
+  "garmin/wellnessNormalizers": typeof garmin_wellnessNormalizers;
   goals: typeof goals;
   healthCheck: typeof healthCheck;
   http: typeof http;
