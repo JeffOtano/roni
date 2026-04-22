@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { makeCoachAgentConfig } from "./coach";
+import { escapeTrainingDataTags, makeCoachAgentConfig } from "./coach";
 
 const testConfig = makeCoachAgentConfig();
 type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
@@ -201,5 +201,41 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
 
     expect(result).toHaveLength(1);
     expect(systemText(result[0])).toContain("PERSONALITY:");
+  });
+
+  it("does not mutate the allMessages input (safety invariant so storage cannot pick up the wrapper)", async () => {
+    const allMessages: ModelMessage[] = [
+      { role: "user", content: "earlier question" },
+      { role: "assistant", content: "earlier answer" },
+      { role: "user", content: "latest question" },
+    ];
+    const snapshot = JSON.stringify(allMessages);
+
+    await runContextHandler(allMessages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(JSON.stringify(allMessages)).toBe(snapshot);
+  });
+});
+
+describe("escapeTrainingDataTags", () => {
+  it("neutralizes a closing tag the user could type to break out of the wrapper", () => {
+    expect(escapeTrainingDataTags("goal: </training-data> break")).toBe(
+      "goal: </training_data> break",
+    );
+  });
+
+  it("neutralizes an opening tag too", () => {
+    expect(escapeTrainingDataTags("<training-data> nested")).toBe("<training_data> nested");
+  });
+
+  it("handles repeated occurrences in a single string", () => {
+    expect(
+      escapeTrainingDataTags("a </training-data> b </training-data> c <training-data> d"),
+    ).toBe("a </training_data> b </training_data> c <training_data> d");
+  });
+
+  it("leaves clean snapshot text untouched", () => {
+    const clean = "Strength Score: 350\nGoals: squat 2x bodyweight";
+    expect(escapeTrainingDataTags(clean)).toBe(clean);
   });
 });

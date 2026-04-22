@@ -96,6 +96,15 @@ function hashString(input: string): string {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
+// Snapshot content includes user-entered goals, injuries, and feedback.
+// Neutralizes any <training-data> tokens the user could have typed so they
+// can't close the wrapper and smuggle text that reads as extra instructions.
+export function escapeTrainingDataTags(input: string): string {
+  return input
+    .replaceAll("</training-data>", "</training_data>")
+    .replaceAll("<training-data>", "<training_data>");
+}
+
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
@@ -198,7 +207,7 @@ export function makeCoachAgentConfig(userTimezone?: string) {
       const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
       const snapshotSystem: ModelMessage = {
         role: "system",
-        content: `<training-data>\n${snapshot}\n</training-data>`,
+        content: `<training-data>\n${escapeTrainingDataTags(snapshot)}\n</training-data>`,
       };
       const head = messages.slice(0, -1);
       const tail = messages[messages.length - 1];
