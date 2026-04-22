@@ -57,6 +57,15 @@ export const startGarminOAuth = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) return { success: false, error: "Not authenticated" };
 
+    try {
+      await ctx.runMutation(internal.garmin.connections.acquireOauthStartSlot, { userId });
+    } catch {
+      return {
+        success: false,
+        error: "Too many Garmin connection attempts. Please wait a minute and try again.",
+      };
+    }
+
     const config = getGarminAppConfig();
 
     const signed = await signOAuth1Request(
@@ -101,12 +110,18 @@ export const completeGarminOAuth = internalAction({
   args: {
     oauthToken: v.string(),
     oauthVerifier: v.string(),
+    sessionUserId: v.id("users"),
   },
   handler: async (ctx, args): Promise<CompleteGarminOAuthResult> => {
     const claim = await ctx.runMutation(internal.garmin.connections.claimOauthState, {
       requestToken: args.oauthToken,
     });
     if (!claim) return { success: false, error: "Unknown or expired OAuth state" };
+    if (claim.userId !== args.sessionUserId) {
+      // Either a CSRF attempt or the user switched accounts mid-flow.
+      // Either way, refuse to link.
+      return { success: false, error: "Session mismatch" };
+    }
     const { userId } = claim;
     const requestTokenSecret = await decryptGarminSecret(claim.requestTokenSecretEncrypted);
 

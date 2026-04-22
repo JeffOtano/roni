@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { rateLimiter } from "../rateLimits";
 
 const disconnectReasonValidator = v.union(
   v.literal("user_disconnected"),
@@ -109,6 +110,19 @@ export const refreshPermissions = internalMutation({
 // ---------------------------------------------------------------------------
 // Short-lived OAuth 1.0a request-token state (one row per in-flight handshake)
 // ---------------------------------------------------------------------------
+
+/**
+ * Rate-limit guard called by `startGarminOAuth` before any network call
+ * to Garmin. Consumes a token from the per-user bucket; throws on refill
+ * exhaustion so the action returns a useful error instead of burning
+ * partner quota.
+ */
+export const acquireOauthStartSlot = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await rateLimiter.limit(ctx, "startGarminOAuth", { key: userId, throws: true });
+  },
+});
 
 export const saveOauthState = internalMutation({
   args: {

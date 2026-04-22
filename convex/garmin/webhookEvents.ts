@@ -51,9 +51,12 @@ export const updateStatus = internalMutation({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, { eventId, status, errorReason, userId }) => {
+    // Persist whatever the caller sends. `processed` can legitimately
+    // carry an informational reason (e.g. "no matching connection")
+    // that shouldn't be hidden just because no error occurred.
     await ctx.db.patch(eventId, {
       status,
-      errorReason: status === "processed" ? undefined : errorReason,
+      errorReason,
       ...(userId !== undefined ? { userId } : {}),
     });
   },

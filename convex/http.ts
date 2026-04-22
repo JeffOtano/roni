@@ -11,10 +11,16 @@ auth.addHttpRoutes(http);
 /**
  * Destination the browser lands on after a Garmin OAuth handshake. Set
  * via env so each environment (local, preview, prod) can redirect to its
- * own Next.js host. Falls back to the bare callback URL's origin.
+ * own Next.js host. Defaults to a relative `/settings` path, which is
+ * why we emit the redirect with a plain Location header — the spec-
+ * strict `Response.redirect` constructor throws on non-absolute URLs.
  */
 function resolvePostOauthRedirect(): string {
   return process.env.GARMIN_OAUTH_POST_REDIRECT_URL ?? "/settings";
+}
+
+function redirectResponse(location: string): Response {
+  return new Response(null, { status: 302, headers: { Location: location } });
 }
 
 /**
@@ -33,19 +39,28 @@ http.route({
     const base = resolvePostOauthRedirect();
 
     if (!oauthToken || !oauthVerifier) {
-      return Response.redirect(`${base}?garmin=error&reason=missing_params`, 302);
+      return redirectResponse(`${base}?garmin=error&reason=missing_params`);
+    }
+
+    // Resolve the current browser session's user. Without this check a
+    // flow started by user A but completed in user B's browser would
+    // link user A's Garmin to user B's Roni account.
+    const sessionUserId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    if (!sessionUserId) {
+      return redirectResponse(`${base}?garmin=error&reason=not_authenticated`);
     }
 
     const result = await ctx.runAction(internal.garmin.oauthFlow.completeGarminOAuth, {
       oauthToken,
       oauthVerifier,
+      sessionUserId,
     });
 
     if (!result.success) {
       const reason = encodeURIComponent(result.error);
-      return Response.redirect(`${base}?garmin=error&reason=${reason}`, 302);
+      return redirectResponse(`${base}?garmin=error&reason=${reason}`);
     }
-    return Response.redirect(`${base}?garmin=connected`, 302);
+    return redirectResponse(`${base}?garmin=connected`);
   }),
 });
 
