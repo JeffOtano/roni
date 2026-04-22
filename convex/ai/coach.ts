@@ -193,14 +193,8 @@ export function makeCoachAgentConfig(userTimezone?: string) {
         return [staticSystem, ...messages];
       }
 
-      // Place the per-call training snapshot as a system message immediately
-      // before the final turn. The cached prefix (tools + static system +
-      // history up through the last assistant message) stays byte-identical
-      // across calls so Anthropic can cache it; the snapshot and the fresh
-      // user/tool turn intentionally live outside the cache. Gemini collapses
-      // every system message into systemInstruction regardless of position
-      // (so this placement is a no-op there); OpenAI / OpenRouter preserve
-      // the inline order.
+      // Trailing position (not system[1]) keeps the cached prefix byte-stable
+      // so Anthropic's cache breakpoint on STATIC_INSTRUCTIONS holds across calls.
       const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
       const snapshotSystem: ModelMessage = {
         role: "system",
