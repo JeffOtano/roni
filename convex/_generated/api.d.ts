@@ -69,6 +69,7 @@ import type * as email from "../email.js";
 import type * as emailChange from "../emailChange.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as fileGc from "../fileGc.js";
+import type * as garmin_activityNormalizer from "../garmin/activityNormalizer.js";
 import type * as garmin_backfill from "../garmin/backfill.js";
 import type * as garmin_connections from "../garmin/connections.js";
 import type * as garmin_credentials from "../garmin/credentials.js";
@@ -215,6 +216,7 @@ declare const fullApi: ApiFromModules<{
   emailChange: typeof emailChange;
   emailTemplates: typeof emailTemplates;
   fileGc: typeof fileGc;
+  "garmin/activityNormalizer": typeof garmin_activityNormalizer;
   "garmin/backfill": typeof garmin_backfill;
   "garmin/connections": typeof garmin_connections;
   "garmin/credentials": typeof garmin_credentials;

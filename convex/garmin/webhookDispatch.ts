@@ -17,6 +17,7 @@ import { internalAction } from "../_generated/server";
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { extractFirstUserIdFromSummary, normalizeGarminActivities } from "./activityNormalizer";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -54,14 +55,18 @@ export const dispatchGarminWebhook = internalAction({
     if (eventType === "userPermissionChange") {
       return await handlePermissionChange({ ctx, eventId, rawPayload });
     }
+    if (eventType === "activities") {
+      return await handleActivities({ ctx, eventId, rawPayload });
+    }
 
-    // All other types require partner-PDF field schemas to normalize
-    // safely. Fail closed: log as error; the raw payload is preserved
-    // in garminWebhookEvents for replay once normalizers land.
+    // Remaining types (Health API: dailies/sleeps/hrv/stressDetails)
+    // still need their partner-doc field schemas before we can write
+    // to a domain table. Fail closed so raw payloads in
+    // garminWebhookEvents are preserved for replay once those land.
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
       status: "error",
-      errorReason: `Normalizer for "${eventType}" pending Garmin Activity/Health API doc`,
+      errorReason: `Normalizer for "${eventType}" pending Garmin Health API doc`,
     });
   },
 });
@@ -70,6 +75,52 @@ interface WebhookHandlerArgs {
   ctx: ActionCtx;
   eventId: Id<"garminWebhookEvents">;
   rawPayload: unknown;
+}
+
+async function handleActivities({ ctx, eventId, rawPayload }: WebhookHandlerArgs): Promise<void> {
+  const garminUserId = extractFirstUserIdFromSummary("activities", rawPayload);
+  if (!garminUserId) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "rejected",
+      errorReason: "activities payload missing userId",
+    });
+    return;
+  }
+
+  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+    garminUserId,
+  });
+  if (!connection) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "processed",
+      errorReason: "no matching connection",
+    });
+    return;
+  }
+
+  const normalized = normalizeGarminActivities(rawPayload);
+  if (normalized.length === 0) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: "rejected",
+      errorReason: "no well-formed activities in payload",
+      userId: connection.userId,
+    });
+    return;
+  }
+
+  await ctx.runMutation(internal.tonal.historySyncMutations.persistExternalActivities, {
+    userId: connection.userId,
+    activities: normalized,
+  });
+
+  await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+    eventId,
+    status: "processed",
+    userId: connection.userId,
+  });
 }
 
 async function handleDeregistration({
