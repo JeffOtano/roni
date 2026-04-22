@@ -8,6 +8,11 @@ import { type ProviderKeyResult, resolveProviderKey } from "./byok";
 // pull Phoenix-otel's Node-only deps into this V8-runtime module's graph.
 import { buildByokErrorMessage, type ByokErrorCode, classifyByokError } from "./ai/byokErrors";
 import type { ProviderId } from "./ai/providers";
+import {
+  buildProviderTransientMessage,
+  classifyTransientError,
+  isTransientError,
+} from "./ai/transientErrors";
 
 export const MAX_IMAGES_PER_MESSAGE = 4;
 
@@ -118,6 +123,9 @@ export function getScheduledFailureContent(error: unknown, provider?: ProviderId
   if (provider) {
     const classified = classifyByokError(error);
     if (classified) return buildByokErrorMessage(classified, provider);
+
+    const transientKind = classifyTransientError(error);
+    if (transientKind) return buildProviderTransientMessage(transientKind, provider);
   }
 
   return CHAT_ERROR_MESSAGE;
@@ -126,7 +134,12 @@ export function getScheduledFailureContent(error: unknown, provider?: ProviderId
 export function shouldNotifyScheduledFailure(error: unknown): boolean {
   const code = error instanceof Error ? error.message : String(error);
   if (EXPECTED_SCHEDULED_FAILURE_CODES.has(code)) return false;
-  return classifyByokError(error) === null;
+  if (classifyByokError(error) !== null) return false;
+  // Transient provider outages are handled inside streamWithRetry; if one
+  // reaches persistScheduledFailure, the user already sees an attributed
+  // message — no human needs to be paged.
+  if (isTransientError(error)) return false;
+  return true;
 }
 
 export async function persistScheduledFailure(args: {

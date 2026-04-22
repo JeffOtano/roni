@@ -51,6 +51,28 @@ describe("getScheduledFailureContent", () => {
       getScheduledFailureContent(new Error("You exceeded your current quota: insufficient_quota.")),
     ).toBe("I'm having trouble right now. Please try again in a moment.");
   });
+
+  it("attributes 'high demand' errors to the upstream provider when provider is known", () => {
+    const msg = getScheduledFailureContent(
+      new Error("This model is currently experiencing high demand. Please try again later."),
+      "gemini",
+    );
+    expect(msg).toContain("Google Gemini");
+    expect(msg).toContain("not Roni");
+    expect(msg).toContain("(/settings)");
+  });
+
+  it("attributes transient server errors to the provider", () => {
+    const error = Object.assign(new Error("Internal"), { status: 503 });
+    const msg = getScheduledFailureContent(error, "claude");
+    expect(msg).toContain("Anthropic Claude");
+  });
+
+  it("stays generic for transient errors when provider is unknown", () => {
+    expect(
+      getScheduledFailureContent(new Error("This model is currently experiencing high demand.")),
+    ).toBe("I'm having trouble right now. Please try again in a moment.");
+  });
 });
 
 describe("shouldNotifyScheduledFailure", () => {
@@ -70,5 +92,14 @@ describe("shouldNotifyScheduledFailure", () => {
 
   it("notifies on unexpected failures", () => {
     expect(shouldNotifyScheduledFailure(new Error("database blew up"))).toBe(true);
+  });
+
+  it("does not notify on transient provider outages", () => {
+    expect(
+      shouldNotifyScheduledFailure(new Error("This model is currently experiencing high demand.")),
+    ).toBe(false);
+    expect(
+      shouldNotifyScheduledFailure(Object.assign(new Error("Unavailable"), { status: 503 })),
+    ).toBe(false);
   });
 });

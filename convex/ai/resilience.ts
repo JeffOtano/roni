@@ -17,7 +17,11 @@ import { type ProviderId } from "./providers";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
 import { runInRunSpan } from "./otel";
-import { isTransientError } from "./transientErrors";
+import {
+  buildProviderTransientMessage,
+  classifyTransientError,
+  isTransientError,
+} from "./transientErrors";
 
 // Re-export for backwards compatibility with existing callers/tests.
 export { buildByokErrorMessage, classifyByokError, withByokErrorSanitization } from "./byokErrors";
@@ -333,11 +337,22 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   const reason = report.error instanceof Error ? report.error.message : String(report.error);
   await finalizePendingMessages(ctx, report.threadId, reason);
+
+  const transientKind = classifyTransientError(report.error);
+  const content = transientKind
+    ? buildProviderTransientMessage(transientKind, report.provider)
+    : AI_ERROR_MESSAGE;
+
   await saveMessage(ctx, components.agent, {
     threadId: report.threadId,
     userId: report.userId,
-    message: { role: "assistant", content: AI_ERROR_MESSAGE },
+    message: { role: "assistant", content },
   });
+
+  // Upstream provider outages already surface to the user with an attributed
+  // message; paging Discord on every Gemini/Claude capacity blip is noise.
+  if (transientKind) return;
+
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
     message: reason,
