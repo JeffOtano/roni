@@ -202,6 +202,16 @@ export const acquireBackfillSlot = internalMutation({
   },
 });
 
+/** Dev utility — reset the caller's backfill bucket after config churn. */
+export const resetMyBackfillRateLimit = mutation({
+  args: {},
+  handler: async (ctx): Promise<void> => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await rateLimiter.reset(ctx, "backfillGarminData", { key: userId });
+  },
+});
+
 export const saveOauthState = internalMutation({
   args: {
     userId: v.id("users"),

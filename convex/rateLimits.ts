@@ -131,13 +131,15 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
-  // Cap backfill runs at 5/day/user. Garmin's partner-side rate limit
-  // allows ~5 backfills per summary per user per day, and each
-  // successful request fans out into many push payloads. Keep this
-  // loose enough that a user can retry after a transient failure.
+  // Token bucket that refills a few times per hour. Prevents accidental
+  // DoS against Garmin while still letting a dev iterate locally
+  // without waiting until the next calendar day. Garmin's own
+  // per-user-per-summary backfill cap is ~5/day, so their limit is the
+  // tighter one and the ultimate guardrail on abuse.
   backfillGarminData: {
-    kind: "fixed window",
-    rate: 5,
-    period: DAY,
+    kind: "token bucket",
+    rate: 6,
+    period: HOUR,
+    capacity: 3,
   },
 });
