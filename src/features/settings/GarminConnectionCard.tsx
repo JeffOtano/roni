@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, Link2, Loader2, Unlink } from "lucide-react";
 
-const BACKFILL_DAYS = 60;
+// Garmin's user-level backfill cap is "1 month since first connection",
+// so requesting 30 days keeps the call inside a single chunk and inside
+// the documented per-user limit.
+const BACKFILL_DAYS = 30;
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, {
