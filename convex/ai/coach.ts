@@ -183,22 +183,32 @@ export function makeCoachAgentConfig(userTimezone?: string) {
           stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
         ),
       );
-      // Snapshot is added after this so the per-call snapshot doesn't bust the prefix cache.
-      const systemMessages: ModelMessage[] = [
-        {
-          role: "system",
-          content: STATIC_INSTRUCTIONS,
-          providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
-        },
-      ];
-      if (args.userId) {
-        const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
-        systemMessages.push({
-          role: "system",
-          content: `<training-data>\n${snapshot}\n</training-data>`,
-        });
+      const staticSystem: ModelMessage = {
+        role: "system",
+        content: STATIC_INSTRUCTIONS,
+        providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+      };
+
+      if (!args.userId || messages.length === 0) {
+        return [staticSystem, ...messages];
       }
-      return [...systemMessages, ...messages];
+
+      // Place the per-call training snapshot as a system message immediately
+      // before the final turn. The cached prefix (tools + static system +
+      // history up through the last assistant message) stays byte-identical
+      // across calls so Anthropic can cache it; the snapshot and the fresh
+      // user/tool turn intentionally live outside the cache. Gemini collapses
+      // every system message into systemInstruction regardless of position
+      // (so this placement is a no-op there); OpenAI / OpenRouter preserve
+      // the inline order.
+      const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
+      const snapshotSystem: ModelMessage = {
+        role: "system",
+        content: `<training-data>\n${snapshot}\n</training-data>`,
+      };
+      const head = messages.slice(0, -1);
+      const tail = messages[messages.length - 1];
+      return [staticSystem, ...head, snapshotSystem, tail];
     }) satisfies ContextHandler,
   };
 }
