@@ -791,8 +791,20 @@ export default defineSchema({
     ),
     /** Reason on rejected/error; null on success. */
     errorReason: v.optional(v.string()),
-    /** Raw JSON payload for replay. */
-    rawPayload: v.any(),
+    /**
+     * Raw JSON payload for replay. Legacy column from CP2c — kept
+     * optional so existing rows still validate. New rows use
+     * `rawPayloadStorageId` instead because Garmin backfill dailies
+     * payloads can exceed the 1 MiB per-document limit.
+     */
+    rawPayload: v.optional(v.any()),
+    /**
+     * Convex file-storage ID for the raw JSON body. Replay/dispatch
+     * fetch the blob via `ctx.storage.get(...)`. Using storage instead
+     * of an inline column lets us accept the multi-megabyte dailies +
+     * sleeps backfill payloads that include dense sample maps.
+     */
+    rawPayloadStorageId: v.optional(v.id("_storage")),
     receivedAt: v.number(),
     expiresAt: v.number(),
   })

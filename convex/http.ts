@@ -90,26 +90,32 @@ for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
         return new Response(sigCheck.reason, { status: 401 });
       }
 
-      // Validate JSON here to reject malformed payloads up front, but
-      // keep the raw text form for persistence + dispatcher. Garmin's
-      // dailies summary carries `timeOffsetHeartRateSamples` with up to
-      // 5760 entries; passing the parsed object across a Convex
-      // function boundary trips the 1024-fields-per-object arg limit.
+      // Validate JSON up front so we reject malformed bodies before
+      // allocating storage. The parsed object is discarded; downstream
+      // functions re-parse after fetching from storage.
       try {
         JSON.parse(rawBody);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
 
+      // Stash the full body in Convex file storage. Document fields
+      // and function args are both capped at 1 MiB; multi-day dailies
+      // backfill pushes routinely exceed that. Storage accepts up to
+      // 1 GB per file.
+      const rawPayloadStorageId = await ctx.storage.store(
+        new Blob([rawBody], { type: "application/json" }),
+      );
+
       const eventId = await ctx.runMutation(internal.garmin.webhookEvents.recordReceived, {
         eventType,
-        rawPayload: rawBody,
+        rawPayloadStorageId,
       });
 
       await ctx.runAction(internal.garmin.webhookDispatch.dispatchGarminWebhook, {
         eventId,
         eventType,
-        rawPayload: rawBody,
+        rawPayloadStorageId,
       });
 
       return new Response(null, { status: 200 });

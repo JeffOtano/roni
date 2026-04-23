@@ -62,17 +62,28 @@ export const dispatchGarminWebhook = internalAction({
     eventId: v.id("garminWebhookEvents"),
     eventType: v.string(),
     /**
-     * Raw JSON body as received from Garmin. Kept as a string across
-     * the function boundary because some summary payloads (notably
-     * dailies) contain maps with thousands of entries that exceed
-     * Convex's 1024-fields-per-object arg validator.
+     * Convex storage ID for the raw JSON body. The dispatcher fetches
+     * the blob and parses it here instead of receiving the payload as
+     * a function argument — multi-day dailies backfill bodies exceed
+     * the 1 MiB per-value limit that applies to both args and
+     * documents.
      */
-    rawPayload: v.string(),
+    rawPayloadStorageId: v.id("_storage"),
   },
-  handler: async (ctx, { eventId, eventType, rawPayload }) => {
+  handler: async (ctx, { eventId, eventType, rawPayloadStorageId }) => {
+    const blob = await ctx.storage.get(rawPayloadStorageId);
+    if (!blob) {
+      await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+        eventId,
+        status: "error",
+        errorReason: "raw payload storage blob missing",
+      });
+      return;
+    }
+    const rawBody = await blob.text();
     let parsed: unknown;
     try {
-      parsed = JSON.parse(rawPayload);
+      parsed = JSON.parse(rawBody);
     } catch {
       await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
         eventId,

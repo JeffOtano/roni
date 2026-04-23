@@ -10,8 +10,9 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
-import type { Id } from "../_generated/dataModel";
+import { internalAction, internalMutation, internalQuery } from "../_generated/server";
+import type { Doc, Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 
 export const WEBHOOK_EVENT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -28,12 +29,11 @@ export const recordReceived = internalMutation({
     garminUserId: v.optional(v.string()),
     userId: v.optional(v.id("users")),
     /**
-     * Raw JSON body as received from Garmin. Stored verbatim as a
-     * string so we survive the 1024-fields-per-object Convex arg/doc
-     * limit (e.g. dailies payloads pack thousands of HR samples into
-     * `timeOffsetHeartRateSamples`). Replay consumers JSON.parse it.
+     * ID of the Convex storage blob holding the raw JSON body. Using
+     * storage instead of an inline column lets us accept multi-MB
+     * backfill payloads; document fields are capped at 1 MiB.
      */
-    rawPayload: v.string(),
+    rawPayloadStorageId: v.id("_storage"),
   },
   handler: async (ctx, args): Promise<Id<"garminWebhookEvents">> => {
     const now = Date.now();
@@ -41,7 +41,7 @@ export const recordReceived = internalMutation({
       eventType: args.eventType,
       garminUserId: args.garminUserId,
       userId: args.userId,
-      rawPayload: args.rawPayload,
+      rawPayloadStorageId: args.rawPayloadStorageId,
       status: "received",
       receivedAt: now,
       expiresAt: now + WEBHOOK_EVENT_TTL_MS,
@@ -68,17 +68,46 @@ export const updateStatus = internalMutation({
   },
 });
 
-export const sweepExpired = internalMutation({
+/** List up to 200 expired event rows, returning enough to delete their
+ *  storage blobs and rows. */
+export const listExpiredEvents = internalQuery({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<Doc<"garminWebhookEvents">[]> => {
     const now = Date.now();
-    const expired = await ctx.db
+    return await ctx.db
       .query("garminWebhookEvents")
       .withIndex("by_expiresAt", (q) => q.lt("expiresAt", now))
       .take(200);
-    for (const row of expired) {
-      await ctx.db.delete(row._id);
+  },
+});
+
+export const deleteEventRows = internalMutation({
+  args: { ids: v.array(v.id("garminWebhookEvents")) },
+  handler: async (ctx, { ids }) => {
+    for (const id of ids) {
+      await ctx.db.delete(id);
     }
+  },
+});
+
+/** Cron entry point. Deletes storage blobs first, then rows. */
+export const sweepExpired = internalAction({
+  args: {},
+  handler: async (ctx): Promise<number> => {
+    const expired = await ctx.runQuery(internal.garmin.webhookEvents.listExpiredEvents, {});
+    for (const row of expired) {
+      if (row.rawPayloadStorageId) {
+        try {
+          await ctx.storage.delete(row.rawPayloadStorageId);
+        } catch {
+          // Blob may already have been manually removed; proceed to
+          // drop the row anyway so we don't leave orphan references.
+        }
+      }
+    }
+    await ctx.runMutation(internal.garmin.webhookEvents.deleteEventRows, {
+      ids: expired.map((row) => row._id),
+    });
     return expired.length;
   },
 });
