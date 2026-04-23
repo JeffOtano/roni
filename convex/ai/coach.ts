@@ -5,6 +5,7 @@ import type { ModelMessage } from "ai";
 import { components, internal } from "../_generated/api";
 import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
+import { withAnthropicHistoryCache, withAnthropicToolCache } from "./anthropicCache";
 import { buildTrainingSnapshot } from "./context";
 import {
   buildContextWindow,
@@ -122,7 +123,7 @@ export const coachAgentConfig = {
 
   // No `instructions` here — STATIC_INSTRUCTIONS is injected by contextHandler so it can carry cacheControl.
 
-  tools: {
+  tools: withAnthropicToolCache({
     search_exercises: searchExercisesTool,
     get_strength_scores: getStrengthScoresTool,
     get_strength_history: getStrengthHistoryTool,
@@ -155,7 +156,7 @@ export const coachAgentConfig = {
     resolve_injury: resolveInjuryTool,
     get_injuries: getInjuriesTool,
     get_weekly_volume: getWeeklyVolumeTool,
-  },
+  }),
 
   maxSteps: 25,
 
@@ -199,7 +200,7 @@ export function makeCoachAgentConfig(userTimezone?: string) {
       };
 
       if (!args.userId || messages.length === 0) {
-        return [staticSystem, ...messages];
+        return [staticSystem, ...withAnthropicHistoryCache(messages)];
       }
 
       // Trailing position (not system[1]) keeps the cached prefix byte-stable
@@ -209,7 +210,7 @@ export function makeCoachAgentConfig(userTimezone?: string) {
         role: "system",
         content: `<training-data>\n${escapeTrainingDataTags(snapshot)}\n</training-data>`,
       };
-      const head = messages.slice(0, -1);
+      const head = withAnthropicHistoryCache(messages.slice(0, -1));
       const tail = messages[messages.length - 1];
       return [staticSystem, ...head, snapshotSystem, tail];
     }) satisfies ContextHandler,

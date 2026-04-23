@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { escapeTrainingDataTags, makeCoachAgentConfig } from "./coach";
+import { coachAgentConfig, escapeTrainingDataTags, makeCoachAgentConfig } from "./coach";
 
 const testConfig = makeCoachAgentConfig();
 type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
@@ -147,7 +147,10 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
     expect(result).toHaveLength(5);
     expect(systemText(result[0])).toContain("PERSONALITY:");
     expect(result[1]).toEqual({ role: "user", content: "earlier question" });
-    expect(result[2]).toEqual({ role: "assistant", content: "earlier answer" });
+    // result[2] also gets a history cacheControl marker — the last assistant
+    // in the head becomes the cache breakpoint. Assert role + content only.
+    expect(result[2].role).toBe("assistant");
+    expect(result[2].content).toBe("earlier answer");
     expect(systemText(result[3])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
     expect(result[4]).toEqual({ role: "user", content: "latest question" });
   });
@@ -214,6 +217,89 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
     await runContextHandler(allMessages, { userId, ctx: EMPTY_PROFILE_CTX });
 
     expect(JSON.stringify(allMessages)).toBe(snapshot);
+  });
+});
+
+describe("coachAgentConfig.contextHandler — history cache breakpoint", () => {
+  const userId = "user_history_cache";
+
+  it("marks the last assistant message in history with anthropic cacheControl", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+      { role: "assistant", content: "a2" },
+      { role: "user", content: "q3" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const taggedAssistants = result.filter(
+      (m) => m.role === "assistant" && m.providerOptions?.anthropic?.cacheControl,
+    );
+    expect(taggedAssistants).toHaveLength(1);
+    expect(taggedAssistants[0].content).toBe("a2");
+  });
+
+  it("emits two cacheControl markers when history contains an assistant (static system + last assistant)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const tagged = result.filter((m) => m.providerOptions?.anthropic?.cacheControl);
+    expect(tagged).toHaveLength(2);
+    expect(tagged[0].role).toBe("system");
+    expect(tagged[1].role).toBe("assistant");
+  });
+
+  it("emits only the static-system marker when history has no assistant yet", async () => {
+    const result = await runContextHandler([{ role: "user", content: "hi" }], {
+      userId,
+      ctx: EMPTY_PROFILE_CTX,
+    });
+
+    const tagged = result.filter((m) => m.providerOptions?.anthropic?.cacheControl);
+    expect(tagged).toHaveLength(1);
+    expect(tagged[0].role).toBe("system");
+  });
+
+  it("places the assistant cache marker before the snapshot system message", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const assistantIdx = result.findIndex(
+      (m) => m.role === "assistant" && m.providerOptions?.anthropic?.cacheControl,
+    );
+    const snapshotIdx = result.findIndex(
+      (m) =>
+        m.role === "system" &&
+        typeof m.content === "string" &&
+        m.content.startsWith("<training-data>"),
+    );
+    expect(assistantIdx).toBeGreaterThanOrEqual(0);
+    expect(snapshotIdx).toBeGreaterThan(assistantIdx);
+  });
+});
+
+describe("coachAgentConfig.tools — Anthropic tool cache breakpoint", () => {
+  it("marks exactly one tool with anthropic cacheControl — the last one in the registry", () => {
+    const toolEntries = Object.entries(coachAgentConfig.tools);
+    const tagged = toolEntries.filter(
+      ([, t]) =>
+        (t as { providerOptions?: { anthropic?: { cacheControl?: unknown } } }).providerOptions
+          ?.anthropic?.cacheControl,
+    );
+    expect(tagged).toHaveLength(1);
+    expect(tagged[0][0]).toBe(toolEntries[toolEntries.length - 1][0]);
   });
 });
 
