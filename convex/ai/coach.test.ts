@@ -135,7 +135,7 @@ describe("coachAgentConfig.contextHandler — Anthropic prompt caching", () => {
 describe("coachAgentConfig.contextHandler — training snapshot placement", () => {
   const userId = "user_snapshot_test";
 
-  it("inserts the snapshot as a system message immediately before the final turn", async () => {
+  it("inserts the snapshot as a system message directly after the static prefix (Gemini rejects mid-conversation system messages)", async () => {
     const messages: ModelMessage[] = [
       { role: "user", content: "earlier question" },
       { role: "assistant", content: "earlier answer" },
@@ -146,10 +146,24 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
 
     expect(result).toHaveLength(5);
     expect(systemText(result[0])).toContain("PERSONALITY:");
-    expect(result[1]).toEqual({ role: "user", content: "earlier question" });
-    expect(result[2]).toEqual({ role: "assistant", content: "earlier answer" });
-    expect(systemText(result[3])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
+    expect(systemText(result[1])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
+    expect(result[2]).toEqual({ role: "user", content: "earlier question" });
+    expect(result[3]).toEqual({ role: "assistant", content: "earlier answer" });
     expect(result[4]).toEqual({ role: "user", content: "latest question" });
+  });
+
+  it("places every system message at the start of the conversation (no mid-conversation system messages)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "earlier question" },
+      { role: "assistant", content: "earlier answer" },
+      { role: "user", content: "latest question" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const firstNonSystem = result.findIndex((m) => m.role !== "system");
+    const remaining = result.slice(firstNonSystem);
+    expect(remaining.every((m) => m.role !== "system")).toBe(true);
   });
 
   it("keeps exactly one cacheControl marker on the static prefix regardless of snapshot presence", async () => {
@@ -189,7 +203,7 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
 
     const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
 
-    const olderUser = result[1];
+    const olderUser = result[2];
     expect(olderUser).toEqual({ role: "user", content: "earlier question" });
     expect(typeof olderUser.content === "string" && olderUser.content).not.toContain(
       "<training-data>",

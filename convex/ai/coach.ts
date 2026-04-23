@@ -202,16 +202,15 @@ export function makeCoachAgentConfig(userTimezone?: string) {
         return [staticSystem, ...messages];
       }
 
-      // Trailing position (not system[1]) keeps the cached prefix byte-stable
-      // so Anthropic's cache breakpoint on STATIC_INSTRUCTIONS holds across calls.
+      // Gemini rejects system messages anywhere except the start of the
+      // conversation (UnsupportedFunctionalityError), so the snapshot must sit
+      // in the system prefix even though it busts Anthropic's prefix cache.
       const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
       const snapshotSystem: ModelMessage = {
         role: "system",
         content: `<training-data>\n${escapeTrainingDataTags(snapshot)}\n</training-data>`,
       };
-      const head = messages.slice(0, -1);
-      const tail = messages[messages.length - 1];
-      return [staticSystem, ...head, snapshotSystem, tail];
+      return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };
 }
