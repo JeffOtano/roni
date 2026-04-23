@@ -227,9 +227,9 @@ describe("normalizeUserMetrics", () => {
 });
 
 describe("normalizePulseOx", () => {
-  it("averages timeOffsetSpo2Values into a single avgSpo2", () => {
+  it("reads from the 'pulseox' envelope key and averages SpO2 values", () => {
     const [row] = normalizePulseOx({
-      pulseOx: [
+      pulseox: [
         {
           userId: "u1",
           summaryId: "Example1234",
@@ -243,9 +243,17 @@ describe("normalizePulseOx", () => {
     expect(row.fields.avgSpo2).toBeCloseTo(95, 5);
   });
 
+  it("returns empty when the envelope uses the wrong key (e.g. pulseOx)", () => {
+    expect(
+      normalizePulseOx({
+        pulseOx: [{ calendarDate: "2018-08-27", timeOffsetSpo2Values: { "0": 95 } }],
+      }),
+    ).toEqual([]);
+  });
+
   it("leaves avgSpo2 undefined when the map is absent or all-invalid", () => {
     const [row] = normalizePulseOx({
-      pulseOx: [{ calendarDate: "2018-08-27", timeOffsetSpo2Values: {} }],
+      pulseox: [{ calendarDate: "2018-08-27", timeOffsetSpo2Values: {} }],
     });
     expect(row.fields.avgSpo2).toBeUndefined();
   });
@@ -270,10 +278,10 @@ describe("normalizeSkinTemp", () => {
 });
 
 describe("normalizeRespiration", () => {
-  it("derives calendarDate from startTimeInSeconds and averages breaths", () => {
-    const startUtc = Date.UTC(2019, 8, 11, 0, 0, 0) / 1000; // 2019-09-11 00:00 UTC
+  it("reads from the 'allDayRespiration' envelope, derives calendarDate, averages breaths", () => {
+    const startUtc = Date.UTC(2019, 8, 11, 0, 0, 0) / 1000;
     const [row] = normalizeRespiration({
-      respiration: [
+      allDayRespiration: [
         {
           userId: "u1",
           summaryId: "x15372ea",
@@ -288,11 +296,18 @@ describe("normalizeRespiration", () => {
     expect(row.fields.avgRespirationRate).toBeCloseTo(14, 5);
   });
 
+  it("returns empty when the envelope uses the wrong key (e.g. 'respiration')", () => {
+    expect(
+      normalizeRespiration({
+        respiration: [{ startTimeInSeconds: 1, timeOffsetEpochToBreaths: { "0": 14 } }],
+      }),
+    ).toEqual([]);
+  });
+
   it("uses the local offset when bucketing by calendarDate", () => {
-    // 2019-09-11 23:30 UTC with -7h offset -> local 2019-09-11 16:30
     const startUtc = Date.UTC(2019, 8, 11, 23, 30, 0) / 1000;
     const [row] = normalizeRespiration({
-      respiration: [
+      allDayRespiration: [
         {
           startTimeInSeconds: startUtc,
           startTimeOffsetInSeconds: -7 * 3600,
@@ -305,7 +320,7 @@ describe("normalizeRespiration", () => {
 
   it("drops entries with no map values to average", () => {
     const rows = normalizeRespiration({
-      respiration: [
+      allDayRespiration: [
         {
           startTimeInSeconds: 1_700_000_000,
           startTimeOffsetInSeconds: 0,

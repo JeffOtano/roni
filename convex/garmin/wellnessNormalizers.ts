@@ -235,7 +235,9 @@ function averageMapValues(map: unknown): number | undefined {
 }
 
 export function normalizePulseOx(rawPayload: unknown): WellnessDailyPartial[] {
-  return normalizeSummaryList("pulseOx", rawPayload, (entry) => ({
+  // Garmin's Push body keys Pulse Ox under "pulseox" (lowercase) even
+  // though the webhook URL path + backfill path use "pulseOx".
+  return normalizeSummaryList("pulseox", rawPayload, (entry) => ({
     avgSpo2: averageMapValues(entry.timeOffsetSpo2Values),
   }));
 }
@@ -269,7 +271,9 @@ function localCalendarDate(
 
 export function normalizeRespiration(rawPayload: unknown): WellnessDailyPartial[] {
   if (!isRecord(rawPayload)) return [];
-  const list = rawPayload.respiration;
+  // Garmin's Push body keys respiration under "allDayRespiration"
+  // despite the webhook URL path + backfill path being "respiration".
+  const list = rawPayload.allDayRespiration;
   if (!Array.isArray(list)) return [];
   return list.flatMap((entry) => {
     if (!isRecord(entry)) return [];
@@ -283,6 +287,22 @@ export function normalizeRespiration(rawPayload: unknown): WellnessDailyPartial[
     return [{ calendarDate, fields: { avgRespirationRate: avg } }];
   });
 }
+
+/**
+ * Map from our webhook-path summary key (which mirrors Garmin's URL +
+ * backfill path name) to the key Garmin actually uses inside the Push
+ * body envelope. Most types match; Pulse Ox and Respiration diverge.
+ */
+export const WELLNESS_ENVELOPE_KEYS = {
+  dailies: "dailies",
+  sleeps: "sleeps",
+  stressDetails: "stressDetails",
+  hrv: "hrv",
+  userMetrics: "userMetrics",
+  pulseOx: "pulseox",
+  respiration: "allDayRespiration",
+  skinTemp: "skinTemp",
+} as const;
 
 /**
  * Pull the first `userId` from any health summary envelope. Health API

@@ -28,6 +28,7 @@ import {
   normalizeSleeps,
   normalizeStressDetails,
   normalizeUserMetrics,
+  WELLNESS_ENVELOPE_KEYS,
   type WellnessDailyPartial,
 } from "./wellnessNormalizers";
 
@@ -206,7 +207,8 @@ async function handleWellness({
   rawPayload,
   summaryKey,
 }: WellnessHandlerArgs): Promise<void> {
-  const garminUserId = extractFirstUserIdFromWellness(summaryKey, rawPayload);
+  const envelopeKey = WELLNESS_ENVELOPE_KEYS[summaryKey];
+  const garminUserId = extractFirstUserIdFromWellness(envelopeKey, rawPayload);
   if (!garminUserId) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
