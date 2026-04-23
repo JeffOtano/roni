@@ -22,8 +22,12 @@ import {
   extractFirstUserIdFromWellness,
   normalizeDailies,
   normalizeHrv,
+  normalizePulseOx,
+  normalizeRespiration,
+  normalizeSkinTemp,
   normalizeSleeps,
   normalizeStressDetails,
+  normalizeUserMetrics,
   type WellnessDailyPartial,
 } from "./wellnessNormalizers";
 
@@ -42,6 +46,10 @@ export const GARMIN_PUSH_EVENT_TYPES = [
   "sleeps",
   "stressDetails",
   "hrv",
+  "userMetrics",
+  "pulseOx",
+  "respiration",
+  "skinTemp",
   "userPermissionChange",
   "deregistration",
 ] as const;
@@ -70,7 +78,11 @@ export const dispatchGarminWebhook = internalAction({
       eventType === "dailies" ||
       eventType === "sleeps" ||
       eventType === "stressDetails" ||
-      eventType === "hrv"
+      eventType === "hrv" ||
+      eventType === "userMetrics" ||
+      eventType === "pulseOx" ||
+      eventType === "respiration" ||
+      eventType === "skinTemp"
     ) {
       return await handleWellness({ ctx, eventId, rawPayload, summaryKey: eventType });
     }
@@ -135,7 +147,15 @@ async function handleActivities({ ctx, eventId, rawPayload }: WebhookHandlerArgs
   });
 }
 
-type WellnessSummaryKey = "dailies" | "sleeps" | "stressDetails" | "hrv";
+type WellnessSummaryKey =
+  | "dailies"
+  | "sleeps"
+  | "stressDetails"
+  | "hrv"
+  | "userMetrics"
+  | "pulseOx"
+  | "respiration"
+  | "skinTemp";
 
 interface WellnessHandlerArgs extends WebhookHandlerArgs {
   summaryKey: WellnessSummaryKey;
@@ -151,6 +171,14 @@ function normalizeForKey(key: WellnessSummaryKey, rawPayload: unknown): Wellness
       return normalizeStressDetails(rawPayload);
     case "hrv":
       return normalizeHrv(rawPayload);
+    case "userMetrics":
+      return normalizeUserMetrics(rawPayload);
+    case "pulseOx":
+      return normalizePulseOx(rawPayload);
+    case "respiration":
+      return normalizeRespiration(rawPayload);
+    case "skinTemp":
+      return normalizeSkinTemp(rawPayload);
   }
 }
 

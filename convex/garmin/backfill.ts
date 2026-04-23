@@ -33,7 +33,17 @@ const BACKFILL_BASE = "https://apis.garmin.com/wellness-api/rest/backfill";
  * per user since first connection, so each summary type has its own
  * quota and can safely coexist in one run.
  */
-const BACKFILL_SUMMARY_TYPES = ["activities", "dailies", "sleeps", "stressDetails", "hrv"] as const;
+const BACKFILL_SUMMARY_TYPES = [
+  "activities",
+  "dailies",
+  "sleeps",
+  "stressDetails",
+  "hrv",
+  "userMetrics",
+  "pulseOx",
+  "respiration",
+  "skinTemp",
+] as const;
 
 const MIN_DAYS = 1;
 /**

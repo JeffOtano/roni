@@ -47,6 +47,15 @@ export interface WellnessDailyFieldPatch {
   bmrKilocalories?: number;
   moderateIntensityMinutes?: number;
   vigorousIntensityMinutes?: number;
+
+  // Fitness + vital-sign averages
+  vo2Max?: number;
+  vo2MaxCycling?: number;
+  fitnessAge?: number;
+  fitnessAgeEnhanced?: boolean;
+  avgRespirationRate?: number;
+  avgSpo2?: number;
+  skinTempDeviationCelsius?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -190,6 +199,88 @@ export function normalizeStressDetails(rawPayload: unknown): WellnessDailyPartia
       bodyBatteryHighestValue: high,
       bodyBatteryLowestValue: low,
     };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// User Metrics (§7.6) — VO2max + fitness age, one value per calendar date
+// ---------------------------------------------------------------------------
+
+export function normalizeUserMetrics(rawPayload: unknown): WellnessDailyPartial[] {
+  return normalizeSummaryList("userMetrics", rawPayload, (entry) => ({
+    vo2Max: optionalNumber(entry.vo2Max),
+    vo2MaxCycling: optionalNumber(entry.vo2MaxCycling),
+    fitnessAge: optionalNumber(entry.fitnessAge),
+    fitnessAgeEnhanced: typeof entry.enhanced === "boolean" ? entry.enhanced : undefined,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Pulse Ox (§7.7) — SpO2 samples. We average the continuous measurement
+// window into a single daily value. Multiple summaries per day overwrite
+// (last-write-wins) which is acceptable for coaching-level trends.
+// ---------------------------------------------------------------------------
+
+function averageMapValues(map: unknown): number | undefined {
+  if (!isRecord(map)) return undefined;
+  let sum = 0;
+  let count = 0;
+  for (const value of Object.values(map)) {
+    const n = optionalNumber(value);
+    if (n === undefined) continue;
+    sum += n;
+    count++;
+  }
+  return count === 0 ? undefined : sum / count;
+}
+
+export function normalizePulseOx(rawPayload: unknown): WellnessDailyPartial[] {
+  return normalizeSummaryList("pulseOx", rawPayload, (entry) => ({
+    avgSpo2: averageMapValues(entry.timeOffsetSpo2Values),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Skin Temperature (§7.12) — per-night average deviation from baseline
+// ---------------------------------------------------------------------------
+
+export function normalizeSkinTemp(rawPayload: unknown): WellnessDailyPartial[] {
+  return normalizeSummaryList("skinTemp", rawPayload, (entry) => ({
+    skinTempDeviationCelsius: optionalNumber(entry.avgDeviationCelsius),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Respiration (§7.8) — breaths per minute. Respiration summaries don't
+// carry a calendarDate; derive one from startTimeInSeconds +
+// startTimeOffsetInSeconds so local-day bucketing is accurate. Multiple
+// summaries per day overwrite last-write-wins.
+// ---------------------------------------------------------------------------
+
+function localCalendarDate(
+  startTimeInSeconds: number | undefined,
+  offsetSeconds: number | undefined,
+): string | undefined {
+  if (startTimeInSeconds === undefined) return undefined;
+  const localEpochMs = (startTimeInSeconds + (offsetSeconds ?? 0)) * 1000;
+  const iso = new Date(localEpochMs).toISOString();
+  return iso.slice(0, 10); // YYYY-MM-DD
+}
+
+export function normalizeRespiration(rawPayload: unknown): WellnessDailyPartial[] {
+  if (!isRecord(rawPayload)) return [];
+  const list = rawPayload.respiration;
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((entry) => {
+    if (!isRecord(entry)) return [];
+    const calendarDate = localCalendarDate(
+      optionalNumber(entry.startTimeInSeconds),
+      optionalNumber(entry.startTimeOffsetInSeconds),
+    );
+    if (!calendarDate) return [];
+    const avg = averageMapValues(entry.timeOffsetEpochToBreaths);
+    if (avg === undefined) return [];
+    return [{ calendarDate, fields: { avgRespirationRate: avg } }];
   });
 }
 

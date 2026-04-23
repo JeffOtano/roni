@@ -749,6 +749,20 @@ export default defineSchema({
     moderateIntensityMinutes: v.optional(v.number()),
     vigorousIntensityMinutes: v.optional(v.number()),
 
+    // Fitness + per-period vital signs (User Metrics / Pulse Ox /
+    // Respiration / Skin Temperature)
+    vo2Max: v.optional(v.number()),
+    vo2MaxCycling: v.optional(v.number()),
+    fitnessAge: v.optional(v.number()),
+    /** True when Garmin used the enhanced fitness-age algorithm. */
+    fitnessAgeEnhanced: v.optional(v.boolean()),
+    /** Breaths per minute averaged across the respiration measurement window. */
+    avgRespirationRate: v.optional(v.number()),
+    /** Blood oxygen saturation averaged across the pulse-ox measurement window (%). */
+    avgSpo2: v.optional(v.number()),
+    /** Deviation from baseline skin temperature during sleep (Celsius). */
+    skinTempDeviationCelsius: v.optional(v.number()),
+
     /** Last time any webhook updated this row. */
     lastIngestedAt: v.number(),
   })

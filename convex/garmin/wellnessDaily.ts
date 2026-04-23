@@ -38,6 +38,14 @@ const patchValidator = v.object({
   bmrKilocalories: v.optional(v.number()),
   moderateIntensityMinutes: v.optional(v.number()),
   vigorousIntensityMinutes: v.optional(v.number()),
+
+  vo2Max: v.optional(v.number()),
+  vo2MaxCycling: v.optional(v.number()),
+  fitnessAge: v.optional(v.number()),
+  fitnessAgeEnhanced: v.optional(v.boolean()),
+  avgRespirationRate: v.optional(v.number()),
+  avgSpo2: v.optional(v.number()),
+  skinTempDeviationCelsius: v.optional(v.number()),
 });
 
 export const upsertWellnessDaily = internalMutation({

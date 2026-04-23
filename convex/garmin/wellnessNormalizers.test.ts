@@ -3,8 +3,12 @@ import {
   extractFirstUserIdFromWellness,
   normalizeDailies,
   normalizeHrv,
+  normalizePulseOx,
+  normalizeRespiration,
+  normalizeSkinTemp,
   normalizeSleeps,
   normalizeStressDetails,
+  normalizeUserMetrics,
 } from "./wellnessNormalizers";
 
 // Fixtures condensed from Health API V1.2.3 examples (§7.1, §7.3, §7.5,
@@ -187,6 +191,129 @@ describe("normalizeStressDetails", () => {
     });
     expect(rows[0].fields.bodyBatteryHighestValue).toBe(60);
     expect(rows[0].fields.bodyBatteryLowestValue).toBe(50);
+  });
+});
+
+describe("normalizeUserMetrics", () => {
+  it("maps vo2Max, vo2MaxCycling, fitnessAge, and the enhanced flag", () => {
+    const [row] = normalizeUserMetrics({
+      userMetrics: [
+        {
+          userId: "u1",
+          summaryId: "EXAMPLE_843244",
+          calendarDate: "2017-03-23",
+          vo2Max: 48.0,
+          vo2MaxCycling: 52.0,
+          enhanced: true,
+          fitnessAge: 32,
+        },
+      ],
+    });
+    expect(row.calendarDate).toBe("2017-03-23");
+    expect(row.fields).toEqual({
+      vo2Max: 48.0,
+      vo2MaxCycling: 52.0,
+      fitnessAge: 32,
+      fitnessAgeEnhanced: true,
+    });
+  });
+
+  it("leaves enhanced undefined when the field is missing", () => {
+    const [row] = normalizeUserMetrics({
+      userMetrics: [{ calendarDate: "2017-03-23", vo2Max: 45 }],
+    });
+    expect(row.fields.fitnessAgeEnhanced).toBeUndefined();
+  });
+});
+
+describe("normalizePulseOx", () => {
+  it("averages timeOffsetSpo2Values into a single avgSpo2", () => {
+    const [row] = normalizePulseOx({
+      pulseOx: [
+        {
+          userId: "u1",
+          summaryId: "Example1234",
+          calendarDate: "2018-08-27",
+          timeOffsetSpo2Values: { "0": 94, "60": 95, "120": 96 },
+          onDemand: false,
+        },
+      ],
+    });
+    expect(row.calendarDate).toBe("2018-08-27");
+    expect(row.fields.avgSpo2).toBeCloseTo(95, 5);
+  });
+
+  it("leaves avgSpo2 undefined when the map is absent or all-invalid", () => {
+    const [row] = normalizePulseOx({
+      pulseOx: [{ calendarDate: "2018-08-27", timeOffsetSpo2Values: {} }],
+    });
+    expect(row.fields.avgSpo2).toBeUndefined();
+  });
+});
+
+describe("normalizeSkinTemp", () => {
+  it("maps avgDeviationCelsius directly", () => {
+    const [row] = normalizeSkinTemp({
+      skinTemp: [
+        {
+          userId: "u1",
+          summaryId: "example-65f83c38",
+          calendarDate: "2024-03-18",
+          avgDeviationCelsius: -1.6,
+          durationInSeconds: 1980,
+        },
+      ],
+    });
+    expect(row.calendarDate).toBe("2024-03-18");
+    expect(row.fields.skinTempDeviationCelsius).toBe(-1.6);
+  });
+});
+
+describe("normalizeRespiration", () => {
+  it("derives calendarDate from startTimeInSeconds and averages breaths", () => {
+    const startUtc = Date.UTC(2019, 8, 11, 0, 0, 0) / 1000; // 2019-09-11 00:00 UTC
+    const [row] = normalizeRespiration({
+      respiration: [
+        {
+          userId: "u1",
+          summaryId: "x15372ea",
+          startTimeInSeconds: startUtc,
+          durationInSeconds: 900,
+          startTimeOffsetInSeconds: 0,
+          timeOffsetEpochToBreaths: { "0": 14, "60": 16, "120": 12 },
+        },
+      ],
+    });
+    expect(row.calendarDate).toBe("2019-09-11");
+    expect(row.fields.avgRespirationRate).toBeCloseTo(14, 5);
+  });
+
+  it("uses the local offset when bucketing by calendarDate", () => {
+    // 2019-09-11 23:30 UTC with -7h offset -> local 2019-09-11 16:30
+    const startUtc = Date.UTC(2019, 8, 11, 23, 30, 0) / 1000;
+    const [row] = normalizeRespiration({
+      respiration: [
+        {
+          startTimeInSeconds: startUtc,
+          startTimeOffsetInSeconds: -7 * 3600,
+          timeOffsetEpochToBreaths: { "0": 14 },
+        },
+      ],
+    });
+    expect(row.calendarDate).toBe("2019-09-11");
+  });
+
+  it("drops entries with no map values to average", () => {
+    const rows = normalizeRespiration({
+      respiration: [
+        {
+          startTimeInSeconds: 1_700_000_000,
+          startTimeOffsetInSeconds: 0,
+          timeOffsetEpochToBreaths: {},
+        },
+      ],
+    });
+    expect(rows).toEqual([]);
   });
 });
 
