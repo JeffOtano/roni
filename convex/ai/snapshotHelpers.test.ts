@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildExerciseCatalogSection,
   capitalizeWorkoutType,
   computeAge,
   formatExternalActivityLine,
@@ -9,8 +8,7 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./snapshotHelpers";
-import type { ExternalActivity, Movement } from "../tonal/types";
-import type { OwnedAccessories } from "../tonal/accessories";
+import type { ExternalActivity } from "../tonal/types";
 
 // ---------------------------------------------------------------------------
 // Test data builders
@@ -33,40 +31,6 @@ function makeExternalActivity(overrides: Partial<ExternalActivity> = {}): Extern
     source: "Apple Watch",
     externalId: "ext-id-1",
     deviceId: "device-1",
-    ...overrides,
-  };
-}
-
-function makeMovement(overrides: Partial<Movement> = {}): Movement {
-  return {
-    id: "move-1",
-    name: "Bench Press",
-    shortName: "Bench Press",
-    muscleGroups: ["Chest"],
-    inFreeLift: false,
-    onMachine: true,
-    countReps: true,
-    isTwoSided: false,
-    isBilateral: true,
-    isAlternating: false,
-    descriptionHow: "Press the bar",
-    descriptionWhy: "Build chest",
-    skillLevel: 3,
-    publishState: "published",
-    sortOrder: 1,
-    ...overrides,
-  };
-}
-
-function makeOwnedAccessories(overrides: Partial<OwnedAccessories> = {}): OwnedAccessories {
-  return {
-    smartHandles: true,
-    smartBar: true,
-    rope: true,
-    roller: true,
-    weightBar: true,
-    pilatesLoops: true,
-    ankleStraps: true,
     ...overrides,
   };
 }
@@ -233,95 +197,6 @@ describe("SNAPSHOT_MAX_CHARS", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// buildExerciseCatalogSection
-// ---------------------------------------------------------------------------
-
-describe("buildExerciseCatalogSection", () => {
-  const machineInfo = {
-    resistanceType: "cable",
-    spotterDisabled: false,
-    eccentricDisabled: false,
-    chainsDisabled: false,
-    burnoutDisabled: false,
-  };
-
-  it("returns null for empty movements array", () => {
-    expect(buildExerciseCatalogSection([], undefined)).toBeNull();
-  });
-
-  it("groups published movements by accessory", () => {
-    const movements: Movement[] = [
-      makeMovement({
-        name: "Bench Press",
-        onMachineInfo: { accessory: "Smart Bar", ...machineInfo },
-      }),
-      makeMovement({
-        id: "m2",
-        name: "Bicep Curl",
-        onMachineInfo: { accessory: "Smart Handles", ...machineInfo },
-      }),
-    ];
-    const result = buildExerciseCatalogSection(movements, undefined);
-
-    expect(result).not.toBeNull();
-    expect(result!.lines.some((l) => l.includes("Bar"))).toBe(true);
-    expect(result!.lines.some((l) => l.includes("Bench Press"))).toBe(true);
-  });
-
-  it("filters out unpublished movements", () => {
-    const movements: Movement[] = [
-      makeMovement({ name: "Published Move", publishState: "published" }),
-      makeMovement({ id: "m2", name: "Draft Move", publishState: "draft" }),
-    ];
-    const result = buildExerciseCatalogSection(movements, undefined);
-
-    expect(result!.lines.join("\n")).toContain("Published Move");
-    expect(result!.lines.join("\n")).not.toContain("Draft Move");
-  });
-
-  it("filters out placeholder movements", () => {
-    const movements: Movement[] = [
-      makeMovement({ name: "Handle Move" }),
-      makeMovement({ id: "m2", name: "Real Exercise" }),
-    ];
-    const result = buildExerciseCatalogSection(movements, undefined);
-
-    expect(result!.lines.join("\n")).not.toContain("Handle Move");
-    expect(result!.lines.join("\n")).toContain("Real Exercise");
-  });
-
-  it("filters movements for unowned accessories", () => {
-    const movements: Movement[] = [
-      makeMovement({ name: "Bar Ex", onMachineInfo: { accessory: "Smart Bar", ...machineInfo } }),
-      makeMovement({
-        id: "m2",
-        name: "Handle Ex",
-        onMachineInfo: { accessory: "Smart Handles", ...machineInfo },
-      }),
-    ];
-    const result = buildExerciseCatalogSection(
-      movements,
-      makeOwnedAccessories({ smartBar: false }),
-    );
-
-    expect(result!.lines.join("\n")).not.toContain("Bar Ex");
-    expect(result!.lines.join("\n")).toContain("Handle Ex");
-  });
-
-  it("returns null when all movements are filtered out", () => {
-    expect(
-      buildExerciseCatalogSection([makeMovement({ name: "Handle Move" })], undefined),
-    ).toBeNull();
-  });
-
-  it("has priority 6.5", () => {
-    const result = buildExerciseCatalogSection([makeMovement()], undefined);
-    expect(result!.priority).toBe(6.5);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // computeAge
 // ---------------------------------------------------------------------------
 

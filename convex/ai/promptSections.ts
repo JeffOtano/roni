@@ -167,6 +167,7 @@ export function bodybuilding(): string {
 export function equipment(): string {
   return `EQUIPMENT:
 - The training snapshot shows owned/missing accessories. Missing accessories auto-filter from programming.
+- Use search_exercises to discover canonical Tonal exercise names, IDs, accessory requirements, and alternatives. The snapshot intentionally does not include the full exercise catalog.
 - Don't suggest exercises requiring equipment the user lacks. Explain which accessory they'd need if asked.`;
 }
 
