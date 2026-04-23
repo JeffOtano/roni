@@ -7,26 +7,107 @@
 import { v } from "convex/values";
 import type { ActionCtx } from "../_generated/server";
 import { internalAction } from "../_generated/server";
-import { fetchRecentWorkoutActivities, fetchWorkoutActivitiesPage } from "./client";
+import type { Id } from "../_generated/dataModel";
+import { fetchRecentWorkoutActivities, fetchWorkoutActivitiesPage, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { cachedFetch, fetchWorkoutMetaBatch, toActivity } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
 import type { Activity, WorkoutActivityDetail } from "./types";
+import type { WorkoutMeta } from "./workoutMeta";
 
 const GHOST_WORKOUT_ID = "00000000-0000-0000-0000-000000000000";
+const WORKOUT_HISTORY_PAGE_LIMIT = 200;
+
+interface ActivityPreviewMeta extends WorkoutMeta {
+  activityId: string;
+  workoutId: string;
+}
+
+function optionalString(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function projectActivityPreviewMeta(activity: Activity): ActivityPreviewMeta {
+  const preview = activity.workoutPreview;
+  const meta: ActivityPreviewMeta = {
+    activityId: activity.activityId,
+    workoutId: preview.workoutId,
+  };
+  const title = optionalString(preview.workoutTitle);
+  const targetArea = optionalString(preview.targetArea);
+  const programName = optionalString(preview.programName);
+  if (title) meta.title = title;
+  if (targetArea) meta.targetArea = targetArea;
+  if (programName) meta.programName = programName;
+  return meta;
+}
+
+function mergeWorkoutMeta(
+  workoutMeta: WorkoutMeta | undefined,
+  activityMeta: WorkoutMeta | undefined,
+): WorkoutMeta | undefined {
+  // The precedence is asymmetric: workoutMeta from /v6/workouts/{id} has the
+  // better title/targetArea, while activityMeta from legacy /activities is the
+  // authoritative source for programName.
+  if (!workoutMeta) return activityMeta;
+  if (!activityMeta) return workoutMeta;
+  return {
+    title: workoutMeta.title ?? activityMeta.title,
+    targetArea: workoutMeta.targetArea ?? activityMeta.targetArea,
+    programName: activityMeta.programName ?? workoutMeta.programName,
+  };
+}
+
+async function fetchActivityPreviewMeta(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  token: string,
+  tonalUserId: string,
+  offset: number,
+  limit: number,
+): Promise<Map<string, ActivityPreviewMeta>> {
+  try {
+    const previews = await cachedFetch<ActivityPreviewMeta[]>(ctx, {
+      userId,
+      dataType: `activityPreviewMeta:${offset}:${limit}`,
+      ttl: CACHE_TTLS.workoutHistory,
+      fetcher: async () => {
+        const activities = await tonalFetch<Activity[]>(
+          token,
+          `/v6/users/${tonalUserId}/activities?offset=${offset}&limit=${limit}`,
+        );
+        return activities.map(projectActivityPreviewMeta);
+      },
+    });
+    return new Map(previews.map((preview) => [preview.activityId, preview]));
+  } catch (error) {
+    console.warn("[workoutHistory] activity preview metadata unavailable", error);
+    return new Map();
+  }
+}
 
 async function enrichWorkoutActivities(
   ctx: ActionCtx,
+  userId: Id<"users">,
   token: string,
+  tonalUserId: string,
   items: WorkoutActivityDetail[],
+  previewOffset: number,
+  previewLimit: number,
 ): Promise<Activity[]> {
   const real = items.filter(
     (wa) => wa.workoutId !== GHOST_WORKOUT_ID || wa.totalVolume > 0 || wa.totalConcentricWork > 0,
   );
   if (real.length === 0) return [];
   const ids = [...new Set(real.map((w) => w.workoutId))];
-  const meta = await fetchWorkoutMetaBatch(ctx, token, ids);
-  return real.map((wa) => toActivity(wa, meta.get(wa.workoutId)));
+  const [workoutMeta, activityMeta] = await Promise.all([
+    fetchWorkoutMetaBatch(ctx, token, ids),
+    fetchActivityPreviewMeta(ctx, userId, token, tonalUserId, previewOffset, previewLimit),
+  ]);
+  return real.map((wa) =>
+    toActivity(wa, mergeWorkoutMeta(workoutMeta.get(wa.workoutId), activityMeta.get(wa.id))),
+  );
 }
 
 /** Fetch recent workout history (newest 200). Used by incremental sync. */
@@ -42,8 +123,17 @@ export const fetchWorkoutHistory = internalAction({
           const items = await fetchRecentWorkoutActivities<WorkoutActivityDetail>(
             token,
             tonalUserId,
+            WORKOUT_HISTORY_PAGE_LIMIT,
           );
-          return enrichWorkoutActivities(ctx, token, items);
+          return enrichWorkoutActivities(
+            ctx,
+            userId,
+            token,
+            tonalUserId,
+            items,
+            0,
+            WORKOUT_HISTORY_PAGE_LIMIT,
+          );
         },
       });
       return limit != null ? activities.slice(0, limit) : activities;
@@ -73,8 +163,17 @@ export const fetchWorkoutHistoryPage = internalAction({
             token,
             tonalUserId,
             offset,
+            WORKOUT_HISTORY_PAGE_LIMIT,
           );
-          const activities = await enrichWorkoutActivities(ctx, token, items);
+          const activities = await enrichWorkoutActivities(
+            ctx,
+            userId,
+            token,
+            tonalUserId,
+            items,
+            offset,
+            WORKOUT_HISTORY_PAGE_LIMIT,
+          );
           return { activities, pageSize: items.length, pgTotal };
         },
       }),

@@ -8,8 +8,10 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { isDeletionInProgress } from "../lib/auth";
 import { afterInsert as afterPerformanceInsert } from "../personalRecords";
+import { DEFAULT_TARGET_AREA, DEFAULT_WORKOUT_TITLE } from "./workoutMeta";
 
 // ---------------------------------------------------------------------------
 // Shared validators (exported for action payload typing)
@@ -26,6 +28,8 @@ export const workoutValidator = v.object({
   workoutType: v.string(),
   tonalWorkoutId: v.optional(v.string()),
 });
+
+type WorkoutPayload = typeof workoutValidator.type;
 
 export const performanceValidator = v.object({
   activityId: v.string(),
@@ -71,6 +75,59 @@ export const getExistingActivityIds = internalQuery({
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
+
+function isUsefulTitle(title: string): boolean {
+  return title.trim() !== "" && title !== DEFAULT_WORKOUT_TITLE;
+}
+
+function buildMetadataPatch(existing: Doc<"completedWorkouts">, next: WorkoutPayload) {
+  const patch: {
+    title?: string;
+    targetArea?: string;
+    workoutType?: string;
+    tonalWorkoutId?: string;
+  } = {};
+
+  if (isUsefulTitle(next.title) && existing.title !== next.title) {
+    patch.title = next.title;
+  }
+  if (next.targetArea.trim() !== "" && next.targetArea !== DEFAULT_TARGET_AREA) {
+    if (existing.targetArea !== next.targetArea) patch.targetArea = next.targetArea;
+  }
+  if (next.workoutType.trim() !== "" && existing.workoutType !== next.workoutType) {
+    patch.workoutType = next.workoutType;
+  }
+  if (next.tonalWorkoutId && existing.tonalWorkoutId !== next.tonalWorkoutId) {
+    patch.tonalWorkoutId = next.tonalWorkoutId;
+  }
+
+  return patch;
+}
+
+/** Refresh display metadata for already-synced workouts without reprocessing sets. */
+export const refreshCompletedWorkoutMetadata = internalMutation({
+  args: { userId: v.id("users"), workouts: v.array(workoutValidator) },
+  handler: async (ctx, { userId, workouts }) => {
+    if (await isDeletionInProgress(ctx, userId)) return 0;
+    let updated = 0;
+    const now = Date.now();
+    for (const w of workouts) {
+      const existing = await ctx.db
+        .query("completedWorkouts")
+        .withIndex("by_userId_activityId", (q) =>
+          q.eq("userId", userId).eq("activityId", w.activityId),
+        )
+        .first();
+      if (!existing) continue;
+
+      const patch = buildMetadataPatch(existing, w);
+      if (Object.keys(patch).length === 0) continue;
+      await ctx.db.patch(existing._id, { ...patch, syncedAt: now });
+      updated++;
+    }
+    return updated;
+  },
+});
 
 /** Insert new completed workouts (skips duplicates by activityId). */
 export const persistCompletedWorkouts = internalMutation({
