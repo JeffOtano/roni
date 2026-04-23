@@ -1,4 +1,4 @@
-import type { ModelMessage, Tool, ToolSet } from "ai";
+import type { Tool, ToolSet } from "ai";
 
 // Anthropic caches every block up to and including a marked one. Marking the
 // last tool lets tool-defs cache independently of STATIC_INSTRUCTIONS, so a
@@ -20,30 +20,4 @@ export function withAnthropicToolCache<T extends ToolSet>(tools: T): T {
     },
   };
   return { ...tools, [lastKey]: annotated };
-}
-
-// Marks the last assistant turn in history with cacheControl so Anthropic can
-// cache through it. Snapshot + current turn sit after the marker and stay fresh.
-export function withAnthropicHistoryCache(messages: ModelMessage[]): ModelMessage[] {
-  let lastAssistantIdx = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "assistant") {
-      lastAssistantIdx = i;
-      break;
-    }
-  }
-  if (lastAssistantIdx === -1) return messages;
-  return messages.map((m, i) => {
-    if (i !== lastAssistantIdx) return m;
-    return {
-      ...m,
-      providerOptions: {
-        ...m.providerOptions,
-        anthropic: {
-          ...m.providerOptions?.anthropic,
-          cacheControl: { type: "ephemeral" },
-        },
-      },
-    };
-  });
 }
