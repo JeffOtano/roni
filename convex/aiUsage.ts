@@ -76,6 +76,71 @@ export const record = internalMutation({
   },
 });
 
+const DEFAULT_CACHE_RATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface CacheHitRateRow {
+  provider: string;
+  rows: number;
+  inputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  cacheReadRatio: number;
+}
+
+export interface AiUsageTokenRow {
+  provider: string;
+  inputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}
+
+export function aggregateCacheHitsByProvider(rows: AiUsageTokenRow[]): CacheHitRateRow[] {
+  const byProvider = new Map<
+    string,
+    { rows: number; inputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
+  >();
+  for (const row of rows) {
+    // Routing rows (`provider: "local"`) have no model call, skip them.
+    if (row.inputTokens === 0) continue;
+    const agg = byProvider.get(row.provider) ?? {
+      rows: 0,
+      inputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    agg.rows += 1;
+    agg.inputTokens += row.inputTokens;
+    agg.cacheReadTokens += row.cacheReadTokens ?? 0;
+    agg.cacheWriteTokens += row.cacheWriteTokens ?? 0;
+    byProvider.set(row.provider, agg);
+  }
+
+  return Array.from(byProvider.entries())
+    .map(([provider, agg]) => ({
+      provider,
+      ...agg,
+      cacheReadRatio: agg.inputTokens === 0 ? 0 : agg.cacheReadTokens / agg.inputTokens,
+    }))
+    .sort((a, b) => b.inputTokens - a.inputTokens);
+}
+
+/**
+ * Aggregate cache-read ratio grouped by provider over a recent window.
+ * Run ad-hoc (e.g. `npx convex run aiUsage:getCacheHitRateByProvider --prod`)
+ * to decide whether explicit provider caching is worth pursuing.
+ */
+export const getCacheHitRateByProvider = internalQuery({
+  args: { windowMs: v.optional(v.number()) },
+  handler: async (ctx, { windowMs = DEFAULT_CACHE_RATE_WINDOW_MS }) => {
+    const since = Date.now() - windowMs;
+    const rows = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
+      .collect();
+    return aggregateCacheHitsByProvider(rows);
+  },
+});
+
 export const recordRouting = internalMutation({
   args: {
     userId: v.string(),
