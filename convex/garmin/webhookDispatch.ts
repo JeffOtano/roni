@@ -60,19 +60,37 @@ export const dispatchGarminWebhook = internalAction({
   args: {
     eventId: v.id("garminWebhookEvents"),
     eventType: v.string(),
-    rawPayload: v.any(),
+    /**
+     * Raw JSON body as received from Garmin. Kept as a string across
+     * the function boundary because some summary payloads (notably
+     * dailies) contain maps with thousands of entries that exceed
+     * Convex's 1024-fields-per-object arg validator.
+     */
+    rawPayload: v.string(),
   },
   handler: async (ctx, { eventId, eventType, rawPayload }) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawPayload);
+    } catch {
+      await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+        eventId,
+        status: "error",
+        errorReason: "failed to parse raw payload as JSON",
+      });
+      return;
+    }
+
     // userPermissionChange / deregistration carry no domain data — they
     // update the connection row directly.
     if (eventType === "deregistration") {
-      return await handleDeregistration({ ctx, eventId, rawPayload });
+      return await handleDeregistration({ ctx, eventId, rawPayload: parsed });
     }
     if (eventType === "userPermissionChange") {
-      return await handlePermissionChange({ ctx, eventId, rawPayload });
+      return await handlePermissionChange({ ctx, eventId, rawPayload: parsed });
     }
     if (eventType === "activities") {
-      return await handleActivities({ ctx, eventId, rawPayload });
+      return await handleActivities({ ctx, eventId, rawPayload: parsed });
     }
     if (
       eventType === "dailies" ||
@@ -84,7 +102,7 @@ export const dispatchGarminWebhook = internalAction({
       eventType === "respiration" ||
       eventType === "skinTemp"
     ) {
-      return await handleWellness({ ctx, eventId, rawPayload, summaryKey: eventType });
+      return await handleWellness({ ctx, eventId, rawPayload: parsed, summaryKey: eventType });
     }
 
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {

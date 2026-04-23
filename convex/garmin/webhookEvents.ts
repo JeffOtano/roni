@@ -27,7 +27,13 @@ export const recordReceived = internalMutation({
     eventType: v.string(),
     garminUserId: v.optional(v.string()),
     userId: v.optional(v.id("users")),
-    rawPayload: v.any(),
+    /**
+     * Raw JSON body as received from Garmin. Stored verbatim as a
+     * string so we survive the 1024-fields-per-object Convex arg/doc
+     * limit (e.g. dailies payloads pack thousands of HR samples into
+     * `timeOffsetHeartRateSamples`). Replay consumers JSON.parse it.
+     */
+    rawPayload: v.string(),
   },
   handler: async (ctx, args): Promise<Id<"garminWebhookEvents">> => {
     const now = Date.now();

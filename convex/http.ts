@@ -90,22 +90,26 @@ for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
         return new Response(sigCheck.reason, { status: 401 });
       }
 
-      let payload: unknown;
+      // Validate JSON here to reject malformed payloads up front, but
+      // keep the raw text form for persistence + dispatcher. Garmin's
+      // dailies summary carries `timeOffsetHeartRateSamples` with up to
+      // 5760 entries; passing the parsed object across a Convex
+      // function boundary trips the 1024-fields-per-object arg limit.
       try {
-        payload = JSON.parse(rawBody);
+        JSON.parse(rawBody);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
 
       const eventId = await ctx.runMutation(internal.garmin.webhookEvents.recordReceived, {
         eventType,
-        rawPayload: payload,
+        rawPayload: rawBody,
       });
 
       await ctx.runAction(internal.garmin.webhookDispatch.dispatchGarminWebhook, {
         eventId,
         eventType,
-        rawPayload: payload,
+        rawPayload: rawBody,
       });
 
       return new Response(null, { status: 200 });
