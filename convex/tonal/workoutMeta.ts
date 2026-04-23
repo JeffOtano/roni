@@ -6,7 +6,8 @@ export interface WorkoutMeta {
 }
 
 const RAW_WORKOUT_CODE_RE = /^WO\d+(?:\s*\(([^)]+)\))?$/i;
-const DEFAULT_WORKOUT_TITLE = "Tonal Workout";
+export const DEFAULT_WORKOUT_TITLE = "Tonal Workout";
+export const DEFAULT_TARGET_AREA = "Full Body";
 
 function stringField(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;

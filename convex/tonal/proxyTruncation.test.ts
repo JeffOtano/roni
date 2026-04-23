@@ -129,6 +129,24 @@ describe("formatWorkoutDisplayTitle", () => {
     ).toBe("12 Weeks to Unleash - W10D1");
   });
 
+  it("joins program name with a distinct human-readable title", () => {
+    expect(
+      formatWorkoutDisplayTitle({
+        title: "Leg Strength",
+        programName: "12 Weeks to Unleash",
+      }),
+    ).toBe("12 Weeks to Unleash - Leg Strength");
+  });
+
+  it("returns program name once when title matches program name", () => {
+    expect(
+      formatWorkoutDisplayTitle({
+        title: "12 Weeks to Unleash",
+        programName: "12 Weeks to Unleash",
+      }),
+    ).toBe("12 Weeks to Unleash");
+  });
+
   it("hides raw workout codes when no program name is available", () => {
     expect(formatWorkoutDisplayTitle({ title: "WO37 (W10D1)" })).toBe("W10D1");
     expect(formatWorkoutDisplayTitle({ title: "WO37" })).toBe("Tonal Workout");

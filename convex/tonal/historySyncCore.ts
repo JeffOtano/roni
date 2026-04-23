@@ -165,19 +165,26 @@ export async function syncActivitiesAndStrength(
   activities: Activity[],
   maxNew?: number,
 ): Promise<{ synced: number; remaining: number }> {
+  const allIds = activities.map((a) => a.activityId);
+  const existingIds: string[] =
+    allIds.length > 0
+      ? await ctx.runQuery(internal.tonal.historySyncMutations.getExistingActivityIds, {
+          userId,
+          activityIds: allIds,
+        })
+      : [];
+  const existingSet = new Set(existingIds);
+
   if (activities.length > 0) {
-    await ctx.runMutation(internal.tonal.historySyncMutations.refreshCompletedWorkoutMetadata, {
-      userId,
-      workouts: activities.map(activityToWorkoutPayload),
-    });
+    const existingActivities = activities.filter((a) => existingSet.has(a.activityId));
+    if (existingActivities.length > 0) {
+      await ctx.runMutation(internal.tonal.historySyncMutations.refreshCompletedWorkoutMetadata, {
+        userId,
+        workouts: existingActivities.map(activityToWorkoutPayload),
+      });
+    }
   }
 
-  const allIds = activities.map((a) => a.activityId);
-  const existingIds: string[] = await ctx.runQuery(
-    internal.tonal.historySyncMutations.getExistingActivityIds,
-    { userId, activityIds: allIds },
-  );
-  const existingSet = new Set(existingIds);
   const newActivities = activities.filter((a) => !existingSet.has(a.activityId));
 
   const batch = maxNew != null ? newActivities.slice(0, maxNew) : newActivities;

@@ -11,6 +11,7 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { isDeletionInProgress } from "../lib/auth";
 import { afterInsert as afterPerformanceInsert } from "../personalRecords";
+import { DEFAULT_TARGET_AREA, DEFAULT_WORKOUT_TITLE } from "./workoutMeta";
 
 // ---------------------------------------------------------------------------
 // Shared validators (exported for action payload typing)
@@ -76,7 +77,7 @@ export const getExistingActivityIds = internalQuery({
 // ---------------------------------------------------------------------------
 
 function isUsefulTitle(title: string): boolean {
-  return title.trim() !== "" && title !== "Tonal Workout";
+  return title.trim() !== "" && title !== DEFAULT_WORKOUT_TITLE;
 }
 
 function buildMetadataPatch(existing: Doc<"completedWorkouts">, next: WorkoutPayload) {
@@ -90,7 +91,7 @@ function buildMetadataPatch(existing: Doc<"completedWorkouts">, next: WorkoutPay
   if (isUsefulTitle(next.title) && existing.title !== next.title) {
     patch.title = next.title;
   }
-  if (next.targetArea.trim() !== "" && next.targetArea !== "Full Body") {
+  if (next.targetArea.trim() !== "" && next.targetArea !== DEFAULT_TARGET_AREA) {
     if (existing.targetArea !== next.targetArea) patch.targetArea = next.targetArea;
   }
   if (next.workoutType.trim() !== "" && existing.workoutType !== next.workoutType) {

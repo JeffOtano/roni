@@ -9,7 +9,12 @@ import { CACHE_TTLS } from "./cache";
 import { isCacheValueWithinLimit, isConvexSizeError } from "./proxyCacheLimits";
 import { withTokenRetry } from "./tokenRetry";
 import { projectWorkoutDetail } from "./workoutDetailProjection";
-import { formatWorkoutDisplayTitle, projectWorkoutMeta, type WorkoutMeta } from "./workoutMeta";
+import {
+  DEFAULT_TARGET_AREA,
+  formatWorkoutDisplayTitle,
+  projectWorkoutMeta,
+  type WorkoutMeta,
+} from "./workoutMeta";
 import type {
   Activity,
   ExternalActivity,
@@ -255,7 +260,7 @@ export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activ
       programName: meta?.programName ?? "",
       coachName: "",
       level: "",
-      targetArea: meta?.targetArea ?? "Full Body",
+      targetArea: meta?.targetArea ?? DEFAULT_TARGET_AREA,
       isGuidedWorkout: false,
       workoutType: wa.workoutType,
       beginTime: wa.beginTime,
