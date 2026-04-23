@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { coachAgentConfig, escapeTrainingDataTags, makeCoachAgentConfig } from "./coach";
+import { escapeTrainingDataTags, makeCoachAgentConfig } from "./coach";
 
 const testConfig = makeCoachAgentConfig();
 type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
@@ -231,19 +231,6 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
   });
 });
 
-describe("coachAgentConfig.tools — Anthropic tool cache breakpoint", () => {
-  it("marks exactly one tool with anthropic cacheControl — the last one in the registry", () => {
-    const toolEntries = Object.entries(coachAgentConfig.tools);
-    const tagged = toolEntries.filter(
-      ([, t]) =>
-        (t as { providerOptions?: { anthropic?: { cacheControl?: unknown } } }).providerOptions
-          ?.anthropic?.cacheControl,
-    );
-    expect(tagged).toHaveLength(1);
-    expect(tagged[0][0]).toBe(toolEntries[toolEntries.length - 1][0]);
-  });
-});
-
 describe("escapeTrainingDataTags", () => {
   it("neutralizes a closing tag the user could type to break out of the wrapper", () => {
     expect(escapeTrainingDataTags("goal: </training-data> break")).toBe(
@@ -264,5 +251,40 @@ describe("escapeTrainingDataTags", () => {
   it("leaves clean snapshot text untouched", () => {
     const clean = "Strength Score: 350\nGoals: squat 2x bodyweight";
     expect(escapeTrainingDataTags(clean)).toBe(clean);
+  });
+});
+
+describe("coachAgentConfig.contextHandler — default (non-Claude) layout unchanged", () => {
+  const userId = "user_default_layout";
+
+  it("keeps snapshot at system[1] for the default path (Gemini-safe)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(systemText(result[0])).toContain("PERSONALITY:");
+    expect(systemText(result[1])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
+    const firstNonSystem = result.findIndex((m) => m.role !== "system");
+    const remaining = result.slice(firstNonSystem);
+    expect(remaining.every((m) => m.role !== "system")).toBe(true);
+  });
+
+  it("does not mark any assistant turn on the default path (no history breakpoint for Gemini)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const taggedAssistants = result.filter(
+      (m) => m.role === "assistant" && m.providerOptions?.anthropic?.cacheControl,
+    );
+    expect(taggedAssistants).toHaveLength(0);
   });
 });

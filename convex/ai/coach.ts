@@ -5,7 +5,7 @@ import type { ModelMessage } from "ai";
 import { components, internal } from "../_generated/api";
 import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
-import { withAnthropicToolCache } from "./anthropicCache";
+import { withAnthropicHistoryCache, withAnthropicToolCache } from "./anthropicCache";
 import { buildTrainingSnapshot } from "./context";
 import {
   buildContextWindow,
@@ -184,7 +184,7 @@ export const coachAgentConfig = {
 };
 
 /** Build per-request agent config with timezone-aware context handler. */
-export function makeCoachAgentConfig(userTimezone?: string) {
+export function makeCoachAgentConfig(userTimezone?: string, provider?: ProviderId) {
   return {
     ...coachAgentConfig,
     contextHandler: (async (ctx, args) => {
@@ -203,14 +203,28 @@ export function makeCoachAgentConfig(userTimezone?: string) {
         return [staticSystem, ...messages];
       }
 
-      // Gemini rejects system messages anywhere except the start of the
-      // conversation (UnsupportedFunctionalityError), so the snapshot must sit
-      // in the system prefix even though it busts Anthropic's prefix cache.
       const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
       const snapshotSystem: ModelMessage = {
         role: "system",
         content: `<training-data>\n${escapeTrainingDataTags(snapshot)}\n</training-data>`,
       };
+
+      // Anthropic supports interleaved system messages and has explicit prompt
+      // caching. Placing the snapshot right before the final turn keeps the
+      // cached prefix (tools + static system + history up to the last
+      // assistant) byte-stable, so a cacheControl marker on that assistant
+      // turns it into a hit on every subsequent call in the 5-minute window.
+      //
+      // Gemini throws UnsupportedFunctionalityError on any system message
+      // that appears after a non-system message, so we keep the snapshot at
+      // system[1] for it and for any provider we can't confirm is safe
+      // (OpenAI supports it but we see no caching win there; OpenRouter is a
+      // passthrough to an unknown backend). Conservative default.
+      if (provider === "claude") {
+        const head = withAnthropicHistoryCache(messages.slice(0, -1));
+        const tail = messages[messages.length - 1];
+        return [staticSystem, ...head, snapshotSystem, tail];
+      }
       return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };
@@ -223,7 +237,7 @@ export interface CoachAgentPair {
 
 export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
-  const config = makeCoachAgentConfig(userTimezone);
+  const config = makeCoachAgentConfig(userTimezone, "gemini");
 
   const primary = new Agent(components.agent, {
     name: "Roni",
@@ -250,7 +264,7 @@ export interface ProviderAgentArgs {
 export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgentPair {
   const { provider, apiKey, modelOverride, userTimezone } = args;
   const config = getProviderConfig(provider);
-  const agentConfig = makeCoachAgentConfig(userTimezone);
+  const agentConfig = makeCoachAgentConfig(userTimezone, provider);
 
   const primaryModelName = modelOverride || config.primaryModel;
   if (!primaryModelName) {
