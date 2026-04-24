@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
 import { coachAgentConfig, makeCoachAgentConfig } from "./coach";
 
-const claudeTestConfig = makeCoachAgentConfig(undefined, "claude");
+const claudeTestConfig = makeCoachAgentConfig({ provider: "claude" });
 type ContextHandlerArgs = Parameters<NonNullable<typeof claudeTestConfig.contextHandler>>[1];
 
 const EMPTY_PROFILE_CTX = { runQuery: async () => null };

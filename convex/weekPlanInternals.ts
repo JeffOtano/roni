@@ -16,6 +16,7 @@ import {
 import { blockInputValidator } from "./validators";
 import { WORKOUT_SOURCE } from "./workoutPlans";
 import { normalizeBlocksAgainstCatalog } from "./coach/normalizeBlocks";
+import { requestCoachStateRefresh } from "./coachState";
 
 /** Internal: get week plan by userId and weekStartDate (for cron/check-ins). */
 export const getByUserIdAndWeekStartInternal = internalQuery({
@@ -60,6 +61,7 @@ export const setDayStatusInternal = internalMutation({
     const days = [...plan.days];
     days[dayIndex] = { ...days[dayIndex], status };
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, plan.userId);
   },
 });
 
@@ -92,6 +94,7 @@ export const linkWorkoutPlanToDayInternal = internalMutation({
     if (args.estimatedDuration !== undefined) slot.estimatedDuration = args.estimatedDuration;
     days[args.dayIndex] = slot;
     await ctx.db.patch(args.weekPlanId, { days, updatedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, args.userId);
     return args.weekPlanId;
   },
 });
@@ -123,7 +126,7 @@ export const createForUserInternal = internalMutation({
     const now = Date.now();
     const days =
       args.days && args.days.length === 7 ? args.days : DEFAULT_DAYS.map((d) => ({ ...d }));
-    return await ctx.db.insert("weekPlans", {
+    const weekPlanId = await ctx.db.insert("weekPlans", {
       userId: args.userId,
       weekStartDate: args.weekStartDate,
       preferredSplit: args.preferredSplit,
@@ -132,6 +135,8 @@ export const createForUserInternal = internalMutation({
       createdAt: now,
       updatedAt: now,
     });
+    await requestCoachStateRefresh(ctx, args.userId);
+    return weekPlanId;
   },
 });
 
@@ -156,6 +161,7 @@ export const batchUpdateDayStatusesInternal = internalMutation({
       days[dayIndex] = { ...days[dayIndex], status };
     }
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, plan.userId);
   },
 });
 
@@ -200,6 +206,7 @@ export const deleteWeekPlanInternal = internalMutation({
       }
     }
     await ctx.db.delete(args.weekPlanId);
+    await requestCoachStateRefresh(ctx, args.userId);
   },
 });
 
@@ -249,6 +256,7 @@ export const replaceDraftWithPushed = internalMutation({
       ...(estimatedDuration != null && { estimatedDuration }),
     };
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, plan.userId);
 
     // 2. THEN delete the draft (if it still exists and is still a draft).
     // If this fails, we have an orphaned draft record (harmless cleanup).

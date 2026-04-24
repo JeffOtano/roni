@@ -283,6 +283,40 @@ describe("RunAccumulator", () => {
     expect(row.outputTokensPerSec).toBeCloseTo(100, 5);
   });
 
+  it("records queue, setup, total token timing, retrieval, and context metrics", () => {
+    const acc = new RunAccumulator(
+      baseInit({
+        scheduledAt: 900_000,
+        processingStartedAt: 901_500,
+        startedAt: 903_000,
+        retrievalEnabled: false,
+      }),
+    );
+
+    acc.setContextTiming({
+      contextBuildMs: 40,
+      snapshotBuildMs: 15,
+      contextBuildCount: 1,
+      contextMessageCount: 6,
+      snapshotSource: "coach_state_fresh",
+    });
+    acc.markFirstChunk(903_250);
+    acc.markFinished(904_000);
+    const row = acc.toRow();
+
+    expect(row.queueDelayMs).toBe(1500);
+    expect(row.preStreamSetupMs).toBe(1500);
+    expect(row.timeToFirstTokenMs).toBe(250);
+    expect(row.totalTimeToFirstTokenMs).toBe(3250);
+    expect(row.totalTimeToLastTokenMs).toBe(4000);
+    expect(row.retrievalEnabled).toBe(false);
+    expect(row.contextBuildMs).toBe(40);
+    expect(row.snapshotBuildMs).toBe(15);
+    expect(row.contextBuildCount).toBe(1);
+    expect(row.contextMessageCount).toBe(6);
+    expect(row.snapshotSource).toBe("coach_state_fresh");
+  });
+
   it("ignores additional markFirstChunk calls after the first one", () => {
     const acc = new RunAccumulator(baseInit({ startedAt: 1_000_000 }));
     acc.markFirstChunk(1_000_200);

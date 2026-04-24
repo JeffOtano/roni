@@ -226,6 +226,19 @@ export default defineSchema({
     completedAt: v.number(),
   }).index("by_key", ["key"]),
 
+  /** Materialized training snapshot used by the coach hot path. */
+  coachState: defineTable({
+    userId: v.id("users"),
+    snapshot: v.string(),
+    snapshotVersion: v.number(),
+    userTimezone: v.optional(v.string()),
+    refreshedAt: v.number(),
+    refreshRequestedAt: v.optional(v.number()),
+    refreshRequestedTimezone: v.optional(v.string()),
+    failedAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+  }).index("by_userId", ["userId"]),
+
   /** AI-generated workout plans. Lifecycle: draft -> pushing -> pushed -> completed. */
   workoutPlans: defineTable({
     userId: v.id("users"),
@@ -481,9 +494,30 @@ export default defineSchema({
     cacheWriteTokens: v.number(),
     totalCostUsd: v.optional(v.number()),
 
+    scheduledAt: v.optional(v.number()),
+    processingStartedAt: v.optional(v.number()),
+    streamStartedAt: v.optional(v.number()),
+    queueDelayMs: v.optional(v.number()),
+    preStreamSetupMs: v.optional(v.number()),
+
     timeToFirstTokenMs: v.optional(v.number()),
     timeToLastTokenMs: v.optional(v.number()),
+    totalTimeToFirstTokenMs: v.optional(v.number()),
+    totalTimeToLastTokenMs: v.optional(v.number()),
     outputTokensPerSec: v.optional(v.number()),
+
+    contextBuildMs: v.optional(v.number()),
+    snapshotBuildMs: v.optional(v.number()),
+    contextBuildCount: v.optional(v.number()),
+    contextMessageCount: v.optional(v.number()),
+    snapshotSource: v.optional(
+      v.union(
+        v.literal("coach_state_fresh"),
+        v.literal("coach_state_stale"),
+        v.literal("live_rebuild"),
+      ),
+    ),
+    retrievalEnabled: v.optional(v.boolean()),
 
     approvalPauses: v.number(),
     workoutPlanCreatedId: v.optional(v.id("workoutPlans")),

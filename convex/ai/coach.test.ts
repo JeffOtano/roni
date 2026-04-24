@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { escapeTrainingDataTags, makeCoachAgentConfig } from "./coach";
+import { escapeTrainingDataTags, makeCoachAgentConfig, shouldUseCrossThreadSearch } from "./coach";
 
 const testConfig = makeCoachAgentConfig();
 type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
@@ -102,6 +102,25 @@ describe("coachAgentConfig.contextHandler", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("shouldUseCrossThreadSearch", () => {
+  it("disables retrieval for obvious local acknowledgements and edits", () => {
+    expect(shouldUseCrossThreadSearch("thanks")).toBe(false);
+    expect(shouldUseCrossThreadSearch("make it harder")).toBe(false);
+  });
+
+  it("keeps retrieval for planning, history, strength, and image turns", () => {
+    expect(shouldUseCrossThreadSearch("program my week")).toBe(true);
+    expect(shouldUseCrossThreadSearch("what did we do last workout?")).toBe(true);
+    expect(shouldUseCrossThreadSearch("ok", true)).toBe(true);
+  });
+
+  it("writes the retrieval policy into per-request context options", () => {
+    const config = makeCoachAgentConfig({ retrievalEnabled: false });
+
+    expect(config.contextOptions.searchOtherThreads).toBe(false);
   });
 });
 

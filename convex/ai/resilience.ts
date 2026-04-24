@@ -12,7 +12,6 @@ import type { StepResult, TelemetrySettings, ToolSet } from "ai";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { BUDGET_WARNING_THRESHOLD, DAILY_TOKEN_BUDGET } from "../aiUsage";
 import { type ProviderId } from "./providers";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
@@ -29,8 +28,6 @@ export type { ByokErrorCode } from "./byokErrors";
 export { isTransientError } from "./transientErrors";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
-const BUDGET_EXCEEDED_MESSAGE =
-  "I've hit my daily thinking limit -- let's pick this up tomorrow. Your limit resets at midnight UTC.";
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
 
@@ -59,6 +56,12 @@ interface StreamWithRetryArgs {
   promptVersion?: string;
   /** True when the user attached at least one image to this turn. */
   hasImages?: boolean;
+  /** Server-side enqueue timestamp from the mutation that scheduled this action. */
+  scheduledAt?: number;
+  /** Timestamp captured at processMessage handler entry. */
+  processingStartedAt?: number;
+  /** Whether semantic cross-thread retrieval was enabled for this turn. */
+  retrievalEnabled?: boolean;
 }
 
 type PromptArgs =
@@ -91,6 +94,9 @@ export async function streamWithRetry(
     release,
     promptVersion,
     hasImages,
+    scheduledAt,
+    processingStartedAt,
+    retrievalEnabled,
   } = args;
   const promptArgs: PromptArgs = args.promptMessageId
     ? args.prompt !== undefined
@@ -140,6 +146,9 @@ export async function streamWithRetry(
         release,
         promptVersion,
         startedAt: Date.now(),
+        scheduledAt,
+        processingStartedAt,
+        retrievalEnabled,
       };
       const accumulator = new RunAccumulator(accInit);
 
@@ -365,33 +374,4 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export async function checkDailyBudget(
-  ctx: ActionCtx,
-  userId: string,
-  threadId: string,
-): Promise<boolean> {
-  const todayUsage = await ctx.runQuery(internal.aiUsage.getDailyTokenUsage, {
-    userId: userId as Id<"users">,
-  });
-
-  if (todayUsage >= DAILY_TOKEN_BUDGET) {
-    await saveMessage(ctx, components.agent, {
-      threadId,
-      userId,
-      message: { role: "assistant", content: BUDGET_EXCEEDED_MESSAGE },
-    });
-    return true;
-  }
-
-  if (todayUsage >= DAILY_TOKEN_BUDGET * BUDGET_WARNING_THRESHOLD) {
-    void ctx.runAction(internal.discord.notifyError, {
-      source: "aiBudget",
-      message: `User ${userId} at ${Math.round((todayUsage / DAILY_TOKEN_BUDGET) * 100)}% of daily token budget (${todayUsage.toLocaleString()} / ${DAILY_TOKEN_BUDGET.toLocaleString()})`,
-      userId,
-    });
-  }
-
-  return false;
 }

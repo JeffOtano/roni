@@ -7,6 +7,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
+import { requestCoachStateRefresh } from "./coachState";
 
 export const submit = mutation({
   args: {
@@ -33,7 +34,7 @@ export const submit = mutation({
     const clampedRpe = Math.min(10, Math.max(1, Math.round(args.rpe)));
     const clampedRating = Math.min(5, Math.max(1, Math.round(args.rating)));
 
-    return ctx.db.insert("workoutFeedback", {
+    const feedbackId = await ctx.db.insert("workoutFeedback", {
       userId,
       activityId: args.activityId,
       workoutPlanId: args.workoutPlanId,
@@ -42,6 +43,8 @@ export const submit = mutation({
       notes: args.notes?.slice(0, 500),
       createdAt: Date.now(),
     });
+    await requestCoachStateRefresh(ctx, userId);
+    return feedbackId;
   },
 });
 
@@ -93,7 +96,7 @@ export const submitInternal = internalMutation({
       .first();
     if (existing) return existing._id;
 
-    return ctx.db.insert("workoutFeedback", {
+    const feedbackId = await ctx.db.insert("workoutFeedback", {
       userId: args.userId,
       activityId: args.activityId,
       workoutPlanId: args.workoutPlanId,
@@ -102,6 +105,8 @@ export const submitInternal = internalMutation({
       notes: args.notes?.slice(0, 500),
       createdAt: Date.now(),
     });
+    await requestCoachStateRefresh(ctx, args.userId);
+    return feedbackId;
   },
 });
 

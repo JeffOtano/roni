@@ -8,6 +8,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
+import { requestCoachStateRefresh } from "./coachState";
 
 const MAX_ACTIVE_GOALS = 10;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -50,7 +51,7 @@ export const create = mutation({
       throw new Error(`Maximum ${MAX_ACTIVE_GOALS} active goals`);
 
     const now = Date.now();
-    return ctx.db.insert("goals", {
+    const goalId = await ctx.db.insert("goals", {
       userId,
       title: args.title.slice(0, 200),
       category: args.category,
@@ -63,6 +64,8 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    await requestCoachStateRefresh(ctx, userId);
+    return goalId;
   },
 });
 
@@ -87,6 +90,7 @@ export const updateProgress = mutation({
       status: reached ? "achieved" : "active",
       updatedAt: Date.now(),
     });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -98,6 +102,7 @@ export const abandon = mutation({
     const goal = await ctx.db.get(args.goalId);
     if (!goal || goal.userId !== userId) throw new Error("Goal not found");
     await ctx.db.patch(args.goalId, { status: "abandoned", updatedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -156,6 +161,7 @@ export const updateProgressInternal = internalMutation({
       status: reached ? "achieved" : "active",
       updatedAt: Date.now(),
     });
+    await requestCoachStateRefresh(ctx, args.userId);
     return { reached };
   },
 });
@@ -173,12 +179,14 @@ export const createInternal = internalMutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    return ctx.db.insert("goals", {
+    const goalId = await ctx.db.insert("goals", {
       ...args,
       currentValue: args.baselineValue,
       status: "active",
       createdAt: now,
       updatedAt: now,
     });
+    await requestCoachStateRefresh(ctx, args.userId);
+    return goalId;
   },
 });

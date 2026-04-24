@@ -101,12 +101,14 @@ export const createThreadWithMessage = action({
     // Schedule the LLM response asynchronously so the frontend gets the
     // threadId back immediately. processMessage handles BYOK resolution,
     // budget checks, streaming, retries, and analytics.
+    const scheduledAt = Date.now();
     await ctx.scheduler.runAfter(0, internal.chatProcessing.processMessage, {
       threadId: targetThreadId,
       userId,
       prompt,
       imageStorageIds,
       userTimezone,
+      scheduledAt,
     });
 
     return { threadId: targetThreadId };
@@ -201,12 +203,14 @@ export const sendMessageToThread = mutation({
       throws: true,
     });
 
+    const scheduledAt = Date.now();
     await ctx.scheduler.runAfter(0, internal.chatProcessing.processMessage, {
       threadId,
       userId,
       prompt,
       imageStorageIds,
       userTimezone,
+      scheduledAt,
     });
 
     return { threadId };

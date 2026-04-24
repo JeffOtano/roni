@@ -6,7 +6,7 @@ import { components, internal } from "../_generated/api";
 import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
 import { withAnthropicHistoryCache, withAnthropicToolCache } from "./anthropicCache";
-import { buildTrainingSnapshot } from "./context";
+import { getTrainingSnapshotForChat, type TrainingSnapshotSource } from "./trainingSnapshotCache";
 import {
   buildContextWindow,
   mergeConsecutiveSameRole,
@@ -80,6 +80,7 @@ const serverProvider = createGoogleGenerativeAI({
 const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
 
 const STATIC_INSTRUCTIONS = buildInstructions();
+const RECENT_MESSAGES_LIMIT = 40;
 
 /**
  * Cheap fingerprint of the static system prompt. Surfaces in `aiRun.promptVersion`
@@ -106,11 +107,59 @@ export function escapeTrainingDataTags(input: string): string {
     .replaceAll("<training-data>", "<training_data>");
 }
 
+export interface CoachContextTiming {
+  contextBuildMs?: number;
+  snapshotBuildMs?: number;
+  contextBuildCount?: number;
+  contextMessageCount?: number;
+  snapshotSource?: TrainingSnapshotSource;
+}
+
+export function shouldUseCrossThreadSearch(prompt: string, hasImages: boolean = false): boolean {
+  if (hasImages) return true;
+
+  const normalized = prompt.toLowerCase().trim().replace(/\s+/g, " ");
+  if (!normalized) return true;
+
+  const retrievalKeywords = [
+    "history",
+    "past",
+    "previous",
+    "goal",
+    "injury",
+    "strength",
+    "readiness",
+    "program",
+    "plan",
+    "week",
+    "workout",
+    "tonal",
+  ];
+  if (retrievalKeywords.some((keyword) => normalized.includes(keyword))) return true;
+
+  const localFollowUps = [
+    "ok",
+    "okay",
+    "yes",
+    "no",
+    "thanks",
+    "thank you",
+    "make it harder",
+    "make it easier",
+    "shorter",
+    "longer",
+    "swap it",
+    "looks good",
+  ];
+  if (localFollowUps.includes(normalized)) return false;
+  return normalized.split(" ").length > 8;
+}
+
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
   contextOptions: {
-    recentMessages: 100,
+    recentMessages: RECENT_MESSAGES_LIMIT,
     searchOtherThreads: true,
     searchOptions: {
       limit: 10,
@@ -184,15 +233,32 @@ export const coachAgentConfig = {
 };
 
 /** Build per-request agent config with timezone-aware context handler. */
-export function makeCoachAgentConfig(userTimezone?: string, provider?: ProviderId) {
+export interface CoachAgentConfigOptions {
+  userTimezone?: string;
+  provider?: ProviderId;
+  retrievalEnabled?: boolean;
+  timing?: CoachContextTiming;
+}
+
+export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
+  const { userTimezone, provider, retrievalEnabled = true, timing } = options;
   return {
     ...coachAgentConfig,
+    contextOptions: {
+      ...coachAgentConfig.contextOptions,
+      searchOtherThreads: retrievalEnabled,
+    },
     contextHandler: (async (ctx, args) => {
+      const contextStartedAt = Date.now();
       const messages = buildContextWindow(
         mergeConsecutiveSameRole(
           stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
         ),
       );
+      if (timing) {
+        timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
+        timing.contextMessageCount = messages.length;
+      }
       const staticSystem: ModelMessage = {
         role: "system",
         content: STATIC_INSTRUCTIONS,
@@ -200,13 +266,19 @@ export function makeCoachAgentConfig(userTimezone?: string, provider?: ProviderI
       };
 
       if (!args.userId || messages.length === 0) {
+        if (timing)
+          timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
         return [staticSystem, ...messages];
       }
 
-      const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
+      const snapshotResult = await getTrainingSnapshotForChat(ctx, args.userId, userTimezone);
+      if (timing) {
+        timing.snapshotBuildMs = (timing.snapshotBuildMs ?? 0) + snapshotResult.snapshotBuildMs;
+        timing.snapshotSource = snapshotResult.source;
+      }
       const snapshotSystem: ModelMessage = {
         role: "system",
-        content: `<training-data>\n${escapeTrainingDataTags(snapshot)}\n</training-data>`,
+        content: `<training-data>\n${escapeTrainingDataTags(snapshotResult.snapshot)}\n</training-data>`,
       };
 
       // Anthropic supports interleaved system messages and has explicit prompt
@@ -223,8 +295,12 @@ export function makeCoachAgentConfig(userTimezone?: string, provider?: ProviderI
       if (provider === "claude") {
         const head = withAnthropicHistoryCache(messages.slice(0, -1));
         const tail = messages[messages.length - 1];
+        if (timing)
+          timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
         return [staticSystem, ...head, snapshotSystem, tail];
       }
+      if (timing)
+        timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
       return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };
@@ -237,7 +313,7 @@ export interface CoachAgentPair {
 
 export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
-  const config = makeCoachAgentConfig(userTimezone, "gemini");
+  const config = makeCoachAgentConfig({ userTimezone, provider: "gemini" });
 
   const primary = new Agent(components.agent, {
     name: "Roni",
@@ -259,12 +335,14 @@ export interface ProviderAgentArgs {
   apiKey: string;
   modelOverride?: string;
   userTimezone?: string;
+  retrievalEnabled?: boolean;
+  timing?: CoachContextTiming;
 }
 
 export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgentPair {
-  const { provider, apiKey, modelOverride, userTimezone } = args;
+  const { provider, apiKey, modelOverride, userTimezone, retrievalEnabled, timing } = args;
   const config = getProviderConfig(provider);
-  const agentConfig = makeCoachAgentConfig(userTimezone, provider);
+  const agentConfig = makeCoachAgentConfig({ userTimezone, provider, retrievalEnabled, timing });
 
   const primaryModelName = modelOverride || config.primaryModel;
   if (!primaryModelName) {

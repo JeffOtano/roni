@@ -11,6 +11,7 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { isDeletionInProgress } from "../lib/auth";
 import { afterInsert as afterPerformanceInsert } from "../personalRecords";
+import { requestCoachStateRefresh } from "../coachState";
 import { DEFAULT_TARGET_AREA, DEFAULT_WORKOUT_TITLE } from "./workoutMeta";
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,7 @@ export const refreshCompletedWorkoutMetadata = internalMutation({
       await ctx.db.patch(existing._id, { ...patch, syncedAt: now });
       updated++;
     }
+    if (updated > 0) await requestCoachStateRefresh(ctx, userId);
     return updated;
   },
 });
@@ -146,6 +148,7 @@ export const persistCompletedWorkouts = internalMutation({
       await ctx.db.insert("completedWorkouts", { userId, ...w, syncedAt: Date.now() });
       inserted++;
     }
+    if (inserted > 0) await requestCoachStateRefresh(ctx, userId);
     return inserted;
   },
 });
@@ -241,6 +244,7 @@ export const persistCurrentStrengthScores = internalMutation({
     for (const s of scores) {
       await ctx.db.insert("currentStrengthScores", { userId, ...s, fetchedAt: now });
     }
+    if (existing.length > 0 || scores.length > 0) await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -257,6 +261,7 @@ export const persistMuscleReadiness = internalMutation({
       await ctx.db.delete(existing._id);
     }
     await ctx.db.insert("muscleReadiness", { userId, ...readiness, fetchedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -271,6 +276,7 @@ export const clearMuscleReadiness = internalMutation({
       .first();
     if (existing) {
       await ctx.db.delete(existing._id);
+      await requestCoachStateRefresh(ctx, userId);
     }
   },
 });
@@ -294,5 +300,6 @@ export const persistExternalActivities = internalMutation({
         await ctx.db.insert("externalActivities", { userId, ...a, syncedAt: now });
       }
     }
+    if (activities.length > 0) await requestCoachStateRefresh(ctx, userId);
   },
 });

@@ -7,6 +7,7 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./context";
+import { getTrainingSnapshotForChat } from "./trainingSnapshotCache";
 import { internal } from "../_generated/api";
 import type { ExternalActivity } from "../tonal/types";
 
@@ -196,5 +197,83 @@ describe("buildTrainingSnapshot", () => {
     expect(queryCalls).not.toContain(getAllMovementsName);
     expect(snapshot).not.toContain("Available Tonal Exercises");
     expect(snapshot).toContain("Equipment:");
+  });
+});
+
+describe("getTrainingSnapshotForChat", () => {
+  it("returns a fresh materialized coachState snapshot when available", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        if (getFunctionName(query as never) === getForUserName) {
+          return { snapshot: "cached snapshot", refreshedAt: Date.now() - 1000 };
+        }
+        throw new Error("live rebuild should not run");
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
+
+    expect(result.snapshot).toBe("cached snapshot");
+    expect(result.source).toBe("coach_state_fresh");
+  });
+
+  it("returns a stale materialized snapshot with stale source when timezone matches", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        if (getFunctionName(query as never) === getForUserName) {
+          return { snapshot: "old snapshot", refreshedAt: Date.now() - 60 * 60 * 1000 };
+        }
+        throw new Error("live rebuild should not run");
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
+
+    expect(result.snapshot).toBe("old snapshot");
+    expect(result.source).toBe("coach_state_stale");
+  });
+
+  it("uses live rebuild when the cached snapshot was built for another timezone", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === getForUserName) {
+          return {
+            snapshot: "wrong timezone snapshot",
+            refreshedAt: Date.now(),
+            userTimezone: "America/New_York",
+          };
+        }
+        if (queryName === getUserProfileName) return null;
+        return [];
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1", "America/Los_Angeles");
+
+    expect(result.source).toBe("live_rebuild");
+    expect(result.snapshot).toContain("No Tonal profile linked yet");
+  });
+
+  it("falls back to live rebuild when coachState has no usable snapshot", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === getForUserName) return null;
+        if (queryName === getUserProfileName) return null;
+        return [];
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
+
+    expect(result.source).toBe("live_rebuild");
+    expect(result.snapshot).toContain("No Tonal profile linked yet");
   });
 });
