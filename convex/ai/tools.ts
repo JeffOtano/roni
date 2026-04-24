@@ -17,17 +17,23 @@ async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
 }
 
 export const searchExercisesTool = createTool({
-  description: "Search Tonal exercise catalog by name, muscle group, and/or training type.",
+  description:
+    "Search Tonal's exercise catalog by name, muscle group, and/or training type. Use this before naming, suggesting, swapping, or programming exercises; results include canonical Tonal names, movement IDs, accessory requirements, and duration-vs-rep behavior.",
   inputSchema: z.object({
     name: z
       .string()
       .optional()
-      .describe("Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL')"),
-    muscleGroup: z.string().optional().describe("e.g. Chest, Back, Quads, Shoulders"),
+      .describe(
+        "Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL'). Use shorter names when an exact search misses.",
+      ),
+    muscleGroup: z
+      .string()
+      .optional()
+      .describe("Use when exploring options for a body part, e.g. Chest, Back, Quads, Shoulders."),
     trainingType: z
       .string()
       .optional()
-      .describe("Filter by training type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
+      .describe("Use to narrow by type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
   }),
   execute: withToolTracking("search_exercises", async (ctx, input, _options) => {
     const catalog = await getGlobalMovementCatalog(ctx);
