@@ -12,6 +12,7 @@ import { internal } from "../_generated/api";
 import { tonalFetch } from "./client";
 import { withTokenRetry } from "./tokenRetry";
 import type { TonalExploreGroup, TonalWorkoutDetail, TrainingType } from "./types";
+import { buildListSearchText } from "./movementSearch";
 import * as analytics from "../lib/posthog";
 import { workflow } from "../workflows";
 
@@ -124,7 +125,10 @@ export const batchUpdateMovementTrainingTypes = internalMutation({
         .withIndex("by_tonalId", (q) => q.eq("tonalId", tonalId))
         .unique();
       if (doc) {
-        await ctx.db.patch(doc._id, { trainingTypes });
+        await ctx.db.patch(doc._id, {
+          trainingTypes,
+          trainingTypesSearchText: buildListSearchText(trainingTypes),
+        });
         updated++;
       } else {
         skipped++;

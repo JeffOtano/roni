@@ -175,6 +175,9 @@ export default defineSchema({
     isAlternating: v.boolean(),
     descriptionHow: v.string(),
     descriptionWhy: v.string(),
+    nameSearchText: v.optional(v.string()),
+    muscleGroupsSearchText: v.optional(v.string()),
+    trainingTypesSearchText: v.optional(v.string()),
     thumbnailMediaUrl: v.optional(v.string()),
     accessory: v.optional(v.string()),
     onMachineInfo: v.optional(v.any()),
@@ -203,7 +206,10 @@ export default defineSchema({
     thumbnailStorageId: v.optional(v.id("_storage")),
   })
     .index("by_tonalId", ["tonalId"])
-    .index("by_accessory", ["accessory"]),
+    .index("by_accessory", ["accessory"])
+    .searchIndex("search_name", { searchField: "nameSearchText" })
+    .searchIndex("search_muscle_groups", { searchField: "muscleGroupsSearchText" })
+    .searchIndex("search_training_types", { searchField: "trainingTypesSearchText" }),
 
   /** Tonal training type taxonomy (synced with movement catalog). */
   trainingTypes: defineTable({
@@ -212,6 +218,13 @@ export default defineSchema({
     description: v.string(),
     lastSyncedAt: v.number(),
   }).index("by_tonalId", ["tonalId"]),
+
+  /** Tracks whether movement denormalized search fields are safe to query. */
+  movementSearchState: defineTable({
+    key: v.string(),
+    version: v.number(),
+    completedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   /** AI-generated workout plans. Lifecycle: draft -> pushing -> pushed -> completed. */
   workoutPlans: defineTable({

@@ -7,6 +7,7 @@
 
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
+import { buildMovementSearchFields } from "./movementSearch";
 import type { Movement } from "./types";
 
 export const movementFields = {
@@ -25,6 +26,9 @@ export const movementFields = {
   isAlternating: v.boolean(),
   descriptionHow: v.string(),
   descriptionWhy: v.string(),
+  nameSearchText: v.string(),
+  muscleGroupsSearchText: v.string(),
+  trainingTypesSearchText: v.string(),
   thumbnailMediaUrl: v.optional(v.string()),
   accessory: v.optional(v.string()),
   onMachineInfo: v.optional(v.any()),
@@ -53,11 +57,19 @@ export const movementFields = {
 
 /** Map a Tonal API movement to the DB document shape, coercing null to undefined. */
 export function mapApiToDoc(m: Movement, now: number) {
+  const shortName = m.shortName ?? m.name;
+  const muscleGroups = m.muscleGroups ?? [];
+  const searchFields = buildMovementSearchFields({
+    ...m,
+    shortName,
+    muscleGroups,
+  });
+
   return {
     tonalId: m.id,
     name: m.name,
-    shortName: m.shortName ?? m.name,
-    muscleGroups: m.muscleGroups ?? [],
+    shortName,
+    muscleGroups,
     skillLevel: m.skillLevel,
     publishState: m.publishState,
     sortOrder: m.sortOrder,
@@ -69,6 +81,9 @@ export function mapApiToDoc(m: Movement, now: number) {
     isAlternating: m.isAlternating,
     descriptionHow: m.descriptionHow,
     descriptionWhy: m.descriptionWhy,
+    nameSearchText: searchFields.nameSearchText,
+    muscleGroupsSearchText: searchFields.muscleGroupsSearchText,
+    trainingTypesSearchText: searchFields.trainingTypesSearchText,
     thumbnailMediaUrl: m.thumbnailMediaUrl ?? undefined,
     accessory: m.onMachineInfo?.accessory ?? undefined,
     onMachineInfo: m.onMachineInfo ?? undefined,
