@@ -1,12 +1,12 @@
 import type { ExperimentEvaluationRun } from "@arizeai/phoenix-client/types/experiments";
 
-export const SCORE_GATED_EVALUATOR_NAMES = [
+const SCORE_GATED_EVALUATOR_NAMES = [
   "rubric-checks",
   "banned-phrases",
   "coach-correctness",
 ] as const;
 
-export type EvaluatorRegression = {
+type EvaluatorRegression = {
   evaluatorName: string;
   evaluationRunId: string;
   experimentRunId: string;
