@@ -208,6 +208,19 @@ export const recordToolCall = internalMutation({
   },
 });
 
+export const claimDailyBudgetWarning = internalMutation({
+  args: { userId: v.id("users"), date: v.string() },
+  handler: async (ctx, { userId, date }) => {
+    const existing = await ctx.db
+      .query("aiBudgetWarnings")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId).eq("date", date))
+      .unique();
+    if (existing) return false;
+    await ctx.db.insert("aiBudgetWarnings", { userId, date, createdAt: Date.now() });
+    return true;
+  },
+});
+
 /** Get total tokens used by a user today (UTC day boundary). */
 export const getDailyTokenUsage = internalQuery({
   args: { userId: v.id("users") },
@@ -224,5 +237,34 @@ export const getDailyTokenUsage = internalQuery({
       .collect();
 
     return records.reduce((sum, r) => sum + r.totalTokens, 0);
+  },
+});
+
+export const getDailyTokenUsageStats = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const now = Date.now();
+    const startOfDay = new Date(now);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const records = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_userId_createdAt", (q) =>
+        q.eq("userId", userId).gte("createdAt", startOfDay.getTime()),
+      )
+      .collect();
+
+    let latestCreatedAt = 0;
+    let latestUsageTokens = 0;
+    let totalTokens = 0;
+    for (const record of records) {
+      totalTokens += record.totalTokens;
+      if (record.totalTokens > 0 && record.createdAt >= latestCreatedAt) {
+        latestCreatedAt = record.createdAt;
+        latestUsageTokens = record.totalTokens;
+      }
+    }
+
+    return { totalTokens, latestUsageTokens };
   },
 });

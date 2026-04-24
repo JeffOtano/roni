@@ -82,7 +82,7 @@ export const backfillMovementSearchFields = internalMutation({
       .filter(({ doc, fields }) => needsPatch(doc, fields));
 
     let patched = 0;
-    for (const { doc, fields } of staleDocs.slice(0, patchLimit)) {
+    for (const { doc, fields } of staleDocs) {
       await ctx.db.patch(doc._id, fields);
       patched++;
     }
@@ -119,10 +119,16 @@ function clampLimit(limit: number | undefined): number {
 }
 
 function selectIndexKind(filters: MovementSearchFilters): SearchIndexKind | null {
-  if (filters.name) return "name";
-  if (filters.muscleGroup) return "muscleGroup";
-  if (filters.trainingType) return "trainingType";
-  return null;
+  const candidates: { kind: SearchIndexKind; value: string; rank: number }[] = [];
+  if (filters.name) candidates.push({ kind: "name", value: filters.name, rank: 0 });
+  if (filters.muscleGroup) {
+    candidates.push({ kind: "muscleGroup", value: filters.muscleGroup, rank: 1 });
+  }
+  if (filters.trainingType) {
+    candidates.push({ kind: "trainingType", value: filters.trainingType, rank: 2 });
+  }
+  candidates.sort((a, b) => a.value.length - b.value.length || a.rank - b.rank);
+  return candidates[0]?.kind ?? null;
 }
 
 async function loadIndexedMatches(

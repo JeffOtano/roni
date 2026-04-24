@@ -111,13 +111,13 @@ export const updatePushOutcome = internalMutation({
   },
   handler: async (ctx, args) => {
     const { planId, status, tonalWorkoutId, pushErrorReason, pushedAt } = args;
-    const plan = await ctx.db.get(planId);
     await ctx.db.patch(planId, {
       status,
       ...(tonalWorkoutId !== undefined && { tonalWorkoutId }),
       ...(pushedAt !== undefined && { pushedAt }),
       pushErrorReason: status === "pushed" ? undefined : pushErrorReason,
     });
+    const plan = await ctx.db.get(planId);
     if (plan) await requestCoachStateRefresh(ctx, plan.userId);
   },
 });

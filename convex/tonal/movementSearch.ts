@@ -121,8 +121,9 @@ export function buildMovementNameSearchText(movement: SearchableMovement): strin
   }
 
   const baseText = [...searchableTerms].join(" ");
+  const paddedBaseText = ` ${baseText} `;
   for (const group of ALIAS_GROUPS) {
-    if (group.some((term) => baseText.includes(normalizeSearchText(term)))) {
+    if (group.some((term) => paddedBaseText.includes(` ${normalizeSearchText(term)} `))) {
       for (const term of group) addSearchTerm(searchableTerms, term);
     }
   }

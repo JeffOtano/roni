@@ -118,7 +118,11 @@ export interface CoachContextTiming {
 export function shouldUseCrossThreadSearch(prompt: string, hasImages: boolean = false): boolean {
   if (hasImages) return true;
 
-  const normalized = prompt.toLowerCase().trim().replace(/\s+/g, " ");
+  const normalized = prompt
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "");
   if (!normalized) return true;
 
   const retrievalKeywords = [
@@ -129,11 +133,6 @@ export function shouldUseCrossThreadSearch(prompt: string, hasImages: boolean = 
     "injury",
     "strength",
     "readiness",
-    "program",
-    "plan",
-    "week",
-    "workout",
-    "tonal",
   ];
   if (retrievalKeywords.some((keyword) => normalized.includes(keyword))) return true;
 
@@ -257,7 +256,7 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
       );
       if (timing) {
         timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
-        timing.contextMessageCount = messages.length;
+        timing.contextMessageCount = (timing.contextMessageCount ?? 0) + messages.length;
       }
       const staticSystem: ModelMessage = {
         role: "system",
@@ -274,7 +273,7 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
       const snapshotResult = await getTrainingSnapshotForChat(ctx, args.userId, userTimezone);
       if (timing) {
         timing.snapshotBuildMs = (timing.snapshotBuildMs ?? 0) + snapshotResult.snapshotBuildMs;
-        timing.snapshotSource = snapshotResult.source;
+        timing.snapshotSource ??= snapshotResult.source;
       }
       const snapshotSystem: ModelMessage = {
         role: "system",
@@ -296,11 +295,15 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
         const head = withAnthropicHistoryCache(messages.slice(0, -1));
         const tail = messages[messages.length - 1];
         if (timing)
-          timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
+          timing.contextBuildMs =
+            (timing.contextBuildMs ?? 0) +
+            Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
         return [staticSystem, ...head, snapshotSystem, tail];
       }
       if (timing)
-        timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
+        timing.contextBuildMs =
+          (timing.contextBuildMs ?? 0) +
+          Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
       return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };

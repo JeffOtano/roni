@@ -108,12 +108,13 @@ describe("coachAgentConfig.contextHandler", () => {
 describe("shouldUseCrossThreadSearch", () => {
   it("disables retrieval for obvious local acknowledgements and edits", () => {
     expect(shouldUseCrossThreadSearch("thanks")).toBe(false);
+    expect(shouldUseCrossThreadSearch("ok!")).toBe(false);
     expect(shouldUseCrossThreadSearch("make it harder")).toBe(false);
   });
 
-  it("keeps retrieval for planning, history, strength, and image turns", () => {
-    expect(shouldUseCrossThreadSearch("program my week")).toBe(true);
-    expect(shouldUseCrossThreadSearch("what did we do last workout?")).toBe(true);
+  it("keeps retrieval for history, strength, and image turns", () => {
+    expect(shouldUseCrossThreadSearch("what strength changes did we discuss before?")).toBe(true);
+    expect(shouldUseCrossThreadSearch("what did we do in the previous session?")).toBe(true);
     expect(shouldUseCrossThreadSearch("ok", true)).toBe(true);
   });
 

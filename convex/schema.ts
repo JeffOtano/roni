@@ -231,10 +231,10 @@ export default defineSchema({
     userId: v.id("users"),
     snapshot: v.string(),
     snapshotVersion: v.number(),
-    userTimezone: v.optional(v.string()),
+    userTimezone: v.optional(v.union(v.string(), v.null())),
     refreshedAt: v.number(),
     refreshRequestedAt: v.optional(v.number()),
-    refreshRequestedTimezone: v.optional(v.string()),
+    refreshRequestedTimezone: v.optional(v.union(v.string(), v.null())),
     failedAt: v.optional(v.number()),
     lastError: v.optional(v.string()),
   }).index("by_userId", ["userId"]),
@@ -425,6 +425,14 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
+
+  aiBudgetWarnings: defineTable({
+    userId: v.id("users"),
+    date: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId", ["userId"]),
 
   /** AI agent tool execution log (latency, success/error tracking). */
   aiToolCalls: defineTable({

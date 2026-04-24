@@ -53,7 +53,6 @@ export const processMessage = internalAction({
     { threadId, userId, prompt, imageStorageIds, userTimezone: rawTz, scheduledAt },
   ) => {
     const processingStartedAt = Date.now();
-    const effectiveScheduledAt = scheduledAt ?? processingStartedAt;
     const userTimezone = sanitizeTimezone(rawTz);
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
@@ -98,7 +97,7 @@ export const processMessage = internalAction({
           release: RELEASE_SHA,
           promptVersion: STATIC_INSTRUCTIONS_HASH,
           hasImages: (imageStorageIds?.length ?? 0) > 0,
-          scheduledAt: effectiveScheduledAt,
+          scheduledAt,
           processingStartedAt,
           retrievalEnabled,
         }),

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 import {
   buildTrainingSnapshot,
@@ -201,12 +201,23 @@ describe("buildTrainingSnapshot", () => {
 });
 
 describe("getTrainingSnapshotForChat", () => {
+  const NOW = new Date("2026-04-24T12:00:00.000Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns a fresh materialized coachState snapshot when available", async () => {
     const getForUserName = getFunctionName(internal.coachState.getForUser);
     const ctx = {
       runQuery: async (query: unknown) => {
         if (getFunctionName(query as never) === getForUserName) {
-          return { snapshot: "cached snapshot", refreshedAt: Date.now() - 1000 };
+          return { snapshot: "cached snapshot", refreshedAt: NOW.getTime() - 1000 };
         }
         throw new Error("live rebuild should not run");
       },
@@ -223,7 +234,7 @@ describe("getTrainingSnapshotForChat", () => {
     const ctx = {
       runQuery: async (query: unknown) => {
         if (getFunctionName(query as never) === getForUserName) {
-          return { snapshot: "old snapshot", refreshedAt: Date.now() - 60 * 60 * 1000 };
+          return { snapshot: "old snapshot", refreshedAt: NOW.getTime() - 60 * 60 * 1000 };
         }
         throw new Error("live rebuild should not run");
       },
@@ -244,7 +255,7 @@ describe("getTrainingSnapshotForChat", () => {
         if (queryName === getForUserName) {
           return {
             snapshot: "wrong timezone snapshot",
-            refreshedAt: Date.now(),
+            refreshedAt: NOW.getTime(),
             userTimezone: "America/New_York",
           };
         }

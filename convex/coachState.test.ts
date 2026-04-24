@@ -73,7 +73,7 @@ describe("coachState", () => {
     expect(row?.refreshRequestedTimezone).toBe("America/New_York");
   });
 
-  test("requestRefresh records the latest requested timezone", async () => {
+  test("requestRefresh clears stale requested timezone when omitted", async () => {
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
 
@@ -85,10 +85,11 @@ describe("coachState", () => {
       userId,
       userTimezone: "America/New_York",
     });
+    await t.mutation(internal.coachState.requestRefresh, { userId });
 
     const row = await t.query(internal.coachState.getForUser, { userId });
 
     expect(row?.refreshRequestedAt).toBeTypeOf("number");
-    expect(row?.refreshRequestedTimezone).toBe("America/New_York");
+    expect(row?.refreshRequestedTimezone).toBeNull();
   });
 });

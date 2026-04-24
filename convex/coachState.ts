@@ -28,7 +28,7 @@ export async function requestCoachStateRefresh(
   if (existing) {
     await ctx.db.patch(existing._id, {
       refreshRequestedAt: now,
-      ...(userTimezone !== undefined && { refreshRequestedTimezone: userTimezone }),
+      refreshRequestedTimezone: userTimezone ?? null,
     });
   } else {
     await ctx.db.insert("coachState", {
@@ -37,7 +37,7 @@ export async function requestCoachStateRefresh(
       snapshotVersion: SNAPSHOT_VERSION,
       refreshedAt: 0,
       refreshRequestedAt: now,
-      ...(userTimezone !== undefined && { refreshRequestedTimezone: userTimezone }),
+      refreshRequestedTimezone: userTimezone ?? null,
     });
   }
 
@@ -77,7 +77,10 @@ export const refreshForUser = internalAction({
     try {
       const existing = await ctx.runQuery(internal.coachState.getForUser, { userId });
       const snapshotTimezone =
-        userTimezone ?? existing?.refreshRequestedTimezone ?? existing?.userTimezone;
+        userTimezone ??
+        (existing?.refreshRequestedTimezone !== undefined
+          ? (existing.refreshRequestedTimezone ?? undefined)
+          : (existing?.userTimezone ?? undefined));
       const snapshot = await buildTrainingSnapshot(ctx, userId, snapshotTimezone);
       await ctx.runMutation(internal.coachState.upsertSnapshot, {
         userId,
@@ -120,7 +123,7 @@ export const upsertSnapshot = internalMutation({
       snapshot,
       snapshotVersion: SNAPSHOT_VERSION,
       refreshedAt: newerRequestAt === undefined ? now : 0,
-      ...(userTimezone !== undefined && { userTimezone }),
+      userTimezone: userTimezone ?? null,
     };
     const clearPending = newerRequestAt === undefined;
     const patch = clearPending
@@ -138,7 +141,7 @@ export const upsertSnapshot = internalMutation({
         await ctx.scheduler.runAfter(REFRESH_DELAY_MS, internal.coachState.refreshForUser, {
           userId,
           requestedAt: newerRequestAt,
-          userTimezone: existing.refreshRequestedTimezone,
+          userTimezone: existing.refreshRequestedTimezone ?? undefined,
         });
       }
       return;
@@ -172,7 +175,7 @@ export const recordRefreshFailure = internalMutation({
       await ctx.scheduler.runAfter(REFRESH_DELAY_MS, internal.coachState.refreshForUser, {
         userId,
         requestedAt: newerRequestAt,
-        userTimezone: existing.refreshRequestedTimezone,
+        userTimezone: existing.refreshRequestedTimezone ?? undefined,
       });
     }
   },

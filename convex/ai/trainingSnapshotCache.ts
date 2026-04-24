@@ -41,7 +41,7 @@ export async function getTrainingSnapshotForChat(
     .runQuery(internal.coachState.getForUser, { userId: convexUserId })
     .catch(() => null)) as Doc<"coachState"> | null;
 
-  if (state?.snapshot && state.userTimezone === userTimezone) {
+  if (state?.snapshot && (state.userTimezone ?? undefined) === userTimezone) {
     const isFresh = Date.now() - state.refreshedAt <= COACH_STATE_FRESH_MS;
     if (!isFresh) await scheduleSnapshotRefresh(ctx, convexUserId, userTimezone);
     return {
