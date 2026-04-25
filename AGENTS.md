@@ -108,9 +108,9 @@ User (chat) --> send message --> AI Coach Agent (Gemini, 31 tools) --> reads con
 ### Scheduled Jobs (`crons.ts`)
 
 - Every 15m: recover stuck workout pushes
-- Every 15m: health check
 - Every 30m: refresh Tonal tokens
-- Every 30m: refresh active user cache
+- Every 30m: refresh active user cache (tiered by `appLastActiveAt` recency)
+- Every 1h: health check
 - Every 1h: activation checks
 - Every 6h: check-in trigger evaluation (missed sessions, milestones)
 - Every 6h: garbage-collect orphaned chat-image storage (`internal.fileGc.vacuumUnusedFiles`)

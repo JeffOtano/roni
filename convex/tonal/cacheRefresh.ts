@@ -1,15 +1,20 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { isEligibleForRefresh, TIER_THRESHOLDS_MS } from "./cacheRefreshTiering";
 
 export const refreshActiveUsers = internalAction({
   handler: async (ctx) => {
-    const threeDaysAgo = Date.now() - 72 * 60 * 60 * 1000;
+    const now = Date.now();
+    const sinceTimestamp = now - TIER_THRESHOLDS_MS.lapsing;
 
     const activeUsers = await ctx.runQuery(internal.userActivity.getActiveUsers, {
-      sinceTimestamp: threeDaysAgo,
+      sinceTimestamp,
     });
 
     for (const profile of activeUsers) {
+      if (!isEligibleForRefresh(now, profile.appLastActiveAt, profile.lastTonalSyncAt)) {
+        continue;
+      }
       try {
         await ctx.runMutation(internal.tonal.historySync.startSyncUserHistory, {
           userId: profile.userId,

@@ -50,6 +50,8 @@ export default defineSchema({
     lastActiveAt: v.number(),
     /** Last real app activity, separate from background token/sync jobs. */
     appLastActiveAt: v.optional(v.number()),
+    /** Timestamp of the most recent background history sync attempt (cron-tier gate). */
+    lastTonalSyncAt: v.optional(v.number()),
     /** When the user first connected their Tonal account (signup for activation analytics). */
     tonalConnectedAt: v.optional(v.number()),
     /** ISO date of the most recent synced activity (high-water mark for incremental sync). */
