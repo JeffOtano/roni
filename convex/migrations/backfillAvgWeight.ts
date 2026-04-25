@@ -43,7 +43,9 @@ export const patchAvgWeights = internalMutation({
     const weightMap = new Map(weights.map((w) => [w.movementId, w.avgWeightLbs]));
     const rows = await ctx.db
       .query("exercisePerformance")
-      .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", activityId))
+      .withIndex("by_userId_activityId_movementId", (q) =>
+        q.eq("userId", userId).eq("activityId", activityId),
+      )
       .collect();
     for (const row of rows) {
       const weight = weightMap.get(row.movementId);

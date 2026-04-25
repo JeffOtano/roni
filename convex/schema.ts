@@ -129,7 +129,6 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"])
     .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"])
-    .index("by_lastActiveAt", ["lastActiveAt"])
     .index("by_appLastActiveAt", ["appLastActiveAt"])
     .index("by_nextTonalSyncAt", ["nextTonalSyncAt"])
     .index("by_tonalConnectedAt", ["tonalConnectedAt"]),
@@ -314,9 +313,7 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_weekStartDate", ["userId", "weekStartDate"]),
+  }).index("by_userId_weekStartDate", ["userId", "weekStartDate"]),
 
   /** Post-workout feedback (RPE, session rating, notes). */
   workoutFeedback: defineTable({
@@ -333,7 +330,6 @@ export default defineSchema({
     notes: v.optional(v.string()),
     createdAt: v.number(),
   })
-    .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
     .index("by_userId_activityId", ["userId", "activityId"]),
 
@@ -355,9 +351,7 @@ export default defineSchema({
     /** Active = current block. Only one active per user. */
     status: v.union(v.literal("active"), v.literal("completed")),
     createdAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_status", ["userId", "status"]),
+  }).index("by_userId_status", ["userId", "status"]),
 
   /** Measurable training goals with deadlines and progress tracking. */
   goals: defineTable({
@@ -384,9 +378,7 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("achieved"), v.literal("abandoned")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_status", ["userId", "status"]),
+  }).index("by_userId_status", ["userId", "status"]),
 
   /** Dynamic injury/limitation tracking (replaces static onboarding text). */
   injuries: defineTable({
@@ -432,7 +424,6 @@ export default defineSchema({
     routedIntent: v.optional(v.string()),
     createdAt: v.number(),
   })
-    .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
 
@@ -545,7 +536,6 @@ export default defineSchema({
 
     createdAt: v.number(),
   })
-    .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
     .index("by_createdAt", ["createdAt"])
     .index("by_threadId", ["threadId"])
@@ -566,8 +556,7 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_activityId", ["userId", "activityId"])
-    .index("by_userId_date", ["userId", "date"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId_date", ["userId", "date"]),
 
   /** Per-exercise performance snapshots from each completed workout. */
   exercisePerformance: defineTable({
@@ -582,7 +571,6 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_movementId", ["userId", "movementId"])
-    .index("by_userId_activityId", ["userId", "activityId"])
     .index("by_userId_activityId_movementId", ["userId", "activityId", "movementId"])
     .index("by_userId_date", ["userId", "date"]),
 
@@ -601,8 +589,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId_movementId", ["userId", "movementId"])
-    .index("by_userId_best", ["userId", "bestAvgWeightLbs"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId_best", ["userId", "bestAvgWeightLbs"]),
 
   /** Strength score snapshots over time (synced from Tonal history). */
   strengthScoreSnapshots: defineTable({

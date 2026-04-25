@@ -76,7 +76,7 @@ export const getPRMovementIdsForActivity = internalQuery({
   handler: async (ctx, { userId, activityId }): Promise<string[]> => {
     const records = await ctx.db
       .query("personalRecords")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_movementId", (q) => q.eq("userId", userId))
       .collect();
     return records
       .filter((r) => r.achievedActivityId === activityId && r.totalSessions > 1)
