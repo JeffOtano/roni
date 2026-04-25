@@ -50,6 +50,12 @@ export default defineSchema({
     lastActiveAt: v.number(),
     /** Last real app activity, separate from background token/sync jobs. */
     appLastActiveAt: v.optional(v.number()),
+    /** Timestamp of the most recent background history sync attempt (cron-tier gate). */
+    lastTonalSyncAt: v.optional(v.number()),
+    /** Earliest time the cron should re-sync this user (precomputed tier interval). */
+    nextTonalSyncAt: v.optional(v.number()),
+    /** Last time the workoutHistory cache was written for this user. */
+    workoutHistoryCachedAt: v.optional(v.number()),
     /** When the user first connected their Tonal account (signup for activation analytics). */
     tonalConnectedAt: v.optional(v.number()),
     /** ISO date of the most recent synced activity (high-water mark for incremental sync). */
@@ -125,6 +131,7 @@ export default defineSchema({
     .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"])
     .index("by_lastActiveAt", ["lastActiveAt"])
     .index("by_appLastActiveAt", ["appLastActiveAt"])
+    .index("by_nextTonalSyncAt", ["nextTonalSyncAt"])
     .index("by_tonalConnectedAt", ["tonalConnectedAt"]),
 
   /** In-app check-ins (proactive messages). No SMS. */
