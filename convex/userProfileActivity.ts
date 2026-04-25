@@ -1,22 +1,18 @@
+import type { WithoutSystemFields } from "convex/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 
-export type UserActivityPatch = Partial<{
-  lastActiveAt: number;
-  appLastActiveAt: number;
-  syncStatus: "syncing" | "complete" | "failed";
-  lastSyncedActivityDate: string;
-  tokenRefreshInProgress: number | undefined;
-}>;
+type ActivityRow = WithoutSystemFields<Doc<"userProfileActivity">>;
 
-type ActivityRow = Omit<Doc<"userProfileActivity">, "_id" | "_creationTime">;
+export type UserActivityPatch = {
+  [K in keyof Omit<ActivityRow, "userId">]?: ActivityRow[K] | undefined;
+};
 
 /**
- * Idempotently ensure the `userProfileActivity` row exists for `userId` and
- * patch it with the supplied fields. Used by every dual-writer that updates
- * a high-churn field still living on `userProfiles`. Passing `undefined` for
- * a key on an existing row clears that field; on insert, undefined keys are
- * dropped so the new doc only contains explicitly-provided fields.
+ * Upserts the `userProfileActivity` row for `userId`. On an existing row,
+ * `undefined` clears a field (Convex `db.patch` semantics — used by
+ * `releaseTokenRefreshLock`). On insert, undefined keys are dropped so a new
+ * row contains only the fields the caller explicitly set.
  */
 export async function patchUserActivity(
   ctx: MutationCtx,

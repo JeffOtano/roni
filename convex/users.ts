@@ -1,5 +1,8 @@
 import { query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { getEffectiveUserId } from "./lib/auth";
+
+type SyncStatus = NonNullable<Doc<"userProfileActivity">["syncStatus"]>;
 
 export const getMe = query({
   args: {},
@@ -33,15 +36,10 @@ export const getMe = query({
   },
 });
 
-/**
- * Sync status for the authenticated user, served from the
- * `userProfileActivity` split table. During the widen rollout we fall back
- * to `userProfiles.syncStatus` for users whose activity row hasn't been
- * backfilled yet so the SyncStatusBanner stays accurate end-to-end.
- */
+/** Sync status for the authenticated user, served from `userProfileActivity`. */
 export const getSyncStatus = query({
   args: {},
-  handler: async (ctx): Promise<"syncing" | "complete" | "failed" | null> => {
+  handler: async (ctx): Promise<SyncStatus | null> => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) return null;
 
@@ -49,8 +47,11 @@ export const getSyncStatus = query({
       .query("userProfileActivity")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
-    if (activity) return activity.syncStatus ?? null;
+    if (activity?.syncStatus !== undefined) return activity.syncStatus;
 
+    // Fall back to the legacy column for users whose activity row exists but
+    // pre-dates the syncStatus dual-write, or who have no activity row yet.
+    // TODO(post-backfill): drop once the backfill migration has run in prod.
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))

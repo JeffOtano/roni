@@ -130,9 +130,7 @@ export default defineSchema({
   /**
    * High-churn per-user activity state split out of `userProfiles` so that
    * activity, sync, and token-lock writes don't invalidate subscribers of the
-   * stable identity/profile/token document. Widen step: dual-written from the
-   * same writers as the `userProfiles` fields below; readers will switch over
-   * once the backfill has run.
+   * stable identity/profile/token document.
    */
   userProfileActivity: defineTable({
     userId: v.id("users"),

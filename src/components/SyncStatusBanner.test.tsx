@@ -1,9 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import type { FunctionReturnType } from "convex/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SyncStatusBanner } from "./SyncStatusBanner";
+import type { api } from "../../convex/_generated/api";
 
 const mockUseQuery = vi.fn();
+
+type SyncState = FunctionReturnType<typeof api.users.getSyncStatus>;
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href: string }) => (
@@ -26,8 +30,6 @@ vi.mock("../../convex/_generated/api", () => ({
     },
   },
 }));
-
-type SyncState = "syncing" | "complete" | "failed" | null;
 
 function mockState({
   syncStatus,
