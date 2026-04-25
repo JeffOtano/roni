@@ -17,6 +17,8 @@ import {
   syncActivitiesAndStrength,
   syncStrengthOnly,
 } from "./historySyncCore";
+import { computeNextSyncAt, isEligibleForRefresh } from "./cacheRefreshTiering";
+import { isoDateUtc, shouldSkipBackgroundSync } from "./historySyncPreflight";
 
 const BACKFILL_BATCH_SIZE = 20;
 // 2x what we'd need to drain pgTotal at BACKFILL_BATCH_SIZE per iteration; floor for tiny histories.
@@ -245,6 +247,44 @@ export const backfillUserHistoryWorkflow = workflow.define({
 export const startSyncUserHistory = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile) return;
+
+    const now = Date.now();
+
+    // The cron may have selected this user via a stale nextTonalSyncAt: either
+    // the user aged past 72h, or their tier shifted to a longer interval since
+    // the last sync. Recompute the indexed field so the next cron pass either
+    // skips them entirely (skip tier → undefined removes the field) or polls
+    // them at the correct cadence.
+    if (!isEligibleForRefresh(now, profile.appLastActiveAt, profile.lastTonalSyncAt)) {
+      const next = computeNextSyncAt(now, profile.appLastActiveAt, profile.lastTonalSyncAt);
+      if (next !== profile.nextTonalSyncAt) {
+        await ctx.db.patch(profile._id, { nextTonalSyncAt: next });
+      }
+      return;
+    }
+
+    const skip = shouldSkipBackgroundSync({
+      now,
+      workoutHistoryCacheFetchedAt: profile.workoutHistoryCachedAt,
+      lastSyncedActivityDate: profile.lastSyncedActivityDate,
+      todayIso: isoDateUtc(now),
+    });
+
+    // Record the attempt unconditionally so the cron's tier gate throttles
+    // the next pass — otherwise a profile with `lastTonalSyncAt === undefined`
+    // and a fresh cache stays eligible every 30 minutes forever.
+    await ctx.db.patch(profile._id, {
+      lastTonalSyncAt: now,
+      nextTonalSyncAt: computeNextSyncAt(now, profile.appLastActiveAt, now),
+    });
+
+    if (skip) return;
+
     await workflow.start(ctx, internal.tonal.historySync.syncUserHistoryWorkflow, { userId });
   },
 });
