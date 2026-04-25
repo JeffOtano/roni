@@ -1,6 +1,8 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import type { GenericId } from "convex/values";
+import { internalMutation, type MutationCtx } from "./_generated/server";
 import { BY_USER_ID_BATCH_TABLES, type ByUserIdBatchTable } from "./userData";
+import type { Id } from "./_generated/dataModel";
 import { clearForUser as clearPersonalRecordsForUser } from "./personalRecords";
 
 const BATCH_SIZE = 500;
@@ -17,18 +19,83 @@ const userTableValidator = v.union(
   ]),
 );
 
-/** Delete one batch from a table with a by_userId index. Returns true if more remain. */
+// Tables that ship with both `by_userId` and a compound `by_userId_X` route
+// their deletion scan through the compound index so we can drop the redundant
+// single-field index. Tables not listed here fall through to `by_userId`.
+async function takeBatchForDeletion(
+  ctx: MutationCtx,
+  table: ByUserIdBatchTable,
+  userId: Id<"users">,
+): Promise<GenericId<ByUserIdBatchTable>[]> {
+  switch (table) {
+    case "weekPlans":
+      return (
+        await ctx.db
+          .query("weekPlans")
+          .withIndex("by_userId_weekStartDate", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    case "workoutFeedback":
+      return (
+        await ctx.db
+          .query("workoutFeedback")
+          .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    case "trainingBlocks":
+      return (
+        await ctx.db
+          .query("trainingBlocks")
+          .withIndex("by_userId_status", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    case "goals":
+      return (
+        await ctx.db
+          .query("goals")
+          .withIndex("by_userId_status", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    case "aiUsage":
+      return (
+        await ctx.db
+          .query("aiUsage")
+          .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    case "aiRun":
+      return (
+        await ctx.db
+          .query("aiRun")
+          .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    case "completedWorkouts":
+      return (
+        await ctx.db
+          .query("completedWorkouts")
+          .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+    default:
+      return (
+        await ctx.db
+          .query(table)
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .take(BATCH_SIZE)
+      ).map((d) => d._id);
+  }
+}
+
+/** Delete one batch from a user-scoped table. Returns true if more remain. */
 export const deleteUserTableBatch = internalMutation({
   args: { userId: v.id("users"), table: userTableValidator },
   handler: async (ctx, { userId, table }): Promise<boolean> => {
-    const docs = await ctx.db
-      .query(table)
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(BATCH_SIZE);
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
+    const ids = await takeBatchForDeletion(ctx, table, userId);
+    for (const id of ids) {
+      await ctx.db.delete(id);
     }
-    return docs.length === BATCH_SIZE;
+    return ids.length === BATCH_SIZE;
   },
 });
 

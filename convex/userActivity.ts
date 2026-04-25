@@ -20,7 +20,7 @@ export const getAllConnectedUsers = internalQuery({
   handler: async (ctx) => {
     return await ctx.db
       .query("userProfiles")
-      .withIndex("by_lastActiveAt", (q) => q.gt("lastActiveAt", 0))
+      .withIndex("by_tonalUserId", (q) => q.gt("tonalUserId", ""))
       .collect();
   },
 });

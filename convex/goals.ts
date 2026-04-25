@@ -123,11 +123,11 @@ export const getAll = query({
   handler: async (ctx) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) return [];
-    return ctx.db
+    const rows = await ctx.db
       .query("goals")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .order("desc")
+      .withIndex("by_userId_status", (q) => q.eq("userId", userId))
       .collect();
+    return rows.sort((a, b) => b._creationTime - a._creationTime);
   },
 });
 

@@ -37,7 +37,7 @@ export const getWeekPlanDaysWithWorkoutPlanInternal = internalQuery({
   handler: async (ctx, { userId, workoutPlanId }) => {
     const plans = await ctx.db
       .query("weekPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_weekStartDate", (q) => q.eq("userId", userId))
       .collect();
     const result: { weekPlanId: Id<"weekPlans">; dayIndex: number }[] = [];
     for (const plan of plans) {
