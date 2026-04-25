@@ -11,7 +11,12 @@
  *   cleanup pass is needed.
  */
 
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import {
+  type ActionCtx,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { FunctionReference } from "convex/server";
@@ -26,6 +31,9 @@ export const RETENTION = {
   strengthScoreSnapshotDays: 730,
   expiredCacheHours: 24,
 } as const;
+
+const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
 
 const BATCH_SIZE = 100;
 /** Cache docs store full API responses and can be ~1MB each; use a smaller batch. */
@@ -121,15 +129,7 @@ interface PruneTableConfig {
   query: ExpiredIdsQuery;
 }
 
-interface PruneCtx {
-  runQuery: (q: ExpiredIdsQuery, args: { cutoff: number; limit: number }) => Promise<string[]>;
-  runMutation: (
-    m: typeof internal.dataRetention.batchDelete,
-    args: { ids: string[] },
-  ) => Promise<number>;
-}
-
-async function pruneTable(ctx: PruneCtx, config: PruneTableConfig): Promise<number> {
+async function pruneTable(ctx: ActionCtx, config: PruneTableConfig): Promise<number> {
   let deleted = 0;
   while (true) {
     const ids = await ctx.runQuery(config.query, {
@@ -151,27 +151,27 @@ export const runDataRetention = internalAction({
     const now = Date.now();
 
     const aiUsageDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.aiUsageDays * 24 * 60 * 60 * 1000,
+      cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
       batchSize: BATCH_SIZE,
       query: internal.dataRetention.getExpiredAiUsageIds,
     });
     const toolCallsDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.aiToolCallsDays * 24 * 60 * 60 * 1000,
+      cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
       batchSize: BATCH_SIZE,
       query: internal.dataRetention.getExpiredToolCallIds,
     });
     const aiRunDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.aiRunDays * 24 * 60 * 60 * 1000,
+      cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
       batchSize: BATCH_SIZE,
       query: internal.dataRetention.getExpiredAiRunIds,
     });
     const strengthSnapshotsDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.strengthScoreSnapshotDays * 24 * 60 * 60 * 1000,
+      cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
       batchSize: BATCH_SIZE,
       query: internal.dataRetention.getExpiredStrengthSnapshotIds,
     });
     const cacheDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.expiredCacheHours * 60 * 60 * 1000,
+      cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
       batchSize: CACHE_BATCH_SIZE,
       query: internal.dataRetention.getExpiredCacheIds,
     });
