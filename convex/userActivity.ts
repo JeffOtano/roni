@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalQuery, mutation } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
+import { rateLimiter } from "./rateLimits";
 
 const APP_ACTIVITY_THROTTLE_MS = 30 * 60 * 1000;
 
@@ -29,6 +30,7 @@ export const recordAppActivity = mutation({
   handler: async (ctx) => {
     const userId = await getEffectiveUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    await rateLimiter.limit(ctx, "recordAppActivity", { key: userId });
 
     const profile = await ctx.db
       .query("userProfiles")

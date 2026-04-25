@@ -304,7 +304,7 @@ export const persistCurrentStrengthScores = internalMutation({
     for (const s of scores) {
       await ctx.db.insert("currentStrengthScores", { userId, ...s, fetchedAt: now });
     }
-    if (existing.length > 0 || scores.length > 0) await requestCoachStateRefresh(ctx, userId);
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 

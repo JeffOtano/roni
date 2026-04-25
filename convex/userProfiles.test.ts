@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
+import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -7,6 +8,12 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+
+function createTest() {
+  const t = convexTest(schema, modules);
+  registerRateLimiter(t);
+  return t;
+}
 
 async function createUser(t: ReturnType<typeof convexTest>): Promise<Id<"users">> {
   return t.run(async (ctx) => ctx.db.insert("users", {}));
@@ -38,7 +45,7 @@ afterEach(() => {
 
 describe("user activity tracking", () => {
   test("uses app activity instead of background token freshness", async () => {
-    const t = convexTest(schema, modules);
+    const t = createTest();
     const activeUserId = await createUser(t);
     const tokenOnlyUserId = await createUser(t);
     const legacyUserId = await createUser(t);
@@ -55,7 +62,7 @@ describe("user activity tracking", () => {
   });
 
   test("token refresh does not update app activity", async () => {
-    const t = convexTest(schema, modules);
+    const t = createTest();
     const userId = await createUser(t);
     const profileId = await createProfile(t, userId, {
       lastActiveAt: 1000,
@@ -76,7 +83,7 @@ describe("user activity tracking", () => {
   });
 
   test("recordAppActivity requires authentication", async () => {
-    const t = convexTest(schema, modules);
+    const t = createTest();
 
     await expect(t.mutation(api.userActivity.recordAppActivity, {})).rejects.toThrow(
       "Not authenticated",
@@ -86,7 +93,7 @@ describe("user activity tracking", () => {
   test("recordAppActivity throttles writes and updates both activity timestamps", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
-    const t = convexTest(schema, modules);
+    const t = createTest();
     const userId = await createUser(t);
     const profileId = await createProfile(t, userId, {
       lastActiveAt: 10_000,
@@ -110,7 +117,7 @@ describe("user activity tracking", () => {
   });
 
   test("recordAppActivity is a no-op before a Tonal profile exists", async () => {
-    const t = convexTest(schema, modules);
+    const t = createTest();
     const userId = await createUser(t);
     const authed = t.withIdentity({ subject: `${userId}|session` });
 

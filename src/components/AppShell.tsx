@@ -107,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", record);
     };
-  }, [isAuthenticated, pathname, recordAppActivity]);
+  }, [isAuthenticated, recordAppActivity]);
 
   useEffect(() => {
     if (me && (!me.hasTonalProfile || !me.onboardingCompleted || !me.hasCheckInPreferences)) {
