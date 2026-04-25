@@ -47,7 +47,7 @@ export const getExpiredTokenCount = internalQuery({
   },
 });
 
-/** Main health check action. Called by cron every 15 minutes. */
+/** Main health check action. Called by cron every hour. */
 export const runHealthCheck = internalAction({
   handler: async (ctx) => {
     const [expiredTokenCount, circuitOpen] = await Promise.all([

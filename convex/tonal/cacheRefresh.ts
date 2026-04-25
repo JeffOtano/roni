@@ -3,13 +3,15 @@ import { internal } from "../_generated/api";
 
 export const refreshActiveUsers = internalAction({
   handler: async (ctx) => {
-    const threeDaysAgo = Date.now() - 72 * 60 * 60 * 1000;
+    const now = Date.now();
 
-    const activeUsers = await ctx.runQuery(internal.userActivity.getActiveUsers, {
-      sinceTimestamp: threeDaysAgo,
-    });
+    // Index range query: only profiles whose precomputed nextTonalSyncAt has
+    // elapsed are read. Eligibility (skip-tier age-out, tier transitions) is
+    // handled inside startSyncUserHistory so a stale index entry self-heals
+    // — the mutation patches/clears nextTonalSyncAt on its first pass.
+    const dueUsers = await ctx.runQuery(internal.userActivity.getUsersDueForRefresh, { now });
 
-    for (const profile of activeUsers) {
+    for (const profile of dueUsers) {
       try {
         await ctx.runMutation(internal.tonal.historySync.startSyncUserHistory, {
           userId: profile.userId,
