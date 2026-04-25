@@ -88,6 +88,10 @@ async function takeBatchForDeletion(
     case "strengthScoreSnapshots":
     case "currentStrengthScores":
     case "muscleReadiness":
+    case "garminConnections":
+    case "garminOauthStates":
+    case "garminWellnessDaily":
+    case "garminWebhookEvents":
       return (
         await ctx.db
           .query(table)
