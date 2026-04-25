@@ -127,6 +127,27 @@ export default defineSchema({
     .index("by_appLastActiveAt", ["appLastActiveAt"])
     .index("by_tonalConnectedAt", ["tonalConnectedAt"]),
 
+  /**
+   * High-churn per-user activity state split out of `userProfiles` so that
+   * activity, sync, and token-lock writes don't invalidate subscribers of the
+   * stable identity/profile/token document. Widen step: dual-written from the
+   * same writers as the `userProfiles` fields below; readers will switch over
+   * once the backfill has run.
+   */
+  userProfileActivity: defineTable({
+    userId: v.id("users"),
+    lastActiveAt: v.optional(v.number()),
+    appLastActiveAt: v.optional(v.number()),
+    syncStatus: v.optional(
+      v.union(v.literal("syncing"), v.literal("complete"), v.literal("failed")),
+    ),
+    lastSyncedActivityDate: v.optional(v.string()),
+    tokenRefreshInProgress: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_appLastActiveAt", ["appLastActiveAt"])
+    .index("by_lastActiveAt", ["lastActiveAt"]),
+
   /** In-app check-ins (proactive messages). No SMS. */
   checkIns: defineTable({
     userId: v.id("users"),

@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { preferredSplitValidator } from "./weekPlanHelpers";
 import { requestCoachStateRefresh } from "./coachState";
+import { patchUserActivity } from "./userProfileActivity";
 
 const profileDataValidator = v.object({
   firstName: v.string(),
@@ -55,6 +56,7 @@ export const create = internalMutation({
       .unique();
 
     if (existing) {
+      const reconnectedAt = Date.now();
       await ctx.db.patch(existing._id, {
         tonalUserId: args.tonalUserId,
         tonalEmail: args.tonalEmail,
@@ -62,8 +64,12 @@ export const create = internalMutation({
         tonalRefreshToken: args.tonalRefreshToken,
         tonalTokenExpiresAt: args.tonalTokenExpiresAt,
         profileData: args.profileData,
-        lastActiveAt: Date.now(),
-        appLastActiveAt: Date.now(),
+        lastActiveAt: reconnectedAt,
+        appLastActiveAt: reconnectedAt,
+      });
+      await patchUserActivity(ctx, args.userId, {
+        lastActiveAt: reconnectedAt,
+        appLastActiveAt: reconnectedAt,
       });
       if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
       return existing._id;
@@ -75,6 +81,10 @@ export const create = internalMutation({
       lastActiveAt: now,
       appLastActiveAt: now,
       tonalConnectedAt: now,
+    });
+    await patchUserActivity(ctx, args.userId, {
+      lastActiveAt: now,
+      appLastActiveAt: now,
     });
     if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
     return id;
@@ -292,6 +302,7 @@ export const updateLastSyncedActivityDate = internalMutation({
       .unique();
     if (!profile) throw new Error("User profile not found");
     await ctx.db.patch(profile._id, { lastSyncedActivityDate: date });
+    await patchUserActivity(ctx, userId, { lastSyncedActivityDate: date });
   },
 });
 
@@ -340,6 +351,7 @@ export const acquireTokenRefreshLock = internalMutation({
     }
 
     await ctx.db.patch(profile._id, { tokenRefreshInProgress: now });
+    await patchUserActivity(ctx, userId, { tokenRefreshInProgress: now });
     return true;
   },
 });
@@ -353,6 +365,7 @@ export const releaseTokenRefreshLock = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     if (profile) await ctx.db.patch(profile._id, { tokenRefreshInProgress: undefined });
+    await patchUserActivity(ctx, userId, { tokenRefreshInProgress: undefined });
   },
 });
 
@@ -369,6 +382,7 @@ export const updateSyncStatus = internalMutation({
       .first();
     if (!profile) return;
     await ctx.db.patch(profile._id, { syncStatus });
+    await patchUserActivity(ctx, userId, { syncStatus });
   },
 });
 

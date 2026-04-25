@@ -1,6 +1,7 @@
 import { Migrations } from "@convex-dev/migrations";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { patchUserActivity } from "./userProfileActivity";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 export const run = migrations.runner();
@@ -20,5 +21,29 @@ export const clearBogusAvgWeight = migrations.define({
   migrateOne: (_ctx, doc) => {
     if (doc.avgWeightLbs == null) return;
     return { avgWeightLbs: undefined };
+  },
+});
+
+/**
+ * Widen-step backfill for the `userProfileActivity` split.
+ *
+ * Copies the high-churn fields (`lastActiveAt`, `appLastActiveAt`,
+ * `syncStatus`, `lastSyncedActivityDate`, `tokenRefreshInProgress`) from each
+ * existing `userProfiles` row into a sibling `userProfileActivity` row so
+ * that future readers can switch over without losing data. Idempotent —
+ * `patchUserActivity` upserts.
+ *
+ * Run: npx convex run migrations:run '{"fn": "migrations:backfillUserProfileActivity"}'
+ */
+export const backfillUserProfileActivity = migrations.define({
+  table: "userProfiles",
+  migrateOne: async (ctx, doc) => {
+    await patchUserActivity(ctx, doc.userId, {
+      lastActiveAt: doc.lastActiveAt,
+      appLastActiveAt: doc.appLastActiveAt,
+      syncStatus: doc.syncStatus,
+      lastSyncedActivityDate: doc.lastSyncedActivityDate,
+      tokenRefreshInProgress: doc.tokenRefreshInProgress,
+    });
   },
 });

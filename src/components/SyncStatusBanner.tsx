@@ -1,29 +1,30 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Loader2, X } from "lucide-react";
 
 export function SyncStatusBanner() {
-  const [dismissed, setDismissed] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
+  const syncStatus = useQuery(api.users.getSyncStatus, isAuthenticated ? {} : "skip");
 
   // Reset dismissed when syncStatus changes so the banner can reappear after retry.
-  // Uses render-time ref comparison instead of useEffect to avoid cascading renders.
-  const prevStatus = useRef(me?.syncStatus);
-  if (me?.syncStatus !== prevStatus.current) {
-    prevStatus.current = me?.syncStatus;
+  // React allows setState during render to derive state from props/queries.
+  const [prevStatus, setPrevStatus] = useState(syncStatus);
+  const [dismissed, setDismissed] = useState(false);
+  if (syncStatus !== prevStatus) {
+    setPrevStatus(syncStatus);
     if (dismissed) setDismissed(false);
   }
 
-  if (!me || !me.syncStatus) return null;
-  if (me.syncStatus === "complete") return null;
-  if (me.tonalTokenExpired) return null;
+  if (!syncStatus) return null;
+  if (syncStatus === "complete") return null;
+  if (me?.tonalTokenExpired) return null;
 
-  if (me.syncStatus === "syncing") {
+  if (syncStatus === "syncing") {
     return (
       <div
         role="status"
@@ -37,7 +38,7 @@ export function SyncStatusBanner() {
     );
   }
 
-  if (me.syncStatus === "failed" && !dismissed) {
+  if (syncStatus === "failed" && !dismissed) {
     return (
       <div
         role="alert"

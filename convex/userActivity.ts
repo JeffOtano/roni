@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalQuery, mutation } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
+import { patchUserActivity } from "./userProfileActivity";
 
 const APP_ACTIVITY_THROTTLE_MS = 30 * 60 * 1000;
 
@@ -44,6 +45,10 @@ export const recordAppActivity = mutation({
     }
 
     await ctx.db.patch(profile._id, {
+      appLastActiveAt: now,
+      lastActiveAt: now,
+    });
+    await patchUserActivity(ctx, userId, {
       appLastActiveAt: now,
       lastActiveAt: now,
     });

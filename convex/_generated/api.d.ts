@@ -133,6 +133,7 @@ import type * as tonal_workoutHistoryProxy from "../tonal/workoutHistoryProxy.js
 import type * as tonal_workoutMeta from "../tonal/workoutMeta.js";
 import type * as userActivity from "../userActivity.js";
 import type * as userData from "../userData.js";
+import type * as userProfileActivity from "../userProfileActivity.js";
 import type * as userProfiles from "../userProfiles.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
@@ -278,6 +279,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/workoutMeta": typeof tonal_workoutMeta;
   userActivity: typeof userActivity;
   userData: typeof userData;
+  userProfileActivity: typeof userProfileActivity;
   userProfiles: typeof userProfiles;
   users: typeof users;
   validators: typeof validators;

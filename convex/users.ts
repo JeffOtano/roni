@@ -29,7 +29,32 @@ export const getMe = query({
         : undefined,
       tonalEmail: profile?.tonalEmail,
       tonalTokenExpired,
-      syncStatus: profile?.syncStatus,
     };
+  },
+});
+
+/**
+ * Sync status for the authenticated user, served from the
+ * `userProfileActivity` split table. During the widen rollout we fall back
+ * to `userProfiles.syncStatus` for users whose activity row hasn't been
+ * backfilled yet so the SyncStatusBanner stays accurate end-to-end.
+ */
+export const getSyncStatus = query({
+  args: {},
+  handler: async (ctx): Promise<"syncing" | "complete" | "failed" | null> => {
+    const userId = await getEffectiveUserId(ctx);
+    if (!userId) return null;
+
+    const activity = await ctx.db
+      .query("userProfileActivity")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (activity) return activity.syncStatus ?? null;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    return profile?.syncStatus ?? null;
   },
 });

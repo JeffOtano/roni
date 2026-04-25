@@ -22,9 +22,26 @@ vi.mock("../../convex/_generated/api", () => ({
   api: {
     users: {
       getMe: "users:getMe",
+      getSyncStatus: "users:getSyncStatus",
     },
   },
 }));
+
+type SyncState = "syncing" | "complete" | "failed" | null;
+
+function mockState({
+  syncStatus,
+  tonalTokenExpired,
+}: {
+  syncStatus: SyncState;
+  tonalTokenExpired: boolean;
+}) {
+  mockUseQuery.mockImplementation((reference: string) => {
+    if (reference === "users:getSyncStatus") return syncStatus;
+    if (reference === "users:getMe") return { tonalTokenExpired };
+    return undefined;
+  });
+}
 
 describe("SyncStatusBanner", () => {
   afterEach(() => {
@@ -32,7 +49,7 @@ describe("SyncStatusBanner", () => {
   });
 
   it("renders syncing banner when syncStatus is syncing", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: "syncing", tonalTokenExpired: false });
+    mockState({ syncStatus: "syncing", tonalTokenExpired: false });
 
     render(<SyncStatusBanner />);
 
@@ -41,7 +58,7 @@ describe("SyncStatusBanner", () => {
   });
 
   it("renders failed banner with Settings link when syncStatus is failed", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: "failed", tonalTokenExpired: false });
+    mockState({ syncStatus: "failed", tonalTokenExpired: false });
 
     render(<SyncStatusBanner />);
 
@@ -51,7 +68,7 @@ describe("SyncStatusBanner", () => {
   });
 
   it("dismisses failed banner when dismiss button is clicked", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: "failed", tonalTokenExpired: false });
+    mockState({ syncStatus: "failed", tonalTokenExpired: false });
 
     const { container } = render(<SyncStatusBanner />);
 
@@ -61,23 +78,27 @@ describe("SyncStatusBanner", () => {
   });
 
   it("renders nothing when syncStatus is complete", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: "complete", tonalTokenExpired: false });
+    mockState({ syncStatus: "complete", tonalTokenExpired: false });
 
     const { container } = render(<SyncStatusBanner />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing when syncStatus is undefined", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: undefined, tonalTokenExpired: false });
+  it("renders nothing when syncStatus is null", () => {
+    mockState({ syncStatus: null, tonalTokenExpired: false });
 
     const { container } = render(<SyncStatusBanner />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing when user data is not loaded", () => {
-    mockUseQuery.mockReturnValue(null);
+  it("renders nothing when sync status query is still loading", () => {
+    mockUseQuery.mockImplementation((reference: string) => {
+      if (reference === "users:getSyncStatus") return undefined;
+      if (reference === "users:getMe") return { tonalTokenExpired: false };
+      return undefined;
+    });
 
     const { container } = render(<SyncStatusBanner />);
 
@@ -85,7 +106,7 @@ describe("SyncStatusBanner", () => {
   });
 
   it("renders nothing when token is expired (token banner takes priority)", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: "syncing", tonalTokenExpired: true });
+    mockState({ syncStatus: "syncing", tonalTokenExpired: true });
 
     const { container } = render(<SyncStatusBanner />);
 
@@ -93,21 +114,18 @@ describe("SyncStatusBanner", () => {
   });
 
   it("re-shows failed banner after status transitions through non-failed state", () => {
-    mockUseQuery.mockReturnValue({ syncStatus: "failed", tonalTokenExpired: false });
+    mockState({ syncStatus: "failed", tonalTokenExpired: false });
 
     const { rerender } = render(<SyncStatusBanner />);
     expect(screen.getByRole("alert")).toBeInTheDocument();
 
-    // Dismiss
     fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
 
-    // Transition to syncing (retry triggered)
-    mockUseQuery.mockReturnValue({ syncStatus: "syncing", tonalTokenExpired: false });
+    mockState({ syncStatus: "syncing", tonalTokenExpired: false });
     rerender(<SyncStatusBanner />);
     expect(screen.getByRole("status")).toBeInTheDocument();
 
-    // Fail again
-    mockUseQuery.mockReturnValue({ syncStatus: "failed", tonalTokenExpired: false });
+    mockState({ syncStatus: "failed", tonalTokenExpired: false });
     rerender(<SyncStatusBanner />);
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
