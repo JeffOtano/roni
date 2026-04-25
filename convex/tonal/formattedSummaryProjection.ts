@@ -6,8 +6,14 @@ const movementSetSchema = z.object({
   totalVolume: z.number(),
 });
 
+// Lenient: tolerates legacy cached entries where movementSets may be absent.
 const formattedSummarySchema = z.object({
   movementSets: z.array(movementSetSchema).optional(),
+});
+
+// Strict: Tonal's contract always returns movementSets; missing field is drift.
+const strictFormattedSummarySchema = z.object({
+  movementSets: z.array(movementSetSchema),
 });
 
 /**
@@ -41,6 +47,5 @@ export function projectFormattedSummaryStrict(raw: unknown): FormattedWorkoutSum
       }`,
     );
   }
-  const parsed = formattedSummarySchema.parse(raw);
-  return { movementSets: parsed.movementSets ?? [] };
+  return strictFormattedSummarySchema.parse(raw);
 }

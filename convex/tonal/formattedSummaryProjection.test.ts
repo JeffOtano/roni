@@ -82,4 +82,9 @@ describe("projectFormattedSummaryStrict", () => {
     const malformed = { movementSets: [{ movementId: "m-1" }] };
     expect(() => projectFormattedSummaryStrict(malformed)).toThrow();
   });
+
+  it("throws when movementSets is absent so cachedFetch does not cache an empty placeholder", () => {
+    expect(() => projectFormattedSummaryStrict({})).toThrow();
+    expect(() => projectFormattedSummaryStrict({ summaryId: "wa-1" })).toThrow();
+  });
 });
