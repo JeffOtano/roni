@@ -71,6 +71,35 @@ afterEach(() => {
 });
 
 describe("cachedFetch", () => {
+  it("serves stale cached data when the fetcher throws and overwrites nothing", async () => {
+    const { ctx, cache, runMutation } = makeMockCtx();
+    const stale = [{ id: "old" }];
+    cache.set(makeCacheKey(undefined, "stale-test"), {
+      data: stale,
+      fetchedAt: 1,
+      expiresAt: 2, // already expired -> triggers refresh path
+    });
+    const fetcher = vi.fn().mockRejectedValue(new Error("schema mismatch from strict projection"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await cachedFetch(ctx, {
+      dataType: "stale-test",
+      ttl: 60_000,
+      fetcher,
+    });
+
+    const cacheWriteCalls = runMutation.mock.calls.filter(
+      ([, args]) => args && typeof args === "object" && "data" in args,
+    );
+    expect(result).toBe(stale);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(cacheWriteCalls).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("cachedFetch(stale-test): refresh failed"),
+      expect.any(Error),
+    );
+  });
+
   it("skips doomed cache writes before calling the cache mutation", async () => {
     const { ctx, runMutation } = makeMockCtx();
     const fetcher = vi.fn().mockResolvedValue({ payload: "x".repeat(MAX_CACHE_VALUE_BYTES + 1) });

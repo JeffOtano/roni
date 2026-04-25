@@ -96,7 +96,7 @@ export const getStrengthHistoryTool = createTool({
     "get_strength_history",
     async (ctx, _input, _options): Promise<StrengthScoreHistoryEntry[]> => {
       const userId = requireUserId(ctx);
-      const history = (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
+      const history = (await ctx.runAction(internal.tonal.proxyProjected.fetchStrengthHistory, {
         userId,
       })) as StrengthScoreHistoryEntry[];
       // Cap returned entries to prevent large tool results from bloating context

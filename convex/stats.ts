@@ -13,7 +13,7 @@ export const getStrengthHistory = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    return (await ctx.runAction(internal.tonal.proxy.fetchStrengthHistory, {
+    return (await ctx.runAction(internal.tonal.proxyProjected.fetchStrengthHistory, {
       userId,
     })) as StrengthScoreHistoryEntry[];
   },
