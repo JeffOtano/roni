@@ -19,9 +19,11 @@ const userTableValidator = v.union(
   ]),
 );
 
-// Tables that ship with both `by_userId` and a compound `by_userId_X` route
-// their deletion scan through the compound index so we can drop the redundant
-// single-field index. Tables not listed here fall through to `by_userId`.
+// Tables that no longer carry a single-field `by_userId` index route their
+// deletion scan through a covering `by_userId_X` compound. Tables that retain
+// `by_userId` fall through to the shared arm. Switch is exhaustive over
+// `ByUserIdBatchTable` so dropping another `by_userId` from schema.ts is a
+// compile-time error here, not a runtime account-deletion failure.
 async function takeBatchForDeletion(
   ctx: MutationCtx,
   table: ByUserIdBatchTable,
@@ -77,13 +79,25 @@ async function takeBatchForDeletion(
           .withIndex("by_userId_date", (q) => q.eq("userId", userId))
           .take(BATCH_SIZE)
       ).map((d) => d._id);
-    default:
+    case "checkIns":
+    case "workoutPlans":
+    case "injuries":
+    case "emailChangeRequests":
+    case "aiBudgetWarnings":
+    case "coachState":
+    case "strengthScoreSnapshots":
+    case "currentStrengthScores":
+    case "muscleReadiness":
       return (
         await ctx.db
           .query(table)
           .withIndex("by_userId", (q) => q.eq("userId", userId))
           .take(BATCH_SIZE)
       ).map((d) => d._id);
+    default: {
+      const _exhaustive: never = table;
+      throw new Error(`Unhandled deletion table: ${String(_exhaustive)}`);
+    }
   }
 }
 
