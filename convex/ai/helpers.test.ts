@@ -102,6 +102,15 @@ describe("safeStringify", () => {
     expect(safeStringify(undefined)).toBe("");
   });
 
+  it("returns empty string when maxChars cannot fit the truncation suffix", () => {
+    // Suffix "...[truncated]" is 14 chars; with maxChars=10 there is no room
+    // for any kept content plus the suffix, so refuse rather than emit a
+    // malformed slice.
+    const padded = "x".repeat(100);
+
+    expect(safeStringify({ note: padded }, 10)).toBe("");
+  });
+
   it("falls back to a sentinel when JSON.stringify throws", () => {
     const cyclic: { self?: unknown } = {};
     cyclic.self = cyclic;

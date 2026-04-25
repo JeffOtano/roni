@@ -101,18 +101,23 @@ export const getExpiredCacheIds = internalQuery({
   },
 });
 
-/** Batch delete records by ID from any prunable table. */
+/**
+ * Batch delete records by ID from any prunable table. Reads each row first so
+ * concurrent deletes are a no-op without swallowing other errors (cast
+ * mismatches, OCC retries, permission failures), which previously hid here.
+ */
 export const batchDelete = internalMutation({
   args: { ids: v.array(v.string()) },
   handler: async (ctx, { ids }) => {
+    let deleted = 0;
     for (const id of ids) {
-      try {
-        await ctx.db.delete(id as Id<PrunableTable>);
-      } catch {
-        // Record may have been deleted concurrently — skip
-      }
+      const typedId = id as Id<PrunableTable>;
+      const existing = await ctx.db.get(typedId);
+      if (!existing) continue;
+      await ctx.db.delete(typedId);
+      deleted += 1;
     }
-    return ids.length;
+    return deleted;
   },
 });
 
@@ -149,49 +154,64 @@ export const runDataRetention = internalAction({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
+    const counts = {
+      aiUsage: 0,
+      toolCalls: 0,
+      aiRun: 0,
+      strengthSnapshots: 0,
+      cache: 0,
+    };
+    let partialFailure: string | undefined;
 
-    const aiUsageDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
-      batchSize: BATCH_SIZE,
-      query: internal.dataRetention.getExpiredAiUsageIds,
-    });
-    const toolCallsDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
-      batchSize: BATCH_SIZE,
-      query: internal.dataRetention.getExpiredToolCallIds,
-    });
-    const aiRunDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
-      batchSize: BATCH_SIZE,
-      query: internal.dataRetention.getExpiredAiRunIds,
-    });
-    const strengthSnapshotsDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
-      batchSize: BATCH_SIZE,
-      query: internal.dataRetention.getExpiredStrengthSnapshotIds,
-    });
-    const cacheDeleted = await pruneTable(ctx, {
-      cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
-      batchSize: CACHE_BATCH_SIZE,
-      query: internal.dataRetention.getExpiredCacheIds,
-    });
+    try {
+      counts.aiUsage = await pruneTable(ctx, {
+        cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredAiUsageIds,
+      });
+      counts.toolCalls = await pruneTable(ctx, {
+        cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredToolCallIds,
+      });
+      counts.aiRun = await pruneTable(ctx, {
+        cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredAiRunIds,
+      });
+      counts.strengthSnapshots = await pruneTable(ctx, {
+        cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredStrengthSnapshotIds,
+      });
+      counts.cache = await pruneTable(ctx, {
+        cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
+        batchSize: CACHE_BATCH_SIZE,
+        query: internal.dataRetention.getExpiredCacheIds,
+      });
+    } catch (err) {
+      partialFailure = err instanceof Error ? err.message : String(err);
+      throw err;
+    } finally {
+      const totalDeleted =
+        counts.aiUsage + counts.toolCalls + counts.aiRun + counts.strengthSnapshots + counts.cache;
+      if (totalDeleted > 0 || partialFailure) {
+        const prefix = partialFailure ? `partial (${partialFailure}): ` : "";
+        console.log(
+          `[dataRetention] ${prefix}Cleaned up ${totalDeleted} records: ${counts.aiUsage} aiUsage, ${counts.toolCalls} toolCalls, ${counts.aiRun} aiRun, ${counts.strengthSnapshots} strengthSnapshots, ${counts.cache} cache`,
+        );
+      }
 
-    const totalDeleted =
-      aiUsageDeleted + toolCallsDeleted + aiRunDeleted + strengthSnapshotsDeleted + cacheDeleted;
-    if (totalDeleted > 0) {
-      console.log(
-        `[dataRetention] Cleaned up ${totalDeleted} records: ${aiUsageDeleted} aiUsage, ${toolCallsDeleted} toolCalls, ${aiRunDeleted} aiRun, ${strengthSnapshotsDeleted} strengthSnapshots, ${cacheDeleted} cache`,
-      );
+      analytics.captureSystem("data_retention_completed", {
+        total_deleted: totalDeleted,
+        ai_usage_deleted: counts.aiUsage,
+        tool_calls_deleted: counts.toolCalls,
+        ai_run_deleted: counts.aiRun,
+        strength_snapshots_deleted: counts.strengthSnapshots,
+        cache_deleted: counts.cache,
+        partial_failure: partialFailure ?? null,
+      });
+      await analytics.flush();
     }
-
-    analytics.captureSystem("data_retention_completed", {
-      total_deleted: totalDeleted,
-      ai_usage_deleted: aiUsageDeleted,
-      tool_calls_deleted: toolCallsDeleted,
-      ai_run_deleted: aiRunDeleted,
-      strength_snapshots_deleted: strengthSnapshotsDeleted,
-      cache_deleted: cacheDeleted,
-    });
-    await analytics.flush();
   },
 });

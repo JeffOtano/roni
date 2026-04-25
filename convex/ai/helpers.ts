@@ -47,8 +47,10 @@ export function safeStringify(value: unknown, maxChars: number = aiToolPreviewMa
   }
   if (json === undefined) return "";
   if (json.length <= maxChars) return json;
-  // Avoid cutting in the middle of a UTF-16 surrogate pair (emoji, etc.).
   let cut = maxChars - TRUNCATION_SUFFIX.length;
+  // Refuse to emit a malformed slice when the budget can't fit the suffix.
+  if (cut <= 0) return "";
+  // Avoid cutting in the middle of a UTF-16 surrogate pair (emoji, etc.).
   const code = json.charCodeAt(cut - 1);
   if (code >= 0xd800 && code <= 0xdbff) cut -= 1;
   return json.slice(0, cut) + TRUNCATION_SUFFIX;

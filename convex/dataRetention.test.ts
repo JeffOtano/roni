@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, expect, it, test } from "vitest";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 import { RETENTION } from "./dataRetention";
@@ -8,6 +9,30 @@ import { RETENTION } from "./dataRetention";
 const modules = import.meta.glob("./**/*.*s");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function insertAiRun(
+  t: ReturnType<typeof convexTest>,
+  overrides: { userId: Id<"users">; createdAt: number; runId?: string },
+): Promise<Id<"aiRun">> {
+  return t.run(async (ctx) =>
+    ctx.db.insert("aiRun", {
+      runId: overrides.runId ?? `run-${overrides.createdAt}`,
+      userId: overrides.userId,
+      threadId: "thread-1",
+      source: "chat",
+      environment: "prod",
+      totalSteps: 1,
+      toolSequence: [],
+      retryCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      approvalPauses: 0,
+      createdAt: overrides.createdAt,
+    }),
+  );
+}
 
 describe("data retention constants", () => {
   it("AI usage retention is 90 days", () => {
@@ -37,42 +62,16 @@ describe("runDataRetention", () => {
     const now = Date.now();
     const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
 
-    const oldRunId = await t.run(async (ctx) =>
-      ctx.db.insert("aiRun", {
-        runId: "old-run",
-        userId,
-        threadId: "thread-1",
-        source: "chat",
-        environment: "prod",
-        totalSteps: 1,
-        toolSequence: [],
-        retryCount: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheReadTokens: 0,
-        cacheWriteTokens: 0,
-        approvalPauses: 0,
-        createdAt: now - (RETENTION.aiRunDays + 5) * DAY_MS,
-      }),
-    );
-    const freshRunId = await t.run(async (ctx) =>
-      ctx.db.insert("aiRun", {
-        runId: "fresh-run",
-        userId,
-        threadId: "thread-1",
-        source: "chat",
-        environment: "prod",
-        totalSteps: 1,
-        toolSequence: [],
-        retryCount: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheReadTokens: 0,
-        cacheWriteTokens: 0,
-        approvalPauses: 0,
-        createdAt: now - 1 * DAY_MS,
-      }),
-    );
+    const oldRunId = await insertAiRun(t, {
+      userId,
+      runId: "old-run",
+      createdAt: now - (RETENTION.aiRunDays + 5) * DAY_MS,
+    });
+    const freshRunId = await insertAiRun(t, {
+      userId,
+      runId: "fresh-run",
+      createdAt: now - 1 * DAY_MS,
+    });
 
     await t.action(internal.dataRetention.runDataRetention, {});
 
@@ -85,6 +84,99 @@ describe("runDataRetention", () => {
     const remainingIds = remaining.map((r) => r._id);
     expect(remainingIds).toContain(freshRunId);
     expect(remainingIds).not.toContain(oldRunId);
+  });
+
+  test("deletes more than one batch of aiRun rows in a single action run", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const expiredCreatedAt = now - (RETENTION.aiRunDays + 5) * DAY_MS;
+
+    const TOTAL_EXPIRED = 101;
+    for (let i = 0; i < TOTAL_EXPIRED; i++) {
+      await insertAiRun(t, {
+        userId,
+        runId: `expired-${i}`,
+        createdAt: expiredCreatedAt - i,
+      });
+    }
+    const freshRunId = await insertAiRun(t, {
+      userId,
+      runId: "fresh",
+      createdAt: now - 1 * DAY_MS,
+    });
+
+    await t.action(internal.dataRetention.runDataRetention, {});
+
+    const remaining = await t.run(async (ctx) =>
+      ctx.db
+        .query("aiRun")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .collect(),
+    );
+    expect(remaining.map((r) => r._id)).toEqual([freshRunId]);
+  });
+
+  test("getExpiredAiRunIds returns rows strictly older than cutoff", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const cutoff = 1_700_000_000_000;
+
+    const olderId = await insertAiRun(t, { userId, runId: "older", createdAt: cutoff - 1 });
+    const exactlyAtId = await insertAiRun(t, {
+      userId,
+      runId: "boundary",
+      createdAt: cutoff,
+    });
+    const newerId = await insertAiRun(t, { userId, runId: "newer", createdAt: cutoff + 1 });
+
+    const result = await t.query(internal.dataRetention.getExpiredAiRunIds, {
+      cutoff,
+      limit: 100,
+    });
+
+    expect(result).toContain(olderId);
+    expect(result).not.toContain(exactlyAtId);
+    expect(result).not.toContain(newerId);
+  });
+
+  test("getExpiredStrengthSnapshotIds returns rows strictly older than cutoff", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const cutoff = 1_700_000_000_000;
+    const baseSnapshot = {
+      userId,
+      date: "2024-01-01",
+      overall: 100,
+      upper: 90,
+      lower: 110,
+      core: 95,
+    };
+
+    const olderId = await t.run(async (ctx) =>
+      ctx.db.insert("strengthScoreSnapshots", { ...baseSnapshot, syncedAt: cutoff - 1 }),
+    );
+    const exactlyAtId = await t.run(async (ctx) =>
+      ctx.db.insert("strengthScoreSnapshots", { ...baseSnapshot, syncedAt: cutoff }),
+    );
+    const newerId = await t.run(async (ctx) =>
+      ctx.db.insert("strengthScoreSnapshots", { ...baseSnapshot, syncedAt: cutoff + 1 }),
+    );
+
+    const result = await t.query(internal.dataRetention.getExpiredStrengthSnapshotIds, {
+      cutoff,
+      limit: 100,
+    });
+
+    expect(result).toContain(olderId);
+    expect(result).not.toContain(exactlyAtId);
+    expect(result).not.toContain(newerId);
+  });
+
+  test("completes cleanly when no rows are eligible for pruning", async () => {
+    const t = convexTest(schema, modules);
+
+    await expect(t.action(internal.dataRetention.runDataRetention, {})).resolves.toBeNull();
   });
 
   test("prunes strengthScoreSnapshots older than 24 months", async () => {
