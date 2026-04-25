@@ -78,7 +78,7 @@ describe("runDataRetention", () => {
     const remaining = await t.run(async (ctx) =>
       ctx.db
         .query("aiRun")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
         .collect(),
     );
     const remainingIds = remaining.map((r) => r._id);
@@ -111,7 +111,7 @@ describe("runDataRetention", () => {
     const remaining = await t.run(async (ctx) =>
       ctx.db
         .query("aiRun")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
         .collect(),
     );
     expect(remaining.map((r) => r._id)).toEqual([freshRunId]);
@@ -266,15 +266,17 @@ describe("runDataRetention", () => {
     const counts = await t.run(async (ctx) => {
       const cw = await ctx.db
         .query("completedWorkouts")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .withIndex("by_userId_date", (q) => q.eq("userId", userId))
         .collect();
       const ep = await ctx.db
         .query("exercisePerformance")
-        .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", "act-1"))
+        .withIndex("by_userId_activityId_movementId", (q) =>
+          q.eq("userId", userId).eq("activityId", "act-1"),
+        )
         .collect();
       const pr = await ctx.db
         .query("personalRecords")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .withIndex("by_userId_movementId", (q) => q.eq("userId", userId))
         .collect();
       return { cw: cw.length, ep: ep.length, pr: pr.length };
     });

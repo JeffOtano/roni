@@ -177,7 +177,7 @@ export async function clearForUser(
   const [records, perfRows] = await Promise.all([
     ctx.db
       .query("personalRecords")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_movementId", (q) => q.eq("userId", userId))
       .take(batchSize),
     ctx.db
       .query("exercisePerformance")

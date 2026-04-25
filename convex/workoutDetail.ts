@@ -76,7 +76,7 @@ export const getPRMovementIdsForActivity = internalQuery({
   handler: async (ctx, { userId, activityId }): Promise<string[]> => {
     const records = await ctx.db
       .query("personalRecords")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_movementId", (q) => q.eq("userId", userId))
       .collect();
     return records
       .filter((r) => r.achievedActivityId === activityId && r.totalSessions > 1)
@@ -123,7 +123,7 @@ export const getWorkoutDetail = action({
         .catch((): null => null),
       ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx
-        .runAction(internal.tonal.proxy.fetchFormattedSummary, {
+        .runAction(internal.tonal.proxyProjected.fetchFormattedSummary, {
           userId,
           summaryId: args.activityId,
         })
@@ -301,7 +301,7 @@ export const getCustomWorkouts = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) throw new Error("Not authenticated");
 
-    return (await ctx.runAction(internal.tonal.proxy.fetchCustomWorkouts, {
+    return (await ctx.runAction(internal.tonal.proxyProjected.fetchCustomWorkouts, {
       userId,
     })) as UserWorkout[];
   },
