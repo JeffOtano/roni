@@ -268,11 +268,15 @@ export const startSyncUserHistory = internalMutation({
       lastSyncedActivityDate: profile?.lastSyncedActivityDate,
       todayIso: isoDateUtc(now),
     });
-    if (skip) return;
 
+    // Record the attempt unconditionally so the cron's tier gate throttles
+    // the next pass — otherwise a profile with `lastTonalSyncAt === undefined`
+    // and a fresh cache stays eligible every 30 minutes forever.
     if (profile) {
       await ctx.db.patch(profile._id, { lastTonalSyncAt: now });
     }
+
+    if (skip) return;
 
     await workflow.start(ctx, internal.tonal.historySync.syncUserHistoryWorkflow, { userId });
   },
