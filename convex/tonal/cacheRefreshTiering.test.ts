@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 import {
   classifyTier,
+  computeNextSyncAt,
   isEligibleForRefresh,
+  TIER_INTERVAL_SLACK_MS,
   TIER_INTERVALS_MS,
   TIER_THRESHOLDS_MS,
 } from "./cacheRefreshTiering";
@@ -76,5 +78,40 @@ describe("isEligibleForRefresh", () => {
     expect(isEligibleForRefresh(NOW, appActive, NOW - 5 * HOUR)).toBe(false);
     expect(isEligibleForRefresh(NOW, appActive, NOW - 6 * HOUR)).toBe(true);
     expect(isEligibleForRefresh(NOW, appActive, NOW - 12 * HOUR)).toBe(true);
+  });
+});
+
+describe("computeNextSyncAt", () => {
+  test("returns undefined for users outside the 72h cohort", () => {
+    expect(computeNextSyncAt(NOW, undefined, undefined)).toBeUndefined();
+    expect(computeNextSyncAt(NOW, NOW - 4 * 24 * HOUR, NOW - HOUR)).toBeUndefined();
+  });
+
+  test("returns 0 for never-synced users so the index range query picks them up", () => {
+    expect(computeNextSyncAt(NOW, NOW - 1 * HOUR, undefined)).toBe(0);
+    expect(computeNextSyncAt(NOW, NOW - 36 * HOUR, undefined)).toBe(0);
+  });
+
+  test("matches isEligibleForRefresh: now >= nextSyncAt iff eligible", () => {
+    const cases: Array<[number, number]> = [
+      [NOW - 30 * MIN, NOW - 25 * MIN],
+      [NOW - 6 * HOUR, NOW - HOUR],
+      [NOW - 36 * HOUR, NOW - 5 * HOUR],
+    ];
+    for (const [appActive, lastSync] of cases) {
+      const nextAt = computeNextSyncAt(NOW, appActive, lastSync);
+      const eligible = isEligibleForRefresh(NOW, appActive, lastSync);
+      if (nextAt === undefined) {
+        expect(eligible).toBe(false);
+        continue;
+      }
+      expect(NOW >= nextAt).toBe(eligible);
+    }
+  });
+
+  test("recompute yields the canonical interval boundary minus slack", () => {
+    const lastSync = NOW - 5 * MIN;
+    const next = computeNextSyncAt(NOW, NOW - 30 * MIN, lastSync);
+    expect(next).toBe(lastSync + TIER_INTERVALS_MS.active - TIER_INTERVAL_SLACK_MS);
   });
 });

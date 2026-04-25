@@ -17,9 +17,8 @@ import {
   syncActivitiesAndStrength,
   syncStrengthOnly,
 } from "./historySyncCore";
+import { computeNextSyncAt } from "./cacheRefreshTiering";
 import { isoDateUtc, shouldSkipBackgroundSync } from "./historySyncPreflight";
-
-const WORKOUT_HISTORY_CACHE_TYPE = "workoutHistory_v3";
 
 const BACKFILL_BATCH_SIZE = 20;
 // 2x what we'd need to drain pgTotal at BACKFILL_BATCH_SIZE per iteration; floor for tiny histories.
@@ -255,16 +254,9 @@ export const startSyncUserHistory = internalMutation({
 
     const now = Date.now();
 
-    const cacheEntry = await ctx.db
-      .query("tonalCache")
-      .withIndex("by_userId_dataType", (q) =>
-        q.eq("userId", userId).eq("dataType", WORKOUT_HISTORY_CACHE_TYPE),
-      )
-      .unique();
-
     const skip = shouldSkipBackgroundSync({
       now,
-      workoutHistoryCacheFetchedAt: cacheEntry?.fetchedAt,
+      workoutHistoryCacheFetchedAt: profile?.workoutHistoryCachedAt,
       lastSyncedActivityDate: profile?.lastSyncedActivityDate,
       todayIso: isoDateUtc(now),
     });
@@ -273,7 +265,10 @@ export const startSyncUserHistory = internalMutation({
     // the next pass — otherwise a profile with `lastTonalSyncAt === undefined`
     // and a fresh cache stays eligible every 30 minutes forever.
     if (profile) {
-      await ctx.db.patch(profile._id, { lastTonalSyncAt: now });
+      await ctx.db.patch(profile._id, {
+        lastTonalSyncAt: now,
+        nextTonalSyncAt: computeNextSyncAt(now, profile.appLastActiveAt, now),
+      });
     }
 
     if (skip) return;

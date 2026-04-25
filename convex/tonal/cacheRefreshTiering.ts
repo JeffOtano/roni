@@ -23,7 +23,7 @@ export const TIER_INTERVALS_MS = {
 
 // Cron interval scheduling skews by a few seconds; without slack a tier-1 user
 // synced at T0 + 5s would be ineligible at T0 + 30m (only 29m55s elapsed).
-const TIER_INTERVAL_SLACK_MS = 60 * 1000;
+export const TIER_INTERVAL_SLACK_MS = 60 * 1000;
 
 export type RefreshTier = "active" | "recent" | "lapsing" | "skip";
 
@@ -49,4 +49,23 @@ export function isEligibleForRefresh(
 
   const elapsed = now - lastTonalSyncAt;
   return elapsed + TIER_INTERVAL_SLACK_MS >= TIER_INTERVALS_MS[tier];
+}
+
+/**
+ * Earliest time the user becomes eligible for a refresh, given their current
+ * tier and last-sync timestamp. Returned value matches `isEligibleForRefresh`:
+ * once `now >= computeNextSyncAt(...)` the user is eligible.
+ *
+ * Returns undefined when the user is outside the 72h cohort — callers should
+ * leave the indexed field unset so the cron's range query skips them.
+ */
+export function computeNextSyncAt(
+  now: number,
+  appLastActiveAt: number | undefined,
+  lastTonalSyncAt: number | undefined,
+): number | undefined {
+  const tier = classifyTier(now, appLastActiveAt);
+  if (tier === "skip") return undefined;
+  if (lastTonalSyncAt === undefined) return 0;
+  return lastTonalSyncAt + TIER_INTERVALS_MS[tier] - TIER_INTERVAL_SLACK_MS;
 }

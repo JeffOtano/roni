@@ -1,17 +1,18 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { isEligibleForRefresh, TIER_THRESHOLDS_MS } from "./cacheRefreshTiering";
+import { isEligibleForRefresh } from "./cacheRefreshTiering";
 
 export const refreshActiveUsers = internalAction({
   handler: async (ctx) => {
     const now = Date.now();
-    const sinceTimestamp = now - TIER_THRESHOLDS_MS.lapsing;
 
-    const activeUsers = await ctx.runQuery(internal.userActivity.getActiveUsers, {
-      sinceTimestamp,
-    });
+    // Index range query: only profiles whose precomputed nextTonalSyncAt has
+    // elapsed are read. The JS check below remains as a final tier gate so
+    // users whose tier shifted to a longer cadence (without recordAppActivity
+    // running to update nextTonalSyncAt) still get throttled correctly.
+    const dueUsers = await ctx.runQuery(internal.userActivity.getUsersDueForRefresh, { now });
 
-    for (const profile of activeUsers) {
+    for (const profile of dueUsers) {
       if (!isEligibleForRefresh(now, profile.appLastActiveAt, profile.lastTonalSyncAt)) {
         continue;
       }
