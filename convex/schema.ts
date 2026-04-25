@@ -547,6 +547,7 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_createdAt", ["createdAt"])
     .index("by_threadId", ["threadId"])
     .index("by_runId", ["runId"]),
 
@@ -615,7 +616,8 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_date", ["userId", "date"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_syncedAt", ["syncedAt"]),
 
   currentStrengthScores: defineTable({
     userId: v.id("users"),
