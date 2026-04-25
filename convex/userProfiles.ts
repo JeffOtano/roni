@@ -63,6 +63,7 @@ export const create = internalMutation({
         tonalTokenExpiresAt: args.tonalTokenExpiresAt,
         profileData: args.profileData,
         lastActiveAt: Date.now(),
+        appLastActiveAt: Date.now(),
       });
       if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
       return existing._id;
@@ -72,6 +73,7 @@ export const create = internalMutation({
     const id = await ctx.db.insert("userProfiles", {
       ...args,
       lastActiveAt: now,
+      appLastActiveAt: now,
       tonalConnectedAt: now,
     });
     if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
@@ -121,7 +123,6 @@ export const updateTonalToken = internalMutation({
 
     const patch: Record<string, unknown> = {
       tonalToken,
-      lastActiveAt: Date.now(),
     };
     if (tonalRefreshToken !== undefined) patch.tonalRefreshToken = tonalRefreshToken;
     if (tonalTokenExpiresAt !== undefined) patch.tonalTokenExpiresAt = tonalTokenExpiresAt;
@@ -138,16 +139,6 @@ export const markTokenExpired = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     if (profile) await ctx.db.patch(profile._id, { tonalTokenExpiresAt: 0 });
-  },
-});
-
-export const getActiveUsers = internalQuery({
-  args: { sinceTimestamp: v.number() },
-  handler: async (ctx, { sinceTimestamp }) => {
-    return await ctx.db
-      .query("userProfiles")
-      .withIndex("by_lastActiveAt", (q) => q.gt("lastActiveAt", sinceTimestamp))
-      .collect();
   },
 });
 

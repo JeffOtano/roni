@@ -123,9 +123,7 @@ export const backfillUser = internalAction({
 export const backfillAll = internalAction({
   args: {},
   handler: async (ctx) => {
-    const users = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-      sinceTimestamp: 0,
-    });
+    const users = await ctx.runQuery(internal.userActivity.getAllConnectedUsers, {});
 
     for (const profile of users) {
       try {

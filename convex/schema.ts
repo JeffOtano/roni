@@ -48,6 +48,8 @@ export default defineSchema({
       }),
     ),
     lastActiveAt: v.number(),
+    /** Last real app activity, separate from background token/sync jobs. */
+    appLastActiveAt: v.optional(v.number()),
     /** When the user first connected their Tonal account (signup for activation analytics). */
     tonalConnectedAt: v.optional(v.number()),
     /** ISO date of the most recent synced activity (high-water mark for incremental sync). */
@@ -122,6 +124,7 @@ export default defineSchema({
     .index("by_tonalUserId", ["tonalUserId"])
     .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"])
     .index("by_lastActiveAt", ["lastActiveAt"])
+    .index("by_appLastActiveAt", ["appLastActiveAt"])
     .index("by_tonalConnectedAt", ["tonalConnectedAt"]),
 
   /** In-app check-ins (proactive messages). No SMS. */

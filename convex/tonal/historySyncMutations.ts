@@ -202,6 +202,8 @@ export const strengthScoreValidator = v.object({
   score: v.number(),
 });
 
+type StrengthScorePayload = typeof strengthScoreValidator.type;
+
 export const muscleReadinessValidator = v.object({
   chest: v.number(),
   shoulders: v.number(),
@@ -216,6 +218,8 @@ export const muscleReadinessValidator = v.object({
   calves: v.number(),
 });
 
+type MuscleReadinessPayload = typeof muscleReadinessValidator.type;
+
 export const externalActivityValidator = v.object({
   externalId: v.string(),
   workoutType: v.string(),
@@ -228,6 +232,60 @@ export const externalActivityValidator = v.object({
   distance: v.number(),
 });
 
+type ExternalActivityPayload = typeof externalActivityValidator.type;
+
+function strengthScoresMatch(
+  existing: readonly Doc<"currentStrengthScores">[],
+  scores: readonly StrengthScorePayload[],
+): boolean {
+  if (existing.length !== scores.length) return false;
+  const existingScores = new Map(existing.map((row) => [row.bodyRegion, row.score]));
+  if (existingScores.size !== existing.length) return false;
+
+  const nextRegions = new Set<string>();
+  for (const score of scores) {
+    if (nextRegions.has(score.bodyRegion)) return false;
+    nextRegions.add(score.bodyRegion);
+    if (existingScores.get(score.bodyRegion) !== score.score) return false;
+  }
+  return true;
+}
+
+function muscleReadinessMatches(
+  existing: Doc<"muscleReadiness">,
+  readiness: MuscleReadinessPayload,
+): boolean {
+  return (
+    existing.chest === readiness.chest &&
+    existing.shoulders === readiness.shoulders &&
+    existing.back === readiness.back &&
+    existing.triceps === readiness.triceps &&
+    existing.biceps === readiness.biceps &&
+    existing.abs === readiness.abs &&
+    existing.obliques === readiness.obliques &&
+    existing.quads === readiness.quads &&
+    existing.glutes === readiness.glutes &&
+    existing.hamstrings === readiness.hamstrings &&
+    existing.calves === readiness.calves
+  );
+}
+
+function externalActivityMatches(
+  existing: Doc<"externalActivities">,
+  activity: ExternalActivityPayload,
+): boolean {
+  return (
+    existing.workoutType === activity.workoutType &&
+    existing.beginTime === activity.beginTime &&
+    existing.totalDuration === activity.totalDuration &&
+    existing.activeCalories === activity.activeCalories &&
+    existing.totalCalories === activity.totalCalories &&
+    existing.averageHeartRate === activity.averageHeartRate &&
+    existing.source === activity.source &&
+    existing.distance === activity.distance
+  );
+}
+
 /** Replace all current strength scores for a user (delete old, insert fresh). */
 export const persistCurrentStrengthScores = internalMutation({
   args: { userId: v.id("users"), scores: v.array(strengthScoreValidator) },
@@ -237,6 +295,8 @@ export const persistCurrentStrengthScores = internalMutation({
       .query("currentStrengthScores")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
+    if (strengthScoresMatch(existing, scores)) return;
+
     for (const row of existing) {
       await ctx.db.delete(row._id);
     }
@@ -244,7 +304,7 @@ export const persistCurrentStrengthScores = internalMutation({
     for (const s of scores) {
       await ctx.db.insert("currentStrengthScores", { userId, ...s, fetchedAt: now });
     }
-    if (existing.length > 0 || scores.length > 0) await requestCoachStateRefresh(ctx, userId);
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -258,9 +318,11 @@ export const persistMuscleReadiness = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
     if (existing) {
-      await ctx.db.delete(existing._id);
+      if (muscleReadinessMatches(existing, readiness)) return;
+      await ctx.db.patch(existing._id, { ...readiness, fetchedAt: Date.now() });
+    } else {
+      await ctx.db.insert("muscleReadiness", { userId, ...readiness, fetchedAt: Date.now() });
     }
-    await ctx.db.insert("muscleReadiness", { userId, ...readiness, fetchedAt: Date.now() });
     await requestCoachStateRefresh(ctx, userId);
   },
 });
@@ -287,6 +349,7 @@ export const persistExternalActivities = internalMutation({
   handler: async (ctx, { userId, activities }) => {
     if (await isDeletionInProgress(ctx, userId)) return;
     const now = Date.now();
+    let changed = false;
     for (const a of activities) {
       const existing = await ctx.db
         .query("externalActivities")
@@ -295,11 +358,14 @@ export const persistExternalActivities = internalMutation({
         )
         .first();
       if (existing) {
+        if (externalActivityMatches(existing, a)) continue;
         await ctx.db.replace(existing._id, { userId, ...a, syncedAt: now });
+        changed = true;
       } else {
         await ctx.db.insert("externalActivities", { userId, ...a, syncedAt: now });
+        changed = true;
       }
     }
-    if (activities.length > 0) await requestCoachStateRefresh(ctx, userId);
+    if (changed) await requestCoachStateRefresh(ctx, userId);
   },
 });

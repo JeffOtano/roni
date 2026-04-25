@@ -5,7 +5,7 @@ export const refreshActiveUsers = internalAction({
   handler: async (ctx) => {
     const threeDaysAgo = Date.now() - 72 * 60 * 60 * 1000;
 
-    const activeUsers = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
+    const activeUsers = await ctx.runQuery(internal.userActivity.getActiveUsers, {
       sinceTimestamp: threeDaysAgo,
     });
 

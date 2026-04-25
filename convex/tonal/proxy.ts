@@ -112,9 +112,11 @@ export async function cachedFetch<T>(
       }
     }
 
-    await ctx
-      .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
-      .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
+    if (circuitOpen) {
+      await ctx
+        .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
+        .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
+    }
 
     return data;
   } catch (error) {

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 
@@ -35,21 +35,28 @@ const baseReadiness = {
   calves: 0.7,
 };
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 // ---------------------------------------------------------------------------
 // persistCurrentStrengthScores
 // ---------------------------------------------------------------------------
 
 describe("persistCurrentStrengthScores", () => {
-  test("inserts scores and they exist in DB", async () => {
+  test("inserts scores and skips unchanged rewrites", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
+    const scores = [
+      { bodyRegion: "upper", score: 120 },
+      { bodyRegion: "lower", score: 95 },
+    ];
 
     await t.mutation(internal.tonal.historySyncMutations.persistCurrentStrengthScores, {
       userId,
-      scores: [
-        { bodyRegion: "upper", score: 120 },
-        { bodyRegion: "lower", score: 95 },
-      ],
+      scores,
     });
 
     const rows = await t.run(async (ctx) =>
@@ -61,6 +68,21 @@ describe("persistCurrentStrengthScores", () => {
     expect(rows).toHaveLength(2);
     const regions = rows.map((r) => r.bodyRegion).sort();
     expect(regions).toEqual(["lower", "upper"]);
+
+    vi.setSystemTime(2000);
+    await t.mutation(internal.tonal.historySyncMutations.persistCurrentStrengthScores, {
+      userId,
+      scores,
+    });
+
+    const after = await t.run(async (ctx) =>
+      ctx.db
+        .query("currentStrengthScores")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .collect(),
+    );
+    expect(after.map((row) => row._id).sort()).toEqual(rows.map((row) => row._id).sort());
+    expect(after.map((row) => row.fetchedAt).sort()).toEqual([1000, 1000]);
   });
 
   test("second call replaces existing scores", async () => {
@@ -89,6 +111,38 @@ describe("persistCurrentStrengthScores", () => {
     expect(rows).toHaveLength(2);
     const upper = rows.find((r) => r.bodyRegion === "upper");
     expect(upper?.score).toBe(110);
+  });
+
+  test("does not skip persistence when incoming score regions are duplicated", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+
+    await t.mutation(internal.tonal.historySyncMutations.persistCurrentStrengthScores, {
+      userId,
+      scores: [
+        { bodyRegion: "upper", score: 100 },
+        { bodyRegion: "lower", score: 100 },
+      ],
+    });
+
+    vi.setSystemTime(2000);
+    await t.mutation(internal.tonal.historySyncMutations.persistCurrentStrengthScores, {
+      userId,
+      scores: [
+        { bodyRegion: "upper", score: 100 },
+        { bodyRegion: "upper", score: 100 },
+      ],
+    });
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db
+        .query("currentStrengthScores")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .collect(),
+    );
+    expect(rows.map((row) => row.fetchedAt).sort()).toEqual([2000, 2000]);
   });
 
   test("empty scores array deletes all existing", async () => {
@@ -120,7 +174,9 @@ describe("persistCurrentStrengthScores", () => {
 // ---------------------------------------------------------------------------
 
 describe("persistMuscleReadiness", () => {
-  test("inserts a readiness snapshot", async () => {
+  test("inserts a readiness snapshot and skips unchanged rewrites", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
 
@@ -137,6 +193,21 @@ describe("persistMuscleReadiness", () => {
     );
     expect(row).not.toBeNull();
     expect(row?.chest).toBe(0.8);
+
+    vi.setSystemTime(2000);
+    await t.mutation(internal.tonal.historySyncMutations.persistMuscleReadiness, {
+      userId,
+      readiness: baseReadiness,
+    });
+
+    const after = await t.run(async (ctx) =>
+      ctx.db
+        .query("muscleReadiness")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .first(),
+    );
+    expect(after?._id).toBe(row?._id);
+    expect(after?.fetchedAt).toBe(1000);
   });
 
   test("second call replaces so only one row exists with new values", async () => {
@@ -183,7 +254,9 @@ const baseActivity = {
 };
 
 describe("persistExternalActivities", () => {
-  test("inserts new activities", async () => {
+  test("inserts new activities and skips unchanged rewrites", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
 
@@ -200,6 +273,22 @@ describe("persistExternalActivities", () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].workoutType).toBe("run");
+
+    vi.setSystemTime(2000);
+    await t.mutation(internal.tonal.historySyncMutations.persistExternalActivities, {
+      userId,
+      activities: [baseActivity],
+    });
+
+    const after = await t.run(async (ctx) =>
+      ctx.db
+        .query("externalActivities")
+        .withIndex("by_userId_externalId", (q) => q.eq("userId", userId).eq("externalId", "ext-1"))
+        .collect(),
+    );
+    expect(after).toHaveLength(1);
+    expect(after[0]._id).toBe(rows[0]._id);
+    expect(after[0].syncedAt).toBe(1000);
   });
 
   test("upserts existing activity by externalId without duplicating", async () => {
