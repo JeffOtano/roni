@@ -71,11 +71,13 @@ async function processOneActivity(
       userId,
       summaryId: activityId,
     })) as FormattedWorkoutSummary;
-    for (const ms of summary.movementSets ?? []) {
+    for (const ms of summary.movementSets) {
       volumeByMovement.set(ms.movementId, ms.totalVolume);
     }
-  } catch {
-    // Summary optional
+  } catch (err) {
+    // Volume display is optional, so the workout payload still persists
+    // without it — but log so projection drift is observable.
+    console.warn(`[historySync] Formatted summary fetch failed for ${activityId}`, err);
   }
 
   const sessionMap = aggregateDetailToSessions(detail, straightBarIds);

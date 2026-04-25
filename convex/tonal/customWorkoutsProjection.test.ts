@@ -94,4 +94,9 @@ describe("projectCustomWorkoutsStrict", () => {
     const malformed = [{ ...VALID_WORKOUT, title: undefined }];
     expect(() => projectCustomWorkoutsStrict(malformed)).toThrow();
   });
+
+  it("rejects the whole array when one entry is malformed", () => {
+    const mixed = [VALID_WORKOUT, { ...VALID_WORKOUT, title: undefined }, VALID_WORKOUT];
+    expect(() => projectCustomWorkoutsStrict(mixed)).toThrow();
+  });
 });

@@ -87,4 +87,15 @@ describe("projectFormattedSummaryStrict", () => {
     expect(() => projectFormattedSummaryStrict({})).toThrow();
     expect(() => projectFormattedSummaryStrict({ summaryId: "wa-1" })).toThrow();
   });
+
+  it("rejects the whole movementSets array when one entry is malformed", () => {
+    const mixed = {
+      movementSets: [
+        { movementId: "mov-0", totalVolume: 1000 },
+        { movementId: "mov-1" },
+        { movementId: "mov-2", totalVolume: 1002 },
+      ],
+    };
+    expect(() => projectFormattedSummaryStrict(mixed)).toThrow();
+  });
 });

@@ -16,21 +16,38 @@ const externalActivitySchema = z.object({
 const externalActivitiesSchema = z.array(externalActivitySchema);
 
 /**
+ * Subset of `ExternalActivity` that survives projection. Readers on the proxy
+ * cache path receive this narrower type so a future caller of dropped fields
+ * (`id`, `userId`, `endTime`, `timezone`, `activeDuration`, `deviceId`) gets a
+ * compile error instead of silently reading `undefined` at runtime.
+ */
+export type ProjectedExternalActivity = Pick<
+  ExternalActivity,
+  | "workoutType"
+  | "beginTime"
+  | "totalDuration"
+  | "distance"
+  | "activeCalories"
+  | "totalCalories"
+  | "averageHeartRate"
+  | "source"
+  | "externalId"
+>;
+
+/**
  * Project a raw /v6/users/{id}/external-activities response down to the fields
  * readers consume (DB persistence, vigorous-load trigger). Drops the per-row
  * `id`, `userId`, `endTime`, `timezone`, `activeDuration`, and `deviceId`,
  * none of which are read anywhere downstream.
  */
-export function projectExternalActivities(raw: unknown): ExternalActivity[] {
+export function projectExternalActivities(raw: unknown): ProjectedExternalActivity[] {
   if (!Array.isArray(raw)) return [];
   const result = externalActivitiesSchema.safeParse(raw);
   if (!result.success) {
     console.warn("projectExternalActivities: schema mismatch", result.error.issues);
     return [];
   }
-  // Cast through unknown: the projected shape covers every field readers touch
-  // even though the declared type still mentions the dropped ones.
-  return result.data as unknown as ExternalActivity[];
+  return result.data;
 }
 
 /**
@@ -38,11 +55,11 @@ export function projectExternalActivities(raw: unknown): ExternalActivity[] {
  * `cachedFetch` can fall back to stale data instead of caching an empty
  * placeholder that would mask upstream drift for the full TTL.
  */
-export function projectExternalActivitiesStrict(raw: unknown): ExternalActivity[] {
+export function projectExternalActivitiesStrict(raw: unknown): ProjectedExternalActivity[] {
   if (!Array.isArray(raw)) {
     throw new Error(
       `projectExternalActivitiesStrict: expected array, got ${raw === null ? "null" : typeof raw}`,
     );
   }
-  return externalActivitiesSchema.parse(raw) as unknown as ExternalActivity[];
+  return externalActivitiesSchema.parse(raw);
 }

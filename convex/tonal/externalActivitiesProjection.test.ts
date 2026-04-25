@@ -30,7 +30,7 @@ describe("projectExternalActivities", () => {
   });
 
   it("strips fields that no reader consumes", () => {
-    const result = projectExternalActivities([VALID_RAW]) as unknown as Record<string, unknown>[];
+    const result = projectExternalActivities([VALID_RAW]) as Record<string, unknown>[];
 
     expect(result[0]).not.toHaveProperty("id");
     expect(result[0]).not.toHaveProperty("userId");
@@ -88,5 +88,10 @@ describe("projectExternalActivitiesStrict", () => {
   it("throws on schema mismatch instead of returning an empty array", () => {
     const malformed = [{ ...VALID_RAW, beginTime: undefined }];
     expect(() => projectExternalActivitiesStrict(malformed)).toThrow();
+  });
+
+  it("rejects the whole array when one entry is malformed", () => {
+    const mixed = [VALID_RAW, { ...VALID_RAW, beginTime: undefined }, VALID_RAW];
+    expect(() => projectExternalActivitiesStrict(mixed)).toThrow();
   });
 });

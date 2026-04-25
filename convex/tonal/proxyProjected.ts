@@ -18,6 +18,7 @@ import { cachedFetch } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
 import { projectCustomWorkouts, projectCustomWorkoutsStrict } from "./customWorkoutsProjection";
 import {
+  type ProjectedExternalActivity,
   projectExternalActivities,
   projectExternalActivitiesStrict,
 } from "./externalActivitiesProjection";
@@ -26,12 +27,7 @@ import {
   projectFormattedSummaryStrict,
 } from "./formattedSummaryProjection";
 import { projectStrengthHistory, projectStrengthHistoryStrict } from "./strengthHistoryProjection";
-import type {
-  ExternalActivity,
-  FormattedWorkoutSummary,
-  StrengthScoreHistoryEntry,
-  UserWorkout,
-} from "./types";
+import type { FormattedWorkoutSummary, StrengthScoreHistoryEntry, UserWorkout } from "./types";
 
 export const fetchStrengthHistory = internalAction({
   args: { userId: v.id("users") },
@@ -101,9 +97,9 @@ export const fetchExternalActivities = internalAction({
     userId: v.id("users"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { userId, limit = 20 }): Promise<ExternalActivity[]> => {
+  handler: async (ctx, { userId, limit = 20 }): Promise<ProjectedExternalActivity[]> => {
     const result = await withTokenRetry(ctx, userId, (token, tonalUserId) =>
-      cachedFetch<ExternalActivity[]>(ctx, {
+      cachedFetch<ProjectedExternalActivity[]>(ctx, {
         userId,
         dataType: `externalActivities:${limit}`,
         ttl: CACHE_TTLS.workoutHistory,

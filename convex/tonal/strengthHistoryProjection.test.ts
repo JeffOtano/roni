@@ -75,4 +75,9 @@ describe("projectStrengthHistoryStrict", () => {
     const malformed = [{ ...VALID_ENTRY, overall: undefined }];
     expect(() => projectStrengthHistoryStrict(malformed)).toThrow();
   });
+
+  it("rejects the whole array when one entry is malformed", () => {
+    const mixed = [VALID_ENTRY, { ...VALID_ENTRY, overall: undefined }, VALID_ENTRY];
+    expect(() => projectStrengthHistoryStrict(mixed)).toThrow();
+  });
 });

@@ -8,7 +8,8 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, internalAction } from "../_generated/server";
-import type { ExternalActivity, MuscleReadiness, StrengthScore } from "./types";
+import type { MuscleReadiness, StrengthScore } from "./types";
+import type { ProjectedExternalActivity } from "./externalActivitiesProjection";
 
 /** Fetch current strength scores, muscle readiness, and external activities, then persist to DB.
  *  Returns the number of datasets that failed to fetch (0 = all succeeded). */
@@ -63,7 +64,7 @@ export async function persistNewTableData(ctx: ActionCtx, userId: Id<"users">): 
 
   // External activities
   if (results[2].status === "fulfilled") {
-    const activities = results[2].value as ExternalActivity[];
+    const activities = results[2].value as ProjectedExternalActivity[];
     if (activities.length > 0) {
       await ctx.runMutation(internal.tonal.historySyncMutations.persistExternalActivities, {
         userId,
