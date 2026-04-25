@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectStrengthHistory } from "./strengthHistoryProjection";
+import { projectStrengthHistory, projectStrengthHistoryStrict } from "./strengthHistoryProjection";
 import { estimateCacheValueBytes } from "./proxyCacheLimits";
 
 const VALID_ENTRY = {
@@ -56,5 +56,23 @@ describe("projectStrengthHistory", () => {
     const projected = projectStrengthHistory(raw);
 
     expect(estimateCacheValueBytes(projected)).toBeLessThan(estimateCacheValueBytes(raw));
+  });
+});
+
+describe("projectStrengthHistoryStrict", () => {
+  it("returns the same projected shape on valid input", () => {
+    const result = projectStrengthHistoryStrict([VALID_ENTRY]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).not.toHaveProperty("id");
+  });
+
+  it("throws on non-array input so cachedFetch falls back to stale data", () => {
+    expect(() => projectStrengthHistoryStrict(null)).toThrow(/expected array/);
+    expect(() => projectStrengthHistoryStrict({ entries: [] })).toThrow(/expected array/);
+  });
+
+  it("throws on schema mismatch instead of returning an empty array", () => {
+    const malformed = [{ ...VALID_ENTRY, overall: undefined }];
+    expect(() => projectStrengthHistoryStrict(malformed)).toThrow();
   });
 });

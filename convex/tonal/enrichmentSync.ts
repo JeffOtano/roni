@@ -16,7 +16,7 @@ export async function persistNewTableData(ctx: ActionCtx, userId: Id<"users">): 
   const results = await Promise.allSettled([
     ctx.runAction(internal.tonal.proxy.fetchStrengthScores, { userId }),
     ctx.runAction(internal.tonal.proxy.fetchMuscleReadiness, { userId }),
-    ctx.runAction(internal.tonal.proxy.fetchExternalActivities, { userId, limit: 20 }),
+    ctx.runAction(internal.tonal.proxyProjected.fetchExternalActivities, { userId, limit: 20 }),
   ]);
 
   let failures = 0;

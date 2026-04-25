@@ -27,3 +27,20 @@ export function projectFormattedSummary(raw: unknown): FormattedWorkoutSummary {
   }
   return { movementSets: result.data.movementSets ?? [] };
 }
+
+/**
+ * Strict variant for fresh API responses: throws on schema mismatch so
+ * `cachedFetch` can fall back to stale data instead of caching an empty
+ * placeholder that would mask upstream drift for the full TTL.
+ */
+export function projectFormattedSummaryStrict(raw: unknown): FormattedWorkoutSummary {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      `projectFormattedSummaryStrict: expected object, got ${
+        raw === null ? "null" : Array.isArray(raw) ? "array" : typeof raw
+      }`,
+    );
+  }
+  const parsed = formattedSummarySchema.parse(raw);
+  return { movementSets: parsed.movementSets ?? [] };
+}

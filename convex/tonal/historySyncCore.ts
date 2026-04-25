@@ -67,7 +67,7 @@ async function processOneActivity(
   // totalVolume is a work-based metric (not weight x reps); kept for volume display.
   const volumeByMovement = new Map<string, number>();
   try {
-    const summary = (await ctx.runAction(internal.tonal.proxy.fetchFormattedSummary, {
+    const summary = (await ctx.runAction(internal.tonal.proxyProjected.fetchFormattedSummary, {
       userId,
       summaryId: activityId,
     })) as FormattedWorkoutSummary;
@@ -132,7 +132,7 @@ async function fetchAndBuildPayloads(
 export async function syncStrengthOnly(ctx: ActionCtx, userId: Id<"users">): Promise<void> {
   try {
     const strengthHistory: StrengthScoreHistoryEntry[] = await ctx.runAction(
-      internal.tonal.proxy.fetchStrengthHistory,
+      internal.tonal.proxyProjected.fetchStrengthHistory,
       { userId },
     );
     if (strengthHistory.length > 0) {

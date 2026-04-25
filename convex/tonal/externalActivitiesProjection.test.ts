@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { projectExternalActivities } from "./externalActivitiesProjection";
+import {
+  projectExternalActivities,
+  projectExternalActivitiesStrict,
+} from "./externalActivitiesProjection";
 import { estimateCacheValueBytes } from "./proxyCacheLimits";
 
 const VALID_RAW = {
@@ -68,5 +71,22 @@ describe("projectExternalActivities", () => {
     const projected = projectExternalActivities(raw);
 
     expect(estimateCacheValueBytes(projected)).toBeLessThan(estimateCacheValueBytes(raw));
+  });
+});
+
+describe("projectExternalActivitiesStrict", () => {
+  it("projects valid input the same as the lenient variant", () => {
+    const result = projectExternalActivitiesStrict([VALID_RAW]);
+    expect(result).toHaveLength(1);
+  });
+
+  it("throws on non-array input so cachedFetch falls back to stale data", () => {
+    expect(() => projectExternalActivitiesStrict(null)).toThrow(/expected array/);
+    expect(() => projectExternalActivitiesStrict({ data: [] })).toThrow(/expected array/);
+  });
+
+  it("throws on schema mismatch instead of returning an empty array", () => {
+    const malformed = [{ ...VALID_RAW, beginTime: undefined }];
+    expect(() => projectExternalActivitiesStrict(malformed)).toThrow();
   });
 });

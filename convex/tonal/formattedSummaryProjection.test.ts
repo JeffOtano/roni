@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { projectFormattedSummary } from "./formattedSummaryProjection";
+import {
+  projectFormattedSummary,
+  projectFormattedSummaryStrict,
+} from "./formattedSummaryProjection";
 import { estimateCacheValueBytes } from "./proxyCacheLimits";
 
 function makeRawSummary(movementCount: number, repsPerMovement: number): unknown {
@@ -61,5 +64,22 @@ describe("projectFormattedSummary", () => {
 
     expect(projected.movementSets[0]).toEqual({ movementId: "mov-0", totalVolume: 1000 });
     expect(projected.movementSets[1]).toEqual({ movementId: "mov-1", totalVolume: 1001 });
+  });
+});
+
+describe("projectFormattedSummaryStrict", () => {
+  it("projects valid input the same as the lenient variant", () => {
+    const projected = projectFormattedSummaryStrict(makeRawSummary(1, 1));
+    expect(projected.movementSets).toHaveLength(1);
+  });
+
+  it("throws on non-object input so cachedFetch falls back to stale data", () => {
+    expect(() => projectFormattedSummaryStrict(null)).toThrow(/expected object/);
+    expect(() => projectFormattedSummaryStrict([])).toThrow(/expected object/);
+  });
+
+  it("throws on schema mismatch instead of returning empty movementSets", () => {
+    const malformed = { movementSets: [{ movementId: "m-1" }] };
+    expect(() => projectFormattedSummaryStrict(malformed)).toThrow();
   });
 });

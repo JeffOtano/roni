@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectCustomWorkouts } from "./customWorkoutsProjection";
+import { projectCustomWorkouts, projectCustomWorkoutsStrict } from "./customWorkoutsProjection";
 import { estimateCacheValueBytes } from "./proxyCacheLimits";
 
 const VALID_WORKOUT = {
@@ -76,5 +76,22 @@ describe("projectCustomWorkouts", () => {
     const projected = projectCustomWorkouts(raw);
 
     expect(estimateCacheValueBytes(projected)).toBeLessThan(estimateCacheValueBytes(raw));
+  });
+});
+
+describe("projectCustomWorkoutsStrict", () => {
+  it("projects valid input the same as the lenient variant", () => {
+    const result = projectCustomWorkoutsStrict([VALID_WORKOUT]);
+    expect(result).toEqual([VALID_WORKOUT]);
+  });
+
+  it("throws on non-array input so cachedFetch falls back to stale data", () => {
+    expect(() => projectCustomWorkoutsStrict(null)).toThrow(/expected array/);
+    expect(() => projectCustomWorkoutsStrict({ data: [] })).toThrow(/expected array/);
+  });
+
+  it("throws on schema mismatch instead of returning an empty array", () => {
+    const malformed = [{ ...VALID_WORKOUT, title: undefined }];
+    expect(() => projectCustomWorkoutsStrict(malformed)).toThrow();
   });
 });

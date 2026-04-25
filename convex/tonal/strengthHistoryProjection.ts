@@ -27,3 +27,17 @@ export function projectStrengthHistory(raw: unknown): StrengthScoreHistoryEntry[
   }
   return result.data;
 }
+
+/**
+ * Strict variant for fresh API responses: throws on schema mismatch so
+ * `cachedFetch` can fall back to stale data instead of caching an empty
+ * placeholder that would mask upstream drift for the full TTL.
+ */
+export function projectStrengthHistoryStrict(raw: unknown): StrengthScoreHistoryEntry[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `projectStrengthHistoryStrict: expected array, got ${raw === null ? "null" : typeof raw}`,
+    );
+  }
+  return strengthHistorySchema.parse(raw);
+}

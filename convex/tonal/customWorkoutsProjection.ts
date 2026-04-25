@@ -39,3 +39,17 @@ export function projectCustomWorkouts(raw: unknown): UserWorkout[] {
   }
   return result.data;
 }
+
+/**
+ * Strict variant for fresh API responses: throws on schema mismatch so
+ * `cachedFetch` can fall back to stale data instead of caching an empty
+ * placeholder that would mask upstream drift for the full TTL.
+ */
+export function projectCustomWorkoutsStrict(raw: unknown): UserWorkout[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `projectCustomWorkoutsStrict: expected array, got ${raw === null ? "null" : typeof raw}`,
+    );
+  }
+  return customWorkoutsSchema.parse(raw);
+}

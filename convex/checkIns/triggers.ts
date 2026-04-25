@@ -185,7 +185,7 @@ async function evaluateHighExternalLoad(
   userId: Id<"users">,
   now: number,
 ): Promise<TriggerResult | null> {
-  const externals = (await ctx.runAction(internal.tonal.proxy.fetchExternalActivities, {
+  const externals = (await ctx.runAction(internal.tonal.proxyProjected.fetchExternalActivities, {
     userId,
     limit: 20,
   })) as ExternalActivity[];

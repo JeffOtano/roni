@@ -32,3 +32,17 @@ export function projectExternalActivities(raw: unknown): ExternalActivity[] {
   // even though the declared type still mentions the dropped ones.
   return result.data as unknown as ExternalActivity[];
 }
+
+/**
+ * Strict variant for fresh API responses: throws on schema mismatch so
+ * `cachedFetch` can fall back to stale data instead of caching an empty
+ * placeholder that would mask upstream drift for the full TTL.
+ */
+export function projectExternalActivitiesStrict(raw: unknown): ExternalActivity[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `projectExternalActivitiesStrict: expected array, got ${raw === null ? "null" : typeof raw}`,
+    );
+  }
+  return externalActivitiesSchema.parse(raw) as unknown as ExternalActivity[];
+}
