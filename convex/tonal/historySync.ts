@@ -141,11 +141,9 @@ export const syncUserHistoryWorkflow = workflow.define({
       { userId },
     );
 
-    await Promise.all([
-      step.runAction(internal.tonal.historySync.doSyncStrength, { userId }),
-      step.runAction(internal.tonal.enrichmentSync.doPersistNewTableData, { userId }),
-      step.runAction(internal.tonal.historySync.doMaybeRefreshProfile, { userId }),
-    ]);
+    await step.runAction(internal.tonal.historySync.doSyncStrength, { userId });
+    await step.runAction(internal.tonal.enrichmentSync.doPersistNewTableData, { userId });
+    await step.runAction(internal.tonal.historySync.doMaybeRefreshProfile, { userId });
 
     if (newestDate) {
       await step.runMutation(internal.userProfiles.updateLastSyncedActivityDate, {
@@ -220,11 +218,9 @@ export const backfillUserHistoryWorkflow = workflow.define({
       });
     }
 
-    await Promise.all([
-      step.runAction(internal.tonal.historySync.doSyncStrength, { userId }),
-      step.runAction(internal.tonal.enrichmentSync.doPersistNewTableData, { userId }),
-      step.runAction(internal.tonal.historySync.doMaybeRefreshProfile, { userId }),
-    ]);
+    await step.runAction(internal.tonal.historySync.doSyncStrength, { userId });
+    await step.runAction(internal.tonal.enrichmentSync.doPersistNewTableData, { userId });
+    await step.runAction(internal.tonal.historySync.doMaybeRefreshProfile, { userId });
 
     await step.runMutation(internal.userProfiles.updateSyncStatus, {
       userId,

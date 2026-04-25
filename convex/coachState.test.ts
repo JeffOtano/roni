@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -9,6 +9,10 @@ const modules = import.meta.glob("./**/*.*s");
 async function createUser(t: ReturnType<typeof convexTest>) {
   return t.run(async (ctx) => ctx.db.insert("users", {}));
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("coachState", () => {
   test("upserts one materialized snapshot per user", async () => {
@@ -42,6 +46,53 @@ describe("coachState", () => {
     expect(row?.snapshot).toBe("usable");
     expect(row?.lastError).toBe("boom");
     expect(row?.failedAt).toBeTypeOf("number");
+  });
+
+  test("skips duplicate snapshot writes when no refresh is pending", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+
+    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "same" });
+    const first = await t.query(internal.coachState.getForUser, { userId });
+
+    vi.setSystemTime(2000);
+    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "same" });
+    const second = await t.query(internal.coachState.getForUser, { userId });
+
+    expect(second?._id).toBe(first?._id);
+    expect(second?.refreshedAt).toBe(1000);
+  });
+
+  test("clears pending refresh for unchanged snapshots without replacing snapshot fields", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(2000);
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+
+    await t.run(async (ctx) =>
+      ctx.db.insert("coachState", {
+        userId,
+        snapshot: "same",
+        snapshotVersion: 1,
+        userTimezone: null,
+        refreshedAt: 1000,
+        refreshRequestedAt: 1500,
+        refreshRequestedTimezone: null,
+      }),
+    );
+
+    await t.mutation(internal.coachState.upsertSnapshot, {
+      userId,
+      snapshot: "same",
+      requestedAt: 1500,
+    });
+    const row = await t.query(internal.coachState.getForUser, { userId });
+
+    expect(row?.snapshot).toBe("same");
+    expect(row?.refreshedAt).toBe(2000);
+    expect(row?.refreshRequestedAt).toBeUndefined();
   });
 
   test("older refresh completions keep newer refresh requests pending", async () => {

@@ -136,6 +136,34 @@ export const upsertSnapshot = internalMutation({
         }
       : { ...values, failedAt: undefined, lastError: undefined };
     if (existing) {
+      const timezone = userTimezone ?? null;
+      const snapshotUnchanged =
+        existing.snapshot === snapshot &&
+        existing.snapshotVersion === SNAPSHOT_VERSION &&
+        (existing.userTimezone ?? null) === timezone;
+
+      if (
+        snapshotUnchanged &&
+        existing.refreshRequestedAt === undefined &&
+        existing.refreshRequestedTimezone === undefined &&
+        existing.failedAt === undefined &&
+        existing.lastError === undefined &&
+        existing.refreshedAt > 0
+      ) {
+        return;
+      }
+
+      if (snapshotUnchanged && clearPending) {
+        await ctx.db.patch(existing._id, {
+          refreshedAt: now,
+          refreshRequestedAt: undefined,
+          refreshRequestedTimezone: undefined,
+          failedAt: undefined,
+          lastError: undefined,
+        });
+        return;
+      }
+
       await ctx.db.patch(existing._id, patch);
       if (newerRequestAt !== undefined) {
         await ctx.scheduler.runAfter(REFRESH_DELAY_MS, internal.coachState.refreshForUser, {

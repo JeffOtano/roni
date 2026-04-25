@@ -13,7 +13,7 @@ function makeCacheKey(userId: unknown, dataType: string) {
   return `${String(userId ?? "global")}:${dataType}`;
 }
 
-function makeMockCtx() {
+function makeMockCtx(circuitOpen = false) {
   const cache = new Map<string, CacheRow>();
 
   const runQuery = vi.fn(async (_ref: unknown, args: Record<string, unknown>) => {
@@ -21,7 +21,7 @@ function makeMockCtx() {
       return cache.get(makeCacheKey(args.userId, String(args.dataType))) ?? null;
     }
     if ("service" in args) {
-      return false;
+      return circuitOpen;
     }
     return null;
   });
@@ -97,6 +97,32 @@ describe("cachedFetch", () => {
     expect(warnSpy).toHaveBeenCalledWith(
       "cachedFetch(oversized): payload too large to cache, skipping write",
     );
+  });
+
+  it("records circuit recovery only when the circuit was open", async () => {
+    const closed = makeMockCtx(false);
+    await cachedFetch(closed.ctx, {
+      dataType: "closed-circuit",
+      ttl: 60_000,
+      fetcher: async () => ({ ok: true }),
+    });
+
+    const open = makeMockCtx(true);
+    await cachedFetch(open.ctx, {
+      dataType: "open-circuit",
+      ttl: 60_000,
+      fetcher: async () => ({ ok: true }),
+    });
+
+    const closedRecoveryWrites = closed.runMutation.mock.calls.filter(
+      ([, args]) => args && typeof args === "object" && "service" in args,
+    );
+    const openRecoveryWrites = open.runMutation.mock.calls.filter(
+      ([, args]) => args && typeof args === "object" && "service" in args,
+    );
+
+    expect(closedRecoveryWrites).toHaveLength(0);
+    expect(openRecoveryWrites).toHaveLength(1);
   });
 });
 
