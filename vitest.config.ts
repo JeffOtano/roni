@@ -28,6 +28,8 @@ export default defineConfig({
           environment: "edge-runtime",
           include: [
             "convex/**/backfillIntegration.test.ts",
+            "convex/**/backfillNextTonalSyncAt.test.ts",
+            "convex/**/historySync.test.ts",
             "convex/**/historySyncMutations.test.ts",
             "convex/**/syncQueries.test.ts",
           ],
@@ -41,6 +43,8 @@ export default defineConfig({
           include: ["convex/**/*.test.ts"],
           exclude: [
             "convex/**/backfillIntegration.test.ts",
+            "convex/**/backfillNextTonalSyncAt.test.ts",
+            "convex/**/historySync.test.ts",
             "convex/**/historySyncMutations.test.ts",
             "convex/**/syncQueries.test.ts",
           ],

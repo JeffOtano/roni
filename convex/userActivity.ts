@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalQuery, mutation } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
+import { computeNextSyncAt } from "./tonal/cacheRefreshTiering";
 
 const APP_ACTIVITY_THROTTLE_MS = 30 * 60 * 1000;
 
@@ -21,6 +22,22 @@ export const getAllConnectedUsers = internalQuery({
     return await ctx.db
       .query("userProfiles")
       .withIndex("by_lastActiveAt", (q) => q.gt("lastActiveAt", 0))
+      .collect();
+  },
+});
+
+/** Profiles whose nextTonalSyncAt has elapsed — the cron consumes this directly. */
+export const getUsersDueForRefresh = internalQuery({
+  args: { now: v.number() },
+  handler: async (ctx, { now }) => {
+    // gte(0) excludes profiles whose nextTonalSyncAt is unset (>72h cohort or
+    // pre-backfill); the lte caps the range at "due now". Both bounds use the
+    // same index, so the read is bounded to the eligible cohort only.
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_nextTonalSyncAt", (q) =>
+        q.gte("nextTonalSyncAt", 0).lte("nextTonalSyncAt", now),
+      )
       .collect();
   },
 });
@@ -46,6 +63,7 @@ export const recordAppActivity = mutation({
     await ctx.db.patch(profile._id, {
       appLastActiveAt: now,
       lastActiveAt: now,
+      nextTonalSyncAt: computeNextSyncAt(now, now, profile.lastTonalSyncAt),
     });
   },
 });
