@@ -9,6 +9,10 @@ import { CACHE_TTLS } from "./cache";
 import { isCacheValueWithinLimit, isConvexSizeError } from "./proxyCacheLimits";
 import { withTokenRetry } from "./tokenRetry";
 import { projectWorkoutDetail } from "./workoutDetailProjection";
+import { projectStrengthHistory } from "./strengthHistoryProjection";
+import { projectFormattedSummary } from "./formattedSummaryProjection";
+import { projectCustomWorkouts } from "./customWorkoutsProjection";
+import { projectExternalActivities } from "./externalActivitiesProjection";
 import {
   DEFAULT_TARGET_AREA,
   formatWorkoutDisplayTitle,
@@ -183,19 +187,24 @@ export const fetchStrengthDistribution = internalAction({
 
 export const fetchStrengthHistory = internalAction({
   args: { userId: v.id("users") },
-  handler: async (ctx, { userId }): Promise<StrengthScoreHistoryEntry[]> =>
-    withTokenRetry(ctx, userId, (token, tonalUserId) =>
+  handler: async (ctx, { userId }): Promise<StrengthScoreHistoryEntry[]> => {
+    const result = await withTokenRetry(ctx, userId, (token, tonalUserId) =>
       cachedFetch<StrengthScoreHistoryEntry[]>(ctx, {
         userId,
         dataType: "strengthHistory",
         ttl: CACHE_TTLS.strengthHistory,
-        fetcher: () =>
-          tonalFetch<StrengthScoreHistoryEntry[]>(
+        fetcher: async () => {
+          const raw = await tonalFetch<unknown>(
             token,
             `/v6/users/${tonalUserId}/strength-scores/history?limit=200`,
-          ),
+          );
+          return projectStrengthHistory(raw);
+        },
       }),
-    ),
+    );
+    // Re-project after read: stale cache entries may predate the projection.
+    return projectStrengthHistory(result);
+  },
 });
 
 export const fetchMuscleReadiness = internalAction({
@@ -325,32 +334,41 @@ export const fetchFormattedSummary = internalAction({
     userId: v.id("users"),
     summaryId: v.string(),
   },
-  handler: async (ctx, { userId, summaryId }): Promise<FormattedWorkoutSummary> =>
-    withTokenRetry(ctx, userId, (token, tonalUserId) =>
+  handler: async (ctx, { userId, summaryId }): Promise<FormattedWorkoutSummary> => {
+    const result = await withTokenRetry(ctx, userId, (token, tonalUserId) =>
       cachedFetch<FormattedWorkoutSummary>(ctx, {
         userId,
         dataType: `formattedSummary:${summaryId}`,
         ttl: CACHE_TTLS.workoutHistory,
-        fetcher: () =>
-          tonalFetch<FormattedWorkoutSummary>(
+        fetcher: async () => {
+          const raw = await tonalFetch<unknown>(
             token,
             `/v6/formatted/users/${tonalUserId}/workout-summaries/${summaryId}`,
-          ),
+          );
+          return projectFormattedSummary(raw);
+        },
       }),
-    ),
+    );
+    return projectFormattedSummary(result);
+  },
 });
 
 export const fetchCustomWorkouts = internalAction({
   args: { userId: v.id("users") },
-  handler: async (ctx, { userId }): Promise<UserWorkout[]> =>
-    withTokenRetry(ctx, userId, (token) =>
+  handler: async (ctx, { userId }): Promise<UserWorkout[]> => {
+    const result = await withTokenRetry(ctx, userId, (token) =>
       cachedFetch<UserWorkout[]>(ctx, {
         userId,
         dataType: "customWorkouts",
         ttl: CACHE_TTLS.customWorkouts,
-        fetcher: () => tonalFetch<UserWorkout[]>(token, `/v6/user-workouts`),
+        fetcher: async () => {
+          const raw = await tonalFetch<unknown>(token, `/v6/user-workouts`);
+          return projectCustomWorkouts(raw);
+        },
       }),
-    ),
+    );
+    return projectCustomWorkouts(result);
+  },
 });
 
 export const fetchExternalActivities = internalAction({
@@ -358,17 +376,21 @@ export const fetchExternalActivities = internalAction({
     userId: v.id("users"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { userId, limit = 20 }): Promise<ExternalActivity[]> =>
-    withTokenRetry(ctx, userId, (token, tonalUserId) =>
+  handler: async (ctx, { userId, limit = 20 }): Promise<ExternalActivity[]> => {
+    const result = await withTokenRetry(ctx, userId, (token, tonalUserId) =>
       cachedFetch<ExternalActivity[]>(ctx, {
         userId,
         dataType: `externalActivities:${limit}`,
         ttl: CACHE_TTLS.workoutHistory,
-        fetcher: () =>
-          tonalFetch<ExternalActivity[]>(
+        fetcher: async () => {
+          const raw = await tonalFetch<unknown>(
             token,
             `/v6/users/${tonalUserId}/external-activities?limit=${limit}`,
-          ),
+          );
+          return projectExternalActivities(raw);
+        },
       }),
-    ),
+    );
+    return projectExternalActivities(result);
+  },
 });
