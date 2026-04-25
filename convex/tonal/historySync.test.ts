@@ -3,7 +3,11 @@ import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
-import { TIER_INTERVAL_SLACK_MS, TIER_INTERVALS_MS } from "./cacheRefreshTiering";
+import {
+  TIER_INTERVAL_SLACK_MS,
+  TIER_INTERVALS_MS,
+  TIER_THRESHOLDS_MS,
+} from "./cacheRefreshTiering";
 
 const rawModules = import.meta.glob("../**/*.*s");
 const modules: typeof rawModules = {};
@@ -49,6 +53,62 @@ describe("startSyncUserHistory preflight skip", () => {
     expect(profile?.nextTonalSyncAt).toBe(
       FROZEN_NOW + TIER_INTERVALS_MS.active - TIER_INTERVAL_SLACK_MS,
     );
+  });
+
+  test("clears nextTonalSyncAt for skip-tier users so the index drops them", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+
+    const t = convexTest(schema, modules);
+    const { userId, profileId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {});
+      const profileId = await ctx.db.insert("userProfiles", {
+        userId,
+        tonalUserId: "tonal-stale",
+        tonalToken: "encrypted",
+        lastActiveAt: FROZEN_NOW - TIER_THRESHOLDS_MS.lapsing - 60 * 1000,
+        appLastActiveAt: FROZEN_NOW - TIER_THRESHOLDS_MS.lapsing - 60 * 1000,
+        lastTonalSyncAt: FROZEN_NOW - 12 * 60 * 60 * 1000,
+        nextTonalSyncAt: FROZEN_NOW - 60 * 1000,
+      });
+      return { userId, profileId };
+    });
+
+    await t.mutation(internal.tonal.historySync.startSyncUserHistory, { userId });
+
+    const profile = await t.run(async (ctx) => ctx.db.get(profileId));
+    expect(profile?.nextTonalSyncAt).toBeUndefined();
+    expect(profile?.lastTonalSyncAt).toBe(FROZEN_NOW - 12 * 60 * 60 * 1000);
+  });
+
+  test("recomputes nextTonalSyncAt when the user shifted to a longer tier", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+
+    const t = convexTest(schema, modules);
+    const tierShiftedSyncAt = FROZEN_NOW - 35 * 60 * 1000;
+
+    const { userId, profileId } = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {});
+      const profileId = await ctx.db.insert("userProfiles", {
+        userId,
+        tonalUserId: "tonal-shifted",
+        tonalToken: "encrypted",
+        lastActiveAt: FROZEN_NOW - 5 * 60 * 60 * 1000,
+        appLastActiveAt: FROZEN_NOW - 5 * 60 * 60 * 1000,
+        lastTonalSyncAt: tierShiftedSyncAt,
+        nextTonalSyncAt: FROZEN_NOW - 60 * 1000,
+      });
+      return { userId, profileId };
+    });
+
+    await t.mutation(internal.tonal.historySync.startSyncUserHistory, { userId });
+
+    const profile = await t.run(async (ctx) => ctx.db.get(profileId));
+    expect(profile?.nextTonalSyncAt).toBe(
+      tierShiftedSyncAt + TIER_INTERVALS_MS.recent - TIER_INTERVAL_SLACK_MS,
+    );
+    expect(profile?.lastTonalSyncAt).toBe(tierShiftedSyncAt);
   });
 
   test("does not pull the workoutHistory cache row during preflight", async () => {
