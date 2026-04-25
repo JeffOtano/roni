@@ -47,6 +47,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
+  recordAppActivity: {
+    kind: "token bucket",
+    rate: 5,
+    period: MINUTE,
+    capacity: 10,
+  },
   reportInjury: {
     kind: "token bucket",
     rate: 5,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { projectWorkoutMeta, toActivity } from "./proxy";
+import { toActivity } from "./proxy";
+import { formatWorkoutDisplayTitle, projectWorkoutMeta } from "./workoutMeta";
 import {
   estimateCacheValueBytes,
   isCacheValueWithinLimit,
@@ -85,10 +86,11 @@ describe("projectWorkoutDetail", () => {
 });
 
 describe("projectWorkoutMeta", () => {
-  it("keeps only title and targetArea string fields", () => {
+  it("keeps display metadata string fields", () => {
     const result = projectWorkoutMeta({
       title: "Push Day",
       targetArea: "Upper Body",
+      programName: "12 Weeks to Unleash",
       description: "ignored",
       blocks: [{ id: "b1" }],
     });
@@ -96,6 +98,7 @@ describe("projectWorkoutMeta", () => {
     expect(result).toEqual({
       title: "Push Day",
       targetArea: "Upper Body",
+      programName: "12 Weeks to Unleash",
     });
   });
 
@@ -103,18 +106,54 @@ describe("projectWorkoutMeta", () => {
     const result = projectWorkoutMeta({
       title: 42,
       targetArea: ["Upper Body"],
+      programName: { name: "bad" },
     });
 
-    expect(result).toEqual({
-      title: undefined,
-      targetArea: undefined,
-    });
+    expect(result).toEqual({});
   });
 
   it("returns empty metadata for null and non-object payloads", () => {
     expect(projectWorkoutMeta(null)).toEqual({});
     expect(projectWorkoutMeta("Push Day")).toEqual({});
     expect(projectWorkoutMeta(["Push Day"])).toEqual({});
+  });
+});
+
+describe("formatWorkoutDisplayTitle", () => {
+  it("uses program name plus session code for raw program workout titles", () => {
+    expect(
+      formatWorkoutDisplayTitle({
+        title: "WO37 (W10D1)",
+        programName: "12 Weeks to Unleash",
+      }),
+    ).toBe("12 Weeks to Unleash - W10D1");
+  });
+
+  it("joins program name with a distinct human-readable title", () => {
+    expect(
+      formatWorkoutDisplayTitle({
+        title: "Leg Strength",
+        programName: "12 Weeks to Unleash",
+      }),
+    ).toBe("12 Weeks to Unleash - Leg Strength");
+  });
+
+  it("returns program name once when title matches program name", () => {
+    expect(
+      formatWorkoutDisplayTitle({
+        title: "12 Weeks to Unleash",
+        programName: "12 Weeks to Unleash",
+      }),
+    ).toBe("12 Weeks to Unleash");
+  });
+
+  it("hides raw workout codes when no program name is available", () => {
+    expect(formatWorkoutDisplayTitle({ title: "WO37 (W10D1)" })).toBe("W10D1");
+    expect(formatWorkoutDisplayTitle({ title: "WO37" })).toBe("Tonal Workout");
+  });
+
+  it("preserves normal workout titles", () => {
+    expect(formatWorkoutDisplayTitle({ title: "Leg Day" })).toBe("Leg Day");
   });
 });
 
@@ -148,11 +187,13 @@ describe("toActivity", () => {
 
   it("uses projected metadata when available", () => {
     const result = toActivity(makeDetail(1), {
-      title: "Leg Day",
+      title: "WO37 (W10D1)",
       targetArea: "Lower Body",
+      programName: "12 Weeks to Unleash",
     });
 
-    expect(result.workoutPreview.workoutTitle).toBe("Leg Day");
+    expect(result.workoutPreview.workoutTitle).toBe("12 Weeks to Unleash - W10D1");
+    expect(result.workoutPreview.programName).toBe("12 Weeks to Unleash");
     expect(result.workoutPreview.targetArea).toBe("Lower Body");
   });
 });

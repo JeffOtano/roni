@@ -14,6 +14,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
+import { requestCoachStateRefresh } from "../coachState";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -123,7 +124,7 @@ export const startBlock = internalMutation({
       args.label ??
       (args.blockType === "deload" ? "Deload Week" : `Building Phase (${args.totalWeeks} weeks)`);
 
-    return ctx.db.insert("trainingBlocks", {
+    const blockId = await ctx.db.insert("trainingBlocks", {
       userId: args.userId,
       label,
       blockType: args.blockType,
@@ -133,6 +134,8 @@ export const startBlock = internalMutation({
       status: "active",
       createdAt: Date.now(),
     });
+    await requestCoachStateRefresh(ctx, args.userId);
+    return blockId;
   },
 });
 
@@ -166,6 +169,7 @@ export const advanceWeek = internalMutation({
           status: "active",
           createdAt: Date.now(),
         });
+        await requestCoachStateRefresh(ctx, args.userId);
         return { transitioned: true, newBlock: await ctx.db.get(deloadId) };
       }
       if (active.blockType === "deload") {
@@ -179,13 +183,16 @@ export const advanceWeek = internalMutation({
           status: "active",
           createdAt: Date.now(),
         });
+        await requestCoachStateRefresh(ctx, args.userId);
         return { transitioned: true, newBlock: await ctx.db.get(buildingId) };
       }
+      await requestCoachStateRefresh(ctx, args.userId);
       return { transitioned: true, newBlock: null };
     }
 
     // Just increment the week
     await ctx.db.patch(active._id, { weekNumber: active.weekNumber + 1 });
+    await requestCoachStateRefresh(ctx, args.userId);
     return { transitioned: false, newBlock: null };
   },
 });

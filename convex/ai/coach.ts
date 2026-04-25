@@ -5,7 +5,8 @@ import type { ModelMessage } from "ai";
 import { components, internal } from "../_generated/api";
 import { getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
-import { buildTrainingSnapshot } from "./context";
+import { withAnthropicHistoryCache, withAnthropicToolCache } from "./anthropicCache";
+import { getTrainingSnapshotForChat, type TrainingSnapshotSource } from "./trainingSnapshotCache";
 import {
   buildContextWindow,
   mergeConsecutiveSameRole,
@@ -79,6 +80,7 @@ const serverProvider = createGoogleGenerativeAI({
 const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding-001");
 
 const STATIC_INSTRUCTIONS = buildInstructions();
+const RECENT_MESSAGES_LIMIT = 40;
 
 /**
  * Cheap fingerprint of the static system prompt. Surfaces in `aiRun.promptVersion`
@@ -96,11 +98,67 @@ function hashString(input: string): string {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
+// Snapshot content includes user-entered goals, injuries, and feedback.
+// Neutralizes any <training-data> tokens the user could have typed so they
+// can't close the wrapper and smuggle text that reads as extra instructions.
+export function escapeTrainingDataTags(input: string): string {
+  return input
+    .replaceAll("</training-data>", "</training_data>")
+    .replaceAll("<training-data>", "<training_data>");
+}
+
+export interface CoachContextTiming {
+  contextBuildMs?: number;
+  snapshotBuildMs?: number;
+  contextBuildCount?: number;
+  contextMessageCount?: number;
+  snapshotSource?: TrainingSnapshotSource;
+}
+
+export function shouldUseCrossThreadSearch(prompt: string, hasImages: boolean = false): boolean {
+  if (hasImages) return true;
+
+  const normalized = prompt
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "");
+  if (!normalized) return true;
+
+  const retrievalKeywords = [
+    "history",
+    "past",
+    "previous",
+    "goal",
+    "injury",
+    "strength",
+    "readiness",
+  ];
+  if (retrievalKeywords.some((keyword) => normalized.includes(keyword))) return true;
+
+  const localFollowUps = [
+    "ok",
+    "okay",
+    "yes",
+    "no",
+    "thanks",
+    "thank you",
+    "make it harder",
+    "make it easier",
+    "shorter",
+    "longer",
+    "swap it",
+    "looks good",
+  ];
+  if (localFollowUps.includes(normalized)) return false;
+  return normalized.split(" ").length > 8;
+}
+
 export const coachAgentConfig = {
   embeddingModel: sharedEmbeddingModel,
 
   contextOptions: {
-    recentMessages: 100,
+    recentMessages: RECENT_MESSAGES_LIMIT,
     searchOtherThreads: true,
     searchOptions: {
       limit: 10,
@@ -113,7 +171,7 @@ export const coachAgentConfig = {
 
   // No `instructions` here — STATIC_INSTRUCTIONS is injected by contextHandler so it can carry cacheControl.
 
-  tools: {
+  tools: withAnthropicToolCache({
     search_exercises: searchExercisesTool,
     get_strength_scores: getStrengthScoresTool,
     get_strength_history: getStrengthHistoryTool,
@@ -146,7 +204,7 @@ export const coachAgentConfig = {
     resolve_injury: resolveInjuryTool,
     get_injuries: getInjuriesTool,
     get_weekly_volume: getWeeklyVolumeTool,
-  },
+  }),
 
   maxSteps: 25,
 
@@ -174,31 +232,79 @@ export const coachAgentConfig = {
 };
 
 /** Build per-request agent config with timezone-aware context handler. */
-export function makeCoachAgentConfig(userTimezone?: string) {
+export interface CoachAgentConfigOptions {
+  userTimezone?: string;
+  provider?: ProviderId;
+  retrievalEnabled?: boolean;
+  timing?: CoachContextTiming;
+}
+
+export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
+  const { userTimezone, provider, retrievalEnabled = true, timing } = options;
   return {
     ...coachAgentConfig,
+    contextOptions: {
+      ...coachAgentConfig.contextOptions,
+      searchOtherThreads: retrievalEnabled,
+    },
     contextHandler: (async (ctx, args) => {
+      const contextStartedAt = Date.now();
       const messages = buildContextWindow(
         mergeConsecutiveSameRole(
           stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
         ),
       );
-      // Snapshot is added after this so the per-call snapshot doesn't bust the prefix cache.
-      const systemMessages: ModelMessage[] = [
-        {
-          role: "system",
-          content: STATIC_INSTRUCTIONS,
-          providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
-        },
-      ];
-      if (args.userId) {
-        const snapshot = await buildTrainingSnapshot(ctx, args.userId, userTimezone);
-        systemMessages.push({
-          role: "system",
-          content: `<training-data>\n${snapshot}\n</training-data>`,
-        });
+      if (timing) {
+        timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
+        timing.contextMessageCount = (timing.contextMessageCount ?? 0) + messages.length;
       }
-      return [...systemMessages, ...messages];
+      const staticSystem: ModelMessage = {
+        role: "system",
+        content: STATIC_INSTRUCTIONS,
+        providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+      };
+
+      if (!args.userId || messages.length === 0) {
+        if (timing)
+          timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
+        return [staticSystem, ...messages];
+      }
+
+      const snapshotResult = await getTrainingSnapshotForChat(ctx, args.userId, userTimezone);
+      if (timing) {
+        timing.snapshotBuildMs = (timing.snapshotBuildMs ?? 0) + snapshotResult.snapshotBuildMs;
+        timing.snapshotSource ??= snapshotResult.source;
+      }
+      const snapshotSystem: ModelMessage = {
+        role: "system",
+        content: `<training-data>\n${escapeTrainingDataTags(snapshotResult.snapshot)}\n</training-data>`,
+      };
+
+      // Anthropic supports interleaved system messages and has explicit prompt
+      // caching. Placing the snapshot right before the final turn keeps the
+      // cached prefix (tools + static system + history up to the last
+      // assistant) byte-stable, so a cacheControl marker on that assistant
+      // turns it into a hit on every subsequent call in the 5-minute window.
+      //
+      // Gemini throws UnsupportedFunctionalityError on any system message
+      // that appears after a non-system message, so we keep the snapshot at
+      // system[1] for it and for any provider we can't confirm is safe
+      // (OpenAI supports it but we see no caching win there; OpenRouter is a
+      // passthrough to an unknown backend). Conservative default.
+      if (provider === "claude") {
+        const head = withAnthropicHistoryCache(messages.slice(0, -1));
+        const tail = messages[messages.length - 1];
+        if (timing)
+          timing.contextBuildMs =
+            (timing.contextBuildMs ?? 0) +
+            Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
+        return [staticSystem, ...head, snapshotSystem, tail];
+      }
+      if (timing)
+        timing.contextBuildMs =
+          (timing.contextBuildMs ?? 0) +
+          Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
+      return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };
 }
@@ -210,7 +316,7 @@ export interface CoachAgentPair {
 
 export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
-  const config = makeCoachAgentConfig(userTimezone);
+  const config = makeCoachAgentConfig({ userTimezone, provider: "gemini" });
 
   const primary = new Agent(components.agent, {
     name: "Roni",
@@ -232,12 +338,14 @@ export interface ProviderAgentArgs {
   apiKey: string;
   modelOverride?: string;
   userTimezone?: string;
+  retrievalEnabled?: boolean;
+  timing?: CoachContextTiming;
 }
 
 export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgentPair {
-  const { provider, apiKey, modelOverride, userTimezone } = args;
+  const { provider, apiKey, modelOverride, userTimezone, retrievalEnabled, timing } = args;
   const config = getProviderConfig(provider);
-  const agentConfig = makeCoachAgentConfig(userTimezone);
+  const agentConfig = makeCoachAgentConfig({ userTimezone, provider, retrievalEnabled, timing });
 
   const primaryModelName = modelOverride || config.primaryModel;
   if (!primaryModelName) {

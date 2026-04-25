@@ -1,5 +1,7 @@
 import { v } from "convex/values";
+import type { MutationCtx } from "../_generated/server";
 import { internalMutation, internalQuery } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 import { isDeletionInProgress } from "../lib/auth";
 
 // Cache TTLs in milliseconds
@@ -12,6 +14,26 @@ export const CACHE_TTLS: Record<string, number> = {
   customWorkouts: 5 * 60 * 1000, // 5 minutes
   strengthDistribution: 6 * 60 * 60 * 1000, // 6 hours
 };
+
+const WORKOUT_HISTORY_CACHE_TYPE = "workoutHistory_v3";
+
+/**
+ * Mirror the workoutHistory cache write timestamp onto userProfiles so the
+ * sync preflight can read a tiny field instead of pulling the bulky cache row.
+ */
+async function denormalizeWorkoutHistoryFreshness(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  fetchedAt: number,
+): Promise<void> {
+  const profile = await ctx.db
+    .query("userProfiles")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  if (!profile) return;
+  if ((profile.workoutHistoryCachedAt ?? 0) >= fetchedAt) return;
+  await ctx.db.patch(profile._id, { workoutHistoryCachedAt: fetchedAt });
+}
 
 export const getUserProfile = internalQuery({
   args: { userId: v.id("users") },
@@ -79,6 +101,9 @@ export const setCacheEntry = internalMutation({
           fetchedAt: args.fetchedAt,
           expiresAt: args.expiresAt,
         });
+      }
+      if (args.userId && args.dataType === WORKOUT_HISTORY_CACHE_TYPE) {
+        await denormalizeWorkoutHistoryFreshness(ctx, args.userId, args.fetchedAt);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

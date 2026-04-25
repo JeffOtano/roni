@@ -3,6 +3,7 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { preferredSplitValidator } from "./weekPlanHelpers";
+import { requestCoachStateRefresh } from "./coachState";
 
 const profileDataValidator = v.object({
   firstName: v.string(),
@@ -62,16 +63,21 @@ export const create = internalMutation({
         tonalTokenExpiresAt: args.tonalTokenExpiresAt,
         profileData: args.profileData,
         lastActiveAt: Date.now(),
+        appLastActiveAt: Date.now(),
       });
+      if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
       return existing._id;
     }
 
     const now = Date.now();
-    return await ctx.db.insert("userProfiles", {
+    const id = await ctx.db.insert("userProfiles", {
       ...args,
       lastActiveAt: now,
+      appLastActiveAt: now,
       tonalConnectedAt: now,
     });
+    if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
+    return id;
   },
 });
 
@@ -117,7 +123,6 @@ export const updateTonalToken = internalMutation({
 
     const patch: Record<string, unknown> = {
       tonalToken,
-      lastActiveAt: Date.now(),
     };
     if (tonalRefreshToken !== undefined) patch.tonalRefreshToken = tonalRefreshToken;
     if (tonalTokenExpiresAt !== undefined) patch.tonalTokenExpiresAt = tonalTokenExpiresAt;
@@ -134,16 +139,6 @@ export const markTokenExpired = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     if (profile) await ctx.db.patch(profile._id, { tonalTokenExpiresAt: 0 });
-  },
-});
-
-export const getActiveUsers = internalQuery({
-  args: { sinceTimestamp: v.number() },
-  handler: async (ctx, { sinceTimestamp }) => {
-    return await ctx.db
-      .query("userProfiles")
-      .withIndex("by_lastActiveAt", (q) => q.gt("lastActiveAt", sinceTimestamp))
-      .collect();
   },
 });
 
@@ -198,6 +193,7 @@ export const saveTrainingPreferences = mutation({
         sessionDurationMinutes: args.sessionDurationMinutes,
       },
     });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -230,6 +226,7 @@ export const completeOnboarding = mutation({
         sessionDurationMinutes: args.sessionDurationMinutes,
       },
     });
+    await requestCoachStateRefresh(ctx, userId);
 
     // Notify Discord of new signup completion
     const name = profile.profileData
@@ -269,6 +266,7 @@ export const saveTrainingPreferencesInternal = internalMutation({
         sessionDurationMinutes: prefs.sessionDurationMinutes,
       },
     });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -316,6 +314,7 @@ export const updateProfileData = internalMutation({
       lastName: profileData.lastName,
       name: `${profileData.firstName} ${profileData.lastName}`,
     });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 

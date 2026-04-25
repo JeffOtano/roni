@@ -47,9 +47,28 @@ const aiRunArgs = {
   cacheReadTokens: v.number(),
   cacheWriteTokens: v.number(),
   totalCostUsd: v.optional(v.number()),
+  scheduledAt: v.optional(v.number()),
+  processingStartedAt: v.optional(v.number()),
+  streamStartedAt: v.optional(v.number()),
+  queueDelayMs: v.optional(v.number()),
+  preStreamSetupMs: v.optional(v.number()),
   timeToFirstTokenMs: v.optional(v.number()),
   timeToLastTokenMs: v.optional(v.number()),
+  totalTimeToFirstTokenMs: v.optional(v.number()),
+  totalTimeToLastTokenMs: v.optional(v.number()),
   outputTokensPerSec: v.optional(v.number()),
+  contextBuildMs: v.optional(v.number()),
+  snapshotBuildMs: v.optional(v.number()),
+  contextBuildCount: v.optional(v.number()),
+  contextMessageCount: v.optional(v.number()),
+  snapshotSource: v.optional(
+    v.union(
+      v.literal("coach_state_fresh"),
+      v.literal("coach_state_stale"),
+      v.literal("live_rebuild"),
+    ),
+  ),
+  retrievalEnabled: v.optional(v.boolean()),
   approvalPauses: v.number(),
   workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
   workoutPushOutcome: v.optional(
@@ -73,6 +92,71 @@ export const record = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("aiUsage", { ...args, createdAt: Date.now() });
+  },
+});
+
+const DEFAULT_CACHE_RATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface CacheHitRateRow {
+  provider: string;
+  rows: number;
+  inputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  cacheReadRatio: number;
+}
+
+export interface AiUsageTokenRow {
+  provider: string;
+  inputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}
+
+export function aggregateCacheHitsByProvider(rows: AiUsageTokenRow[]): CacheHitRateRow[] {
+  const byProvider = new Map<
+    string,
+    { rows: number; inputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
+  >();
+  for (const row of rows) {
+    // Routing rows (`provider: "local"`) have no model call, skip them.
+    if (row.inputTokens === 0) continue;
+    const agg = byProvider.get(row.provider) ?? {
+      rows: 0,
+      inputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    agg.rows += 1;
+    agg.inputTokens += row.inputTokens;
+    agg.cacheReadTokens += row.cacheReadTokens ?? 0;
+    agg.cacheWriteTokens += row.cacheWriteTokens ?? 0;
+    byProvider.set(row.provider, agg);
+  }
+
+  return Array.from(byProvider.entries())
+    .map(([provider, agg]) => ({
+      provider,
+      ...agg,
+      cacheReadRatio: agg.inputTokens === 0 ? 0 : agg.cacheReadTokens / agg.inputTokens,
+    }))
+    .sort((a, b) => b.inputTokens - a.inputTokens);
+}
+
+/**
+ * Aggregate cache-read ratio grouped by provider over a recent window.
+ * Run ad-hoc (e.g. `npx convex run aiUsage:getCacheHitRateByProvider --prod`)
+ * to decide whether explicit provider caching is worth pursuing.
+ */
+export const getCacheHitRateByProvider = internalQuery({
+  args: { windowMs: v.optional(v.number()) },
+  handler: async (ctx, { windowMs = DEFAULT_CACHE_RATE_WINDOW_MS }) => {
+    const since = Date.now() - windowMs;
+    const rows = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
+      .collect();
+    return aggregateCacheHitsByProvider(rows);
   },
 });
 
@@ -124,6 +208,19 @@ export const recordToolCall = internalMutation({
   },
 });
 
+export const claimDailyBudgetWarning = internalMutation({
+  args: { userId: v.id("users"), date: v.string() },
+  handler: async (ctx, { userId, date }) => {
+    const existing = await ctx.db
+      .query("aiBudgetWarnings")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId).eq("date", date))
+      .unique();
+    if (existing) return false;
+    await ctx.db.insert("aiBudgetWarnings", { userId, date, createdAt: Date.now() });
+    return true;
+  },
+});
+
 /** Get total tokens used by a user today (UTC day boundary). */
 export const getDailyTokenUsage = internalQuery({
   args: { userId: v.id("users") },
@@ -140,5 +237,34 @@ export const getDailyTokenUsage = internalQuery({
       .collect();
 
     return records.reduce((sum, r) => sum + r.totalTokens, 0);
+  },
+});
+
+export const getDailyTokenUsageStats = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const now = Date.now();
+    const startOfDay = new Date(now);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const records = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_userId_createdAt", (q) =>
+        q.eq("userId", userId).gte("createdAt", startOfDay.getTime()),
+      )
+      .collect();
+
+    let latestCreatedAt = 0;
+    let latestUsageTokens = 0;
+    let totalTokens = 0;
+    for (const record of records) {
+      totalTokens += record.totalTokens;
+      if (record.totalTokens > 0 && record.createdAt >= latestCreatedAt) {
+        latestCreatedAt = record.createdAt;
+        latestUsageTokens = record.totalTokens;
+      }
+    }
+
+    return { totalTokens, latestUsageTokens };
   },
 });

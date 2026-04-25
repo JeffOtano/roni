@@ -8,6 +8,7 @@ import * as analytics from "./lib/posthog";
 import { vWorkflowId } from "@convex-dev/workflow";
 import { vResultValidator } from "@convex-dev/workpool";
 import { workflow } from "./workflows";
+import { requestCoachStateRefresh } from "./coachState";
 
 type RetryPushResult = { success: true; started: true } | { success: false; error: string };
 
@@ -116,6 +117,8 @@ export const updatePushOutcome = internalMutation({
       ...(pushedAt !== undefined && { pushedAt }),
       pushErrorReason: status === "pushed" ? undefined : pushErrorReason,
     });
+    const plan = await ctx.db.get(planId);
+    if (plan) await requestCoachStateRefresh(ctx, plan.userId);
   },
 });
 
@@ -215,6 +218,7 @@ export const onRetryPushComplete = internalMutation({
       status: "failed" as const,
       pushErrorReason: reason,
     });
+    await requestCoachStateRefresh(ctx, context.userId);
     analytics.capture(context.userId, "workout_push_failed", {
       plan_id: context.planId,
       error: reason,
@@ -286,6 +290,7 @@ export const markDeleted = internalMutation({
 
     if (plan) {
       await ctx.db.patch(plan._id, { status: "deleted" as const });
+      await requestCoachStateRefresh(ctx, plan.userId);
     }
   },
 });

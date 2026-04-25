@@ -131,7 +131,7 @@ export const getKnownActivityIds = internalQuery({
   handler: async (ctx, { userId }) => {
     const workouts = await ctx.db
       .query("completedWorkouts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .collect();
     return workouts.map((w) => w.activityId);
   },
@@ -154,7 +154,7 @@ export const collectUserData = internalQuery({
 
     const weekPlans = await ctx.db
       .query("weekPlans")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_weekStartDate", (q) => q.eq("userId", userId))
       .collect();
 
     const checkIns = await ctx.db
@@ -164,7 +164,7 @@ export const collectUserData = internalQuery({
 
     const completedWorkouts = await ctx.db
       .query("completedWorkouts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .collect();
 
     const exercisePerformanceRows = await ctx.db

@@ -1,14 +1,12 @@
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { Movement } from "../tonal/types";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
 export { getRecencyLabel } from "./timeDecay";
 import { getRecencyLabel } from "./timeDecay";
 import {
-  buildExerciseCatalogSection,
   computeAge,
   formatExternalActivityLine,
   getHrIntensityLabel,
@@ -18,13 +16,7 @@ import {
 } from "./snapshotHelpers";
 
 // Re-export for backward compatibility (tests, other consumers)
-export {
-  type SnapshotSection,
-  trimSnapshot,
-  getHrIntensityLabel,
-  formatExternalActivityLine,
-  buildExerciseCatalogSection,
-};
+export { type SnapshotSection, trimSnapshot, getHrIntensityLabel, formatExternalActivityLine };
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery">,
@@ -41,7 +33,7 @@ export async function buildTrainingSnapshot(
     return "No Tonal profile linked yet. Ask the user to connect their Tonal account.";
   }
 
-  // Parallel fetch: Tonal data + coaching data + movement catalog
+  // Parallel fetch: Tonal data + coaching data
   const [
     scores,
     readiness,
@@ -51,7 +43,6 @@ export async function buildTrainingSnapshot(
     activeGoals,
     activeInjuries,
     externalActivities,
-    movementCatalog,
   ] = await Promise.all([
     ctx
       .runQuery(internal.tonal.syncQueries.getCurrentStrengthScores, { userId: convexUserId })
@@ -79,7 +70,6 @@ export async function buildTrainingSnapshot(
         limit: 20,
       })
       .catch(() => []),
-    ctx.runQuery(internal.tonal.movementSync.getAllMovements).catch(() => [] as Movement[]),
   ]);
 
   const pd = profile.profileData;
@@ -145,10 +135,6 @@ export async function buildTrainingSnapshot(
     equipmentLines.push(`Equipment: All accessories assumed available (no equipment profile set).`);
   }
   sections.push({ priority: 2, lines: equipmentLines });
-
-  // Priority 6.5: Exercise catalog grouped by accessory
-  const catalogSection = buildExerciseCatalogSection(movementCatalog, owned);
-  if (catalogSection) sections.push(catalogSection);
 
   // Priority 3: Active injuries
   const injuries = activeInjuries as Doc<"injuries">[];

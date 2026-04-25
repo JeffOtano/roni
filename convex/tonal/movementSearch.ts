@@ -79,11 +79,64 @@ function buildAliasLookup(): Map<string, string[]> {
   return map;
 }
 
-interface SearchableMovement {
+export interface SearchableMovement {
   name: string;
   shortName: string;
   descriptionHow?: string;
   descriptionWhy?: string;
+}
+
+export interface MovementSearchFields {
+  nameSearchText: string;
+  muscleGroupsSearchText: string;
+  trainingTypesSearchText: string;
+}
+
+/** Build denormalized text fields used by Convex search indexes. */
+export function buildMovementSearchFields(
+  movement: SearchableMovement & {
+    muscleGroups?: readonly string[];
+    trainingTypes?: readonly string[];
+  },
+): MovementSearchFields {
+  return {
+    nameSearchText: buildMovementNameSearchText(movement),
+    muscleGroupsSearchText: buildListSearchText(movement.muscleGroups),
+    trainingTypesSearchText: buildListSearchText(movement.trainingTypes),
+  };
+}
+
+/** Build searchable name text, including aliases that must match pre-filtering. */
+export function buildMovementNameSearchText(movement: SearchableMovement): string {
+  const fields = [
+    movement.name,
+    movement.shortName,
+    movement.descriptionHow,
+    movement.descriptionWhy,
+  ];
+  const searchableTerms = new Set<string>();
+
+  for (const field of fields) {
+    if (field) addSearchTerm(searchableTerms, field);
+  }
+
+  const baseText = [...searchableTerms].join(" ");
+  const paddedBaseText = ` ${baseText} `;
+  for (const group of ALIAS_GROUPS) {
+    if (group.some((term) => paddedBaseText.includes(` ${normalizeSearchText(term)} `))) {
+      for (const term of group) addSearchTerm(searchableTerms, term);
+    }
+  }
+
+  return [...searchableTerms].join(" ");
+}
+
+/** Build searchable list text for fields that are arrays in the source catalog. */
+export function buildListSearchText(values: readonly string[] | undefined): string {
+  if (!values) return "";
+  const searchableTerms = new Set<string>();
+  for (const value of values) addSearchTerm(searchableTerms, value);
+  return [...searchableTerms].join(" ");
 }
 
 /** Returns true if the movement matches the search query. */
@@ -113,6 +166,19 @@ export function matchesNameSearch(movement: SearchableMovement, query: string): 
   }
 
   return false;
+}
+
+function addSearchTerm(terms: Set<string>, value: string) {
+  const normalized = normalizeSearchText(value);
+  if (normalized) terms.add(normalized);
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**

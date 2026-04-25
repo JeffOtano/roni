@@ -1,13 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getFunctionName } from "convex/server";
 import {
-  buildExerciseCatalogSection,
+  buildTrainingSnapshot,
   formatExternalActivityLine,
   getHrIntensityLabel,
   type SnapshotSection,
   trimSnapshot,
 } from "./context";
-import type { ExternalActivity, Movement } from "../tonal/types";
-import type { OwnedAccessories } from "../tonal/accessories";
+import { getTrainingSnapshotForChat } from "./trainingSnapshotCache";
+import { internal } from "../_generated/api";
+import type { ExternalActivity } from "../tonal/types";
 
 describe("trimSnapshot", () => {
   const makeSection = (priority: number, text: string): SnapshotSection => ({
@@ -144,203 +146,145 @@ describe("formatExternalActivityLine", () => {
   });
 });
 
-// Exercise catalog section
-
-describe("buildExerciseCatalogSection", () => {
-  function makeMovement(overrides: Partial<Movement> = {}): Movement {
-    return {
-      id: "m-1",
-      name: "Bench Press",
-      shortName: "Bench Press",
-      muscleGroups: ["Chest"],
-      skillLevel: 1,
-      publishState: "published",
-      sortOrder: 1,
-      onMachine: true,
-      inFreeLift: false,
-      countReps: true,
-      isTwoSided: false,
-      isBilateral: true,
-      isAlternating: false,
-      descriptionHow: "",
-      descriptionWhy: "",
-      onMachineInfo: {
-        accessory: "Handle",
-        resistanceType: "cable",
-        spotterDisabled: false,
-        eccentricDisabled: false,
-        chainsDisabled: false,
-        burnoutDisabled: false,
+describe("buildTrainingSnapshot", () => {
+  it("does not load or inject the exercise catalog into every chat turn", async () => {
+    const getAllMovementsName = getFunctionName(internal.tonal.movementSync.getAllMovements);
+    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
+    const nullableQueryNames = new Set([
+      getFunctionName(internal.tonal.syncQueries.getMuscleReadiness),
+      getFunctionName(internal.coach.periodization.getActiveBlock),
+      getFunctionName(internal.weekPlans.getByUserIdAndWeekStartInternal),
+    ]);
+    const queryCalls: string[] = [];
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        queryCalls.push(queryName);
+        if (queryName === getAllMovementsName) {
+          throw new Error("movement catalog should not be loaded");
+        }
+        if (queryName === getUserProfileName) {
+          return {
+            profileData: {
+              firstName: "Alice",
+              lastName: "Lifter",
+              heightInches: 66,
+              weightPounds: 150,
+              level: "intermediate",
+              workoutsPerWeek: 4,
+              dateOfBirth: "1990-01-01",
+            },
+            ownedAccessories: {
+              smartHandles: true,
+              smartBar: true,
+              rope: false,
+              roller: true,
+              weightBar: true,
+              pilatesLoops: true,
+              ankleStraps: true,
+            },
+          };
+        }
+        if (nullableQueryNames.has(queryName)) {
+          return null;
+        }
+        return [];
       },
-      ...overrides,
     };
-  }
 
-  const allOwned: OwnedAccessories = {
-    smartHandles: true,
-    smartBar: true,
-    rope: true,
-    roller: true,
-    weightBar: true,
-    pilatesLoops: true,
-    ankleStraps: true,
-  };
+    const snapshot = await buildTrainingSnapshot(ctx as never, "user-1");
 
-  it("groups exercises by accessory display name", () => {
-    const movements = [
-      makeMovement({
-        id: "1",
-        name: "Bench Press",
-        onMachineInfo: {
-          accessory: "Handle",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-      makeMovement({
-        id: "2",
-        name: "Biceps Curl",
-        onMachineInfo: {
-          accessory: "Handle",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-      makeMovement({
-        id: "3",
-        name: "Seated Row",
-        onMachineInfo: {
-          accessory: "Rope",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-    ];
-    const section = buildExerciseCatalogSection(movements, allOwned);
-    expect(section).not.toBeNull();
-    const text = section!.lines.join("\n");
-    expect(text).toContain("Handles: Bench Press, Biceps Curl");
-    expect(text).toContain("Rope: Seated Row");
+    expect(queryCalls).not.toContain(getAllMovementsName);
+    expect(snapshot).not.toContain("Available Tonal Exercises");
+    expect(snapshot).toContain("Equipment:");
+  });
+});
+
+describe("getTrainingSnapshotForChat", () => {
+  const NOW = new Date("2026-04-24T12:00:00.000Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
   });
 
-  it("filters out exercises requiring unowned accessories", () => {
-    const noRope: OwnedAccessories = { ...allOwned, rope: false };
-    const movements = [
-      makeMovement({
-        id: "1",
-        name: "Bench Press",
-        onMachineInfo: {
-          accessory: "Handle",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-      makeMovement({
-        id: "2",
-        name: "Face Pull",
-        onMachineInfo: {
-          accessory: "Rope",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-    ];
-    const section = buildExerciseCatalogSection(movements, noRope);
-    expect(section).not.toBeNull();
-    const text = section!.lines.join("\n");
-    expect(text).toContain("Bench Press");
-    expect(text).not.toContain("Face Pull");
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it("excludes placeholder movements", () => {
-    const movements = [
-      makeMovement({ id: "1", name: "Bench Press" }),
-      makeMovement({ id: "2", name: "Handle Move" }),
-      makeMovement({ id: "3", name: "Rope Move" }),
-    ];
-    const section = buildExerciseCatalogSection(movements, allOwned);
-    expect(section).not.toBeNull();
-    const text = section!.lines.join("\n");
-    expect(text).toContain("Bench Press");
-    expect(text).not.toContain("Handle Move");
-    expect(text).not.toContain("Rope Move");
+  it("returns a fresh materialized coachState snapshot when available", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        if (getFunctionName(query as never) === getForUserName) {
+          return { snapshot: "cached snapshot", refreshedAt: NOW.getTime() - 1000 };
+        }
+        throw new Error("live rebuild should not run");
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
+
+    expect(result.snapshot).toBe("cached snapshot");
+    expect(result.source).toBe("coach_state_fresh");
   });
 
-  it("excludes unpublished movements", () => {
-    const movements = [
-      makeMovement({ id: "1", name: "Bench Press", publishState: "published" }),
-      makeMovement({ id: "2", name: "Secret Move", publishState: "draft" }),
-    ];
-    const section = buildExerciseCatalogSection(movements, allOwned);
-    const text = section!.lines.join("\n");
-    expect(text).toContain("Bench Press");
-    expect(text).not.toContain("Secret Move");
+  it("returns a stale materialized snapshot with stale source when timezone matches", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        if (getFunctionName(query as never) === getForUserName) {
+          return { snapshot: "old snapshot", refreshedAt: NOW.getTime() - 60 * 60 * 1000 };
+        }
+        throw new Error("live rebuild should not run");
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
+
+    expect(result.snapshot).toBe("old snapshot");
+    expect(result.source).toBe("coach_state_stale");
   });
 
-  it("puts exercises without onMachineInfo in Bodyweight group", () => {
-    const movements = [makeMovement({ id: "1", name: "Pushup", onMachineInfo: undefined })];
-    const section = buildExerciseCatalogSection(movements, allOwned);
-    const text = section!.lines.join("\n");
-    expect(text).toContain("Bodyweight: Pushup");
+  it("uses live rebuild when the cached snapshot was built for another timezone", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === getForUserName) {
+          return {
+            snapshot: "wrong timezone snapshot",
+            refreshedAt: NOW.getTime(),
+            userTimezone: "America/New_York",
+          };
+        }
+        if (queryName === getUserProfileName) return null;
+        return [];
+      },
+    };
+
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1", "America/Los_Angeles");
+
+    expect(result.source).toBe("live_rebuild");
+    expect(result.snapshot).toContain("No Tonal profile linked yet");
   });
 
-  it("returns null when no movements pass filters", () => {
-    const section = buildExerciseCatalogSection([], allOwned);
-    expect(section).toBeNull();
-  });
+  it("falls back to live rebuild when coachState has no usable snapshot", async () => {
+    const getForUserName = getFunctionName(internal.coachState.getForUser);
+    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === getForUserName) return null;
+        if (queryName === getUserProfileName) return null;
+        return [];
+      },
+    };
 
-  it("includes all accessories when owned is undefined", () => {
-    const movements = [
-      makeMovement({
-        id: "1",
-        name: "Face Pull",
-        onMachineInfo: {
-          accessory: "Rope",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-      makeMovement({
-        id: "2",
-        name: "Hip Abduction",
-        onMachineInfo: {
-          accessory: "AnkleStraps",
-          resistanceType: "cable",
-          spotterDisabled: false,
-          eccentricDisabled: false,
-          chainsDisabled: false,
-          burnoutDisabled: false,
-        },
-      }),
-    ];
-    const section = buildExerciseCatalogSection(movements, undefined);
-    expect(section).not.toBeNull();
-    const text = section!.lines.join("\n");
-    expect(text).toContain("Face Pull");
-    expect(text).toContain("Hip Abduction");
-  });
+    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
 
-  it("sets priority to 6.5", () => {
-    const movements = [makeMovement()];
-    const section = buildExerciseCatalogSection(movements, allOwned);
-    expect(section!.priority).toBe(6.5);
+    expect(result.source).toBe("live_rebuild");
+    expect(result.snapshot).toContain("No Tonal profile linked yet");
   });
 });

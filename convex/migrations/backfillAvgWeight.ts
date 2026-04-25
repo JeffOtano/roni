@@ -43,7 +43,9 @@ export const patchAvgWeights = internalMutation({
     const weightMap = new Map(weights.map((w) => [w.movementId, w.avgWeightLbs]));
     const rows = await ctx.db
       .query("exercisePerformance")
-      .withIndex("by_userId_activityId", (q) => q.eq("userId", userId).eq("activityId", activityId))
+      .withIndex("by_userId_activityId_movementId", (q) =>
+        q.eq("userId", userId).eq("activityId", activityId),
+      )
       .collect();
     for (const row of rows) {
       const weight = weightMap.get(row.movementId);
@@ -123,9 +125,7 @@ export const backfillUser = internalAction({
 export const backfillAll = internalAction({
   args: {},
   handler: async (ctx) => {
-    const users = await ctx.runQuery(internal.userProfiles.getActiveUsers, {
-      sinceTimestamp: 0,
-    });
+    const users = await ctx.runQuery(internal.userActivity.getAllConnectedUsers, {});
 
     for (const profile of users) {
       try {

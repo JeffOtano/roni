@@ -6,8 +6,14 @@ import { v } from "convex/values";
 import { saveMessage } from "@convex-dev/agent";
 import { action, type ActionCtx, internalAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
-import { buildCoachAgentsForProvider, STATIC_INSTRUCTIONS_HASH } from "./ai/coach";
-import { checkDailyBudget, streamWithRetry } from "./ai/resilience";
+import {
+  buildCoachAgentsForProvider,
+  type CoachContextTiming,
+  shouldUseCrossThreadSearch,
+  STATIC_INSTRUCTIONS_HASH,
+} from "./ai/coach";
+import { checkDailyBudget } from "./ai/budget";
+import { streamWithRetry } from "./ai/resilience";
 import type { RunAccumulator } from "./ai/runTelemetry";
 import { sanitizeTimezone } from "./ai/timeDecay";
 import type { ProviderId } from "./ai/providers";
@@ -40,8 +46,13 @@ export const processMessage = internalAction({
     prompt: v.string(),
     imageStorageIds: v.optional(v.array(v.id("_storage"))),
     userTimezone: v.optional(v.string()),
+    scheduledAt: v.optional(v.number()),
   },
-  handler: async (ctx, { threadId, userId, prompt, imageStorageIds, userTimezone: rawTz }) => {
+  handler: async (
+    ctx,
+    { threadId, userId, prompt, imageStorageIds, userTimezone: rawTz, scheduledAt },
+  ) => {
+    const processingStartedAt = Date.now();
     const userTimezone = sanitizeTimezone(rawTz);
     const budgetExceeded = await checkDailyBudget(ctx, userId, threadId);
     if (budgetExceeded) return;
@@ -56,6 +67,8 @@ export const processMessage = internalAction({
 
     let provider: ProviderId | undefined;
     let accumulator: RunAccumulator | undefined;
+    const contextTiming: CoachContextTiming = {};
+    const retrievalEnabled = shouldUseCrossThreadSearch(prompt, (imageStorageIds?.length ?? 0) > 0);
     const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
@@ -66,6 +79,8 @@ export const processMessage = internalAction({
       const { primary, fallback } = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
+        retrievalEnabled,
+        timing: contextTiming,
       });
       accumulator = await withByokErrorSanitization(() =>
         streamWithRetry(ctx, {
@@ -82,8 +97,12 @@ export const processMessage = internalAction({
           release: RELEASE_SHA,
           promptVersion: STATIC_INSTRUCTIONS_HASH,
           hasImages: (imageStorageIds?.length ?? 0) > 0,
+          scheduledAt,
+          processingStartedAt,
+          retrievalEnabled,
         }),
       );
+      accumulator.setContextTiming(contextTiming);
     } catch (error) {
       await persistScheduledFailure({
         ctx,
@@ -120,6 +139,9 @@ export const continueAfterApproval = action({
 
     let provider: ProviderId | undefined;
     let accumulator: RunAccumulator | undefined;
+    const contextTiming: CoachContextTiming = {};
+    const retrievalEnabled = true;
+    const processingStartedAt = Date.now();
     const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
@@ -128,6 +150,8 @@ export const continueAfterApproval = action({
       const { primary, fallback } = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
+        retrievalEnabled,
+        timing: contextTiming,
       });
       accumulator = await withByokErrorSanitization(() =>
         streamWithRetry(ctx, {
@@ -142,8 +166,11 @@ export const continueAfterApproval = action({
           environment: ENVIRONMENT,
           release: RELEASE_SHA,
           promptVersion: STATIC_INSTRUCTIONS_HASH,
+          processingStartedAt,
+          retrievalEnabled,
         }),
       );
+      accumulator.setContextTiming(contextTiming);
     } catch (error) {
       await persistScheduledFailure({
         ctx,

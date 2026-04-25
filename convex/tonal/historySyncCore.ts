@@ -26,17 +26,10 @@ const DETAIL_BATCH_SIZE = 5;
 const BATCH_DELAY_MS = 2000;
 const PROFILE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-/** Fetch detail/summary for one activity and return persistence payloads. */
-async function processOneActivity(
-  ctx: ActionCtx,
-  userId: Id<"users">,
-  activity: Activity,
-  straightBarIds?: ReadonlySet<string>,
-): Promise<{ workout: WorkoutPayload; performances: PerformancePayload[] }> {
+function activityToWorkoutPayload(activity: Activity): WorkoutPayload {
   const { activityId, activityTime, workoutPreview: p } = activity;
   const date = activityTime.slice(0, 10);
-
-  const workout: WorkoutPayload = {
+  return {
     activityId,
     date,
     title: p.workoutTitle,
@@ -47,6 +40,17 @@ async function processOneActivity(
     workoutType: p.workoutType,
     tonalWorkoutId: p.workoutId || undefined,
   };
+}
+
+/** Fetch detail/summary for one activity and return persistence payloads. */
+async function processOneActivity(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  activity: Activity,
+  straightBarIds?: ReadonlySet<string>,
+): Promise<{ workout: WorkoutPayload; performances: PerformancePayload[] }> {
+  const workout = activityToWorkoutPayload(activity);
+  const { activityId } = activity;
 
   let detail: WorkoutActivityDetail | null = null;
   try {
@@ -80,7 +84,7 @@ async function processOneActivity(
     performances.push({
       activityId,
       movementId,
-      date,
+      date: workout.date,
       sets: snap.sets,
       totalReps: snap.totalReps,
       avgWeightLbs: snap.avgWeightLbs,
@@ -162,11 +166,25 @@ export async function syncActivitiesAndStrength(
   maxNew?: number,
 ): Promise<{ synced: number; remaining: number }> {
   const allIds = activities.map((a) => a.activityId);
-  const existingIds: string[] = await ctx.runQuery(
-    internal.tonal.historySyncMutations.getExistingActivityIds,
-    { userId, activityIds: allIds },
-  );
+  const existingIds: string[] =
+    allIds.length > 0
+      ? await ctx.runQuery(internal.tonal.historySyncMutations.getExistingActivityIds, {
+          userId,
+          activityIds: allIds,
+        })
+      : [];
   const existingSet = new Set(existingIds);
+
+  if (activities.length > 0) {
+    const existingActivities = activities.filter((a) => existingSet.has(a.activityId));
+    if (existingActivities.length > 0) {
+      await ctx.runMutation(internal.tonal.historySyncMutations.refreshCompletedWorkoutMetadata, {
+        userId,
+        workouts: existingActivities.map(activityToWorkoutPayload),
+      });
+    }
+  }
+
   const newActivities = activities.filter((a) => !existingSet.has(a.activityId));
 
   const batch = maxNew != null ? newActivities.slice(0, maxNew) : newActivities;

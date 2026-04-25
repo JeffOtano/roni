@@ -9,6 +9,12 @@ import { CACHE_TTLS } from "./cache";
 import { isCacheValueWithinLimit, isConvexSizeError } from "./proxyCacheLimits";
 import { withTokenRetry } from "./tokenRetry";
 import { projectWorkoutDetail } from "./workoutDetailProjection";
+import {
+  DEFAULT_TARGET_AREA,
+  formatWorkoutDisplayTitle,
+  projectWorkoutMeta,
+  type WorkoutMeta,
+} from "./workoutMeta";
 import type {
   Activity,
   ExternalActivity,
@@ -106,9 +112,11 @@ export async function cachedFetch<T>(
       }
     }
 
-    await ctx
-      .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
-      .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
+    if (circuitOpen) {
+      await ctx
+        .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
+        .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
+    }
 
     return data;
   } catch (error) {
@@ -204,24 +212,6 @@ export const fetchMuscleReadiness = internalAction({
     ),
 });
 
-/** Minimal shape from GET /v6/workouts/{id} for enrichment. */
-export interface WorkoutMeta {
-  title?: string;
-  targetArea?: string;
-}
-
-export function projectWorkoutMeta(raw: unknown): WorkoutMeta {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return {};
-  }
-
-  const candidate = raw as { title?: unknown; targetArea?: unknown };
-  return {
-    title: typeof candidate.title === "string" ? candidate.title : undefined,
-    targetArea: typeof candidate.targetArea === "string" ? candidate.targetArea : undefined,
-  };
-}
-
 const WORKOUT_META_BATCH_SIZE = 10;
 
 /** Batch-fetch workout metadata for unique workoutIds. Failures are silently skipped. */
@@ -268,11 +258,11 @@ export function toActivity(wa: WorkoutActivityDetail, meta?: WorkoutMeta): Activ
     workoutPreview: {
       activityId: wa.id,
       workoutId: wa.workoutId,
-      workoutTitle: meta?.title ?? "Tonal Workout",
-      programName: "",
+      workoutTitle: formatWorkoutDisplayTitle(meta),
+      programName: meta?.programName ?? "",
       coachName: "",
       level: "",
-      targetArea: meta?.targetArea ?? "Full Body",
+      targetArea: meta?.targetArea ?? DEFAULT_TARGET_AREA,
       isGuidedWorkout: false,
       workoutType: wa.workoutType,
       beginTime: wa.beginTime,

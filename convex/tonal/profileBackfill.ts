@@ -14,10 +14,8 @@ export const backfillAllProfiles = internalAction({
   args: {},
   handler: async (ctx): Promise<{ success: number; failed: number; total: number }> => {
     const profiles: Doc<"userProfiles">[] = await ctx.runQuery(
-      internal.userProfiles.getActiveUsers,
-      {
-        sinceTimestamp: 0,
-      },
+      internal.userActivity.getAllConnectedUsers,
+      {},
     );
 
     let success = 0;

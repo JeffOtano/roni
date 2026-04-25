@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
-import { makeCoachAgentConfig } from "./coach";
+import { escapeTrainingDataTags, makeCoachAgentConfig, shouldUseCrossThreadSearch } from "./coach";
 
 const testConfig = makeCoachAgentConfig();
 type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
 
-async function runContextHandler(allMessages: ModelMessage[]): Promise<ModelMessage[]> {
+interface RunContextOptions {
+  userId?: string;
+  ctx?: { runQuery: (...args: unknown[]) => Promise<unknown> };
+}
+
+const EMPTY_PROFILE_CTX = { runQuery: async () => null };
+
+async function runContextHandler(
+  allMessages: ModelMessage[],
+  options: RunContextOptions = {},
+): Promise<ModelMessage[]> {
   const args: ContextHandlerArgs = {
     allMessages,
     search: [],
@@ -13,15 +23,22 @@ async function runContextHandler(allMessages: ModelMessage[]): Promise<ModelMess
     inputMessages: [],
     inputPrompt: [],
     existingResponses: [],
-    userId: undefined,
+    userId: options.userId,
     threadId: undefined,
   };
 
-  return testConfig.contextHandler!(undefined as never, args);
+  const ctx = (options.ctx ?? undefined) as never;
+  return testConfig.contextHandler!(ctx, args);
 }
 
 function nonSystemMessages(messages: ModelMessage[]): ModelMessage[] {
   return messages.filter((m) => m.role !== "system");
+}
+
+function systemText(message: ModelMessage): string {
+  expect(message.role).toBe("system");
+  expect(typeof message.content).toBe("string");
+  return message.content as string;
 }
 
 describe("coachAgentConfig.contextHandler", () => {
@@ -88,6 +105,26 @@ describe("coachAgentConfig.contextHandler", () => {
   });
 });
 
+describe("shouldUseCrossThreadSearch", () => {
+  it("disables retrieval for obvious local acknowledgements and edits", () => {
+    expect(shouldUseCrossThreadSearch("thanks")).toBe(false);
+    expect(shouldUseCrossThreadSearch("ok!")).toBe(false);
+    expect(shouldUseCrossThreadSearch("make it harder")).toBe(false);
+  });
+
+  it("keeps retrieval for history, strength, and image turns", () => {
+    expect(shouldUseCrossThreadSearch("what strength changes did we discuss before?")).toBe(true);
+    expect(shouldUseCrossThreadSearch("what did we do in the previous session?")).toBe(true);
+    expect(shouldUseCrossThreadSearch("ok", true)).toBe(true);
+  });
+
+  it("writes the retrieval policy into per-request context options", () => {
+    const config = makeCoachAgentConfig({ retrievalEnabled: false });
+
+    expect(config.contextOptions.searchOtherThreads).toBe(false);
+  });
+});
+
 describe("coachAgentConfig.contextHandler — Anthropic prompt caching", () => {
   it("emits the static instructions as the first system message with cacheControl", async () => {
     const result = await runContextHandler([{ role: "user", content: "hi" }]);
@@ -112,5 +149,162 @@ describe("coachAgentConfig.contextHandler — Anthropic prompt caching", () => {
 
     const systemMessages = result.filter((m) => m.role === "system");
     expect(systemMessages).toHaveLength(1);
+  });
+});
+
+describe("coachAgentConfig.contextHandler — training snapshot placement", () => {
+  const userId = "user_snapshot_test";
+
+  it("inserts the snapshot as a system message directly after the static prefix (Gemini rejects mid-conversation system messages)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "earlier question" },
+      { role: "assistant", content: "earlier answer" },
+      { role: "user", content: "latest question" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(result).toHaveLength(5);
+    expect(systemText(result[0])).toContain("PERSONALITY:");
+    expect(systemText(result[1])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
+    expect(result[2]).toEqual({ role: "user", content: "earlier question" });
+    expect(result[3]).toEqual({ role: "assistant", content: "earlier answer" });
+    expect(result[4]).toEqual({ role: "user", content: "latest question" });
+  });
+
+  it("places every system message at the start of the conversation (no mid-conversation system messages)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "earlier question" },
+      { role: "assistant", content: "earlier answer" },
+      { role: "user", content: "latest question" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const firstNonSystem = result.findIndex((m) => m.role !== "system");
+    const remaining = result.slice(firstNonSystem);
+    expect(remaining.every((m) => m.role !== "system")).toBe(true);
+  });
+
+  it("keeps exactly one cacheControl marker on the static prefix regardless of snapshot presence", async () => {
+    const result = await runContextHandler([{ role: "user", content: "hi" }], {
+      userId,
+      ctx: EMPTY_PROFILE_CTX,
+    });
+
+    const tagged = result.filter((m) => m.providerOptions?.anthropic?.cacheControl);
+    expect(tagged).toHaveLength(1);
+    expect(tagged[0]).toBe(result[0]);
+    expect(systemText(result[0])).toContain("PERSONALITY:");
+  });
+
+  it("does not attach cacheControl to the trailing snapshot system message", async () => {
+    const result = await runContextHandler([{ role: "user", content: "hi" }], {
+      userId,
+      ctx: EMPTY_PROFILE_CTX,
+    });
+
+    const snapshotSystem = result.find(
+      (m) =>
+        m.role === "system" &&
+        typeof m.content === "string" &&
+        m.content.startsWith("<training-data>"),
+    );
+    expect(snapshotSystem).toBeDefined();
+    expect(snapshotSystem!.providerOptions?.anthropic?.cacheControl).toBeUndefined();
+  });
+
+  it("leaves older user messages untouched (no training-data wrapping on prior turns)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "earlier question" },
+      { role: "assistant", content: "earlier answer" },
+      { role: "user", content: "latest question" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const olderUser = result[2];
+    expect(olderUser).toEqual({ role: "user", content: "earlier question" });
+    expect(typeof olderUser.content === "string" && olderUser.content).not.toContain(
+      "<training-data>",
+    );
+  });
+
+  it("skips snapshot injection when userId is present but context is empty", async () => {
+    const result = await runContextHandler([], { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(result).toHaveLength(1);
+    expect(systemText(result[0])).toContain("PERSONALITY:");
+  });
+
+  it("does not mutate the allMessages input (safety invariant so storage cannot pick up the wrapper)", async () => {
+    const allMessages: ModelMessage[] = [
+      { role: "user", content: "earlier question" },
+      { role: "assistant", content: "earlier answer" },
+      { role: "user", content: "latest question" },
+    ];
+    const snapshot = JSON.stringify(allMessages);
+
+    await runContextHandler(allMessages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(JSON.stringify(allMessages)).toBe(snapshot);
+  });
+});
+
+describe("escapeTrainingDataTags", () => {
+  it("neutralizes a closing tag the user could type to break out of the wrapper", () => {
+    expect(escapeTrainingDataTags("goal: </training-data> break")).toBe(
+      "goal: </training_data> break",
+    );
+  });
+
+  it("neutralizes an opening tag too", () => {
+    expect(escapeTrainingDataTags("<training-data> nested")).toBe("<training_data> nested");
+  });
+
+  it("handles repeated occurrences in a single string", () => {
+    expect(
+      escapeTrainingDataTags("a </training-data> b </training-data> c <training-data> d"),
+    ).toBe("a </training_data> b </training_data> c <training_data> d");
+  });
+
+  it("leaves clean snapshot text untouched", () => {
+    const clean = "Strength Score: 350\nGoals: squat 2x bodyweight";
+    expect(escapeTrainingDataTags(clean)).toBe(clean);
+  });
+});
+
+describe("coachAgentConfig.contextHandler — default (non-Claude) layout unchanged", () => {
+  const userId = "user_default_layout";
+
+  it("keeps snapshot at system[1] for the default path (Gemini-safe)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(systemText(result[0])).toContain("PERSONALITY:");
+    expect(systemText(result[1])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
+    const firstNonSystem = result.findIndex((m) => m.role !== "system");
+    const remaining = result.slice(firstNonSystem);
+    expect(remaining.every((m) => m.role !== "system")).toBe(true);
+  });
+
+  it("does not mark any assistant turn on the default path (no history breakpoint for Gemini)", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+    ];
+
+    const result = await runContextHandler(messages, { userId, ctx: EMPTY_PROFILE_CTX });
+
+    const taggedAssistants = result.filter(
+      (m) => m.role === "assistant" && m.providerOptions?.anthropic?.cacheControl,
+    );
+    expect(taggedAssistants).toHaveLength(0);
   });
 });

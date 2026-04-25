@@ -1,4 +1,4 @@
-import { createTool, type ToolCtx } from "@convex-dev/agent";
+import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
 import { api, internal } from "../_generated/api";
 import type {
@@ -10,42 +10,35 @@ import type {
 } from "../tonal/types";
 import type { EnrichedWorkoutDetail } from "../workoutDetail";
 import { requireUserId, withToolTracking } from "./helpers";
-import { matchesNameSearch } from "../tonal/movementSearch";
-
-async function getGlobalMovementCatalog(ctx: ToolCtx): Promise<Movement[]> {
-  return ctx.runQuery(internal.tonal.movementSync.getAllMovements);
-}
 
 export const searchExercisesTool = createTool({
-  description: "Search Tonal exercise catalog by name, muscle group, and/or training type.",
+  description:
+    "Search Tonal's exercise catalog by name, muscle group, and/or training type. Use this before naming, suggesting, swapping, or programming exercises; results include canonical Tonal names, movement IDs, accessory requirements, and duration-vs-rep behavior.",
   inputSchema: z.object({
     name: z
       .string()
       .optional()
-      .describe("Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL')"),
-    muscleGroup: z.string().optional().describe("e.g. Chest, Back, Quads, Shoulders"),
+      .describe(
+        "Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL'). Use shorter names when an exact search misses.",
+      ),
+    muscleGroup: z
+      .string()
+      .optional()
+      .describe("Use when exploring options for a body part, e.g. Chest, Back, Quads, Shoulders."),
     trainingType: z
       .string()
       .optional()
-      .describe("Filter by training type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
+      .describe("Use to narrow by type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
   }),
   execute: withToolTracking("search_exercises", async (ctx, input, _options) => {
-    const catalog = await getGlobalMovementCatalog(ctx);
-    let results = catalog;
+    const results = (await ctx.runQuery(internal.tonal.movementSearchQueries.searchMovements, {
+      name: input.name,
+      muscleGroup: input.muscleGroup,
+      trainingType: input.trainingType,
+      limit: 30,
+    })) as Movement[];
 
-    if (input.name) {
-      results = results.filter((m) => matchesNameSearch(m, input.name!));
-    }
-    if (input.muscleGroup) {
-      const g = input.muscleGroup.toLowerCase();
-      results = results.filter((m) => m.muscleGroups.some((mg) => mg.toLowerCase() === g));
-    }
-    if (input.trainingType) {
-      const t = input.trainingType.toLowerCase();
-      results = results.filter((m) => m.trainingTypes?.some((tt) => tt.toLowerCase() === t));
-    }
-
-    return results.slice(0, 30).map((m) => ({
+    return results.map((m) => ({
       movementId: m.id,
       name: m.name,
       muscleGroups: m.muscleGroups,

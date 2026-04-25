@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
   CalendarDays,
@@ -38,6 +38,7 @@ const navLinks: Array<{
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+const APP_ACTIVITY_PING_MS = 30 * 60 * 1000;
 // Note: /prs is intentionally not in the nav — it's surfaced as a hero tile on
 // the dashboard (PRHighlightsCard) and reached via that tile's CTA.
 
@@ -72,6 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const me = useQuery(api.users.getMe, isAuthenticated ? {} : "skip");
+  const recordAppActivity = useMutation(api.userActivity.recordAppActivity);
 
   // Dismissed resets when token status changes (successful reconnect or new expiry).
   // The key ensures a fresh dismissed=false whenever tokenExpired flips.
@@ -89,6 +91,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const record = () => {
+      if (document.visibilityState !== "visible") return;
+      void recordAppActivity();
+    };
+
+    record();
+    const intervalId = window.setInterval(record, APP_ACTIVITY_PING_MS);
+    document.addEventListener("visibilitychange", record);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", record);
+    };
+  }, [isAuthenticated, recordAppActivity]);
 
   useEffect(() => {
     if (me && (!me.hasTonalProfile || !me.onboardingCompleted || !me.hasCheckInPreferences)) {

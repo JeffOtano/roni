@@ -6,6 +6,7 @@ import {
   isTransientError,
   withByokErrorSanitization,
 } from "./resilience";
+import { buildProviderTransientMessage, classifyTransientError } from "./transientErrors";
 
 function apiCallError(overrides: {
   statusCode?: number;
@@ -57,6 +58,16 @@ describe("isTransientError", () => {
 
   it("returns true for 503 service unavailable", () => {
     const error = Object.assign(new Error("Unavailable"), { status: 503 });
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for 504 gateway timeout with non-pattern message", () => {
+    const error = Object.assign(new Error("Bad"), { status: 504 });
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for 529 Anthropic overloaded via bare status", () => {
+    const error = Object.assign(new Error("overload"), { status: 529 });
     expect(isTransientError(error)).toBe(true);
   });
 
@@ -225,6 +236,103 @@ describe("buildByokErrorMessage", () => {
 
     expect(msg).toContain("OpenAI");
     expect(msg).toContain("(https://platform.openai.com/settings/organization/billing)");
+  });
+});
+
+describe("classifyTransientError", () => {
+  it("returns null for non-transient errors", () => {
+    expect(classifyTransientError(new Error("database blew up"))).toBeNull();
+  });
+
+  it("returns 'provider_overload' for 'high demand'", () => {
+    expect(
+      classifyTransientError(new Error("This model is currently experiencing high demand.")),
+    ).toBe("provider_overload");
+  });
+
+  it("returns 'provider_overload' for 'overloaded'", () => {
+    expect(classifyTransientError(new Error("The model is overloaded, try again."))).toBe(
+      "provider_overload",
+    );
+  });
+
+  it("returns 'provider_overload' for 'try again later'", () => {
+    expect(classifyTransientError(new Error("Service busy — please try again later."))).toBe(
+      "provider_overload",
+    );
+  });
+
+  it("returns 'rate_limit' for explicit rate limit text", () => {
+    expect(classifyTransientError(new Error("Rate limit exceeded"))).toBe("rate_limit");
+  });
+
+  it("returns 'rate_limit' for a 429 APICallError", () => {
+    expect(
+      classifyTransientError(apiCallError({ statusCode: 429, isRetryable: true, message: "" })),
+    ).toBe("rate_limit");
+  });
+
+  it("returns 'timeout' for AbortError name", () => {
+    const error = new Error("aborted");
+    error.name = "AbortError";
+    expect(classifyTransientError(error)).toBe("timeout");
+  });
+
+  it("returns 'network' for fetch TypeError", () => {
+    expect(classifyTransientError(new TypeError("fetch failed"))).toBe("network");
+  });
+
+  it("returns 'server_error' for a bare 500", () => {
+    expect(classifyTransientError(Object.assign(new Error("Internal"), { status: 500 }))).toBe(
+      "server_error",
+    );
+  });
+
+  it("returns 'server_error' for a bare 504 gateway timeout", () => {
+    expect(classifyTransientError(Object.assign(new Error("Bad"), { status: 504 }))).toBe(
+      "server_error",
+    );
+  });
+
+  it("falls back to 'provider_overload' for a retryable APICallError with no matching signal", () => {
+    expect(
+      classifyTransientError(
+        apiCallError({ statusCode: 418, isRetryable: true, message: "teapot" }),
+      ),
+    ).toBe("provider_overload");
+  });
+});
+
+describe("buildProviderTransientMessage", () => {
+  it("names the provider and blames upstream for overload", () => {
+    const msg = buildProviderTransientMessage("provider_overload", "gemini");
+    expect(msg).toContain("Google Gemini");
+    expect(msg).toContain("not Roni");
+    expect(msg).toContain("(/settings)");
+  });
+
+  it("keeps rate-limit messaging short and directive", () => {
+    const msg = buildProviderTransientMessage("rate_limit", "claude");
+    expect(msg).toContain("Anthropic Claude");
+    expect(msg).toContain("rate-limited");
+  });
+
+  it("phrases timeouts as being on the provider's side", () => {
+    const msg = buildProviderTransientMessage("timeout", "openai");
+    expect(msg).toContain("OpenAI");
+    expect(msg).toContain("timed out");
+  });
+
+  it("labels network hiccups against the provider name", () => {
+    const msg = buildProviderTransientMessage("network", "openrouter");
+    expect(msg).toContain("OpenRouter");
+    expect(msg.toLowerCase()).toContain("network");
+  });
+
+  it("attributes server errors to the provider", () => {
+    const msg = buildProviderTransientMessage("server_error", "gemini");
+    expect(msg).toContain("Google Gemini");
+    expect(msg).toContain("not Roni");
   });
 });
 

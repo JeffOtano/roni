@@ -48,6 +48,14 @@ export default defineSchema({
       }),
     ),
     lastActiveAt: v.number(),
+    /** Last real app activity, separate from background token/sync jobs. */
+    appLastActiveAt: v.optional(v.number()),
+    /** Timestamp of the most recent background history sync attempt (cron-tier gate). */
+    lastTonalSyncAt: v.optional(v.number()),
+    /** Earliest time the cron should re-sync this user (precomputed tier interval). */
+    nextTonalSyncAt: v.optional(v.number()),
+    /** Last time the workoutHistory cache was written for this user. */
+    workoutHistoryCachedAt: v.optional(v.number()),
     /** When the user first connected their Tonal account (signup for activation analytics). */
     tonalConnectedAt: v.optional(v.number()),
     /** ISO date of the most recent synced activity (high-water mark for incremental sync). */
@@ -121,7 +129,8 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_tonalUserId", ["tonalUserId"])
     .index("by_tonalTokenExpiresAt", ["tonalTokenExpiresAt"])
-    .index("by_lastActiveAt", ["lastActiveAt"])
+    .index("by_appLastActiveAt", ["appLastActiveAt"])
+    .index("by_nextTonalSyncAt", ["nextTonalSyncAt"])
     .index("by_tonalConnectedAt", ["tonalConnectedAt"]),
 
   /** In-app check-ins (proactive messages). No SMS. */
@@ -175,6 +184,9 @@ export default defineSchema({
     isAlternating: v.boolean(),
     descriptionHow: v.string(),
     descriptionWhy: v.string(),
+    nameSearchText: v.optional(v.string()),
+    muscleGroupsSearchText: v.optional(v.string()),
+    trainingTypesSearchText: v.optional(v.string()),
     thumbnailMediaUrl: v.optional(v.string()),
     accessory: v.optional(v.string()),
     onMachineInfo: v.optional(v.any()),
@@ -203,7 +215,10 @@ export default defineSchema({
     thumbnailStorageId: v.optional(v.id("_storage")),
   })
     .index("by_tonalId", ["tonalId"])
-    .index("by_accessory", ["accessory"]),
+    .index("by_accessory", ["accessory"])
+    .searchIndex("search_name", { searchField: "nameSearchText" })
+    .searchIndex("search_muscle_groups", { searchField: "muscleGroupsSearchText" })
+    .searchIndex("search_training_types", { searchField: "trainingTypesSearchText" }),
 
   /** Tonal training type taxonomy (synced with movement catalog). */
   trainingTypes: defineTable({
@@ -212,6 +227,26 @@ export default defineSchema({
     description: v.string(),
     lastSyncedAt: v.number(),
   }).index("by_tonalId", ["tonalId"]),
+
+  /** Tracks whether movement denormalized search fields are safe to query. */
+  movementSearchState: defineTable({
+    key: v.string(),
+    version: v.number(),
+    completedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  /** Materialized training snapshot used by the coach hot path. */
+  coachState: defineTable({
+    userId: v.id("users"),
+    snapshot: v.string(),
+    snapshotVersion: v.number(),
+    userTimezone: v.optional(v.union(v.string(), v.null())),
+    refreshedAt: v.number(),
+    refreshRequestedAt: v.optional(v.number()),
+    refreshRequestedTimezone: v.optional(v.union(v.string(), v.null())),
+    failedAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+  }).index("by_userId", ["userId"]),
 
   /** AI-generated workout plans. Lifecycle: draft -> pushing -> pushed -> completed. */
   workoutPlans: defineTable({
@@ -278,9 +313,7 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_weekStartDate", ["userId", "weekStartDate"]),
+  }).index("by_userId_weekStartDate", ["userId", "weekStartDate"]),
 
   /** Post-workout feedback (RPE, session rating, notes). */
   workoutFeedback: defineTable({
@@ -297,7 +330,6 @@ export default defineSchema({
     notes: v.optional(v.string()),
     createdAt: v.number(),
   })
-    .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
     .index("by_userId_activityId", ["userId", "activityId"]),
 
@@ -319,9 +351,7 @@ export default defineSchema({
     /** Active = current block. Only one active per user. */
     status: v.union(v.literal("active"), v.literal("completed")),
     createdAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_status", ["userId", "status"]),
+  }).index("by_userId_status", ["userId", "status"]),
 
   /** Measurable training goals with deadlines and progress tracking. */
   goals: defineTable({
@@ -348,9 +378,7 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("achieved"), v.literal("abandoned")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_userId_status", ["userId", "status"]),
+  }).index("by_userId_status", ["userId", "status"]),
 
   /** Dynamic injury/limitation tracking (replaces static onboarding text). */
   injuries: defineTable({
@@ -396,9 +424,16 @@ export default defineSchema({
     routedIntent: v.optional(v.string()),
     createdAt: v.number(),
   })
-    .index("by_userId", ["userId"])
     .index("by_createdAt", ["createdAt"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
+
+  aiBudgetWarnings: defineTable({
+    userId: v.id("users"),
+    date: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId", ["userId"]),
 
   /** AI agent tool execution log (latency, success/error tracking). */
   aiToolCalls: defineTable({
@@ -468,9 +503,30 @@ export default defineSchema({
     cacheWriteTokens: v.number(),
     totalCostUsd: v.optional(v.number()),
 
+    scheduledAt: v.optional(v.number()),
+    processingStartedAt: v.optional(v.number()),
+    streamStartedAt: v.optional(v.number()),
+    queueDelayMs: v.optional(v.number()),
+    preStreamSetupMs: v.optional(v.number()),
+
     timeToFirstTokenMs: v.optional(v.number()),
     timeToLastTokenMs: v.optional(v.number()),
+    totalTimeToFirstTokenMs: v.optional(v.number()),
+    totalTimeToLastTokenMs: v.optional(v.number()),
     outputTokensPerSec: v.optional(v.number()),
+
+    contextBuildMs: v.optional(v.number()),
+    snapshotBuildMs: v.optional(v.number()),
+    contextBuildCount: v.optional(v.number()),
+    contextMessageCount: v.optional(v.number()),
+    snapshotSource: v.optional(
+      v.union(
+        v.literal("coach_state_fresh"),
+        v.literal("coach_state_stale"),
+        v.literal("live_rebuild"),
+      ),
+    ),
+    retrievalEnabled: v.optional(v.boolean()),
 
     approvalPauses: v.number(),
     workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
@@ -480,8 +536,8 @@ export default defineSchema({
 
     createdAt: v.number(),
   })
-    .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_createdAt", ["createdAt"])
     .index("by_threadId", ["threadId"])
     .index("by_runId", ["runId"]),
 
@@ -500,8 +556,7 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_activityId", ["userId", "activityId"])
-    .index("by_userId_date", ["userId", "date"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId_date", ["userId", "date"]),
 
   /** Per-exercise performance snapshots from each completed workout. */
   exercisePerformance: defineTable({
@@ -516,7 +571,6 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_movementId", ["userId", "movementId"])
-    .index("by_userId_activityId", ["userId", "activityId"])
     .index("by_userId_activityId_movementId", ["userId", "activityId", "movementId"])
     .index("by_userId_date", ["userId", "date"]),
 
@@ -535,8 +589,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId_movementId", ["userId", "movementId"])
-    .index("by_userId_best", ["userId", "bestAvgWeightLbs"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId_best", ["userId", "bestAvgWeightLbs"]),
 
   /** Strength score snapshots over time (synced from Tonal history). */
   strengthScoreSnapshots: defineTable({
@@ -550,7 +603,8 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_date", ["userId", "date"])
-    .index("by_userId", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_syncedAt", ["syncedAt"]),
 
   currentStrengthScores: defineTable({
     userId: v.id("users"),

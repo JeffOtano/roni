@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { matchesNameSearch } from "./movementSearch";
+import {
+  buildListSearchText,
+  buildMovementSearchFields,
+  matchesNameSearch,
+} from "./movementSearch";
 
 const rdl = {
   name: "RDL",
@@ -130,5 +134,25 @@ describe("matchesNameSearch", () => {
   it("matches hamstring curl → prone bench hamstring curl", () => {
     const pbhc = { name: "Prone Bench Hamstring Curl", shortName: "Prone Bench Hamstring Curl" };
     expect(matchesNameSearch(pbhc, "hamstring curl")).toBe(true);
+  });
+});
+
+describe("buildMovementSearchFields", () => {
+  it("builds denormalized search text with aliases", () => {
+    const fields = buildMovementSearchFields({
+      name: "Romanian Deadlift",
+      shortName: "Romanian Deadlift",
+      muscleGroups: ["Hamstrings", "Glutes"],
+      trainingTypes: ["Strength", "Warm-up"],
+    });
+
+    expect(fields.nameSearchText).toContain("romanian deadlift");
+    expect(fields.nameSearchText).toContain("rdl");
+    expect(fields.muscleGroupsSearchText).toBe("hamstrings glutes");
+    expect(fields.trainingTypesSearchText).toBe("strength warm up");
+  });
+
+  it("normalizes list values for search indexes", () => {
+    expect(buildListSearchText(["Warm-up", "Full Body"])).toBe("warm up full body");
   });
 });

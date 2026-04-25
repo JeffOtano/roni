@@ -12,12 +12,15 @@ import type { StepResult, TelemetrySettings, ToolSet } from "ai";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { BUDGET_WARNING_THRESHOLD, DAILY_TOKEN_BUDGET } from "../aiUsage";
 import { type ProviderId } from "./providers";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
 import { runInRunSpan } from "./otel";
-import { isTransientError } from "./transientErrors";
+import {
+  buildProviderTransientMessage,
+  classifyTransientError,
+  isTransientError,
+} from "./transientErrors";
 
 // Re-export for backwards compatibility with existing callers/tests.
 export { buildByokErrorMessage, classifyByokError, withByokErrorSanitization } from "./byokErrors";
@@ -25,8 +28,6 @@ export type { ByokErrorCode } from "./byokErrors";
 export { isTransientError } from "./transientErrors";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
-const BUDGET_EXCEEDED_MESSAGE =
-  "I've hit my daily thinking limit -- let's pick this up tomorrow. Your limit resets at midnight UTC.";
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
 
@@ -55,6 +56,12 @@ interface StreamWithRetryArgs {
   promptVersion?: string;
   /** True when the user attached at least one image to this turn. */
   hasImages?: boolean;
+  /** Server-side enqueue timestamp from the mutation that scheduled this action. */
+  scheduledAt?: number;
+  /** Timestamp captured at processMessage handler entry. */
+  processingStartedAt?: number;
+  /** Whether semantic cross-thread retrieval was enabled for this turn. */
+  retrievalEnabled?: boolean;
 }
 
 type PromptArgs =
@@ -87,6 +94,9 @@ export async function streamWithRetry(
     release,
     promptVersion,
     hasImages,
+    scheduledAt,
+    processingStartedAt,
+    retrievalEnabled,
   } = args;
   const promptArgs: PromptArgs = args.promptMessageId
     ? args.prompt !== undefined
@@ -136,6 +146,9 @@ export async function streamWithRetry(
         release,
         promptVersion,
         startedAt: Date.now(),
+        scheduledAt,
+        processingStartedAt,
+        retrievalEnabled,
       };
       const accumulator = new RunAccumulator(accInit);
 
@@ -172,7 +185,10 @@ export async function streamWithRetry(
       accumulator.markFallback("transient_exhaustion");
       const final = await runAttempt(fallbackAgent);
       if (final.done) return accumulator;
-      // Fallback also hit a transient error — terminal now, surface the generic message.
+      // Fallback also hit a transient error. Classify it, record the terminal
+      // class on the accumulator + span, then hand off to reportError — which
+      // surfaces a provider-attributed message for transient outages and falls
+      // back to the generic "trouble right now" message otherwise.
       const cls = errorClassName(final.error);
       accumulator.setTerminalErrorClass(cls);
       span.recordError(cls);
@@ -333,11 +349,22 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   const reason = report.error instanceof Error ? report.error.message : String(report.error);
   await finalizePendingMessages(ctx, report.threadId, reason);
+
+  const transientKind = classifyTransientError(report.error);
+  const content = transientKind
+    ? buildProviderTransientMessage(transientKind, report.provider)
+    : AI_ERROR_MESSAGE;
+
   await saveMessage(ctx, components.agent, {
     threadId: report.threadId,
     userId: report.userId,
-    message: { role: "assistant", content: AI_ERROR_MESSAGE },
+    message: { role: "assistant", content },
   });
+
+  // Upstream provider outages already surface to the user with an attributed
+  // message; paging Discord on every Gemini/Claude capacity blip is noise.
+  if (transientKind) return;
+
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
     message: reason,
@@ -347,33 +374,4 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export async function checkDailyBudget(
-  ctx: ActionCtx,
-  userId: string,
-  threadId: string,
-): Promise<boolean> {
-  const todayUsage = await ctx.runQuery(internal.aiUsage.getDailyTokenUsage, {
-    userId: userId as Id<"users">,
-  });
-
-  if (todayUsage >= DAILY_TOKEN_BUDGET) {
-    await saveMessage(ctx, components.agent, {
-      threadId,
-      userId,
-      message: { role: "assistant", content: BUDGET_EXCEEDED_MESSAGE },
-    });
-    return true;
-  }
-
-  if (todayUsage >= DAILY_TOKEN_BUDGET * BUDGET_WARNING_THRESHOLD) {
-    void ctx.runAction(internal.discord.notifyError, {
-      source: "aiBudget",
-      message: `User ${userId} at ${Math.round((todayUsage / DAILY_TOKEN_BUDGET) * 100)}% of daily token budget (${todayUsage.toLocaleString()} / ${DAILY_TOKEN_BUDGET.toLocaleString()})`,
-      userId,
-    });
-  }
-
-  return false;
 }

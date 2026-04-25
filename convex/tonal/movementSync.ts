@@ -15,6 +15,7 @@ import { ACCESSORY_MAP } from "./accessories";
 import type { Movement } from "./types";
 import * as analytics from "../lib/posthog";
 import { mapApiToDoc, mapDocToMovement, movementFields } from "./movementMapping";
+import { buildListSearchText } from "./movementSearch";
 import { workflow } from "../workflows";
 
 const UPSERT_BATCH_SIZE = 200;
@@ -105,7 +106,19 @@ export const batchUpsertMovements = internalMutation({
         .withIndex("by_tonalId", (q) => q.eq("tonalId", doc.tonalId))
         .unique();
       if (existing) {
-        await ctx.db.patch(existing._id, doc);
+        // trainingTypes are derived by workoutCatalogSync, not /v6/movements.
+        await ctx.db.patch(existing._id, {
+          ...doc,
+          ...(existing.trainingTypes !== undefined
+            ? {
+                trainingTypes: existing.trainingTypes,
+                trainingTypesSearchText: buildListSearchText(existing.trainingTypes),
+              }
+            : {
+                trainingTypesSearchText:
+                  existing.trainingTypesSearchText ?? doc.trainingTypesSearchText,
+              }),
+        });
         updated++;
       } else {
         await ctx.db.insert("movements", doc);

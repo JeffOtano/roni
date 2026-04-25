@@ -12,17 +12,17 @@
  */
 import { google } from "@ai-sdk/google";
 import { createClient } from "@arizeai/phoenix-client";
-import { runExperiment } from "@arizeai/phoenix-client/experiments";
+import { getExperiment, runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { Evaluator } from "@arizeai/phoenix-client/types/experiments";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 import { EVAL_SCENARIOS, type EvalScenario, type Rubric } from "../../../convex/ai/evalScenarios";
 import { runScenarioAgainstPrompt } from "../../../convex/ai/evalHarness";
+import { findScoreGateRegressions, formatScoreGateSummary } from "./lib/experimentScoreGate";
 import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./lib/thresholds";
 
 const DATASET_NAME = process.env.PHOENIX_DATASET_NAME ?? "roni-coach-smoke";
 const EXPERIMENT_NAME = process.env.PHOENIX_EXPERIMENT_NAME ?? `roni-nightly-${Date.now()}`;
 
-/** Reject NaN/<=0 so Phoenix never sees an invalid concurrency value. */
 function positiveIntEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) return fallback;
@@ -78,8 +78,6 @@ const rubricEvaluator: Evaluator = {
     if (!scenario) {
       return { score: 0, label: "missing-scenario", explanation: "no source scenario match" };
     }
-    // Code rubric intentionally sees tool names — scenarios assert on them
-    // (e.g., "must call get_workout_history").
     const notes = rubricChecks(extractTextWithTools(output), scenario.rubric);
     return {
       score: notes.length === 0 ? 1 : 0,
@@ -100,13 +98,11 @@ function getOutputParts(output: unknown): { text: string; toolNames: string } {
   return { text: JSON.stringify(output ?? ""), toolNames: "" };
 }
 
-/** Prose + tool names, for code-based rubric and banned-phrase checks. */
 function extractTextWithTools(output: unknown): string {
   const { text, toolNames } = getOutputParts(output);
   return [text, toolNames].filter(Boolean).join("\n");
 }
 
-/** Prose only, for the LLM judge — tool names would pollute prose evaluation. */
 function extractJudgeText(output: unknown): string {
   return getOutputParts(output).text;
 }
@@ -115,7 +111,6 @@ const bannedPhraseEvaluator: Evaluator = {
   name: "banned-phrases",
   kind: "CODE",
   evaluate: ({ output }) => {
-    // Ban phrases anywhere the user could see — including tool-call surfacing.
     const text = extractTextWithTools(output);
     const lower = text.toLowerCase();
     const hits = BANNED_PHRASES.filter((p) => lower.includes(p));
@@ -138,7 +133,6 @@ async function main(): Promise<void> {
     },
   });
 
-  // LLM-judge for transcript quality — catches persona drift the code rubric misses.
   const correctnessJudge = createCorrectnessEvaluator({
     model: google(process.env.PHOENIX_JUDGE_MODEL ?? "gemini-2.5-flash"),
   });
@@ -148,7 +142,6 @@ async function main(): Promise<void> {
     evaluate: async ({ input, output }) => {
       const scenario = scenarioByName((input as { scenarioName?: unknown }).scenarioName);
       const question = scenario?.userMessage ?? "";
-      // Judge sees prose only — tool names would distort prose quality scoring.
       return correctnessJudge.evaluate({ input: question, output: extractJudgeText(output) });
     },
   };
@@ -176,10 +169,17 @@ async function main(): Promise<void> {
     concurrency: positiveIntEnv("PHOENIX_EXPERIMENT_CONCURRENCY", 2),
   });
 
-  const failed = ran.failedRunCount;
-  const total = ran.exampleCount;
+  const fullExperiment = await getExperiment({ client, experimentId: ran.id });
+  const regressions = findScoreGateRegressions(fullExperiment.evaluationRuns);
+  const failed = fullExperiment.failedRunCount;
+  const total = fullExperiment.exampleCount;
   console.log(`Experiment ${ran.id}: ${total - failed}/${total} successful runs`);
-  if (failed > 0) process.exit(1);
+  if (regressions.length === 0) {
+    console.log(formatScoreGateSummary(regressions));
+  } else {
+    console.error(formatScoreGateSummary(regressions));
+  }
+  if (failed > 0 || regressions.length > 0) process.exit(1);
 }
 
 main().catch((error) => {

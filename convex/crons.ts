@@ -41,7 +41,7 @@ if (cronsEnabled()) {
     {},
   );
 
-  crons.interval("health-check", { minutes: 15 }, internal.healthCheck.runHealthCheck);
+  crons.interval("health-check", { hours: 1 }, internal.healthCheck.runHealthCheck);
 
   crons.interval("vacuum-unused-files", { hours: 6 }, internal.fileGc.vacuumUnusedFiles);
 

@@ -8,8 +8,11 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { isDeletionInProgress } from "../lib/auth";
 import { afterInsert as afterPerformanceInsert } from "../personalRecords";
+import { requestCoachStateRefresh } from "../coachState";
+import { DEFAULT_TARGET_AREA, DEFAULT_WORKOUT_TITLE } from "./workoutMeta";
 
 // ---------------------------------------------------------------------------
 // Shared validators (exported for action payload typing)
@@ -26,6 +29,8 @@ export const workoutValidator = v.object({
   workoutType: v.string(),
   tonalWorkoutId: v.optional(v.string()),
 });
+
+type WorkoutPayload = typeof workoutValidator.type;
 
 export const performanceValidator = v.object({
   activityId: v.string(),
@@ -72,6 +77,60 @@ export const getExistingActivityIds = internalQuery({
 // Mutations
 // ---------------------------------------------------------------------------
 
+function isUsefulTitle(title: string): boolean {
+  return title.trim() !== "" && title !== DEFAULT_WORKOUT_TITLE;
+}
+
+function buildMetadataPatch(existing: Doc<"completedWorkouts">, next: WorkoutPayload) {
+  const patch: {
+    title?: string;
+    targetArea?: string;
+    workoutType?: string;
+    tonalWorkoutId?: string;
+  } = {};
+
+  if (isUsefulTitle(next.title) && existing.title !== next.title) {
+    patch.title = next.title;
+  }
+  if (next.targetArea.trim() !== "" && next.targetArea !== DEFAULT_TARGET_AREA) {
+    if (existing.targetArea !== next.targetArea) patch.targetArea = next.targetArea;
+  }
+  if (next.workoutType.trim() !== "" && existing.workoutType !== next.workoutType) {
+    patch.workoutType = next.workoutType;
+  }
+  if (next.tonalWorkoutId && existing.tonalWorkoutId !== next.tonalWorkoutId) {
+    patch.tonalWorkoutId = next.tonalWorkoutId;
+  }
+
+  return patch;
+}
+
+/** Refresh display metadata for already-synced workouts without reprocessing sets. */
+export const refreshCompletedWorkoutMetadata = internalMutation({
+  args: { userId: v.id("users"), workouts: v.array(workoutValidator) },
+  handler: async (ctx, { userId, workouts }) => {
+    if (await isDeletionInProgress(ctx, userId)) return 0;
+    let updated = 0;
+    const now = Date.now();
+    for (const w of workouts) {
+      const existing = await ctx.db
+        .query("completedWorkouts")
+        .withIndex("by_userId_activityId", (q) =>
+          q.eq("userId", userId).eq("activityId", w.activityId),
+        )
+        .first();
+      if (!existing) continue;
+
+      const patch = buildMetadataPatch(existing, w);
+      if (Object.keys(patch).length === 0) continue;
+      await ctx.db.patch(existing._id, { ...patch, syncedAt: now });
+      updated++;
+    }
+    if (updated > 0) await requestCoachStateRefresh(ctx, userId);
+    return updated;
+  },
+});
+
 /** Insert new completed workouts (skips duplicates by activityId). */
 export const persistCompletedWorkouts = internalMutation({
   args: { userId: v.id("users"), workouts: v.array(workoutValidator) },
@@ -89,6 +148,7 @@ export const persistCompletedWorkouts = internalMutation({
       await ctx.db.insert("completedWorkouts", { userId, ...w, syncedAt: Date.now() });
       inserted++;
     }
+    if (inserted > 0) await requestCoachStateRefresh(ctx, userId);
     return inserted;
   },
 });
@@ -142,6 +202,8 @@ export const strengthScoreValidator = v.object({
   score: v.number(),
 });
 
+type StrengthScorePayload = typeof strengthScoreValidator.type;
+
 export const muscleReadinessValidator = v.object({
   chest: v.number(),
   shoulders: v.number(),
@@ -155,6 +217,8 @@ export const muscleReadinessValidator = v.object({
   hamstrings: v.number(),
   calves: v.number(),
 });
+
+type MuscleReadinessPayload = typeof muscleReadinessValidator.type;
 
 export const externalActivityValidator = v.object({
   externalId: v.string(),
@@ -171,6 +235,60 @@ export const externalActivityValidator = v.object({
   avgPaceSecondsPerKm: v.optional(v.number()),
 });
 
+type ExternalActivityPayload = typeof externalActivityValidator.type;
+
+function strengthScoresMatch(
+  existing: readonly Doc<"currentStrengthScores">[],
+  scores: readonly StrengthScorePayload[],
+): boolean {
+  if (existing.length !== scores.length) return false;
+  const existingScores = new Map(existing.map((row) => [row.bodyRegion, row.score]));
+  if (existingScores.size !== existing.length) return false;
+
+  const nextRegions = new Set<string>();
+  for (const score of scores) {
+    if (nextRegions.has(score.bodyRegion)) return false;
+    nextRegions.add(score.bodyRegion);
+    if (existingScores.get(score.bodyRegion) !== score.score) return false;
+  }
+  return true;
+}
+
+function muscleReadinessMatches(
+  existing: Doc<"muscleReadiness">,
+  readiness: MuscleReadinessPayload,
+): boolean {
+  return (
+    existing.chest === readiness.chest &&
+    existing.shoulders === readiness.shoulders &&
+    existing.back === readiness.back &&
+    existing.triceps === readiness.triceps &&
+    existing.biceps === readiness.biceps &&
+    existing.abs === readiness.abs &&
+    existing.obliques === readiness.obliques &&
+    existing.quads === readiness.quads &&
+    existing.glutes === readiness.glutes &&
+    existing.hamstrings === readiness.hamstrings &&
+    existing.calves === readiness.calves
+  );
+}
+
+function externalActivityMatches(
+  existing: Doc<"externalActivities">,
+  activity: ExternalActivityPayload,
+): boolean {
+  return (
+    existing.workoutType === activity.workoutType &&
+    existing.beginTime === activity.beginTime &&
+    existing.totalDuration === activity.totalDuration &&
+    existing.activeCalories === activity.activeCalories &&
+    existing.totalCalories === activity.totalCalories &&
+    existing.averageHeartRate === activity.averageHeartRate &&
+    existing.source === activity.source &&
+    existing.distance === activity.distance
+  );
+}
+
 /** Replace all current strength scores for a user (delete old, insert fresh). */
 export const persistCurrentStrengthScores = internalMutation({
   args: { userId: v.id("users"), scores: v.array(strengthScoreValidator) },
@@ -180,6 +298,8 @@ export const persistCurrentStrengthScores = internalMutation({
       .query("currentStrengthScores")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
+    if (strengthScoresMatch(existing, scores)) return;
+
     for (const row of existing) {
       await ctx.db.delete(row._id);
     }
@@ -187,6 +307,7 @@ export const persistCurrentStrengthScores = internalMutation({
     for (const s of scores) {
       await ctx.db.insert("currentStrengthScores", { userId, ...s, fetchedAt: now });
     }
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -200,9 +321,12 @@ export const persistMuscleReadiness = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
     if (existing) {
-      await ctx.db.delete(existing._id);
+      if (muscleReadinessMatches(existing, readiness)) return;
+      await ctx.db.patch(existing._id, { ...readiness, fetchedAt: Date.now() });
+    } else {
+      await ctx.db.insert("muscleReadiness", { userId, ...readiness, fetchedAt: Date.now() });
     }
-    await ctx.db.insert("muscleReadiness", { userId, ...readiness, fetchedAt: Date.now() });
+    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -217,6 +341,7 @@ export const clearMuscleReadiness = internalMutation({
       .first();
     if (existing) {
       await ctx.db.delete(existing._id);
+      await requestCoachStateRefresh(ctx, userId);
     }
   },
 });
@@ -227,6 +352,7 @@ export const persistExternalActivities = internalMutation({
   handler: async (ctx, { userId, activities }) => {
     if (await isDeletionInProgress(ctx, userId)) return;
     const now = Date.now();
+    let changed = false;
     for (const a of activities) {
       const existing = await ctx.db
         .query("externalActivities")
@@ -235,10 +361,14 @@ export const persistExternalActivities = internalMutation({
         )
         .first();
       if (existing) {
+        if (externalActivityMatches(existing, a)) continue;
         await ctx.db.replace(existing._id, { userId, ...a, syncedAt: now });
+        changed = true;
       } else {
         await ctx.db.insert("externalActivities", { userId, ...a, syncedAt: now });
+        changed = true;
       }
     }
+    if (changed) await requestCoachStateRefresh(ctx, userId);
   },
 });

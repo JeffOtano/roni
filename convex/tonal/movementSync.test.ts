@@ -89,6 +89,9 @@ describe("mapApiToDoc", () => {
     expect(doc.lastSyncedAt).toBe(now);
     expect(doc.onMachine).toBe(true);
     expect(doc.muscleGroups).toEqual(["Chest", "Triceps"]);
+    expect(doc.nameSearchText).toContain("bench press");
+    expect(doc.muscleGroupsSearchText).toBe("chest triceps");
+    expect(doc.trainingTypesSearchText).toBe("");
   });
 
   it("falls back to name when shortName is missing", () => {

@@ -31,9 +31,22 @@ export interface AiRunRow {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   totalCostUsd?: number;
+  scheduledAt?: number;
+  processingStartedAt?: number;
+  streamStartedAt?: number;
+  queueDelayMs?: number;
+  preStreamSetupMs?: number;
   timeToFirstTokenMs?: number;
   timeToLastTokenMs?: number;
+  totalTimeToFirstTokenMs?: number;
+  totalTimeToLastTokenMs?: number;
   outputTokensPerSec?: number;
+  contextBuildMs?: number;
+  snapshotBuildMs?: number;
+  contextBuildCount?: number;
+  contextMessageCount?: number;
+  snapshotSource?: "coach_state_fresh" | "coach_state_stale" | "live_rebuild";
+  retrievalEnabled?: boolean;
   approvalPauses: number;
   workoutPlanCreatedId?: Id<"workoutPlans">;
   workoutPushOutcome?: "pushed" | "failed" | "none";
@@ -49,8 +62,19 @@ export interface AccumulatorInit {
   environment: "dev" | "prod";
   release?: string;
   promptVersion?: string;
+  scheduledAt?: number;
+  processingStartedAt?: number;
+  retrievalEnabled?: boolean;
   /** Turn start timestamp in ms. Defaults to `Date.now()`; injectable for tests. */
   startedAt?: number;
+}
+
+export interface ContextTimingMetrics {
+  contextBuildMs?: number;
+  snapshotBuildMs?: number;
+  contextBuildCount?: number;
+  contextMessageCount?: number;
+  snapshotSource?: AiRunRow["snapshotSource"];
 }
 
 const ALLOWED_FINISH_REASONS = new Set<AiRunRow["finishReason"]>([
@@ -121,23 +145,42 @@ export class RunAccumulator {
   private workoutPlanCreatedId?: Id<"workoutPlans">;
   private workoutPushOutcome?: AiRunRow["workoutPushOutcome"];
   private readonly startedAt: number;
+  private readonly scheduledAt?: number;
+  private readonly processingStartedAt?: number;
+  private readonly retrievalEnabled?: boolean;
   private timeToFirstTokenMs?: number;
   private timeToLastTokenMs?: number;
+  private totalTimeToFirstTokenMs?: number;
+  private totalTimeToLastTokenMs?: number;
   private outputTokensPerSec?: number;
+  private contextBuildMs?: number;
+  private snapshotBuildMs?: number;
+  private contextBuildCount?: number;
+  private contextMessageCount?: number;
+  private snapshotSource?: AiRunRow["snapshotSource"];
 
   constructor(private readonly init: AccumulatorInit) {
     this.startedAt = init.startedAt ?? Date.now();
+    this.scheduledAt = init.scheduledAt;
+    this.processingStartedAt = init.processingStartedAt;
+    this.retrievalEnabled = init.retrievalEnabled;
   }
 
   /** First text delta from the model — used for TTFT. Ignored after the first call. */
   markFirstChunk(now: number = Date.now()): void {
     if (this.timeToFirstTokenMs !== undefined) return;
     this.timeToFirstTokenMs = Math.max(0, now - this.startedAt);
+    if (this.scheduledAt !== undefined) {
+      this.totalTimeToFirstTokenMs = Math.max(0, now - this.scheduledAt);
+    }
   }
 
   /** Called once from `onFinish`. Records TTLT and throughput when possible. */
   markFinished(now: number = Date.now()): void {
     this.timeToLastTokenMs = Math.max(0, now - this.startedAt);
+    if (this.scheduledAt !== undefined) {
+      this.totalTimeToLastTokenMs = Math.max(0, now - this.scheduledAt);
+    }
     if (this.timeToFirstTokenMs !== undefined && this.outputTokens > 0) {
       const streamMs = this.timeToLastTokenMs - this.timeToFirstTokenMs;
       if (streamMs > 0) {
@@ -205,6 +248,14 @@ export class RunAccumulator {
     this.workoutPushOutcome = outcome;
   }
 
+  setContextTiming(metrics: ContextTimingMetrics): void {
+    this.contextBuildMs = metrics.contextBuildMs;
+    this.snapshotBuildMs = metrics.snapshotBuildMs;
+    this.contextBuildCount = metrics.contextBuildCount;
+    this.contextMessageCount = metrics.contextMessageCount;
+    this.snapshotSource = metrics.snapshotSource;
+  }
+
   toRow(): AiRunRow {
     return {
       runId: this.init.runId,
@@ -232,9 +283,28 @@ export class RunAccumulator {
       // so a single per-model rate would be wrong. Compute downstream from
       // token counts + per-model rates if needed.
       totalCostUsd: undefined,
+      scheduledAt: this.scheduledAt,
+      processingStartedAt: this.processingStartedAt,
+      streamStartedAt: this.startedAt,
+      queueDelayMs:
+        this.scheduledAt !== undefined && this.processingStartedAt !== undefined
+          ? Math.max(0, this.processingStartedAt - this.scheduledAt)
+          : undefined,
+      preStreamSetupMs:
+        this.processingStartedAt !== undefined
+          ? Math.max(0, this.startedAt - this.processingStartedAt)
+          : undefined,
       timeToFirstTokenMs: this.timeToFirstTokenMs,
       timeToLastTokenMs: this.timeToLastTokenMs,
+      totalTimeToFirstTokenMs: this.totalTimeToFirstTokenMs,
+      totalTimeToLastTokenMs: this.totalTimeToLastTokenMs,
       outputTokensPerSec: this.outputTokensPerSec,
+      contextBuildMs: this.contextBuildMs,
+      snapshotBuildMs: this.snapshotBuildMs,
+      contextBuildCount: this.contextBuildCount,
+      contextMessageCount: this.contextMessageCount,
+      snapshotSource: this.snapshotSource,
+      retrievalEnabled: this.retrievalEnabled,
       approvalPauses: this.approvalPauses,
       workoutPlanCreatedId: this.workoutPlanCreatedId,
       workoutPushOutcome: this.workoutPushOutcome,
