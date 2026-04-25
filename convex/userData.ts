@@ -1,6 +1,7 @@
 /** Central classification for user-scoped data. Update this when adding new user data tables. */
 export const USER_DATA_TABLES = [
   { table: "userProfiles", delete: "deleteUserRecord", jsonExportKey: "profile" },
+  { table: "userProfileActivity", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "checkIns", delete: "byUserIdBatch", jsonExportKey: "checkIns" },
   { table: "tonalCache", delete: "tonalCacheBatch", jsonExportKey: null },
   { table: "workoutPlans", delete: "byUserIdBatch", jsonExportKey: "workoutPlans" },

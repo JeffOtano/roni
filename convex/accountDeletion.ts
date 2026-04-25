@@ -88,6 +88,7 @@ async function takeBatchForDeletion(
     case "strengthScoreSnapshots":
     case "currentStrengthScores":
     case "muscleReadiness":
+    case "userProfileActivity":
       return (
         await ctx.db
           .query(table)

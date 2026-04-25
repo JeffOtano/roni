@@ -1,6 +1,7 @@
 import { Migrations } from "@convex-dev/migrations";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { patchUserActivity } from "./userProfileActivity";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 export const run = migrations.runner();
@@ -20,5 +21,26 @@ export const clearBogusAvgWeight = migrations.define({
   migrateOne: (_ctx, doc) => {
     if (doc.avgWeightLbs == null) return;
     return { avgWeightLbs: undefined };
+  },
+});
+
+/**
+ * Backfills `userProfileActivity` rows from the legacy fields on
+ * `userProfiles` so readers can be cut over without losing existing state.
+ * Idempotent — `patchUserActivity` upserts, so partial-then-full re-runs
+ * converge.
+ *
+ * Run: npx convex run migrations:run '{"fn": "migrations:backfillUserProfileActivity"}'
+ */
+export const backfillUserProfileActivity = migrations.define({
+  table: "userProfiles",
+  migrateOne: async (ctx, doc) => {
+    await patchUserActivity(ctx, doc.userId, {
+      lastActiveAt: doc.lastActiveAt,
+      appLastActiveAt: doc.appLastActiveAt,
+      syncStatus: doc.syncStatus,
+      lastSyncedActivityDate: doc.lastSyncedActivityDate,
+      tokenRefreshInProgress: doc.tokenRefreshInProgress,
+    });
   },
 });
