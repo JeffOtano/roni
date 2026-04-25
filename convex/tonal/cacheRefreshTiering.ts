@@ -16,7 +16,7 @@ export const TIER_THRESHOLDS_MS = {
 
 /** Minimum interval between cron-driven syncs for each tier. */
 export const TIER_INTERVALS_MS = {
-  active: 30 * 60 * 1000,
+  active: HOUR_MS / 2,
   recent: HOUR_MS,
   lapsing: 6 * HOUR_MS,
 } as const;

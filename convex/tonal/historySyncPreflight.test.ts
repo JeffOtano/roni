@@ -94,6 +94,19 @@ describe("shouldSkipBackgroundSync", () => {
       }),
     ).toBe(false);
   });
+
+  test("rejects watermarks with out-of-range months or days instead of normalizing", () => {
+    for (const bad of ["2026-13-01", "2026-00-15", "2026-02-30", "2026-04-31", "2026-12-32"]) {
+      expect(
+        shouldSkipBackgroundSync({
+          now: NOW,
+          workoutHistoryCacheFetchedAt: NOW - 60 * 1000,
+          lastSyncedActivityDate: bad,
+          todayIso: TODAY,
+        }),
+      ).toBe(false);
+    }
+  });
 });
 
 describe("isoDateUtc", () => {
