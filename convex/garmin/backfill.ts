@@ -2,11 +2,11 @@
  * Garmin Activity + Health backfill.
  *
  * Garmin supports requesting historical summary data (activities,
- * dailies, sleeps, stress, HRV) up to 90 days back via POST endpoints
- * on `/wellness-api/rest/backfill/{summaryType}`. Each request is
- * accepted asynchronously (HTTP 202); Garmin then fires the standard
- * Push webhooks for each chunk of historical data over the following
- * minutes.
+ * dailies, sleeps, stress, HRV) up to 90 days back via the Wellness
+ * Backfill GET endpoints at `/wellness-api/rest/backfill/{summaryType}`.
+ * Each request is accepted asynchronously (HTTP 202); Garmin then
+ * replays the standard Push webhooks into `garminWebhookEvents` for
+ * each chunk of historical data over the following minutes.
  *
  * We trigger one request per summary type we consume. Raw payloads
  * land in `garminWebhookEvents` via the existing push routes, so
@@ -51,7 +51,17 @@ const BACKFILL_SUMMARY_TYPES = [
 ] as const;
 
 type BackfillSummaryType = (typeof BACKFILL_SUMMARY_TYPES)[number];
-type BackfillRateLimitedEntry = { summaryType: string; retryAfterSeconds?: number };
+type BackfillRateLimitedEntry = {
+  summaryType: string;
+  retryAfterSeconds?: number;
+  /**
+   * Number of chunks for this summary type that were not issued because
+   * Garmin rate-limited the run. Absent for summary types that never
+   * had a request attempted (i.e. deferred entirely after another
+   * summary type 429'd first).
+   */
+  deferredChunks?: number;
+};
 
 const MIN_DAYS = 1;
 /**
@@ -153,7 +163,11 @@ export type RequestGarminBackfillResult =
       /** Summary types with at least one accepted chunk. */
       accepted: readonly string[];
       /** Summary types Garmin rate-limited. These can be retried later. */
-      rateLimited: readonly { summaryType: string; retryAfterSeconds?: number }[];
+      rateLimited: readonly {
+        summaryType: string;
+        retryAfterSeconds?: number;
+        deferredChunks?: number;
+      }[];
       /** Non-rate-limit failures — multiple entries per type possible. */
       rejected: readonly { summaryType: string; status: number }[];
     }
@@ -221,11 +235,13 @@ export const requestGarminBackfill = action({
         rateLimited.push({
           summaryType,
           retryAfterSeconds: lastDetailedRecoveryRetryAfterSeconds,
+          deferredChunks: chunks.length,
         });
         continue;
       }
 
-      for (const chunk of chunks) {
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
         if (requestIndex > 0) await sleep(REQUEST_SPACING_MS);
         requestIndex++;
 
@@ -254,9 +270,14 @@ export const requestGarminBackfill = action({
         const requestResult = await requestBackfillChunk(getOnce);
 
         if (requestResult.status === 429) {
+          // The current chunk was rejected, and any chunks after it
+          // weren't attempted. Record both so callers can reconstruct
+          // exactly what still needs to be backfilled for this type.
+          const deferredChunksForCurrentType = chunks.length - chunkIndex;
           rateLimited.push({
             summaryType,
             retryAfterSeconds: requestResult.retryAfterSeconds,
+            deferredChunks: deferredChunksForCurrentType,
           });
           if (isDetailedRecoverySummary(summaryType)) {
             lastDetailedRecoveryRetryAfterSeconds = requestResult.retryAfterSeconds;
@@ -267,6 +288,7 @@ export const requestGarminBackfill = action({
             ...remainingBackfillSummaryTypesAfter(summaryType).map((deferredSummaryType) => ({
               summaryType: deferredSummaryType,
               retryAfterSeconds: requestResult.retryAfterSeconds,
+              deferredChunks: chunks.length,
             })),
           );
           stopAfterRateLimit = true;

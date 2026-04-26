@@ -31,17 +31,21 @@ describe("parsePermissionsResponse", () => {
     });
   });
 
-  it("fails closed when Garmin permissions are missing or malformed", async () => {
+  it("returns success with an empty array when Garmin grants no scopes", async () => {
     const emptyResponse = new Response(JSON.stringify([]), { status: 200 });
+
+    await expect(parsePermissionsResponse(emptyResponse)).resolves.toEqual({
+      success: true,
+      permissions: [],
+    });
+  });
+
+  it("fails closed when the response shape is malformed", async () => {
     const malformedResponse = new Response(JSON.stringify({ permissions: ["ACTIVITY_EXPORT"] }), {
       status: 200,
     });
     const invalidJsonResponse = new Response("not-json", { status: 200 });
 
-    await expect(parsePermissionsResponse(emptyResponse)).resolves.toEqual({
-      success: false,
-      error: "Malformed Garmin permissions response",
-    });
     await expect(parsePermissionsResponse(malformedResponse)).resolves.toEqual({
       success: false,
       error: "Malformed Garmin permissions response",

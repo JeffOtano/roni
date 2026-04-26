@@ -70,10 +70,12 @@ export async function parsePermissionsResponse(
   }
 
   const parsed = permissionsResponseSchema.safeParse(body);
-  if (!parsed.success || parsed.data.length === 0) {
+  if (!parsed.success) {
     return { success: false, error: "Malformed Garmin permissions response" };
   }
 
+  // An empty array is a valid response — it just means the user
+  // granted no scopes. Callers decide whether to refuse that case.
   return { success: true, permissions: parsed.data };
 }
 
@@ -246,6 +248,13 @@ export const completeGarminOAuth = action({
       if (!permissionsResult.success) {
         return { success: false, error: permissionsResult.error };
       }
+      if (permissionsResult.permissions.length === 0) {
+        return {
+          success: false,
+          error:
+            "Garmin returned no granted permissions. Please reconnect and authorize the requested data scopes.",
+        };
+      }
 
       try {
         await ctx.runMutation(internal.garmin.connections.upsertConnection, {
@@ -256,10 +265,14 @@ export const completeGarminOAuth = action({
           permissions: permissionsResult.permissions,
         });
       } catch (err) {
-        return {
-          success: false,
-          error: err instanceof Error ? err.message : "Failed to save Garmin connection",
-        };
+        const knownConflict =
+          err instanceof Error &&
+          err.message === "This Garmin account is already connected to another Roni account";
+        if (knownConflict) {
+          return { success: false, error: err.message };
+        }
+        console.error("[garminOAuth] failed to upsert Garmin connection", { userId, error: err });
+        return { success: false, error: "Failed to save Garmin connection" };
       }
 
       return { success: true, garminUserId };

@@ -141,7 +141,9 @@ describe("formatExternalActivityLine", () => {
 
   it("omits calories when calories are zero", () => {
     const line = formatExternalActivityLine(makeExternalActivity({ totalCalories: 0 }));
-    expect(line).not.toContain("cal");
+    // Match a numeric calorie token specifically so unrelated substrings
+    // (e.g. "Calorie Tracker" workout names) don't false-positive.
+    expect(line).not.toMatch(/\d+\s*cal\b/i);
   });
 
   it("omits optional metrics when the source does not provide them", () => {

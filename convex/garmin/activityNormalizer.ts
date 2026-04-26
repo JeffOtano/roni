@@ -71,6 +71,9 @@ export function normalizeGarminActivities(rawPayload: unknown): NormalizedGarmin
   });
 }
 
+// JS Date supports +/- 8.64e15 ms from epoch (ECMA-262).
+const MAX_SAFE_DATE_MS = 8.64e15;
+
 function normalizeOne(entry: unknown): NormalizedGarminActivity | null {
   if (!isRecord(entry)) return null;
 
@@ -78,17 +81,19 @@ function normalizeOne(entry: unknown): NormalizedGarminActivity | null {
   const activityType = entry.activityType;
   const startTime = entry.startTimeInSeconds;
   const duration = entry.durationInSeconds;
-  if (typeof summaryId !== "string") return null;
-  if (typeof activityType !== "string") return null;
+  if (typeof summaryId !== "string" || summaryId.trim().length === 0) return null;
+  if (typeof activityType !== "string" || activityType.trim().length === 0) return null;
   if (typeof startTime !== "number" || !Number.isFinite(startTime)) return null;
   if (typeof duration !== "number" || !Number.isFinite(duration)) return null;
+  const startMs = startTime * MS_PER_SECOND;
+  if (!Number.isFinite(startMs) || Math.abs(startMs) > MAX_SAFE_DATE_MS) return null;
 
   const pace = optionalNumber(entry.averagePaceInMinutesPerKilometer);
 
   return {
     externalId: summaryId,
     workoutType: activityType,
-    beginTime: new Date(startTime * MS_PER_SECOND).toISOString(),
+    beginTime: new Date(startMs).toISOString(),
     totalDuration: duration,
     source: EXTERNAL_ACTIVITY_SOURCES.GARMIN,
     activeCalories: optionalNumber(entry.activeKilocalories),
