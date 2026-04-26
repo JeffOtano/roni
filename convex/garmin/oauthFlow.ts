@@ -209,16 +209,20 @@ export const completeGarminOAuth = action({
         return { success: false, error: "Malformed Garmin access_token response" };
       }
 
+      // The remaining calls all sign with the freshly-issued access
+      // token + secret, so reuse one credentials object.
+      const baseAuth = {
+        consumerKey: config.consumerKey,
+        consumerSecret: config.consumerSecret,
+        token: accessToken,
+        tokenSecret: accessTokenSecret,
+      };
+
       // Fetch the Garmin user id so we can key webhook payloads to our user.
-      const userIdSigned = await signOAuth1Request(
-        {
-          consumerKey: config.consumerKey,
-          consumerSecret: config.consumerSecret,
-          token: accessToken,
-          tokenSecret: accessTokenSecret,
-        },
-        { method: "GET", url: USER_ID_URL },
-      );
+      const userIdSigned = await signOAuth1Request(baseAuth, {
+        method: "GET",
+        url: USER_ID_URL,
+      });
       const userIdRes = await garminFetch(USER_ID_URL, {
         headers: { Authorization: userIdSigned.authorizationHeader },
       });
@@ -232,15 +236,10 @@ export const completeGarminOAuth = action({
       const garminUserId = userIdParsed.data.userId;
 
       // Fetch permissions (at least WORKOUT_IMPORT is expected).
-      const permSigned = await signOAuth1Request(
-        {
-          consumerKey: config.consumerKey,
-          consumerSecret: config.consumerSecret,
-          token: accessToken,
-          tokenSecret: accessTokenSecret,
-        },
-        { method: "GET", url: PERMISSIONS_URL },
-      );
+      const permSigned = await signOAuth1Request(baseAuth, {
+        method: "GET",
+        url: PERMISSIONS_URL,
+      });
       const permRes = await garminFetch(PERMISSIONS_URL, {
         headers: { Authorization: permSigned.authorizationHeader },
       });

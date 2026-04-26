@@ -185,6 +185,24 @@ export const requestGarminBackfill = action({
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     if (!userId) return { success: false, error: "Not authenticated" };
 
+    const connection = await ctx.runQuery(internal.garmin.connections.getActiveConnectionByUserId, {
+      userId,
+    });
+    if (!connection) {
+      return { success: false, error: "Garmin is not connected" };
+    }
+
+    const [accessToken, accessTokenSecret] = await Promise.all([
+      decryptGarminSecret(connection.accessTokenEncrypted),
+      decryptGarminSecret(connection.accessTokenSecretEncrypted),
+    ]);
+
+    const config = getGarminAppConfig();
+
+    // Acquire the daily slot only after we've confirmed there's a live
+    // connection with decryptable secrets. Otherwise a missing/broken
+    // connection would burn the user's once-per-day quota before we
+    // could ever issue a request.
     try {
       await ctx.runMutation(internal.garmin.connections.acquireBackfillSlot, { userId });
     } catch (error) {
@@ -203,20 +221,6 @@ export const requestGarminBackfill = action({
         error: "Garmin backfill is limited to once per day. Please try again later.",
       };
     }
-
-    const connection = await ctx.runQuery(internal.garmin.connections.getActiveConnectionByUserId, {
-      userId,
-    });
-    if (!connection) {
-      return { success: false, error: "Garmin is not connected" };
-    }
-
-    const [accessToken, accessTokenSecret] = await Promise.all([
-      decryptGarminSecret(connection.accessTokenEncrypted),
-      decryptGarminSecret(connection.accessTokenSecretEncrypted),
-    ]);
-
-    const config = getGarminAppConfig();
     const endSeconds = Math.floor(Date.now() / 1000);
     const startSeconds = endSeconds - days * SECONDS_PER_DAY;
 
