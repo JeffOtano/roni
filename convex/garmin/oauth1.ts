@@ -43,6 +43,14 @@ export interface SignedRequest {
 }
 
 const UNRESERVED = /[A-Za-z0-9\-._~]/;
+const RESERVED_OAUTH_PARAM_NAMES = new Set([
+  "oauth_consumer_key",
+  "oauth_nonce",
+  "oauth_signature_method",
+  "oauth_timestamp",
+  "oauth_version",
+  "oauth_token",
+]);
 
 /**
  * RFC 3986 percent-encoding. `encodeURIComponent` is close but leaves
@@ -118,6 +126,9 @@ export async function signOAuth1Request(
   ];
   if (creds.token) params.push(["oauth_token", creds.token]);
   for (const [k, v] of Object.entries(opts.extraSignableParams ?? {})) {
+    if (RESERVED_OAUTH_PARAM_NAMES.has(k)) {
+      throw new Error(`OAuth parameter ${k} is managed by signOAuth1Request`);
+    }
     params.push([k, v]);
   }
   for (const [k, v] of parsed.searchParams.entries()) {

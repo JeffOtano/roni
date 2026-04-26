@@ -18,6 +18,9 @@ describe("resolveAppOrigin", () => {
         SITE_URL: "https://roni.example.com/settings",
       }),
     ).toBe("https://roni.example.com");
+    expect(resolveAppOrigin({ SITE_URL: "https://roni.example.com/settings" })).toBe(
+      "https://roni.example.com",
+    );
   });
 
   it("allows localhost fallback only outside production", () => {
@@ -38,6 +41,12 @@ describe("resolveAppOrigin", () => {
 
   it("fails closed for Vercel deployments without any usable origin", () => {
     expect(() => resolveAppOrigin({ VERCEL_ENV: "preview" })).toThrow(
+      "GARMIN_OAUTH_POST_REDIRECT_URL, SITE_URL, or VERCEL_URL must be configured",
+    );
+  });
+
+  it("fails closed for production Vercel deployments without any usable origin", () => {
+    expect(() => resolveAppOrigin({ VERCEL_ENV: "production" })).toThrow(
       "GARMIN_OAUTH_POST_REDIRECT_URL, SITE_URL, or VERCEL_URL must be configured",
     );
   });

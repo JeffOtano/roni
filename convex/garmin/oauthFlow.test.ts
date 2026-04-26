@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { parsePermissionsResponse } from "./oauthFlow";
+import { parseFormResponse, parsePermissionsResponse } from "./oauthFlow";
+
+describe("parseFormResponse", () => {
+  it("decodes form-urlencoded plus signs as spaces", () => {
+    expect(parseFormResponse("oauth_token=abc+123&oauth_token_secret=a%2Bb+c")).toEqual({
+      oauth_token: "abc 123",
+      oauth_token_secret: "a+b c",
+    });
+  });
+});
 
 describe("parsePermissionsResponse", () => {
   it("returns permissions from a valid Garmin response", async () => {

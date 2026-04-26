@@ -98,6 +98,21 @@ describe("signOAuth1Request — Garmin-shaped requests", () => {
     expect(signed.authorizationHeader).not.toContain("oauth_token=");
   });
 
+  it("rejects extra params that collide with managed OAuth fields", async () => {
+    await expect(
+      signOAuth1Request(
+        { consumerKey: "ck", consumerSecret: "cs" },
+        {
+          method: "POST",
+          url: "https://connectapi.garmin.com/oauth-service/oauth/request_token",
+          extraSignableParams: { oauth_nonce: "caller-nonce" },
+          nonce: "n1",
+          timestamp: "1700000000",
+        },
+      ),
+    ).rejects.toThrow("OAuth parameter oauth_nonce is managed by signOAuth1Request");
+  });
+
   it("produces different signatures for different nonces (non-deterministic)", async () => {
     const creds = { consumerKey: "ck", consumerSecret: "cs", token: "t", tokenSecret: "ts" };
     const opts = { method: "GET", url: "https://apis.garmin.com/userPermissions/" };

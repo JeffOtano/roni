@@ -25,20 +25,16 @@ const externalActivitiesSchema = z.array(externalActivitySchema);
  * (`id`, `userId`, `endTime`, `timezone`, `activeDuration`, `deviceId`) gets a
  * compile error instead of silently reading `undefined` at runtime.
  */
-export type ProjectedExternalActivity = Omit<
-  Pick<
-    ExternalActivity,
-    | "workoutType"
-    | "beginTime"
-    | "totalDuration"
-    | "distance"
-    | "activeCalories"
-    | "totalCalories"
-    | "averageHeartRate"
-    | "source"
-    | "externalId"
-  >,
-  "source"
+export type ProjectedExternalActivity = Pick<
+  ExternalActivity,
+  | "workoutType"
+  | "beginTime"
+  | "totalDuration"
+  | "distance"
+  | "activeCalories"
+  | "totalCalories"
+  | "averageHeartRate"
+  | "externalId"
 > & {
   source: ExternalActivitySource;
 };

@@ -148,4 +148,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: HOUR,
     capacity: 3,
   },
+  disconnectMyGarmin: {
+    kind: "token bucket",
+    rate: 5,
+    period: MINUTE,
+    capacity: 3,
+  },
 });

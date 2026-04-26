@@ -15,16 +15,12 @@ export function DashboardExternalActivitiesSection({
 }: DashboardExternalActivitiesSectionProps) {
   if (activities === undefined) return <DashboardCardSkeleton />;
 
-  const garminActivities: DashboardExternalActivity[] = [];
-  const otherActivities: DashboardExternalActivity[] = [];
-
-  for (const activity of activities) {
-    if (activity.source === EXTERNAL_ACTIVITY_SOURCES.GARMIN) {
-      garminActivities.push(activity);
-    } else {
-      otherActivities.push(activity);
-    }
-  }
+  const garminActivities = activities.filter(
+    (activity) => activity.source === EXTERNAL_ACTIVITY_SOURCES.GARMIN,
+  );
+  const otherActivities = activities.filter(
+    (activity) => activity.source !== EXTERNAL_ACTIVITY_SOURCES.GARMIN,
+  );
 
   return (
     <>

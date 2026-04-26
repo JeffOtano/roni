@@ -168,6 +168,13 @@ export const refreshPermissions = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     if (!existing) return;
+    if (existing.status === "disconnected") {
+      console.warn("[garmin] skipping permission refresh for disconnected connection", {
+        connectionId: existing._id,
+        userId,
+      });
+      return;
+    }
     await ctx.db.patch(existing._id, {
       permissions,
       permissionsRefreshedAt: Date.now(),

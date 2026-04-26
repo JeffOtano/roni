@@ -129,13 +129,17 @@ describe("gap 3-day detection", () => {
 
 describe("high external load detection", () => {
   function classifyExternalLoad(
-    activities: Array<{ beginTime: string; averageHeartRate: number }>,
+    activities: Array<{ beginTime: string; averageHeartRate?: number }>,
     now: number,
   ): { count: number; shouldFire: boolean } {
     const cutoff = now - 3 * 24 * 60 * 60 * 1000;
     const vigorous = activities.filter((e) => {
       const ts = new Date(e.beginTime).getTime();
-      return ts > cutoff && e.averageHeartRate >= VIGOROUS_HR_THRESHOLD;
+      return (
+        ts > cutoff &&
+        e.averageHeartRate !== undefined &&
+        e.averageHeartRate >= VIGOROUS_HR_THRESHOLD
+      );
     });
     return { count: vigorous.length, shouldFire: vigorous.length >= 3 };
   }
@@ -189,6 +193,19 @@ describe("high external load detection", () => {
       now,
     );
     expect(result.shouldFire).toBe(true);
+  });
+
+  it("excludes sessions without heart-rate data", () => {
+    const result = classifyExternalLoad(
+      [
+        { beginTime: "2026-03-27T08:00:00Z", averageHeartRate: 150 },
+        { beginTime: "2026-03-26T08:00:00Z", averageHeartRate: 140 },
+        { beginTime: "2026-03-25T08:00:00Z" },
+      ],
+      now,
+    );
+    expect(result.shouldFire).toBe(false);
+    expect(result.count).toBe(2);
   });
 });
 

@@ -60,4 +60,28 @@ describe("garmin connections", () => {
       "This Garmin account is already connected to another Roni account",
     );
   });
+
+  it("does not refresh permissions on disconnected connections", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    await connectGarminUser(t, userId);
+
+    await t.mutation(internal.garmin.connections.markDisconnected, {
+      userId,
+      reason: "user_disconnected",
+    });
+    await t.mutation(internal.garmin.connections.refreshPermissions, {
+      userId,
+      permissions: ["HEALTH_EXPORT"],
+    });
+
+    const row = await t.run(async (ctx) =>
+      ctx.db
+        .query("garminConnections")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .unique(),
+    );
+    expect(row?.status).toBe("disconnected");
+    expect(row?.permissions).toEqual(["ACTIVITY_EXPORT"]);
+  });
 });

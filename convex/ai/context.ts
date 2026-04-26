@@ -272,7 +272,7 @@ export async function buildTrainingSnapshot(
       const type = capitalizeWorkoutType(ext.workoutType);
       const mins = Math.round(ext.totalDuration / 60);
       let line = `${ext.beginTime.split("T")[0]} — ${type} (${ext.source}) | ${mins}min`;
-      if (ext.totalCalories !== undefined) {
+      if (ext.totalCalories !== undefined && ext.totalCalories > 0) {
         line += ` | ${Math.round(ext.totalCalories)} cal`;
       }
       if (ext.distance !== undefined && ext.distance > 0) {
@@ -281,7 +281,7 @@ export async function buildTrainingSnapshot(
       }
       const avgHr = ext.averageHeartRate;
       let hrLabel: string | null = null;
-      if (avgHr !== undefined) {
+      if (avgHr !== undefined && avgHr > 0) {
         hrLabel = getHrIntensityLabel(avgHr);
         if (hrLabel) {
           line += ` | Avg HR ${Math.round(avgHr)} (${hrLabel})`;

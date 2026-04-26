@@ -22,13 +22,23 @@ describe("verifyGarminWebhookSignature", () => {
     await expect(verifyGarminWebhookSignature(req, "{}")).resolves.toEqual({ valid: true });
   });
 
-  it("rejects missing, unconfigured, and invalid secrets", async () => {
+  it("trims the configured secret before comparing", async () => {
+    vi.stubEnv("GARMIN_WEBHOOK_SECRET", " secret-1 ");
+    const req = new Request("https://example.com/garmin/webhook/activities?secret=secret-1");
+
+    await expect(verifyGarminWebhookSignature(req, "{}")).resolves.toEqual({ valid: true });
+  });
+
+  it("rejects when GARMIN_WEBHOOK_SECRET is unset", async () => {
     const req = new Request("https://example.com/garmin/webhook/activities");
     await expect(verifyGarminWebhookSignature(req, "{}")).resolves.toEqual({
       valid: false,
       reason: "Garmin webhook secret is not configured",
     });
+  });
 
+  it("rejects when the provided secret does not match", async () => {
+    const req = new Request("https://example.com/garmin/webhook/activities");
     vi.stubEnv("GARMIN_WEBHOOK_SECRET", "secret-1");
     await expect(verifyGarminWebhookSignature(req, "{}")).resolves.toEqual({
       valid: false,
@@ -61,6 +71,7 @@ describe("verifyGarminWebhookSignature", () => {
 
   it("maps malformed empty requests to bad request and auth failures to unauthorized", () => {
     expect(garminWebhookFailureStatus("Empty Garmin webhook body")).toBe(400);
+    expect(garminWebhookFailureStatus("Garmin webhook secret is not configured")).toBe(500);
     expect(garminWebhookFailureStatus("Invalid Garmin webhook secret")).toBe(401);
   });
 });

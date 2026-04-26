@@ -76,6 +76,10 @@ describe("capitalizeWorkoutType", () => {
     );
   });
 
+  it("preserves acronym boundaries in camelCase labels", () => {
+    expect(capitalizeWorkoutType("HIITWorkout")).toBe("HIIT Workout");
+  });
+
   it("handles single-word input", () => {
     expect(capitalizeWorkoutType("yoga")).toBe("Yoga");
   });
@@ -133,6 +137,11 @@ describe("formatExternalActivityLine", () => {
   it("omits heart rate when HR is zero", () => {
     const line = formatExternalActivityLine(makeExternalActivity({ averageHeartRate: 0 }));
     expect(line).not.toContain("HR");
+  });
+
+  it("omits calories when calories are zero", () => {
+    const line = formatExternalActivityLine(makeExternalActivity({ totalCalories: 0 }));
+    expect(line).not.toContain("cal");
   });
 
   it("omits optional metrics when the source does not provide them", () => {

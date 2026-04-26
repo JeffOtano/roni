@@ -91,10 +91,11 @@ describe("requestBackfillChunk", () => {
       .mockRejectedValueOnce(new Error("offline"));
 
     const result = requestBackfillChunk(getOnce);
+    await vi.waitFor(() => expect(getOnce).toHaveBeenCalledTimes(1));
     await vi.advanceTimersByTimeAsync(5_000);
+    await vi.waitFor(() => expect(getOnce).toHaveBeenCalledTimes(2));
 
     await expect(result).resolves.toEqual({ status: 599 });
-    expect(getOnce).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -102,6 +103,17 @@ describe("remainingBackfillSummaryTypesAfter", () => {
   it("returns every deferred summary type after a core summary is rate-limited", () => {
     expect(remainingBackfillSummaryTypesAfter("dailies")).toEqual([
       "sleeps",
+      "stressDetails",
+      "hrv",
+      "userMetrics",
+      "pulseOx",
+      "respiration",
+      "skinTemp",
+    ]);
+  });
+
+  it("returns every deferred summary type after sleeps is rate-limited", () => {
+    expect(remainingBackfillSummaryTypesAfter("sleeps")).toEqual([
       "stressDetails",
       "hrv",
       "userMetrics",

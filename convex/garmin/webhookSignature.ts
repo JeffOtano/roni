@@ -13,14 +13,17 @@
 
 export type SignatureCheckResult = { valid: true } | { valid: false; reason: string };
 const EMPTY_BODY_REASON = "Empty Garmin webhook body";
+const UNCONFIGURED_SECRET_REASON = "Garmin webhook secret is not configured";
 
-export function garminWebhookFailureStatus(reason: string): 400 | 401 {
-  return reason === EMPTY_BODY_REASON ? 400 : 401;
+export function garminWebhookFailureStatus(reason: string): 400 | 401 | 500 {
+  if (reason === EMPTY_BODY_REASON) return 400;
+  if (reason === UNCONFIGURED_SECRET_REASON) return 500;
+  return 401;
 }
 
 function getConfiguredSecret(): string | null {
-  const secret = process.env.GARMIN_WEBHOOK_SECRET;
-  return secret && secret.trim() !== "" ? secret : null;
+  const trimmed = process.env.GARMIN_WEBHOOK_SECRET?.trim();
+  return trimmed && trimmed !== "" ? trimmed : null;
 }
 
 function allowsUnauthenticatedDevWebhooks(): boolean {
@@ -53,7 +56,7 @@ export async function verifyGarminWebhookSignature(
     if (allowsUnauthenticatedDevWebhooks()) {
       return { valid: true };
     }
-    return { valid: false, reason: "Garmin webhook secret is not configured" };
+    return { valid: false, reason: UNCONFIGURED_SECRET_REASON };
   }
 
   const url = new URL(req.url);

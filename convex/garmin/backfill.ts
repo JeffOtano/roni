@@ -212,12 +212,16 @@ export const requestGarminBackfill = action({
     const rejected: { summaryType: string; status: number }[] = [];
     let requestIndex = 0;
     let skipRemainingDetailedRecovery = false;
+    let lastDetailedRecoveryRetryAfterSeconds: number | undefined;
     let stopAfterRateLimit = false;
 
     for (const summaryType of BACKFILL_SUMMARY_TYPES) {
       if (stopAfterRateLimit) break;
       if (skipRemainingDetailedRecovery && isDetailedRecoverySummary(summaryType)) {
-        rateLimited.push({ summaryType });
+        rateLimited.push({
+          summaryType,
+          retryAfterSeconds: lastDetailedRecoveryRetryAfterSeconds,
+        });
         continue;
       }
 
@@ -255,6 +259,7 @@ export const requestGarminBackfill = action({
             retryAfterSeconds: requestResult.retryAfterSeconds,
           });
           if (isDetailedRecoverySummary(summaryType)) {
+            lastDetailedRecoveryRetryAfterSeconds = requestResult.retryAfterSeconds;
             skipRemainingDetailedRecovery = true;
             break;
           }

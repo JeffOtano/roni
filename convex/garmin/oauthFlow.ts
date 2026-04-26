@@ -22,6 +22,7 @@
  */
 
 import { v } from "convex/values";
+import { isRateLimitError } from "@convex-dev/rate-limiter";
 import { z } from "zod";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -45,12 +46,11 @@ function garminFetch(url: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
-function parseFormResponse(body: string): Record<string, string> {
+export function parseFormResponse(body: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const pair of body.split("&")) {
-    const eq = pair.indexOf("=");
-    if (eq < 0) continue;
-    out[decodeURIComponent(pair.slice(0, eq))] = decodeURIComponent(pair.slice(eq + 1));
+  const params = new URLSearchParams(body);
+  for (const [key, value] of params) {
+    out[key] = value;
   }
   return out;
 }
@@ -89,7 +89,17 @@ export const startGarminOAuth = action({
 
     try {
       await ctx.runMutation(internal.garmin.connections.acquireOauthStartSlot, { userId });
-    } catch {
+    } catch (error) {
+      if (!isRateLimitError(error)) {
+        console.error("[garminOAuth] failed to acquire OAuth start rate-limit slot", {
+          userId,
+          error,
+        });
+        return {
+          success: false,
+          error: "Unable to start Garmin connection. Please try again later.",
+        };
+      }
       return {
         success: false,
         error: "Too many Garmin connection attempts. Please wait a minute and try again.",
