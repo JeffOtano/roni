@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAppOrigin } from "./httpOrigin";
+import { LOCAL_DEV_APP_ORIGIN, resolveAppOrigin } from "./httpOrigin";
 
 describe("resolveAppOrigin", () => {
   it("uses the Garmin post-OAuth redirect URL first", () => {
@@ -21,9 +21,24 @@ describe("resolveAppOrigin", () => {
   });
 
   it("allows localhost fallback only outside production", () => {
-    expect(resolveAppOrigin({ NODE_ENV: "development" })).toBe("http://localhost:3000");
+    expect(resolveAppOrigin({ NODE_ENV: "development" })).toBe(LOCAL_DEV_APP_ORIGIN);
     expect(() => resolveAppOrigin({ NODE_ENV: "production" })).toThrow(
-      "GARMIN_OAUTH_POST_REDIRECT_URL or SITE_URL must be configured",
+      "GARMIN_OAUTH_POST_REDIRECT_URL, SITE_URL, or VERCEL_URL must be configured",
+    );
+  });
+
+  it("uses VERCEL_URL for preview deployments without redirect env vars", () => {
+    expect(
+      resolveAppOrigin({
+        VERCEL_ENV: "preview",
+        VERCEL_URL: "preview-roni.vercel.app",
+      }),
+    ).toBe("https://preview-roni.vercel.app");
+  });
+
+  it("fails closed for Vercel deployments without any usable origin", () => {
+    expect(() => resolveAppOrigin({ VERCEL_ENV: "preview" })).toThrow(
+      "GARMIN_OAUTH_POST_REDIRECT_URL, SITE_URL, or VERCEL_URL must be configured",
     );
   });
 });

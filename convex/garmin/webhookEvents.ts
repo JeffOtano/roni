@@ -97,16 +97,20 @@ export const sweepExpired = internalAction({
   args: {},
   handler: async (ctx): Promise<number> => {
     const expired = await ctx.runQuery(internal.garmin.webhookEvents.listExpiredEvents, {});
-    for (const row of expired) {
-      if (row.rawPayloadStorageId) {
-        try {
-          await ctx.storage.delete(row.rawPayloadStorageId);
-        } catch {
-          // Blob may already have been manually removed; proceed to
-          // drop the row anyway so we don't leave orphan references.
-        }
-      }
-    }
+    await Promise.allSettled(
+      expired.flatMap((row) =>
+        row.rawPayloadStorageId
+          ? [
+              ctx.storage.delete(row.rawPayloadStorageId).catch((error) => {
+                console.error("[garminWebhookEvents] failed to delete expired storage blob", {
+                  rawPayloadStorageId: row.rawPayloadStorageId,
+                  error,
+                });
+              }),
+            ]
+          : [],
+      ),
+    );
     await ctx.runMutation(internal.garmin.webhookEvents.deleteEventRows, {
       ids: expired.map((row) => row._id),
     });

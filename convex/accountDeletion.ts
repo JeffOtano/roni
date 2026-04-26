@@ -121,7 +121,11 @@ async function deleteGarminWebhookEventsBatch(
     if (doc.rawPayloadStorageId) {
       try {
         await ctx.storage.delete(doc.rawPayloadStorageId);
-      } catch {
+      } catch (error) {
+        console.error("[accountDeletion] failed to delete Garmin webhook storage blob", {
+          rawPayloadStorageId: doc.rawPayloadStorageId,
+          error,
+        });
         // Storage may already have been swept manually. Delete the row so
         // account deletion still converges.
       }

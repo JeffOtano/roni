@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  type ExternalActivitySource,
+  normalizeExternalActivitySource,
+} from "./externalActivitySources";
 import type { ExternalActivity } from "./types";
 
 const externalActivitySchema = z.object({
@@ -9,7 +13,7 @@ const externalActivitySchema = z.object({
   activeCalories: z.number(),
   totalCalories: z.number(),
   averageHeartRate: z.number(),
-  source: z.string(),
+  source: z.string().transform(normalizeExternalActivitySource),
   externalId: z.string(),
 });
 
@@ -21,18 +25,23 @@ const externalActivitiesSchema = z.array(externalActivitySchema);
  * (`id`, `userId`, `endTime`, `timezone`, `activeDuration`, `deviceId`) gets a
  * compile error instead of silently reading `undefined` at runtime.
  */
-export type ProjectedExternalActivity = Pick<
-  ExternalActivity,
-  | "workoutType"
-  | "beginTime"
-  | "totalDuration"
-  | "distance"
-  | "activeCalories"
-  | "totalCalories"
-  | "averageHeartRate"
-  | "source"
-  | "externalId"
->;
+export type ProjectedExternalActivity = Omit<
+  Pick<
+    ExternalActivity,
+    | "workoutType"
+    | "beginTime"
+    | "totalDuration"
+    | "distance"
+    | "activeCalories"
+    | "totalCalories"
+    | "averageHeartRate"
+    | "source"
+    | "externalId"
+  >,
+  "source"
+> & {
+  source: ExternalActivitySource;
+};
 
 /**
  * Project a raw /v6/users/{id}/external-activities response down to the fields

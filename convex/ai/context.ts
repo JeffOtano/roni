@@ -2,6 +2,7 @@ import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
+import { MAX_RECENT_WELLNESS_DAILY_ROWS } from "../garmin/wellnessDaily";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
 export { getRecencyLabel } from "./timeDecay";
@@ -15,10 +16,18 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./snapshotHelpers";
-import { formatGarminWellnessLines } from "./garminWellnessSnapshot";
+import {
+  formatGarminWellnessLines,
+  GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT,
+} from "./garminWellnessSnapshot";
 
 // Re-export for backward compatibility (tests, other consumers)
 export { type SnapshotSection, trimSnapshot, getHrIntensityLabel, formatExternalActivityLine };
+
+const GARMIN_WELLNESS_QUERY_LIMIT = Math.min(
+  GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT,
+  MAX_RECENT_WELLNESS_DAILY_ROWS,
+);
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery">,
@@ -76,7 +85,7 @@ export async function buildTrainingSnapshot(
     ctx
       .runQuery(internal.garmin.wellnessDaily.getRecentWellnessDaily, {
         userId: convexUserId,
-        limit: 7,
+        limit: GARMIN_WELLNESS_QUERY_LIMIT,
       })
       .catch(() => []),
   ]);

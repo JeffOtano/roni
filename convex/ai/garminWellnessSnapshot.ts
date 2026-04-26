@@ -1,4 +1,5 @@
 const SECONDS_PER_HOUR = 60 * 60;
+export const GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT = 7;
 
 export interface GarminWellnessSnapshotRow {
   calendarDate: string;
@@ -25,7 +26,7 @@ function formatNumber(value: number): string {
 export function formatGarminWellnessLines(rows: readonly GarminWellnessSnapshotRow[]): string[] {
   const lines = ["Garmin Recovery Signals:"];
 
-  for (const row of rows.slice(0, 7)) {
+  for (const row of rows.slice(0, GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT)) {
     const parts: string[] = [];
     if (row.sleepDurationSeconds !== undefined) {
       parts.push(`sleep ${formatHours(row.sleepDurationSeconds)}`);

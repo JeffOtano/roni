@@ -15,6 +15,7 @@
  * tables for every row that still has `status: "error"`.
  */
 
+import { isRateLimitError } from "@convex-dev/rate-limiter";
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -50,6 +51,7 @@ const BACKFILL_SUMMARY_TYPES = [
 ] as const;
 
 type BackfillSummaryType = (typeof BACKFILL_SUMMARY_TYPES)[number];
+type BackfillRateLimitedEntry = { summaryType: string; retryAfterSeconds?: number };
 
 const MIN_DAYS = 1;
 /**
@@ -132,6 +134,13 @@ function isDetailedRecoverySummary(summaryType: BackfillSummaryType): boolean {
   return (DETAILED_RECOVERY_SUMMARY_TYPES as readonly string[]).includes(summaryType);
 }
 
+export function remainingBackfillSummaryTypesAfter(
+  summaryType: BackfillSummaryType,
+): BackfillSummaryType[] {
+  const index = BACKFILL_SUMMARY_TYPES.indexOf(summaryType);
+  return index >= 0 ? BACKFILL_SUMMARY_TYPES.slice(index + 1) : [];
+}
+
 interface BackfillRequestResult {
   status: number;
   retryAfterSeconds?: number;
@@ -164,7 +173,17 @@ export const requestGarminBackfill = action({
 
     try {
       await ctx.runMutation(internal.garmin.connections.acquireBackfillSlot, { userId });
-    } catch {
+    } catch (error) {
+      if (!isRateLimitError(error)) {
+        console.error("[garminBackfill] failed to acquire backfill rate-limit slot", {
+          userId,
+          error,
+        });
+        return {
+          success: false,
+          error: "Unable to start Garmin backfill. Please try again later.",
+        };
+      }
       return {
         success: false,
         error: "Garmin backfill is limited to once per day. Please try again later.",
@@ -189,7 +208,7 @@ export const requestGarminBackfill = action({
 
     const chunks = chunkWindow(startSeconds, endSeconds, MAX_DAYS_PER_REQUEST);
     const acceptedSet = new Set<string>();
-    const rateLimited: { summaryType: string; retryAfterSeconds?: number }[] = [];
+    const rateLimited: BackfillRateLimitedEntry[] = [];
     const rejected: { summaryType: string; status: number }[] = [];
     let requestIndex = 0;
     let skipRemainingDetailedRecovery = false;
@@ -239,6 +258,12 @@ export const requestGarminBackfill = action({
             skipRemainingDetailedRecovery = true;
             break;
           }
+          rateLimited.push(
+            ...remainingBackfillSummaryTypesAfter(summaryType).map((deferredSummaryType) => ({
+              summaryType: deferredSummaryType,
+              retryAfterSeconds: requestResult.retryAfterSeconds,
+            })),
+          );
           stopAfterRateLimit = true;
           break;
         }

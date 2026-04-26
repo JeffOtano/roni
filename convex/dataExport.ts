@@ -95,10 +95,12 @@ function activityToExportRow(a: Activity) {
 function garminWellnessDailyToExportRow(
   row: Doc<"garminWellnessDaily">,
 ): GarminWellnessDailyExportRow {
-  const { _id, _creationTime, userId, ...exportRow } = row;
-  void _id;
-  void _creationTime;
-  void userId;
+  const {
+    _id: _unusedId,
+    _creationTime: _unusedCreationTime,
+    userId: _unusedUserId,
+    ...exportRow
+  } = row;
   return exportRow;
 }
 

@@ -655,7 +655,9 @@ export default defineSchema({
    * them (e.g. strength training has no distance; some devices don't
    * record HR). All signal-dependent fields are therefore optional.
    *
-   * `source` identifies the upstream system — "appleHealth", "garmin", etc.
+   * New writes normalize `source` to canonical values
+   * (`appleHealth`, `garmin`, or `other`) before persistence. The schema stays
+   * string-compatible so older rows can be repaired in place on next sync.
    * `externalId` is globally unique within a single source.
    */
   externalActivities: defineTable({

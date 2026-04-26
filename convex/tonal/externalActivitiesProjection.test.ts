@@ -51,9 +51,19 @@ describe("projectExternalActivities", () => {
       activeCalories: VALID_RAW.activeCalories,
       totalCalories: VALID_RAW.totalCalories,
       averageHeartRate: VALID_RAW.averageHeartRate,
-      source: VALID_RAW.source,
+      source: "appleHealth",
       externalId: VALID_RAW.externalId,
     });
+  });
+
+  it("normalizes source labels before persistence", () => {
+    expect(projectExternalActivities([{ ...VALID_RAW, source: "Apple Watch" }])[0].source).toBe(
+      "appleHealth",
+    );
+    expect(projectExternalActivities([{ ...VALID_RAW, source: "Garmin" }])[0].source).toBe(
+      "garmin",
+    );
+    expect(projectExternalActivities([{ ...VALID_RAW, source: "Strava" }])[0].source).toBe("other");
   });
 
   it("rejects payloads missing required fields", () => {

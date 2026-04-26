@@ -21,6 +21,8 @@ type BodyBatteryExtrema = Pick<
   "bodyBatteryHighestValue" | "bodyBatteryLowestValue"
 >;
 
+export const MAX_RECENT_WELLNESS_DAILY_ROWS = 30;
+
 const patchValidator = v.object({
   sleepDurationSeconds: v.optional(v.number()),
   deepSleepSeconds: v.optional(v.number()),
@@ -138,6 +140,6 @@ export const getRecentWellnessDaily = internalQuery({
       .query("garminWellnessDaily")
       .withIndex("by_userId_calendarDate", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(Math.max(0, Math.min(limit, 30)));
+      .take(Math.max(0, Math.min(limit, MAX_RECENT_WELLNESS_DAILY_ROWS)));
   },
 });

@@ -36,6 +36,14 @@ const ACCESS_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/acce
 const AUTHORIZE_URL = "https://connect.garmin.com/oauthConfirm";
 const USER_ID_URL = "https://apis.garmin.com/wellness-api/rest/user/id";
 const PERMISSIONS_URL = "https://apis.garmin.com/userPermissions/";
+const GARMIN_OAUTH_FETCH_TIMEOUT_MS = 15_000;
+
+function garminFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(GARMIN_OAUTH_FETCH_TIMEOUT_MS),
+  });
+}
 
 function parseFormResponse(body: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -88,39 +96,44 @@ export const startGarminOAuth = action({
       };
     }
 
-    const config = getGarminAppConfig();
+    try {
+      const config = getGarminAppConfig();
 
-    const signed = await signOAuth1Request(
-      { consumerKey: config.consumerKey, consumerSecret: config.consumerSecret },
-      {
+      const signed = await signOAuth1Request(
+        { consumerKey: config.consumerKey, consumerSecret: config.consumerSecret },
+        {
+          method: "POST",
+          url: REQUEST_TOKEN_URL,
+          extraSignableParams: { oauth_callback: config.callbackUrl },
+        },
+      );
+
+      const res = await garminFetch(REQUEST_TOKEN_URL, {
         method: "POST",
-        url: REQUEST_TOKEN_URL,
-        extraSignableParams: { oauth_callback: config.callbackUrl },
-      },
-    );
+        headers: { Authorization: signed.authorizationHeader },
+      });
+      if (!res.ok) {
+        return { success: false, error: `Garmin request_token failed: ${res.status}` };
+      }
+      const parsed = parseFormResponse(await res.text());
+      const requestToken = parsed.oauth_token;
+      const requestTokenSecret = parsed.oauth_token_secret;
+      if (!requestToken || !requestTokenSecret) {
+        return { success: false, error: "Malformed Garmin request_token response" };
+      }
 
-    const res = await fetch(REQUEST_TOKEN_URL, {
-      method: "POST",
-      headers: { Authorization: signed.authorizationHeader },
-    });
-    if (!res.ok) {
-      return { success: false, error: `Garmin request_token failed: ${res.status}` };
+      await ctx.runMutation(internal.garmin.connections.saveOauthState, {
+        userId,
+        requestToken,
+        requestTokenSecretEncrypted: await encryptGarminSecret(requestTokenSecret),
+      });
+
+      const authorizeUrl = `${AUTHORIZE_URL}?oauth_token=${encodeURIComponent(requestToken)}`;
+      return { success: true, authorizeUrl };
+    } catch (error) {
+      console.error("[garminOAuth] failed to start OAuth", error);
+      return { success: false, error: "Failed to start Garmin OAuth. Please try again." };
     }
-    const parsed = parseFormResponse(await res.text());
-    const requestToken = parsed.oauth_token;
-    const requestTokenSecret = parsed.oauth_token_secret;
-    if (!requestToken || !requestTokenSecret) {
-      return { success: false, error: "Malformed Garmin request_token response" };
-    }
-
-    await ctx.runMutation(internal.garmin.connections.saveOauthState, {
-      userId,
-      requestToken,
-      requestTokenSecretEncrypted: await encryptGarminSecret(requestTokenSecret),
-    });
-
-    const authorizeUrl = `${AUTHORIZE_URL}?oauth_token=${encodeURIComponent(requestToken)}`;
-    return { success: true, authorizeUrl };
   },
 });
 
@@ -150,93 +163,102 @@ export const completeGarminOAuth = action({
       return { success: false, error: "Session mismatch" };
     }
     const { userId } = claim;
-    const requestTokenSecret = await decryptGarminSecret(claim.requestTokenSecretEncrypted);
-
-    const config = getGarminAppConfig();
-
-    const signed = await signOAuth1Request(
-      {
-        consumerKey: config.consumerKey,
-        consumerSecret: config.consumerSecret,
-        token: args.oauthToken,
-        tokenSecret: requestTokenSecret,
-      },
-      {
-        method: "POST",
-        url: ACCESS_TOKEN_URL,
-        extraSignableParams: { oauth_verifier: args.oauthVerifier },
-      },
-    );
-
-    const accessRes = await fetch(ACCESS_TOKEN_URL, {
-      method: "POST",
-      headers: { Authorization: signed.authorizationHeader },
-    });
-    if (!accessRes.ok) {
-      return { success: false, error: `Garmin access_token failed: ${accessRes.status}` };
-    }
-    const parsed = parseFormResponse(await accessRes.text());
-    const accessToken = parsed.oauth_token;
-    const accessTokenSecret = parsed.oauth_token_secret;
-    if (!accessToken || !accessTokenSecret) {
-      return { success: false, error: "Malformed Garmin access_token response" };
-    }
-
-    // Fetch the Garmin user id so we can key webhook payloads to our user.
-    const userIdSigned = await signOAuth1Request(
-      {
-        consumerKey: config.consumerKey,
-        consumerSecret: config.consumerSecret,
-        token: accessToken,
-        tokenSecret: accessTokenSecret,
-      },
-      { method: "GET", url: USER_ID_URL },
-    );
-    const userIdRes = await fetch(USER_ID_URL, {
-      headers: { Authorization: userIdSigned.authorizationHeader },
-    });
-    if (!userIdRes.ok) {
-      return { success: false, error: `Garmin /user/id failed: ${userIdRes.status}` };
-    }
-    const userIdParsed = userIdResponseSchema.safeParse(await userIdRes.json());
-    if (!userIdParsed.success) {
-      return { success: false, error: "Malformed Garmin /user/id response" };
-    }
-    const garminUserId = userIdParsed.data.userId;
-
-    // Fetch permissions (at least WORKOUT_IMPORT is expected).
-    const permSigned = await signOAuth1Request(
-      {
-        consumerKey: config.consumerKey,
-        consumerSecret: config.consumerSecret,
-        token: accessToken,
-        tokenSecret: accessTokenSecret,
-      },
-      { method: "GET", url: PERMISSIONS_URL },
-    );
-    const permRes = await fetch(PERMISSIONS_URL, {
-      headers: { Authorization: permSigned.authorizationHeader },
-    });
-    const permissionsResult = await parsePermissionsResponse(permRes);
-    if (!permissionsResult.success) {
-      return { success: false, error: permissionsResult.error };
-    }
 
     try {
-      await ctx.runMutation(internal.garmin.connections.upsertConnection, {
-        userId,
-        garminUserId,
-        accessTokenEncrypted: await encryptGarminSecret(accessToken),
-        accessTokenSecretEncrypted: await encryptGarminSecret(accessTokenSecret),
-        permissions: permissionsResult.permissions,
+      const requestTokenSecret = await decryptGarminSecret(claim.requestTokenSecretEncrypted);
+
+      const config = getGarminAppConfig();
+
+      const signed = await signOAuth1Request(
+        {
+          consumerKey: config.consumerKey,
+          consumerSecret: config.consumerSecret,
+          token: args.oauthToken,
+          tokenSecret: requestTokenSecret,
+        },
+        {
+          method: "POST",
+          url: ACCESS_TOKEN_URL,
+          extraSignableParams: { oauth_verifier: args.oauthVerifier },
+        },
+      );
+
+      const accessRes = await garminFetch(ACCESS_TOKEN_URL, {
+        method: "POST",
+        headers: { Authorization: signed.authorizationHeader },
       });
-    } catch (err) {
+      if (!accessRes.ok) {
+        return { success: false, error: `Garmin access_token failed: ${accessRes.status}` };
+      }
+      const parsed = parseFormResponse(await accessRes.text());
+      const accessToken = parsed.oauth_token;
+      const accessTokenSecret = parsed.oauth_token_secret;
+      if (!accessToken || !accessTokenSecret) {
+        return { success: false, error: "Malformed Garmin access_token response" };
+      }
+
+      // Fetch the Garmin user id so we can key webhook payloads to our user.
+      const userIdSigned = await signOAuth1Request(
+        {
+          consumerKey: config.consumerKey,
+          consumerSecret: config.consumerSecret,
+          token: accessToken,
+          tokenSecret: accessTokenSecret,
+        },
+        { method: "GET", url: USER_ID_URL },
+      );
+      const userIdRes = await garminFetch(USER_ID_URL, {
+        headers: { Authorization: userIdSigned.authorizationHeader },
+      });
+      if (!userIdRes.ok) {
+        return { success: false, error: `Garmin /user/id failed: ${userIdRes.status}` };
+      }
+      const userIdParsed = userIdResponseSchema.safeParse(await userIdRes.json());
+      if (!userIdParsed.success) {
+        return { success: false, error: "Malformed Garmin /user/id response" };
+      }
+      const garminUserId = userIdParsed.data.userId;
+
+      // Fetch permissions (at least WORKOUT_IMPORT is expected).
+      const permSigned = await signOAuth1Request(
+        {
+          consumerKey: config.consumerKey,
+          consumerSecret: config.consumerSecret,
+          token: accessToken,
+          tokenSecret: accessTokenSecret,
+        },
+        { method: "GET", url: PERMISSIONS_URL },
+      );
+      const permRes = await garminFetch(PERMISSIONS_URL, {
+        headers: { Authorization: permSigned.authorizationHeader },
+      });
+      const permissionsResult = await parsePermissionsResponse(permRes);
+      if (!permissionsResult.success) {
+        return { success: false, error: permissionsResult.error };
+      }
+
+      try {
+        await ctx.runMutation(internal.garmin.connections.upsertConnection, {
+          userId,
+          garminUserId,
+          accessTokenEncrypted: await encryptGarminSecret(accessToken),
+          accessTokenSecretEncrypted: await encryptGarminSecret(accessTokenSecret),
+          permissions: permissionsResult.permissions,
+        });
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Failed to save Garmin connection",
+        };
+      }
+
+      return { success: true, garminUserId };
+    } catch (error) {
+      console.error("[garminOAuth] failed to complete OAuth", error);
       return {
         success: false,
-        error: err instanceof Error ? err.message : "Failed to save Garmin connection",
+        error: "Failed to complete Garmin OAuth. Please try connecting Garmin again.",
       };
     }
-
-    return { success: true, garminUserId };
   },
 });

@@ -11,6 +11,8 @@
  * accepts them.
  */
 
+import { EXTERNAL_ACTIVITY_SOURCES } from "../tonal/externalActivitySources";
+
 const MINUTES_TO_SECONDS = 60;
 
 export interface NormalizedGarminActivity {
@@ -18,7 +20,7 @@ export interface NormalizedGarminActivity {
   workoutType: string;
   beginTime: string;
   totalDuration: number;
-  source: "garmin";
+  source: typeof EXTERNAL_ACTIVITY_SOURCES.GARMIN;
   activeCalories?: number;
   /** Garmin Activity summaries provide active kilocalories, not total calories. */
   totalCalories?: number;
@@ -89,7 +91,7 @@ function normalizeOne(entry: unknown): NormalizedGarminActivity | null {
     workoutType: activityType,
     beginTime: new Date(startTime * 1000).toISOString(),
     totalDuration: duration,
-    source: "garmin",
+    source: EXTERNAL_ACTIVITY_SOURCES.GARMIN,
     activeCalories: optionalNumber(entry.activeKilocalories),
     averageHeartRate: optionalNumber(entry.averageHeartRateInBeatsPerMinute),
     maxHeartRate: optionalNumber(entry.maxHeartRateInBeatsPerMinute),

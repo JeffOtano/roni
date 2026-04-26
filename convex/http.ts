@@ -93,10 +93,22 @@ for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
         new Blob([rawBody], { type: "application/json" }),
       );
 
-      const eventId = await ctx.runMutation(internal.garmin.webhookEvents.recordReceived, {
-        eventType,
-        rawPayloadStorageId,
-      });
+      const eventId = await (async () => {
+        try {
+          return await ctx.runMutation(internal.garmin.webhookEvents.recordReceived, {
+            eventType,
+            rawPayloadStorageId,
+          });
+        } catch (err) {
+          console.error("[garmin] failed to record webhook payload", {
+            rawPayloadStorageId,
+            error: err,
+          });
+          // Without a webhookEvents row there is no eventId to dispatch or
+          // reconcile, so fail this request and let Garmin retry the delivery.
+          throw err;
+        }
+      })();
 
       try {
         await ctx.scheduler.runAfter(0, internal.garmin.webhookDispatch.dispatchGarminWebhook, {

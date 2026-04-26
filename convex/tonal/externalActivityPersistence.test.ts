@@ -3,7 +3,11 @@ import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
+import { EXTERNAL_ACTIVITY_SOURCES } from "./externalActivitySources";
 
+// Vite normalizes same-directory glob keys to "./foo.ts" instead of
+// "../tonal/foo.ts", which breaks convex-test module resolution.
+// Remap ./foo.ts -> ../tonal/foo.ts to match the expected path format.
 const rawModules = import.meta.glob("../**/*.*s");
 const modules: typeof rawModules = {};
 for (const [key, value] of Object.entries(rawModules)) {
@@ -22,7 +26,7 @@ const baseActivity = {
   activeCalories: 300,
   totalCalories: 350,
   averageHeartRate: 145,
-  source: "apple_health",
+  source: EXTERNAL_ACTIVITY_SOURCES.APPLE_HEALTH,
   distance: 5.0,
 };
 
@@ -46,7 +50,7 @@ describe("persistExternalActivities", () => {
       ctx.db
         .query("externalActivities")
         .withIndex("by_userId_source_externalId", (q) =>
-          q.eq("userId", userId).eq("source", "apple_health").eq("externalId", "ext-1"),
+          q.eq("userId", userId).eq("source", "appleHealth").eq("externalId", "ext-1"),
         )
         .collect(),
     );
@@ -63,7 +67,7 @@ describe("persistExternalActivities", () => {
       ctx.db
         .query("externalActivities")
         .withIndex("by_userId_source_externalId", (q) =>
-          q.eq("userId", userId).eq("source", "apple_health").eq("externalId", "ext-1"),
+          q.eq("userId", userId).eq("source", "appleHealth").eq("externalId", "ext-1"),
         )
         .collect(),
     );
@@ -90,7 +94,7 @@ describe("persistExternalActivities", () => {
       ctx.db
         .query("externalActivities")
         .withIndex("by_userId_source_externalId", (q) =>
-          q.eq("userId", userId).eq("source", "apple_health").eq("externalId", "ext-1"),
+          q.eq("userId", userId).eq("source", "appleHealth").eq("externalId", "ext-1"),
         )
         .collect(),
     );
@@ -107,7 +111,12 @@ describe("persistExternalActivities", () => {
       userId,
       activities: [
         baseActivity,
-        { ...baseActivity, source: "garmin", workoutType: "RUNNING", totalCalories: 410 },
+        {
+          ...baseActivity,
+          source: EXTERNAL_ACTIVITY_SOURCES.GARMIN,
+          workoutType: "RUNNING",
+          totalCalories: 410,
+        },
       ],
     });
 
@@ -119,7 +128,37 @@ describe("persistExternalActivities", () => {
     );
 
     expect(rows).toHaveLength(2);
-    expect(rows.map((row) => row.source).sort()).toEqual(["apple_health", "garmin"]);
+    expect(rows.map((row) => row.source).sort()).toEqual(["appleHealth", "garmin"]);
+  });
+
+  test("canonicalizes a legacy source when matching an existing row", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("externalActivities", {
+        userId,
+        ...baseActivity,
+        source: "Apple Watch",
+        syncedAt: 1000,
+      });
+    });
+
+    await t.mutation(internal.tonal.historySyncMutations.persistExternalActivities, {
+      userId,
+      activities: [{ ...baseActivity, totalCalories: 401 }],
+    });
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db
+        .query("externalActivities")
+        .withIndex("by_userId_externalId", (q) => q.eq("userId", userId).eq("externalId", "ext-1"))
+        .collect(),
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe("appleHealth");
+    expect(rows[0].totalCalories).toBe(401);
   });
 
   test("updates Garmin-specific activity fields on resend", async () => {
@@ -127,7 +166,7 @@ describe("persistExternalActivities", () => {
     const userId = await createUser(t);
     const garminActivity = {
       ...baseActivity,
-      source: "garmin",
+      source: EXTERNAL_ACTIVITY_SOURCES.GARMIN,
       maxHeartRate: 160,
       elevationGainMeters: 25,
       avgPaceSecondsPerKm: 330,

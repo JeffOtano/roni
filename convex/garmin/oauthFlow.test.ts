@@ -27,12 +27,17 @@ describe("parsePermissionsResponse", () => {
     const malformedResponse = new Response(JSON.stringify({ permissions: ["ACTIVITY_EXPORT"] }), {
       status: 200,
     });
+    const invalidJsonResponse = new Response("not-json", { status: 200 });
 
     await expect(parsePermissionsResponse(emptyResponse)).resolves.toEqual({
       success: false,
       error: "Malformed Garmin permissions response",
     });
     await expect(parsePermissionsResponse(malformedResponse)).resolves.toEqual({
+      success: false,
+      error: "Malformed Garmin permissions response",
+    });
+    await expect(parsePermissionsResponse(invalidJsonResponse)).resolves.toEqual({
       success: false,
       error: "Malformed Garmin permissions response",
     });

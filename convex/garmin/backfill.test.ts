@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { chunkWindow, parseRetryAfterMs, requestBackfillChunk } from "./backfill";
+import {
+  chunkWindow,
+  parseRetryAfterMs,
+  remainingBackfillSummaryTypesAfter,
+  requestBackfillChunk,
+} from "./backfill";
 
 const SECONDS_PER_DAY = 86_400;
 
@@ -90,5 +95,19 @@ describe("requestBackfillChunk", () => {
 
     await expect(result).resolves.toEqual({ status: 599 });
     expect(getOnce).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("remainingBackfillSummaryTypesAfter", () => {
+  it("returns every deferred summary type after a core summary is rate-limited", () => {
+    expect(remainingBackfillSummaryTypesAfter("dailies")).toEqual([
+      "sleeps",
+      "stressDetails",
+      "hrv",
+      "userMetrics",
+      "pulseOx",
+      "respiration",
+      "skinTemp",
+    ]);
   });
 });

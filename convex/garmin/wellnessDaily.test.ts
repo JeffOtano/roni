@@ -15,6 +15,29 @@ describe("compactWellnessFields", () => {
       steps: 10_000,
     });
   });
+
+  it("preserves defined falsy numeric values", () => {
+    expect(
+      compactWellnessFields({
+        avgStress: 0,
+        steps: 0,
+        skinTempDeviationCelsius: 0,
+      }),
+    ).toEqual({
+      avgStress: 0,
+      steps: 0,
+      skinTempDeviationCelsius: 0,
+    });
+  });
+
+  it("returns an empty object when every field is undefined", () => {
+    expect(
+      compactWellnessFields({
+        avgStress: undefined,
+        hrvLastNightAvg: undefined,
+      }),
+    ).toEqual({});
+  });
 });
 
 describe("mergeWellnessFields", () => {

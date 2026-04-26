@@ -9,6 +9,9 @@ import {
   TIER_THRESHOLDS_MS,
 } from "./cacheRefreshTiering";
 
+// Vite normalizes same-directory glob keys to "./foo.ts" instead of
+// "../tonal/foo.ts", which breaks convex-test module resolution.
+// Remap ./foo.ts -> ../tonal/foo.ts to match the expected path format.
 const rawModules = import.meta.glob("../**/*.*s");
 const modules: typeof rawModules = {};
 for (const [key, value] of Object.entries(rawModules)) {

@@ -5,6 +5,9 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import schema from "../schema";
 
+// Vite normalizes same-directory glob keys to "./foo.ts" instead of
+// "../garmin/foo.ts", which breaks convex-test module resolution.
+// Remap ./foo.ts -> ../garmin/foo.ts to match the expected path format.
 const rawModules = import.meta.glob("../**/*.*s");
 const modules: typeof rawModules = {};
 for (const [key, value] of Object.entries(rawModules)) {

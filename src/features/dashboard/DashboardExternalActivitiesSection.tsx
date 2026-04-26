@@ -1,25 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
 import type { DashboardExternalActivity } from "../../../convex/dashboard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EXTERNAL_ACTIVITY_SOURCES } from "../../../convex/tonal/externalActivitySources";
+import { ActivityCard } from "@/features/dashboard/ActivityCard";
 import { ExternalActivitiesList } from "@/features/dashboard/ExternalActivitiesList";
 import { DashboardCardSkeleton } from "@/features/dashboard/DashboardCardSkeleton";
-
-function ActivityCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Card className="animate-in fade-in duration-300">
-      <CardHeader>
-        <CardTitle>
-          <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            {title}
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
 
 interface DashboardExternalActivitiesSectionProps {
   activities: DashboardExternalActivity[] | undefined;
@@ -34,7 +19,7 @@ export function DashboardExternalActivitiesSection({
   const otherActivities: DashboardExternalActivity[] = [];
 
   for (const activity of activities) {
-    if (activity.source.toLowerCase() === "garmin") {
+    if (activity.source === EXTERNAL_ACTIVITY_SOURCES.GARMIN) {
       garminActivities.push(activity);
     } else {
       otherActivities.push(activity);

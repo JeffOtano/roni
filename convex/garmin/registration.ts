@@ -4,6 +4,7 @@ import { decryptGarminSecret, getGarminAppConfig } from "./credentials";
 import { signOAuth1Request } from "./oauth1";
 
 const REGISTRATION_URL = "https://apis.garmin.com/wellness-api/rest/user/registration";
+const GARMIN_REGISTRATION_FETCH_TIMEOUT_MS = 5_000;
 
 export type DisconnectGarminResult =
   | { success: true; warning?: string }
@@ -40,6 +41,7 @@ export const disconnectMyGarmin = action({
       const res = await fetch(REGISTRATION_URL, {
         method: "DELETE",
         headers: { Authorization: signed.authorizationHeader },
+        signal: AbortSignal.timeout(GARMIN_REGISTRATION_FETCH_TIMEOUT_MS),
       });
       if (!res.ok && res.status !== 401 && res.status !== 403 && res.status !== 404) {
         warning = `Garmin registration removal returned ${res.status}; local disconnect completed.`;

@@ -123,6 +123,7 @@ import type * as tonal_customWorkoutsProjection from "../tonal/customWorkoutsPro
 import type * as tonal_encryption from "../tonal/encryption.js";
 import type * as tonal_enrichmentSync from "../tonal/enrichmentSync.js";
 import type * as tonal_externalActivitiesProjection from "../tonal/externalActivitiesProjection.js";
+import type * as tonal_externalActivitySources from "../tonal/externalActivitySources.js";
 import type * as tonal_formattedSummaryProjection from "../tonal/formattedSummaryProjection.js";
 import type * as tonal_hardware from "../tonal/hardware.js";
 import type * as tonal_historySync from "../tonal/historySync.js";
@@ -292,6 +293,7 @@ declare const fullApi: ApiFromModules<{
   "tonal/encryption": typeof tonal_encryption;
   "tonal/enrichmentSync": typeof tonal_enrichmentSync;
   "tonal/externalActivitiesProjection": typeof tonal_externalActivitiesProjection;
+  "tonal/externalActivitySources": typeof tonal_externalActivitySources;
   "tonal/formattedSummaryProjection": typeof tonal_formattedSummaryProjection;
   "tonal/hardware": typeof tonal_hardware;
   "tonal/historySync": typeof tonal_historySync;

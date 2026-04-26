@@ -24,8 +24,9 @@ describe("verifyGarminWebhookSignature", () => {
 
   it("rejects missing, unconfigured, and invalid secrets", async () => {
     const req = new Request("https://example.com/garmin/webhook/activities");
-    await expect(verifyGarminWebhookSignature(req, "{}")).resolves.toMatchObject({
+    await expect(verifyGarminWebhookSignature(req, "{}")).resolves.toEqual({
       valid: false,
+      reason: "Garmin webhook secret is not configured",
     });
 
     vi.stubEnv("GARMIN_WEBHOOK_SECRET", "secret-1");

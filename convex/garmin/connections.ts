@@ -79,6 +79,13 @@ export const getByGarminUserId = internalQuery({
         q.eq("garminUserId", garminUserId).eq("status", "active"),
       )
       .take(2);
+    if (rows.length > 1) {
+      console.error("[garmin] duplicate active connections for Garmin user", {
+        garminUserId,
+        connectionIds: rows.map((row) => row._id),
+        userIds: rows.map((row) => row.userId),
+      });
+    }
     return rows.length === 1 ? rows[0] : null;
   },
 });

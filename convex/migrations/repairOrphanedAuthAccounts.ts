@@ -28,7 +28,7 @@ import {
 } from "../_generated/server";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { USER_TABLE_BATCH_TABLES } from "../userData";
+import { USER_TABLE_BATCH_TABLES, type UserTableBatchTable } from "../userData";
 
 // Emails with duplicate user rows from the pre-fix prod scan.
 const AFFECTED_EMAILS = [
@@ -40,28 +40,44 @@ const AFFECTED_EMAILS = [
   "mike.byron@outlook.com",
 ] as const;
 
-// Safety check: every user-scoped table that has a `userId` index. If an
-// orphan has any row here we abort that email and surface it in the report,
-// since orphans should be completely empty.
-const SAFETY_INDEXES: Record<string, string> = {
+// Safety check: every user-scoped table that account deletion drains via
+// USER_TABLE_BATCH_TABLES. `satisfies Record<UserTableBatchTable, string>`
+// keeps this migration from silently missing newly registered tables.
+const USER_TABLE_BATCH_SAFETY_INDEXES = {
   aiUsage: "by_userId",
+  aiBudgetWarnings: "by_userId",
+  aiRun: "by_userId_createdAt",
   checkIns: "by_userId",
-  completedWorkouts: "by_userId_activityId",
+  coachState: "by_userId",
+  completedWorkouts: "by_userId_date",
   currentStrengthScores: "by_userId",
   emailChangeRequests: "by_userId",
-  exercisePerformance: "by_userId_movementId",
-  externalActivities: "by_userId_externalId",
-  goals: "by_userId",
+  goals: "by_userId_status",
+  garminConnections: "by_userId",
+  garminOauthStates: "by_userId",
+  garminWebhookEvents: "by_userId",
+  garminWellnessDaily: "by_userId",
   injuries: "by_userId",
   muscleReadiness: "by_userId",
-  personalRecords: "by_userId_movementId",
   strengthScoreSnapshots: "by_userId_date",
-  tonalCache: "by_userId_dataType",
-  trainingBlocks: "by_userId",
-  userProfiles: "by_userId",
-  weekPlans: "by_userId",
-  workoutFeedback: "by_userId",
+  trainingBlocks: "by_userId_status",
+  userProfileActivity: "by_userId",
+  weekPlans: "by_userId_weekStartDate",
+  workoutFeedback: "by_userId_createdAt",
   workoutPlans: "by_userId",
+} satisfies Record<UserTableBatchTable, string>;
+
+const SPECIALIZED_SAFETY_INDEXES = {
+  exercisePerformance: "by_userId_movementId",
+  externalActivities: "by_userId_externalId",
+  personalRecords: "by_userId_movementId",
+  tonalCache: "by_userId_dataType",
+  userProfiles: "by_userId",
+};
+
+const SAFETY_INDEXES: Record<string, string> = {
+  ...USER_TABLE_BATCH_SAFETY_INDEXES,
+  ...SPECIALIZED_SAFETY_INDEXES,
 };
 
 type PlanResult =
