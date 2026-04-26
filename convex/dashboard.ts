@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { normalizeTargetArea } from "./lib/targetArea";
 import type { MuscleReadiness, StrengthDistribution, StrengthScore } from "./tonal/types";
+import { patchUserActivity } from "./userProfileActivity";
 
 // ---------------------------------------------------------------------------
 // Return types
@@ -217,6 +218,7 @@ export const triggerBackfillIfNeeded = mutation({
     if (!profile || profile.syncStatus) return;
 
     await ctx.db.patch(profile._id, { syncStatus: "syncing" });
+    await patchUserActivity(ctx, userId, { syncStatus: "syncing" });
     await ctx.scheduler.runAfter(0, internal.tonal.historySync.startBackfillUserHistory, {
       userId,
     });

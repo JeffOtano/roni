@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalQuery, mutation } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
+import { patchUserActivity } from "./userProfileActivity";
 import { computeNextSyncAt } from "./tonal/cacheRefreshTiering";
 
 const APP_ACTIVITY_THROTTLE_MS = 30 * 60 * 1000;
@@ -64,6 +65,10 @@ export const recordAppActivity = mutation({
       appLastActiveAt: now,
       lastActiveAt: now,
       nextTonalSyncAt: computeNextSyncAt(now, now, profile.lastTonalSyncAt),
+    });
+    await patchUserActivity(ctx, userId, {
+      appLastActiveAt: now,
+      lastActiveAt: now,
     });
   },
 });

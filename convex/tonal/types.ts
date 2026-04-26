@@ -277,10 +277,10 @@ export interface TonalExploreGroup {
   tiles: TonalExploreTile[];
 }
 
-// Strength score history from GET /v6/users/{userId}/strength-scores/history
+// Strength score history from GET /v6/users/{userId}/strength-scores/history.
+// Projected to the fields readers consume; raw response includes per-row `id`
+// and `userId` that no caller reads.
 export interface StrengthScoreHistoryEntry {
-  id: string;
-  userId: string;
   workoutActivityId: string;
   upper: number;
   lower: number;
@@ -289,16 +289,14 @@ export interface StrengthScoreHistoryEntry {
   activityTime: string;
 }
 
-// Formatted workout summary from GET /v6/formatted/users/{userId}/workout-summaries/{summaryId}
+// Formatted workout summary from GET /v6/formatted/users/{userId}/workout-summaries/{summaryId}.
+// Projected to the per-movement totalVolume readers consume; raw response also
+// includes a per-rep `sets` array per movement that no caller reads.
 export interface FormattedWorkoutSummary {
   movementSets: FormattedMovementSet[];
-  [key: string]: unknown;
 }
 
 export interface FormattedMovementSet {
   movementId: string;
   totalVolume: number;
-  totalOnMachineVolume: number;
-  totalWork: number;
-  sets: unknown[];
 }

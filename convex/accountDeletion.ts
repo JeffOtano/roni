@@ -91,6 +91,7 @@ async function takeBatchForDeletion(
     case "strengthScoreSnapshots":
     case "currentStrengthScores":
     case "muscleReadiness":
+    case "userProfileActivity":
     case "garminConnections":
     case "garminOauthStates":
     case "garminWellnessDaily":

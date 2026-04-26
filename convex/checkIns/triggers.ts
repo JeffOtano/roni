@@ -10,7 +10,8 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { CheckInTrigger } from "./content";
-import type { Activity, ExternalActivity } from "../tonal/types";
+import type { Activity } from "../tonal/types";
+import type { ProjectedExternalActivity } from "../tonal/externalActivitiesProjection";
 import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import { getWeekStartDateString } from "../weekPlans";
 
@@ -185,10 +186,10 @@ async function evaluateHighExternalLoad(
   userId: Id<"users">,
   now: number,
 ): Promise<TriggerResult | null> {
-  const externals = (await ctx.runAction(internal.tonal.proxy.fetchExternalActivities, {
+  const externals = (await ctx.runAction(internal.tonal.proxyProjected.fetchExternalActivities, {
     userId,
     limit: 20,
-  })) as ExternalActivity[];
+  })) as ProjectedExternalActivity[];
 
   const seventyTwoHoursAgo = now - 3 * 24 * 60 * 60 * 1000;
   const recentVigorous = externals.filter((e) => {
