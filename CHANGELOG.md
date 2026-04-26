@@ -2,6 +2,48 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0](https://github.com/JeffOtano/roni/compare/v0.5.0...v0.6.0) (2026-04-26)
+
+
+### Features
+
+* **ai:** add aiRun telemetry table for per-turn observability ([#249](https://github.com/JeffOtano/roni/issues/249)) ([f61df11](https://github.com/JeffOtano/roni/commit/f61df11e238dec0d5e7cbd57e0eefec3566b699f))
+* **ai:** attribute transient provider outages to the upstream, not Roni ([#254](https://github.com/JeffOtano/roni/issues/254)) ([fde6ec9](https://github.com/JeffOtano/roni/commit/fde6ec966bf80051f6f450c4af0cec77b65fbc09))
+* **ai:** internalQuery to measure cache hit rate by provider ([#262](https://github.com/JeffOtano/roni/issues/262)) ([5ad9d14](https://github.com/JeffOtano/roni/commit/5ad9d14d0004d93800d661664fe5e95c481df18f))
+* **ai:** migrate AI observability from PostHog to Phoenix Cloud ([#251](https://github.com/JeffOtano/roni/issues/251)) ([946053c](https://github.com/JeffOtano/roni/commit/946053c5193639bfa8d5d84f8f2df1d8acae892b))
+* **ai:** wire PostHog LLM Analytics via Vercel AI SDK telemetry ([#246](https://github.com/JeffOtano/roni/issues/246)) ([749930d](https://github.com/JeffOtano/roni/commit/749930d39712898cfbd3dc481f3c00a2546e6458))
+* **evals:** gate nightly experiment on evaluator scores ([#266](https://github.com/JeffOtano/roni/issues/266)) ([5863b65](https://github.com/JeffOtano/roni/commit/5863b657f8b10c0bc9e571334bf8e45a1395b660))
+* **garmin:** harden integration and dashboard UX ([#273](https://github.com/JeffOtano/roni/issues/273)) ([8ec425d](https://github.com/JeffOtano/roni/commit/8ec425de386e1206f876063f42226dac84e3887c))
+* **nav:** drop /prs from nav, elevate Dashboard PR tile as the destination ([#247](https://github.com/JeffOtano/roni/issues/247)) ([2b7f1a0](https://github.com/JeffOtano/roni/commit/2b7f1a0b554c81de79054f5c21b5a06171b64267))
+
+
+### Bug Fixes
+
+* **ai:** place training snapshot in system prefix (Gemini rejects mid-conversation system messages) ([#259](https://github.com/JeffOtano/roni/issues/259)) ([f052d0d](https://github.com/JeffOtano/roni/commit/f052d0db5dad8c1d409b3f6fbbdd3c885851c621))
+* **dashboard:** workout date shows 'yesterday' instead of 'today' for same-day workouts ([#250](https://github.com/JeffOtano/roni/issues/250)) ([f7c5d40](https://github.com/JeffOtano/roni/commit/f7c5d40e65ff3c54edfe3a93c584382b50467f44))
+* **tonal:** accept optional prescribedReps on workout set activity ([#248](https://github.com/JeffOtano/roni/issues/248)) ([6946df7](https://github.com/JeffOtano/roni/commit/6946df7b0fa7f8a4d616f32e0c6ea4bc29774b75))
+* triage 7 Sentry issues (~1500 events, 30+ users) ([#244](https://github.com/JeffOtano/roni/issues/244)) ([3190a77](https://github.com/JeffOtano/roni/commit/3190a777969096631d564a0f46235da82f61e32e))
+* workout program names in history ([#263](https://github.com/JeffOtano/roni/issues/263)) ([be6c55d](https://github.com/JeffOtano/roni/commit/be6c55df46c9713e4a294753c79136ed1edaec55))
+
+
+### Performance Improvements
+
+* **ai:** move training snapshot out of the cached system prefix ([#256](https://github.com/JeffOtano/roni/issues/256)) ([f235549](https://github.com/JeffOtano/roni/commit/f2355499339aeb76d70eb9e06e500de52761607b))
+* **ai:** provider-aware snapshot placement + last-assistant cache marker for claude ([#261](https://github.com/JeffOtano/roni/issues/261)) ([a39d051](https://github.com/JeffOtano/roni/commit/a39d051e74382cc2aea540ce7624f5ca929701bc))
+* **ai:** remove exercise catalog from snapshot ([#264](https://github.com/JeffOtano/roni/issues/264)) ([f3448b6](https://github.com/JeffOtano/roni/commit/f3448b68a40f229a4e5742110840c139dda98ed3))
+* **ai:** stack 3 anthropic cache breakpoints across tools, system, history ([#260](https://github.com/JeffOtano/roni/issues/260)) ([82ffe31](https://github.com/JeffOtano/roni/commit/82ffe31269563c067fb2c6c69961ea0febfdc64a))
+* bound telemetry table growth and shrink tool previews ([#271](https://github.com/JeffOtano/roni/issues/271)) ([1505644](https://github.com/JeffOtano/roni/commit/1505644cf76f4b9e19c7ae1bf4c79b11cd2f1e62))
+* drop redundant by_userId indexes covered by compounds ([#270](https://github.com/JeffOtano/roni/issues/270)) ([84de302](https://github.com/JeffOtano/roni/commit/84de302ab3a54178aedcf7eff26c3bf62469289f))
+* project Tonal proxy cache payloads to fields readers use ([#269](https://github.com/JeffOtano/roni/issues/269)) ([237bf5d](https://github.com/JeffOtano/roni/commit/237bf5d0aa9e9d832fcf0edf125ad992d47f9fd6))
+* reduce Convex background sync churn ([#267](https://github.com/JeffOtano/roni/issues/267)) ([6975b93](https://github.com/JeffOtano/roni/commit/6975b933d52c8297f2d8c7c2b8dbb0c349c7c303))
+* split high-churn user activity state out of userProfiles ([#272](https://github.com/JeffOtano/roni/issues/272)) ([e2ccb73](https://github.com/JeffOtano/roni/commit/e2ccb738ad7c8fdd139c9da694007ef1412c4636))
+* tier background sync cadence by recent app activity ([#268](https://github.com/JeffOtano/roni/issues/268)) ([81fd9fa](https://github.com/JeffOtano/roni/commit/81fd9fa3933572f6088ef99671f0c3839e645baf))
+
+
+### Documentation
+
+* **privacy:** disclose garmin integration for partner review ([#257](https://github.com/JeffOtano/roni/issues/257)) ([8db8e35](https://github.com/JeffOtano/roni/commit/8db8e357ae2341c13df15d8eb09c9063899e218c))
+
 ## [0.5.0](https://github.com/JeffOtano/roni/compare/v0.4.0...v0.5.0) (2026-04-20)
 
 
