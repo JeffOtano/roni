@@ -1,7 +1,11 @@
 import { v } from "convex/values";
 import type { GenericId } from "convex/values";
 import { internalMutation, type MutationCtx } from "./_generated/server";
-import { BY_USER_ID_BATCH_TABLES, type ByUserIdBatchTable } from "./userData";
+import {
+  type ByUserIdBatchTable,
+  USER_TABLE_BATCH_TABLES,
+  type UserTableBatchTable,
+} from "./userData";
 import type { Id } from "./_generated/dataModel";
 import { clearForUser as clearPersonalRecordsForUser } from "./personalRecords";
 
@@ -10,12 +14,11 @@ const BATCH_SIZE = 500;
 // Convex's 16 MiB per-call read limit. Keep this small enough that even
 // worst-case rows stay well under the limit.
 const TONAL_CACHE_BATCH_SIZE = 10;
-
 const userTableValidator = v.union(
-  ...(BY_USER_ID_BATCH_TABLES.map((table) => v.literal(table)) as [
-    ReturnType<typeof v.literal<ByUserIdBatchTable>>,
-    ReturnType<typeof v.literal<ByUserIdBatchTable>>,
-    ...Array<ReturnType<typeof v.literal<ByUserIdBatchTable>>>,
+  ...(USER_TABLE_BATCH_TABLES.map((table) => v.literal(table)) as [
+    ReturnType<typeof v.literal<UserTableBatchTable>>,
+    ReturnType<typeof v.literal<UserTableBatchTable>>,
+    ...Array<ReturnType<typeof v.literal<UserTableBatchTable>>>,
   ]),
 );
 
@@ -91,7 +94,6 @@ async function takeBatchForDeletion(
     case "garminConnections":
     case "garminOauthStates":
     case "garminWellnessDaily":
-    case "garminWebhookEvents":
       return (
         await ctx.db
           .query(table)
@@ -105,10 +107,37 @@ async function takeBatchForDeletion(
   }
 }
 
+async function deleteGarminWebhookEventsBatch(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+): Promise<boolean> {
+  const docs = await ctx.db
+    .query("garminWebhookEvents")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .take(BATCH_SIZE);
+
+  for (const doc of docs) {
+    if (doc.rawPayloadStorageId) {
+      try {
+        await ctx.storage.delete(doc.rawPayloadStorageId);
+      } catch {
+        // Storage may already have been swept manually. Delete the row so
+        // account deletion still converges.
+      }
+    }
+    await ctx.db.delete(doc._id);
+  }
+
+  return docs.length === BATCH_SIZE;
+}
+
 /** Delete one batch from a user-scoped table. Returns true if more remain. */
 export const deleteUserTableBatch = internalMutation({
   args: { userId: v.id("users"), table: userTableValidator },
   handler: async (ctx, { userId, table }): Promise<boolean> => {
+    if (table === "garminWebhookEvents") {
+      return await deleteGarminWebhookEventsBatch(ctx, userId);
+    }
     const ids = await takeBatchForDeletion(ctx, table, userId);
     for (const id of ids) {
       await ctx.db.delete(id);

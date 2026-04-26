@@ -4,27 +4,10 @@ import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { GARMIN_PUSH_EVENT_TYPES } from "./garmin/webhookDispatch";
 import { verifyGarminWebhookSignature } from "./garmin/webhookSignature";
+import { resolveAppOrigin } from "./httpOrigin";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
-
-/**
- * Resolve the Next.js app origin (e.g. `http://localhost:3000`) from
- * the configured post-oauth redirect URL, with a safe fallback.
- * Absolute redirects across hosts require a full URL in the Location
- * header; a relative path would resolve against `.convex.site`.
- */
-function resolveAppOrigin(): string {
-  const redirect = process.env.GARMIN_OAUTH_POST_REDIRECT_URL;
-  if (redirect) {
-    try {
-      return new URL(redirect).origin;
-    } catch {
-      // fall through to default
-    }
-  }
-  return "http://localhost:3000";
-}
 
 function redirectResponse(location: string): Response {
   return new Response(null, { status: 302, headers: { Location: location } });
@@ -70,14 +53,12 @@ http.route({
  * Garmin Push webhooks. One URL per push type (Garmin's Developer Portal
  * requires this — each API summary type registers its own URL). Each
  * handler:
- *   1. Verifies the Garmin signature header (fails-closed until the
- *      Activity/Health API doc lands; set GARMIN_WEBHOOK_SIGNATURE_VERIFY=skip
- *      on dev only).
+ *   1. Verifies the app-owned shared secret in the registered webhook URL.
  *   2. Logs the raw payload to garminWebhookEvents before any parsing so
  *      a normalizer bug never drops data we can't replay.
- *   3. Dispatches a normalizer action, then ACKs 200 regardless of
- *      downstream processing outcome so Garmin's 24h retry doesn't fire
- *      for a bug we already recorded.
+ *   3. Schedules a normalizer action, then ACKs 200 immediately so
+ *      large backfill payload processing never holds Garmin's request
+ *      open after the payload was already recorded.
  */
 for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
   http.route({
@@ -112,11 +93,25 @@ for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
         rawPayloadStorageId,
       });
 
-      await ctx.runAction(internal.garmin.webhookDispatch.dispatchGarminWebhook, {
-        eventId,
-        eventType,
-        rawPayloadStorageId,
-      });
+      try {
+        await ctx.scheduler.runAfter(0, internal.garmin.webhookDispatch.dispatchGarminWebhook, {
+          eventId,
+          eventType,
+          rawPayloadStorageId,
+        });
+      } catch (err) {
+        try {
+          await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+            eventId,
+            status: "error",
+            errorReason:
+              err instanceof Error ? err.message : "Garmin webhook dispatch scheduling failed",
+          });
+        } catch {
+          // The payload is already durably stored; ACK to avoid retry storms
+          // even if marking the log row fails.
+        }
+      }
 
       return new Response(null, { status: 200 });
     }),

@@ -10,13 +10,13 @@ import type {
   StrengthDistribution,
   StrengthScore,
 } from "../../../../convex/tonal/types";
-import type { DashboardExternalActivity, DashboardWorkout } from "../../../../convex/dashboard";
+import type { DashboardWorkout } from "../../../../convex/dashboard";
 import type { RecentPRSummary } from "../../../../convex/prs";
 import { StrengthScoreCard } from "@/features/dashboard/StrengthScoreCard";
 import { MuscleReadinessMap } from "@/features/dashboard/MuscleReadinessMap";
 import { TrainingFrequencyChart } from "@/features/dashboard/TrainingFrequencyChart";
 import { RecentWorkoutsList } from "@/features/dashboard/RecentWorkoutsList";
-import { ExternalActivitiesList } from "@/features/dashboard/ExternalActivitiesList";
+import { DashboardExternalActivitiesSection } from "@/features/dashboard/DashboardExternalActivitiesSection";
 import { PRHighlightsCard } from "@/features/dashboard/PRHighlightsCard";
 import { AsyncCard } from "@/components/AsyncCard";
 import { useActionData } from "@/hooks/useActionData";
@@ -190,9 +190,7 @@ export default function DashboardPage() {
         <QueryCard<RecentPRSummary> data={prSummary} title="Personal Records" wide>
           {(d) => <PRHighlightsCard summary={d} />}
         </QueryCard>
-        <QueryCard<DashboardExternalActivity[]> data={externalActivities} title="Other Activities">
-          {(d) => <ExternalActivitiesList activities={d} />}
-        </QueryCard>
+        <DashboardExternalActivitiesSection activities={externalActivities} />
       </div>
     </div>
   );

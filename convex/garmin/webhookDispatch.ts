@@ -17,9 +17,8 @@ import { internalAction } from "../_generated/server";
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { extractFirstUserIdFromSummary, normalizeGarminActivities } from "./activityNormalizer";
+import { normalizeGarminActivities } from "./activityNormalizer";
 import {
-  extractFirstUserIdFromWellness,
   normalizeDailies,
   normalizeHrv,
   normalizePulseOx,
@@ -31,10 +30,11 @@ import {
   WELLNESS_ENVELOPE_KEYS,
   type WellnessDailyPartial,
 } from "./wellnessNormalizers";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+import {
+  extractGarminUserIdsFromDeregistration,
+  groupSummaryEntriesByUser,
+  parsePermissionChangePayload,
+} from "./webhookPayloads";
 
 /**
  * Garmin Push event types we subscribe to. Each string is the camelCase
@@ -132,8 +132,8 @@ interface WebhookHandlerArgs {
 }
 
 async function handleActivities({ ctx, eventId, rawPayload }: WebhookHandlerArgs): Promise<void> {
-  const garminUserId = extractFirstUserIdFromSummary("activities", rawPayload);
-  if (!garminUserId) {
+  const groups = groupSummaryEntriesByUser("activities", rawPayload);
+  if (groups.length === 0) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
       status: "rejected",
@@ -142,38 +142,52 @@ async function handleActivities({ ctx, eventId, rawPayload }: WebhookHandlerArgs
     return;
   }
 
-  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
-    garminUserId,
-  });
-  if (!connection) {
-    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
-      eventId,
-      status: "processed",
-      errorReason: "no matching connection",
-    });
-    return;
-  }
+  let persisted = 0;
+  let skipped = 0;
+  let malformed = 0;
+  let statusUserId: Id<"users"> | undefined;
+  let statusGarminUserId: string | undefined;
 
-  const normalized = normalizeGarminActivities(rawPayload);
-  if (normalized.length === 0) {
-    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
-      eventId,
-      status: "rejected",
-      errorReason: "no well-formed activities in payload",
+  for (const group of groups) {
+    const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+      garminUserId: group.garminUserId,
+    });
+    if (!connection) {
+      skipped++;
+      continue;
+    }
+
+    const normalized = normalizeGarminActivities(group.payload);
+    if (normalized.length === 0) {
+      malformed++;
+      continue;
+    }
+
+    await ctx.runMutation(internal.tonal.historySyncMutations.persistExternalActivities, {
       userId: connection.userId,
+      activities: normalized,
+    });
+    persisted += normalized.length;
+    statusUserId = groups.length === 1 ? connection.userId : undefined;
+    statusGarminUserId = groups.length === 1 ? group.garminUserId : undefined;
+  }
+
+  if (persisted === 0) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: malformed > 0 ? "rejected" : "processed",
+      errorReason:
+        malformed > 0 ? "no well-formed activities in payload" : "no matching active connection",
     });
     return;
   }
-
-  await ctx.runMutation(internal.tonal.historySyncMutations.persistExternalActivities, {
-    userId: connection.userId,
-    activities: normalized,
-  });
 
   await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
     eventId,
     status: "processed",
-    userId: connection.userId,
+    errorReason: skipped > 0 ? `skipped ${skipped} unmatched Garmin user(s)` : undefined,
+    garminUserId: statusGarminUserId,
+    userId: statusUserId,
   });
 }
 
@@ -219,8 +233,8 @@ async function handleWellness({
   summaryKey,
 }: WellnessHandlerArgs): Promise<void> {
   const envelopeKey = WELLNESS_ENVELOPE_KEYS[summaryKey];
-  const garminUserId = extractFirstUserIdFromWellness(envelopeKey, rawPayload);
-  if (!garminUserId) {
+  const groups = groupSummaryEntriesByUser(envelopeKey, rawPayload);
+  if (groups.length === 0) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
       status: "rejected",
@@ -229,38 +243,54 @@ async function handleWellness({
     return;
   }
 
-  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
-    garminUserId,
-  });
-  if (!connection) {
-    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
-      eventId,
-      status: "processed",
-      errorReason: "no matching connection",
-    });
-    return;
-  }
+  let persisted = 0;
+  let skipped = 0;
+  let malformed = 0;
+  let statusUserId: Id<"users"> | undefined;
+  let statusGarminUserId: string | undefined;
 
-  const entries = normalizeForKey(summaryKey, rawPayload);
-  if (entries.length === 0) {
-    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
-      eventId,
-      status: "rejected",
-      errorReason: `no well-formed ${summaryKey} entries in payload`,
+  for (const group of groups) {
+    const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+      garminUserId: group.garminUserId,
+    });
+    if (!connection) {
+      skipped++;
+      continue;
+    }
+
+    const entries = normalizeForKey(summaryKey, group.payload);
+    if (entries.length === 0) {
+      malformed++;
+      continue;
+    }
+
+    await ctx.runMutation(internal.garmin.wellnessDaily.upsertWellnessDaily, {
       userId: connection.userId,
+      entries,
+    });
+    persisted += entries.length;
+    statusUserId = groups.length === 1 ? connection.userId : undefined;
+    statusGarminUserId = groups.length === 1 ? group.garminUserId : undefined;
+  }
+
+  if (persisted === 0) {
+    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
+      eventId,
+      status: malformed > 0 ? "rejected" : "processed",
+      errorReason:
+        malformed > 0
+          ? `no well-formed ${summaryKey} entries in payload`
+          : "no matching active connection",
     });
     return;
   }
-
-  await ctx.runMutation(internal.garmin.wellnessDaily.upsertWellnessDaily, {
-    userId: connection.userId,
-    entries,
-  });
 
   await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
     eventId,
     status: "processed",
-    userId: connection.userId,
+    errorReason: skipped > 0 ? `skipped ${skipped} unmatched Garmin user(s)` : undefined,
+    garminUserId: statusGarminUserId,
+    userId: statusUserId,
   });
 }
 
@@ -269,8 +299,8 @@ async function handleDeregistration({
   eventId,
   rawPayload,
 }: WebhookHandlerArgs): Promise<void> {
-  const garminUserId = extractSingleGarminUserId(rawPayload);
-  if (!garminUserId) {
+  const garminUserIds = extractGarminUserIdsFromDeregistration(rawPayload);
+  if (garminUserIds.length === 0) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
       status: "rejected",
@@ -279,26 +309,29 @@ async function handleDeregistration({
     return;
   }
 
-  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
-    garminUserId,
-  });
-  if (!connection) {
-    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
-      eventId,
-      status: "processed",
-      errorReason: "no matching connection",
+  let matched = 0;
+  let statusUserId: Id<"users"> | undefined;
+  let statusGarminUserId: string | undefined;
+  for (const garminUserId of garminUserIds) {
+    const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+      garminUserId,
     });
-    return;
+    if (!connection) continue;
+    await ctx.runMutation(internal.garmin.connections.markDisconnected, {
+      userId: connection.userId,
+      reason: "permission_revoked",
+    });
+    matched++;
+    statusUserId = garminUserIds.length === 1 ? connection.userId : undefined;
+    statusGarminUserId = garminUserIds.length === 1 ? garminUserId : undefined;
   }
 
-  await ctx.runMutation(internal.garmin.connections.markDisconnected, {
-    userId: connection.userId,
-    reason: "user_disconnected",
-  });
   await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
     eventId,
     status: "processed",
-    userId: connection.userId,
+    errorReason: matched === 0 ? "no matching active connection" : undefined,
+    garminUserId: statusGarminUserId,
+    userId: statusUserId,
   });
 }
 
@@ -308,7 +341,7 @@ async function handlePermissionChange({
   rawPayload,
 }: WebhookHandlerArgs): Promise<void> {
   const parsed = parsePermissionChangePayload(rawPayload);
-  if (!parsed) {
+  if (parsed.length === 0) {
     await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
       eventId,
       status: "rejected",
@@ -317,66 +350,35 @@ async function handlePermissionChange({
     return;
   }
 
-  const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
-    garminUserId: parsed.garminUserId,
-  });
-  if (!connection) {
-    await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
-      eventId,
-      status: "processed",
-      errorReason: "no matching connection",
+  let matched = 0;
+  let statusUserId: Id<"users"> | undefined;
+  let statusGarminUserId: string | undefined;
+  for (const entry of parsed) {
+    const connection = await ctx.runQuery(internal.garmin.connections.getByGarminUserId, {
+      garminUserId: entry.garminUserId,
     });
-    return;
-  }
+    if (!connection) continue;
 
-  await ctx.runMutation(internal.garmin.connections.refreshPermissions, {
-    userId: connection.userId,
-    permissions: parsed.permissions,
-  });
-
-  if (parsed.permissions.length === 0) {
-    await ctx.runMutation(internal.garmin.connections.markDisconnected, {
+    await ctx.runMutation(internal.garmin.connections.refreshPermissions, {
       userId: connection.userId,
-      reason: "permission_revoked",
+      permissions: entry.permissions,
     });
+    if (entry.permissions.length === 0) {
+      await ctx.runMutation(internal.garmin.connections.markDisconnected, {
+        userId: connection.userId,
+        reason: "permission_revoked",
+      });
+    }
+    matched++;
+    statusUserId = parsed.length === 1 ? connection.userId : undefined;
+    statusGarminUserId = parsed.length === 1 ? entry.garminUserId : undefined;
   }
 
   await ctx.runMutation(internal.garmin.webhookEvents.updateStatus, {
     eventId,
     status: "processed",
-    userId: connection.userId,
+    errorReason: matched === 0 ? "no matching active connection" : undefined,
+    garminUserId: statusGarminUserId,
+    userId: statusUserId,
   });
-}
-
-/**
- * Best-effort extraction of a single garmin userId from a deregistration
- * payload. Garmin sends `{ deregistrations: [{ userId: "...", ... }] }`
- * with one entry per deregistered user. We process one event at a time;
- * if Garmin batches multiple users in one push, handle the first and
- * log the rest in a follow-up.
- */
-export function extractSingleGarminUserId(rawPayload: unknown): string | null {
-  if (!isRecord(rawPayload)) return null;
-  const list = rawPayload.deregistrations;
-  if (!Array.isArray(list) || list.length === 0) return null;
-  const first = list[0];
-  if (!isRecord(first)) return null;
-  return typeof first.userId === "string" ? first.userId : null;
-}
-
-export interface ParsedPermissionChange {
-  readonly garminUserId: string;
-  readonly permissions: string[];
-}
-
-export function parsePermissionChangePayload(rawPayload: unknown): ParsedPermissionChange | null {
-  if (!isRecord(rawPayload)) return null;
-  const list = rawPayload.userPermissionsChange;
-  if (!Array.isArray(list) || list.length === 0) return null;
-  const entry = list[0];
-  if (!isRecord(entry)) return null;
-  if (typeof entry.userId !== "string") return null;
-  if (!Array.isArray(entry.permissions)) return null;
-  const permissions = entry.permissions.filter((p): p is string => typeof p === "string");
-  return { garminUserId: entry.userId, permissions };
 }

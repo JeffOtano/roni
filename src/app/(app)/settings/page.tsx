@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { usePageView } from "@/lib/analytics";
@@ -29,7 +29,10 @@ import {
   TonalConnectionCard,
   type TonalConnectionState,
 } from "@/features/settings/TonalConnectionCard";
-import { GarminConnectionCard } from "@/features/settings/GarminConnectionCard";
+import {
+  GarminConnectionCard,
+  type GarminConnectionNotice,
+} from "@/features/settings/GarminConnectionCard";
 import { ProviderSection } from "@/features/byok/ProviderSection";
 import { DISCORD_URL, REPO_URL } from "@/lib/urls";
 import { LogOut, MessageSquare } from "lucide-react";
@@ -50,6 +53,7 @@ function SettingsPageInner() {
   usePageView("settings_viewed");
   const { signOut } = useAuthActions();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const me = useQuery(api.users.getMe, {});
   const [signOutOpen, setSignOutOpen] = useState(false);
 
@@ -72,6 +76,20 @@ function SettingsPageInner() {
           tonalName: me.tonalName,
           tonalTokenExpired: me.tonalTokenExpired ?? false,
         };
+
+  const garminParam = searchParams.get("garmin");
+  const garminReason = searchParams.get("reason");
+  const garminNotice: GarminConnectionNotice | undefined =
+    garminParam === "connected"
+      ? { kind: "success", message: "Garmin connected." }
+      : garminParam === "error"
+        ? {
+            kind: "error",
+            message: `Garmin connection failed${
+              garminReason ? `: ${garminReason.replaceAll("_", " ")}` : "."
+            }`,
+          }
+        : undefined;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -143,7 +161,7 @@ function SettingsPageInner() {
       {/* Garmin Connection */}
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Garmin Connection</h2>
-        <GarminConnectionCard />
+        <GarminConnectionCard callbackNotice={garminNotice} />
       </section>
 
       {/* Equipment */}

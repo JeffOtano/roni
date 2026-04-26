@@ -12,22 +12,43 @@ function formatDuration(seconds: number): string {
   return remainMins > 0 ? `${hrs}h ${remainMins}m` : `${hrs}h`;
 }
 
+function formatDistance(meters: number): string {
+  const miles = meters / 1609.344;
+  if (miles >= 10) return `${Math.round(miles)} mi`;
+  if (miles >= 0.1) return `${miles.toFixed(1)} mi`;
+  return `${Math.round(meters)} m`;
+}
+
 function capitalizeType(workoutType: string): string {
   return workoutType
-    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .trim()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
+}
+
+function formatSource(source: string): string {
+  return capitalizeType(source);
 }
 
 // ---------------------------------------------------------------------------
 // Row component
 // ---------------------------------------------------------------------------
 
-function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity }) {
+function ExternalActivityRow({
+  activity,
+  showSource,
+}: {
+  activity: DashboardExternalActivity;
+  showSource: boolean;
+}) {
+  const distance = activity.distance;
   const totalCalories = activity.totalCalories;
   const averageHeartRate = activity.averageHeartRate;
+  const maxHeartRate = activity.maxHeartRate;
 
   return (
     <div
@@ -47,6 +68,11 @@ function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity
         <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
           {formatDuration(activity.totalDuration)}
         </span>
+        {distance !== undefined && distance > 0 && (
+          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
+            {formatDistance(distance)}
+          </span>
+        )}
         {totalCalories !== undefined && totalCalories > 0 && (
           <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
             {Math.round(totalCalories)} cal
@@ -54,12 +80,19 @@ function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity
         )}
         {averageHeartRate !== undefined && averageHeartRate > 0 && (
           <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
-            {Math.round(averageHeartRate)} bpm
+            {Math.round(averageHeartRate)} avg bpm
           </span>
         )}
-        <span className="rounded-md bg-muted/40 px-1.5 py-0.5 text-2xs text-muted-foreground/50">
-          {activity.source}
-        </span>
+        {maxHeartRate !== undefined && maxHeartRate > 0 && (
+          <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-2xs tabular-nums text-muted-foreground">
+            {Math.round(maxHeartRate)} max bpm
+          </span>
+        )}
+        {showSource && (
+          <span className="rounded-md bg-muted/40 px-1.5 py-0.5 text-2xs text-muted-foreground/50">
+            {formatSource(activity.source)}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -71,17 +104,27 @@ function ExternalActivityRow({ activity }: { activity: DashboardExternalActivity
 
 interface ExternalActivitiesListProps {
   activities: DashboardExternalActivity[];
+  emptyMessage?: string;
+  showSource?: boolean;
 }
 
-export function ExternalActivitiesList({ activities }: ExternalActivitiesListProps) {
+export function ExternalActivitiesList({
+  activities,
+  emptyMessage = "No external activities.",
+  showSource = true,
+}: ExternalActivitiesListProps) {
   if (activities.length === 0) {
-    return <p className="text-sm text-muted-foreground">No external activities.</p>;
+    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
 
   return (
     <div className="flex flex-col gap-2">
       {activities.map((activity) => (
-        <ExternalActivityRow key={activity.id} activity={activity} />
+        <ExternalActivityRow
+          key={`${activity.source}:${activity.id}`}
+          activity={activity}
+          showSource={showSource}
+        />
       ))}
     </div>
   );

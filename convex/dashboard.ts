@@ -35,10 +35,13 @@ export interface DashboardExternalActivity {
   workoutType: string;
   beginTime: string;
   totalDuration: number;
+  /** Optional: GPS-free sessions and some strength activities omit distance. */
+  distance?: number;
   /** Optional: some sources (e.g. Garmin strength) omit calorie data. */
   totalCalories?: number;
   /** Optional: some devices don't record HR for every session. */
   averageHeartRate?: number;
+  maxHeartRate?: number;
   source: string;
 }
 
@@ -187,8 +190,10 @@ export const getExternalActivities = query({
       workoutType: r.workoutType,
       beginTime: r.beginTime,
       totalDuration: r.totalDuration,
+      distance: r.distance,
       totalCalories: r.totalCalories,
       averageHeartRate: r.averageHeartRate,
+      maxHeartRate: r.maxHeartRate,
       source: r.source,
     }));
   },

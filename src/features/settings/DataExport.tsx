@@ -105,7 +105,7 @@ export function DataExport() {
           <div>
             <p className="text-sm font-medium text-foreground">Export My Data</p>
             <p className="text-xs text-muted-foreground">
-              Download all your data as JSON or workout history as CSV
+              Download account, workout, strength, Garmin, and external activity data
             </p>
           </div>
         </div>

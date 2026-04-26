@@ -56,4 +56,45 @@ describe("USER_DATA_TABLES", () => {
       expect.arrayContaining(["exportedAt", "user", ...JSON_EXPORT_SECTION_KEYS]),
     );
   });
+
+  test("collectUserData exports Garmin wellness rows without Convex metadata", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("users", {});
+      await ctx.db.insert("garminWellnessDaily", {
+        userId: id,
+        calendarDate: "2026-04-24",
+        sleepDurationSeconds: 25_200,
+        hrvLastNightAvg: 58,
+        avgStress: 31,
+        bodyBatteryHighestValue: 84,
+        bodyBatteryLowestValue: 22,
+        avgSpo2: 97,
+        avgRespirationRate: 14.4,
+        skinTempDeviationCelsius: 0.3,
+        lastIngestedAt: 1_714_000_000_000,
+      });
+      return id;
+    });
+
+    const data = await t.query(internal.dataExport.collectUserData, { userId });
+
+    expect(data.garminWellnessDaily).toEqual([
+      {
+        calendarDate: "2026-04-24",
+        sleepDurationSeconds: 25_200,
+        hrvLastNightAvg: 58,
+        avgStress: 31,
+        bodyBatteryHighestValue: 84,
+        bodyBatteryLowestValue: 22,
+        avgSpo2: 97,
+        avgRespirationRate: 14.4,
+        skinTempDeviationCelsius: 0.3,
+        lastIngestedAt: 1_714_000_000_000,
+      },
+    ]);
+    expect(data.garminWellnessDaily[0]).not.toHaveProperty("_id");
+    expect(data.garminWellnessDaily[0]).not.toHaveProperty("_creationTime");
+    expect(data.garminWellnessDaily[0]).not.toHaveProperty("userId");
+  });
 });

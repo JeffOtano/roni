@@ -72,6 +72,7 @@ const FAKE_EXPORT_DATA = {
       distance: 5000,
     },
   ],
+  garminWellnessDaily: [],
 };
 
 function setupDomMocks() {

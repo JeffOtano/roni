@@ -146,12 +146,13 @@ export default function PrivacyPage() {
             third parties&rdquo; section above.
           </p>
           <p className="mt-2">
-            You can disconnect Garmin at any time from the Settings page in Roni, which marks the
-            connection inactive so no further webhooks are processed. You can also revoke
-            Roni&apos;s access directly from your Garmin Connect account settings; Garmin sends us a
-            deregistration webhook and we mark the connection disconnected in response. Deleting
-            your Roni account additionally removes all stored Garmin connection records, activity
-            summaries, wellness summaries, and webhook-event log entries.
+            You can disconnect Garmin at any time from the Settings page in Roni, which asks Garmin
+            to remove Roni&apos;s registration and marks the connection inactive so no further
+            webhooks are processed. You can also revoke Roni&apos;s access directly from your Garmin
+            Connect account settings; Garmin sends us a deregistration webhook and we mark the
+            connection disconnected in response. Deleting your Roni account additionally removes all
+            stored Garmin connection records, activity summaries, wellness summaries, and
+            webhook-event log entries.
           </p>
         </section>
 

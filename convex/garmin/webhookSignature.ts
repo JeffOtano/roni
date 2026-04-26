@@ -1,27 +1,62 @@
 /**
  * Garmin Push webhook authenticity check.
  *
- * The Activity API V1.2.4 spec (§5.1) does NOT define a request-signing
- * header for partner webhook deliveries. Security instead rests on:
- *   1. The partner-registered URL is HTTPS-only.
- *   2. Garmin keeps the URL private to the partner account.
- *   3. Every Push payload carries the Garmin `userId` (and for most
- *      types a `userAccessToken`) as an implicit identity claim.
+ * Garmin Push webhooks do not arrive with an HMAC header in the partner
+ * docs available to us. We therefore require an app-owned shared secret in
+ * the registered webhook URL, e.g.
+ * `/garmin/webhook/activities?secret=<GARMIN_WEBHOOK_SECRET>`.
  *
- * So "verification" at the HTTP boundary is a cheap structural check
- * that the payload looks like a Garmin push; the real identity match
- * happens in the dispatcher, where we look up the payload's userId in
- * `garminConnections` before touching domain data.
+ * For temporary dev-deployment testing before Garmin Portal URLs are
+ * updated, GARMIN_ALLOW_UNAUTHENTICATED_WEBHOOKS=true bypasses this check
+ * only when GARMIN_WEBHOOK_SECRET is unset.
  */
 
 export type SignatureCheckResult = { valid: true } | { valid: false; reason: string };
 
+function getConfiguredSecret(): string | null {
+  const secret = process.env.GARMIN_WEBHOOK_SECRET;
+  return secret && secret.trim() !== "" ? secret : null;
+}
+
+function allowsUnauthenticatedDevWebhooks(): boolean {
+  return process.env.GARMIN_ALLOW_UNAUTHENTICATED_WEBHOOKS === "true";
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  const encoder = new TextEncoder();
+  const left = encoder.encode(a);
+  const right = encoder.encode(b);
+  const maxLength = Math.max(left.length, right.length);
+  let diff = left.length ^ right.length;
+
+  for (let i = 0; i < maxLength; i++) {
+    diff |= (left[i] ?? 0) ^ (right[i] ?? 0);
+  }
+
+  return diff === 0;
+}
+
 export async function verifyGarminWebhookSignature(
-  _req: Request,
+  req: Request,
   rawBody: string,
 ): Promise<SignatureCheckResult> {
   if (rawBody.length === 0) {
     return { valid: false, reason: "Empty Garmin webhook body" };
   }
+  const configuredSecret = getConfiguredSecret();
+  if (!configuredSecret) {
+    if (allowsUnauthenticatedDevWebhooks()) {
+      return { valid: true };
+    }
+    return { valid: false, reason: "Garmin webhook secret is not configured" };
+  }
+
+  const url = new URL(req.url);
+  const providedSecret =
+    url.searchParams.get("secret") ?? req.headers.get("x-roni-garmin-webhook-secret");
+  if (!providedSecret || !constantTimeEqual(providedSecret, configuredSecret)) {
+    return { valid: false, reason: "Invalid Garmin webhook secret" };
+  }
+
   return { valid: true };
 }

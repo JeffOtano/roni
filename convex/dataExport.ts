@@ -2,8 +2,14 @@ import { v } from "convex/values";
 import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import * as analytics from "./lib/posthog";
+import type { Doc } from "./_generated/dataModel";
 import type { Activity } from "./tonal/types";
 import type { JsonExportSectionKey } from "./userData";
+
+type GarminWellnessDailyExportRow = Omit<
+  Doc<"garminWellnessDaily">,
+  "_id" | "_creationTime" | "userId"
+>;
 
 interface ExportedData extends Record<JsonExportSectionKey | "exportedAt" | "user", unknown> {
   exportedAt: string;
@@ -69,6 +75,7 @@ interface ExportedData extends Record<JsonExportSectionKey | "exportedAt" | "use
     source: string;
     distance: number;
   }[];
+  garminWellnessDaily: GarminWellnessDailyExportRow[];
 }
 
 /** Convert a Tonal API Activity to the completedWorkouts export format. */
@@ -83,6 +90,16 @@ function activityToExportRow(a: Activity) {
     totalWork: p?.totalWork ?? 0,
     workoutType: p?.workoutType ?? "",
   };
+}
+
+function garminWellnessDailyToExportRow(
+  row: Doc<"garminWellnessDaily">,
+): GarminWellnessDailyExportRow {
+  const { _id, _creationTime, userId, ...exportRow } = row;
+  void _id;
+  void _creationTime;
+  void userId;
+  return exportRow;
 }
 
 export const exportData = action({
@@ -192,6 +209,11 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId_beginTime", (q) => q.eq("userId", userId))
       .collect();
 
+    const garminWellnessDaily = await ctx.db
+      .query("garminWellnessDaily")
+      .withIndex("by_userId_calendarDate", (q) => q.eq("userId", userId))
+      .collect();
+
     // Build movement ID → name lookup, fetching only movements actually
     // referenced by this user's exercisePerformance rows.
     const movementIds = new Set(exercisePerformanceRows.map((ep) => ep.movementId));
@@ -299,6 +321,7 @@ export const collectUserData = internalQuery({
         source: ea.source,
         distance: ea.distance,
       })),
+      garminWellnessDaily: garminWellnessDaily.map(garminWellnessDailyToExportRow),
     };
   },
 });

@@ -198,6 +198,58 @@ describe("buildTrainingSnapshot", () => {
     expect(snapshot).not.toContain("Available Tonal Exercises");
     expect(snapshot).toContain("Equipment:");
   });
+
+  it("includes recent Garmin wellness signals in the coach snapshot", async () => {
+    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
+    const getGarminWellnessName = getFunctionName(
+      internal.garmin.wellnessDaily.getRecentWellnessDaily,
+    );
+    const nullableQueryNames = new Set([
+      getFunctionName(internal.tonal.syncQueries.getMuscleReadiness),
+      getFunctionName(internal.coach.periodization.getActiveBlock),
+      getFunctionName(internal.weekPlans.getByUserIdAndWeekStartInternal),
+    ]);
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === getUserProfileName) {
+          return {
+            profileData: {
+              firstName: "Alice",
+              lastName: "Lifter",
+              heightInches: 66,
+              weightPounds: 150,
+              level: "intermediate",
+              workoutsPerWeek: 4,
+            },
+          };
+        }
+        if (queryName === getGarminWellnessName) {
+          return [
+            {
+              calendarDate: "2026-04-24",
+              sleepDurationSeconds: 6 * 60 * 60,
+              hrvLastNightAvg: 44,
+              avgStress: 62,
+              bodyBatteryLowestValue: 18,
+              bodyBatteryHighestValue: 54,
+            },
+          ];
+        }
+        if (nullableQueryNames.has(queryName)) {
+          return null;
+        }
+        return [];
+      },
+    };
+
+    const snapshot = await buildTrainingSnapshot(ctx as never, "user-1");
+
+    expect(snapshot).toContain("Garmin Recovery Signals");
+    expect(snapshot).toContain("sleep 6h");
+    expect(snapshot).toContain("HRV 44ms");
+    expect(snapshot).toContain("body battery 18-54");
+  });
 });
 
 describe("getTrainingSnapshotForChat", () => {

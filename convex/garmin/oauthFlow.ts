@@ -47,6 +47,28 @@ function parseFormResponse(body: string): Record<string, string> {
   return out;
 }
 
+export async function parsePermissionsResponse(
+  res: Response,
+): Promise<{ success: true; permissions: string[] } | { success: false; error: string }> {
+  if (!res.ok) {
+    return { success: false, error: `Garmin permissions failed: ${res.status}` };
+  }
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return { success: false, error: "Malformed Garmin permissions response" };
+  }
+
+  const parsed = permissionsResponseSchema.safeParse(body);
+  if (!parsed.success || parsed.data.length === 0) {
+    return { success: false, error: "Malformed Garmin permissions response" };
+  }
+
+  return { success: true, permissions: parsed.data };
+}
+
 export type StartGarminOAuthResult =
   | { success: true; authorizeUrl: string }
   | { success: false; error: string };
@@ -195,17 +217,25 @@ export const completeGarminOAuth = action({
     const permRes = await fetch(PERMISSIONS_URL, {
       headers: { Authorization: permSigned.authorizationHeader },
     });
-    const permissions = permRes.ok
-      ? (permissionsResponseSchema.safeParse(await permRes.json()).data ?? [])
-      : [];
+    const permissionsResult = await parsePermissionsResponse(permRes);
+    if (!permissionsResult.success) {
+      return { success: false, error: permissionsResult.error };
+    }
 
-    await ctx.runMutation(internal.garmin.connections.upsertConnection, {
-      userId,
-      garminUserId,
-      accessTokenEncrypted: await encryptGarminSecret(accessToken),
-      accessTokenSecretEncrypted: await encryptGarminSecret(accessTokenSecret),
-      permissions,
-    });
+    try {
+      await ctx.runMutation(internal.garmin.connections.upsertConnection, {
+        userId,
+        garminUserId,
+        accessTokenEncrypted: await encryptGarminSecret(accessToken),
+        accessTokenSecretEncrypted: await encryptGarminSecret(accessTokenSecret),
+        permissions: permissionsResult.permissions,
+      });
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to save Garmin connection",
+      };
+    }
 
     return { success: true, garminUserId };
   },

@@ -84,6 +84,11 @@ describe("capitalizeWorkoutType", () => {
     expect(capitalizeWorkoutType("Running")).toBe("Running");
   });
 
+  it("normalizes Garmin-style uppercase enum labels", () => {
+    expect(capitalizeWorkoutType("STRENGTH_TRAINING")).toBe("Strength Training");
+    expect(capitalizeWorkoutType("INDOOR_CARDIO")).toBe("Indoor Cardio");
+  });
+
   it("handles empty string", () => {
     expect(capitalizeWorkoutType("")).toBe("");
   });

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
+import { internalMutation, internalQuery, query } from "../_generated/server";
 import { getEffectiveUserId } from "../lib/auth";
 import { rateLimiter } from "../rateLimits";
 
@@ -59,29 +59,6 @@ export const getMyGarminStatus = query({
   },
 });
 
-export const disconnectMyGarmin = mutation({
-  args: {},
-  handler: async (ctx): Promise<{ success: boolean }> => {
-    const userId = await getEffectiveUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-
-    const existing = await ctx.db
-      .query("garminConnections")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
-    if (!existing || existing.status === "disconnected") {
-      return { success: true };
-    }
-
-    await ctx.db.patch(existing._id, {
-      status: "disconnected",
-      disconnectedAt: Date.now(),
-      disconnectReason: "user_disconnected",
-    });
-    return { success: true };
-  },
-});
-
 export const getActiveConnectionByUserId = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -96,10 +73,13 @@ export const getActiveConnectionByUserId = internalQuery({
 export const getByGarminUserId = internalQuery({
   args: { garminUserId: v.string() },
   handler: async (ctx, { garminUserId }) => {
-    return await ctx.db
+    const rows = await ctx.db
       .query("garminConnections")
-      .withIndex("by_garminUserId", (q) => q.eq("garminUserId", garminUserId))
-      .unique();
+      .withIndex("by_garminUserId_status", (q) =>
+        q.eq("garminUserId", garminUserId).eq("status", "active"),
+      )
+      .take(2);
+    return rows.length === 1 ? rows[0] : null;
   },
 });
 
@@ -112,6 +92,16 @@ export const upsertConnection = internalMutation({
     permissions: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    const activeRowsForGarminUser = await ctx.db
+      .query("garminConnections")
+      .withIndex("by_garminUserId_status", (q) =>
+        q.eq("garminUserId", args.garminUserId).eq("status", "active"),
+      )
+      .take(2);
+    if (activeRowsForGarminUser.some((row) => row.userId !== args.userId)) {
+      throw new Error("This Garmin account is already connected to another Roni account");
+    }
+
     const existing = await ctx.db
       .query("garminConnections")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -199,16 +189,6 @@ export const acquireBackfillSlot = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     await rateLimiter.limit(ctx, "backfillGarminData", { key: userId, throws: true });
-  },
-});
-
-/** Dev utility — reset the caller's backfill bucket after config churn. */
-export const resetMyBackfillRateLimit = mutation({
-  args: {},
-  handler: async (ctx): Promise<void> => {
-    const userId = await getEffectiveUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-    await rateLimiter.reset(ctx, "backfillGarminData", { key: userId });
   },
 });
 

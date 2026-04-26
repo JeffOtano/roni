@@ -41,18 +41,34 @@ export const USER_DATA_TABLES = [
   { table: "authAccounts", delete: "authData", jsonExportKey: null },
   { table: "garminConnections", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "garminOauthStates", delete: "byUserIdBatch", jsonExportKey: null },
-  { table: "garminWellnessDaily", delete: "byUserIdBatch", jsonExportKey: null },
-  { table: "garminWebhookEvents", delete: "byUserIdBatch", jsonExportKey: null },
+  {
+    table: "garminWellnessDaily",
+    delete: "byUserIdBatch",
+    jsonExportKey: "garminWellnessDaily",
+  },
+  { table: "garminWebhookEvents", delete: "garminWebhookEventsBatch", jsonExportKey: null },
 ] as const;
 
 type UserDataEntry = (typeof USER_DATA_TABLES)[number];
 
 export type ByUserIdBatchTable = Extract<UserDataEntry, { delete: "byUserIdBatch" }>["table"];
+export type GarminWebhookEventsBatchTable = Extract<
+  UserDataEntry,
+  { delete: "garminWebhookEventsBatch" }
+>["table"];
+export type UserTableBatchTable = ByUserIdBatchTable | GarminWebhookEventsBatchTable;
 export type JsonExportSectionKey = Exclude<UserDataEntry["jsonExportKey"], null>;
 
 export const BY_USER_ID_BATCH_TABLES = USER_DATA_TABLES.filter(
   (entry): entry is Extract<UserDataEntry, { delete: "byUserIdBatch" }> =>
     entry.delete === "byUserIdBatch",
+).map((entry) => entry.table);
+
+export const USER_TABLE_BATCH_TABLES = USER_DATA_TABLES.filter(
+  (
+    entry,
+  ): entry is Extract<UserDataEntry, { delete: "byUserIdBatch" | "garminWebhookEventsBatch" }> =>
+    entry.delete === "byUserIdBatch" || entry.delete === "garminWebhookEventsBatch",
 ).map((entry) => entry.table);
 
 export const JSON_EXPORT_SECTION_KEYS = USER_DATA_TABLES.flatMap((entry) =>

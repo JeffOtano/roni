@@ -658,6 +658,7 @@ export default defineSchema({
     syncedAt: v.number(),
   })
     .index("by_userId_externalId", ["userId", "externalId"])
+    .index("by_userId_source_externalId", ["userId", "source", "externalId"])
     .index("by_userId_beginTime", ["userId", "beginTime"]),
 
   /** Pre-generated workout library entries for SEO and inspiration. */
@@ -756,6 +757,7 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_garminUserId", ["garminUserId"])
+    .index("by_garminUserId_status", ["garminUserId", "status"])
     .index("by_status", ["status"]),
 
   /**

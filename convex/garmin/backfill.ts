@@ -33,10 +33,9 @@ const BACKFILL_BASE = "https://apis.garmin.com/wellness-api/rest/backfill";
  * per user since first connection, so each summary type has its own
  * quota and can safely coexist in one run.
  */
-const BACKFILL_SUMMARY_TYPES = [
-  "activities",
-  "dailies",
-  "sleeps",
+const CORE_BACKFILL_SUMMARY_TYPES = ["activities", "dailies", "sleeps"] as const;
+
+const DETAILED_RECOVERY_SUMMARY_TYPES = [
   "stressDetails",
   "hrv",
   "userMetrics",
@@ -44,6 +43,13 @@ const BACKFILL_SUMMARY_TYPES = [
   "respiration",
   "skinTemp",
 ] as const;
+
+const BACKFILL_SUMMARY_TYPES = [
+  ...CORE_BACKFILL_SUMMARY_TYPES,
+  ...DETAILED_RECOVERY_SUMMARY_TYPES,
+] as const;
+
+type BackfillSummaryType = (typeof BACKFILL_SUMMARY_TYPES)[number];
 
 const MIN_DAYS = 1;
 /**
@@ -56,15 +62,22 @@ const MAX_DAYS_PER_REQUEST = 30;
 const MAX_DAYS = 90;
 const SECONDS_PER_DAY = 86_400;
 
-/** Throttle between requests to stay under Garmin's per-user-per-minute cap. */
-const REQUEST_SPACING_MS = 500;
+/**
+ * Throttle between requests to stay under Garmin's per-user-per-minute cap.
+ * This is intentionally conservative: the user is waiting for webhook data,
+ * not for this action to finish instantly.
+ */
+const REQUEST_SPACING_MS = 3_000;
 /**
  * Statuses that suggest a retry will likely succeed. 409 is NOT
  * retryable — it means we already requested this exact window.
  */
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 /** Backoff before retrying one failed request. */
-const RETRY_BACKOFF_MS = 2_000;
+const RETRY_BACKOFF_MS = 5_000;
+const DEFAULT_RATE_LIMIT_RETRY_MS = 60_000;
+const MAX_RATE_LIMIT_RETRY_MS = 2 * 60_000;
+const FETCH_FAILURE_STATUS = 599;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -87,13 +100,52 @@ export function chunkWindow(
   return chunks;
 }
 
+export function parseRetryAfterMs(headerValue: string | null, nowMs: number): number | null {
+  if (!headerValue) return null;
+  const trimmed = headerValue.trim();
+  if (trimmed === "") return null;
+
+  const seconds = Number(trimmed);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1000;
+  }
+
+  const dateMs = Date.parse(trimmed);
+  if (Number.isFinite(dateMs)) {
+    return Math.max(0, dateMs - nowMs);
+  }
+
+  return null;
+}
+
+function boundedRetryDelayMs(headerValue: string | null): number {
+  const parsedMs = parseRetryAfterMs(headerValue, Date.now());
+  const retryMs = parsedMs ?? DEFAULT_RATE_LIMIT_RETRY_MS;
+  return Math.min(Math.max(retryMs, RETRY_BACKOFF_MS), MAX_RATE_LIMIT_RETRY_MS);
+}
+
+function retryDelaySeconds(ms: number): number {
+  return Math.ceil(ms / 1000);
+}
+
+function isDetailedRecoverySummary(summaryType: BackfillSummaryType): boolean {
+  return (DETAILED_RECOVERY_SUMMARY_TYPES as readonly string[]).includes(summaryType);
+}
+
+interface BackfillRequestResult {
+  status: number;
+  retryAfterSeconds?: number;
+}
+
 export type RequestGarminBackfillResult =
   | {
       success: true;
       windowDays: number;
       /** Summary types with at least one accepted chunk. */
       accepted: readonly string[];
-      /** Any chunk that failed — multiple entries per type possible. */
+      /** Summary types Garmin rate-limited. These can be retried later. */
+      rateLimited: readonly { summaryType: string; retryAfterSeconds?: number }[];
+      /** Non-rate-limit failures — multiple entries per type possible. */
       rejected: readonly { summaryType: string; status: number }[];
     }
   | { success: false; error: string };
@@ -137,10 +189,19 @@ export const requestGarminBackfill = action({
 
     const chunks = chunkWindow(startSeconds, endSeconds, MAX_DAYS_PER_REQUEST);
     const acceptedSet = new Set<string>();
+    const rateLimited: { summaryType: string; retryAfterSeconds?: number }[] = [];
     const rejected: { summaryType: string; status: number }[] = [];
     let requestIndex = 0;
+    let skipRemainingDetailedRecovery = false;
+    let stopAfterRateLimit = false;
 
     for (const summaryType of BACKFILL_SUMMARY_TYPES) {
+      if (stopAfterRateLimit) break;
+      if (skipRemainingDetailedRecovery && isDetailedRecoverySummary(summaryType)) {
+        rateLimited.push({ summaryType });
+        continue;
+      }
+
       for (const chunk of chunks) {
         if (requestIndex > 0) await sleep(REQUEST_SPACING_MS);
         requestIndex++;
@@ -167,19 +228,31 @@ export const requestGarminBackfill = action({
           });
         };
 
-        let res = await getOnce();
-        if (RETRYABLE_STATUSES.has(res.status)) {
-          await sleep(RETRY_BACKOFF_MS);
-          res = await getOnce();
+        const requestResult = await requestBackfillChunk(getOnce);
+
+        if (requestResult.status === 429) {
+          rateLimited.push({
+            summaryType,
+            retryAfterSeconds: requestResult.retryAfterSeconds,
+          });
+          if (isDetailedRecoverySummary(summaryType)) {
+            skipRemainingDetailedRecovery = true;
+            break;
+          }
+          stopAfterRateLimit = true;
+          break;
         }
 
         // 202 Accepted is the documented happy path; some 2xx statuses
         // also indicate success. 409 means this exact window was
         // already requested — treat as success so the user isn't spooked.
-        if ((res.status >= 200 && res.status < 300) || res.status === 409) {
+        if (
+          (requestResult.status >= 200 && requestResult.status < 300) ||
+          requestResult.status === 409
+        ) {
           acceptedSet.add(summaryType);
         } else {
-          rejected.push({ summaryType, status: res.status });
+          rejected.push({ summaryType, status: requestResult.status });
         }
       }
     }
@@ -188,7 +261,40 @@ export const requestGarminBackfill = action({
       success: true,
       windowDays: days,
       accepted: Array.from(acceptedSet),
+      rateLimited,
       rejected,
     };
   },
 });
+
+export async function requestBackfillChunk(
+  getOnce: () => Promise<Response>,
+): Promise<BackfillRequestResult> {
+  let res: Response;
+  try {
+    res = await getOnce();
+  } catch {
+    return { status: FETCH_FAILURE_STATUS };
+  }
+  if (!RETRYABLE_STATUSES.has(res.status)) {
+    return { status: res.status };
+  }
+
+  const retryDelayMs =
+    res.status === 429 ? boundedRetryDelayMs(res.headers.get("retry-after")) : RETRY_BACKOFF_MS;
+  await sleep(retryDelayMs);
+  try {
+    res = await getOnce();
+  } catch {
+    return { status: FETCH_FAILURE_STATUS };
+  }
+
+  if (res.status === 429) {
+    return {
+      status: res.status,
+      retryAfterSeconds: retryDelaySeconds(boundedRetryDelayMs(res.headers.get("retry-after"))),
+    };
+  }
+
+  return { status: res.status };
+}

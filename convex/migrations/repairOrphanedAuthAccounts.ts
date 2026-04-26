@@ -28,7 +28,7 @@ import {
 } from "../_generated/server";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { BY_USER_ID_BATCH_TABLES } from "../userData";
+import { USER_TABLE_BATCH_TABLES } from "../userData";
 
 // Emails with duplicate user rows from the pre-fix prod scan.
 const AFFECTED_EMAILS = [
@@ -218,7 +218,7 @@ async function deleteOneOrphan(ctx: ActionCtx, orphanId: Id<"users">): Promise<v
     userId: orphanId,
   });
 
-  for (const table of BY_USER_ID_BATCH_TABLES) {
+  for (const table of USER_TABLE_BATCH_TABLES) {
     let hasMore = true;
     while (hasMore) {
       hasMore = await ctx.runMutation(internal.accountDeletion.deleteUserTableBatch, {

@@ -50,10 +50,12 @@ export function getHrIntensityLabel(hr: number): string | null {
 
 export function capitalizeWorkoutType(workoutType: string): string {
   return workoutType
-    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .trim()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
 }
 

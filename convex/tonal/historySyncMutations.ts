@@ -284,8 +284,11 @@ function externalActivityMatches(
     existing.activeCalories === activity.activeCalories &&
     existing.totalCalories === activity.totalCalories &&
     existing.averageHeartRate === activity.averageHeartRate &&
+    existing.maxHeartRate === activity.maxHeartRate &&
     existing.source === activity.source &&
-    existing.distance === activity.distance
+    existing.distance === activity.distance &&
+    existing.elevationGainMeters === activity.elevationGainMeters &&
+    existing.avgPaceSecondsPerKm === activity.avgPaceSecondsPerKm
   );
 }
 
@@ -356,8 +359,8 @@ export const persistExternalActivities = internalMutation({
     for (const a of activities) {
       const existing = await ctx.db
         .query("externalActivities")
-        .withIndex("by_userId_externalId", (q) =>
-          q.eq("userId", userId).eq("externalId", a.externalId),
+        .withIndex("by_userId_source_externalId", (q) =>
+          q.eq("userId", userId).eq("source", a.source).eq("externalId", a.externalId),
         )
         .first();
       if (existing) {

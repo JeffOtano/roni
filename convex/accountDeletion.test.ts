@@ -106,7 +106,7 @@ async function drainAuthData(t: ReturnType<typeof convexTest>, userId: Id<"users
 async function drainUserTableBatch(
   t: ReturnType<typeof convexTest>,
   userId: Id<"users">,
-  table: "currentStrengthScores",
+  table: "currentStrengthScores" | "garminWebhookEvents",
 ) {
   let iterations = 0;
   while (await t.mutation(internal.accountDeletion.deleteUserTableBatch, { userId, table })) {
@@ -245,6 +245,56 @@ describe("deleteUserTableBatch", () => {
 
     expect(await countCurrentStrengthScores(t, userId)).toHaveLength(0);
     expect(await countCurrentStrengthScores(t, otherUserId)).toHaveLength(1);
+  });
+
+  test("deletes Garmin webhook storage blobs before deleting event rows", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const otherUserId = await createUser(t);
+
+    const { storageId, otherStorageId } = await t.run(async (ctx) => {
+      const now = Date.now();
+      const storageId = await ctx.storage.store(new Blob(["{}"], { type: "application/json" }));
+      const otherStorageId = await ctx.storage.store(
+        new Blob(["{}"], { type: "application/json" }),
+      );
+      await ctx.db.insert("garminWebhookEvents", {
+        userId,
+        garminUserId: "garmin-user-1",
+        eventType: "activities",
+        status: "processed",
+        rawPayloadStorageId: storageId,
+        receivedAt: now,
+        expiresAt: now + 60_000,
+      });
+      await ctx.db.insert("garminWebhookEvents", {
+        userId: otherUserId,
+        garminUserId: "garmin-user-2",
+        eventType: "activities",
+        status: "processed",
+        rawPayloadStorageId: otherStorageId,
+        receivedAt: now,
+        expiresAt: now + 60_000,
+      });
+      return { storageId, otherStorageId };
+    });
+
+    await drainUserTableBatch(t, userId, "garminWebhookEvents");
+
+    const remaining = await t.run(async (ctx) => ({
+      targetRows: (await ctx.db.query("garminWebhookEvents").collect()).filter(
+        (row) => row.userId === userId,
+      ),
+      otherRows: (await ctx.db.query("garminWebhookEvents").collect()).filter(
+        (row) => row.userId === otherUserId,
+      ),
+      deletedBlobExists: (await ctx.storage.get(storageId)) !== null,
+      otherBlobExists: (await ctx.storage.get(otherStorageId)) !== null,
+    }));
+    expect(remaining.targetRows).toHaveLength(0);
+    expect(remaining.otherRows).toHaveLength(1);
+    expect(remaining.deletedBlobExists).toBe(false);
+    expect(remaining.otherBlobExists).toBe(true);
   });
 });
 

@@ -54,15 +54,17 @@ export const updateStatus = internalMutation({
     eventId: v.id("garminWebhookEvents"),
     status: statusValidator,
     errorReason: v.optional(v.string()),
+    garminUserId: v.optional(v.string()),
     userId: v.optional(v.id("users")),
   },
-  handler: async (ctx, { eventId, status, errorReason, userId }) => {
+  handler: async (ctx, { eventId, status, errorReason, garminUserId, userId }) => {
     // Persist whatever the caller sends. `processed` can legitimately
     // carry an informational reason (e.g. "no matching connection")
     // that shouldn't be hidden just because no error occurred.
     await ctx.db.patch(eventId, {
       status,
       errorReason,
+      ...(garminUserId !== undefined ? { garminUserId } : {}),
       ...(userId !== undefined ? { userId } : {}),
     });
   },

@@ -10,7 +10,12 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
+import { internalMutation, internalQuery } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
+
+type WellnessDailyPatch = Partial<
+  Omit<Doc<"garminWellnessDaily">, "_creationTime" | "_id" | "calendarDate" | "userId">
+>;
 
 const patchValidator = v.object({
   sleepDurationSeconds: v.optional(v.number()),
@@ -48,6 +53,12 @@ const patchValidator = v.object({
   skinTempDeviationCelsius: v.optional(v.number()),
 });
 
+export function compactWellnessFields(fields: WellnessDailyPatch): WellnessDailyPatch {
+  return Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined),
+  ) as WellnessDailyPatch;
+}
+
 export const upsertWellnessDaily = internalMutation({
   args: {
     userId: v.id("users"),
@@ -64,8 +75,8 @@ export const upsertWellnessDaily = internalMutation({
       // Skip patches with no populated fields (e.g. stressDetails with an
       // empty body-battery map) so we don't churn lastIngestedAt for rows
       // whose real data is already correct.
-      const hasAnyField = Object.values(fields).some((v) => v !== undefined);
-      if (!hasAnyField) continue;
+      const compactedFields = compactWellnessFields(fields);
+      if (Object.keys(compactedFields).length === 0) continue;
 
       const existing = await ctx.db
         .query("garminWellnessDaily")
@@ -75,15 +86,29 @@ export const upsertWellnessDaily = internalMutation({
         .unique();
 
       if (existing) {
-        await ctx.db.patch(existing._id, { ...fields, lastIngestedAt: now });
+        await ctx.db.patch(existing._id, { ...compactedFields, lastIngestedAt: now });
       } else {
         await ctx.db.insert("garminWellnessDaily", {
           userId,
           calendarDate,
-          ...fields,
+          ...compactedFields,
           lastIngestedAt: now,
         });
       }
     }
+  },
+});
+
+export const getRecentWellnessDaily = internalQuery({
+  args: {
+    userId: v.id("users"),
+    limit: v.number(),
+  },
+  handler: async (ctx, { userId, limit }) => {
+    return await ctx.db
+      .query("garminWellnessDaily")
+      .withIndex("by_userId_calendarDate", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(Math.max(0, Math.min(limit, 30)));
   },
 });

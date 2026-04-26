@@ -7,6 +7,7 @@ import type { OwnedAccessories } from "../tonal/accessories";
 export { getRecencyLabel } from "./timeDecay";
 import { getRecencyLabel } from "./timeDecay";
 import {
+  capitalizeWorkoutType,
   computeAge,
   formatExternalActivityLine,
   getHrIntensityLabel,
@@ -14,6 +15,7 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./snapshotHelpers";
+import { formatGarminWellnessLines } from "./garminWellnessSnapshot";
 
 // Re-export for backward compatibility (tests, other consumers)
 export { type SnapshotSection, trimSnapshot, getHrIntensityLabel, formatExternalActivityLine };
@@ -43,6 +45,7 @@ export async function buildTrainingSnapshot(
     activeGoals,
     activeInjuries,
     externalActivities,
+    garminWellness,
   ] = await Promise.all([
     ctx
       .runQuery(internal.tonal.syncQueries.getCurrentStrengthScores, { userId: convexUserId })
@@ -68,6 +71,12 @@ export async function buildTrainingSnapshot(
       .runQuery(internal.tonal.syncQueries.getRecentExternalActivities, {
         userId: convexUserId,
         limit: 20,
+      })
+      .catch(() => []),
+    ctx
+      .runQuery(internal.garmin.wellnessDaily.getRecentWellnessDaily, {
+        userId: convexUserId,
+        limit: 7,
       })
       .catch(() => []),
   ]);
@@ -251,12 +260,7 @@ export async function buildTrainingSnapshot(
     for (const ext of externalActivities) {
       const r = getRecencyLabel(ext.beginTime, now, userTimezone);
       const tag = r === "today" || r === "yesterday" ? `  [${r.toUpperCase()}] ` : "  ";
-      const type = ext.workoutType
-        .replace(/([A-Z])/g, " $1")
-        .trim()
-        .split(" ")
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
+      const type = capitalizeWorkoutType(ext.workoutType);
       const mins = Math.round(ext.totalDuration / 60);
       let line = `${ext.beginTime.split("T")[0]} — ${type} (${ext.source}) | ${mins}min`;
       if (ext.totalCalories !== undefined) {
@@ -289,6 +293,11 @@ export async function buildTrainingSnapshot(
       );
     }
     sections.push({ priority: 6, lines: el });
+  }
+
+  const garminWellnessLines = formatGarminWellnessLines(garminWellness);
+  if (garminWellnessLines.length > 0) {
+    sections.push({ priority: 6, lines: garminWellnessLines });
   }
 
   // Priority 11: Performance notes
