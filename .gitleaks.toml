@@ -17,3 +17,14 @@ paths = [
   '''convex/tonal/auth\.ts''',
 
 ]
+regexes = [
+  # Official OAuth 1.0a reference-vector fixtures. These are deterministic
+  # documentation examples used to verify signature compatibility, not app
+  # credentials.
+  '''xvz1evFS4wEEPTGEFPHBog''',
+  '''kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw''',
+  '''370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb''',
+  '''LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE''',
+  '''hCtSmYh%2BiHYCEqBWrE7C7hYmtUk%3D''',
+  '''hCtSmYh\+iHYCEqBWrE7C7hYmtUk=''',
+]

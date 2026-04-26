@@ -113,10 +113,10 @@ export interface ExternalActivity {
   timezone: string;
   activeDuration: number;
   totalDuration: number;
-  distance: number;
-  activeCalories: number;
-  totalCalories: number;
-  averageHeartRate: number;
+  distance?: number;
+  activeCalories?: number;
+  totalCalories?: number;
+  averageHeartRate?: number;
   source: string;
   externalId: string;
   deviceId: string;

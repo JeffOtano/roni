@@ -134,6 +134,21 @@ describe("formatExternalActivityLine", () => {
     const line = formatExternalActivityLine(makeExternalActivity({ averageHeartRate: 0 }));
     expect(line).not.toContain("HR");
   });
+
+  it("omits optional metrics when the source does not provide them", () => {
+    const line = formatExternalActivityLine(
+      makeExternalActivity({
+        totalCalories: undefined,
+        distance: undefined,
+        averageHeartRate: undefined,
+      }),
+    );
+
+    expect(line).toContain("30min");
+    expect(line).not.toContain("cal");
+    expect(line).not.toMatch(/\d+\.\d+ mi/);
+    expect(line).not.toContain("HR");
+  });
 });
 
 // ---------------------------------------------------------------------------

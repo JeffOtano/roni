@@ -271,19 +271,15 @@ export async function buildTrainingSnapshot(
         line += ` | ${miles} mi`;
       }
       const avgHr = ext.averageHeartRate;
+      let hrLabel: string | null = null;
       if (avgHr !== undefined) {
-        const hrLabel = getHrIntensityLabel(avgHr);
+        hrLabel = getHrIntensityLabel(avgHr);
         if (hrLabel) {
           line += ` | Avg HR ${Math.round(avgHr)} (${hrLabel})`;
         }
       }
       el.push(tag + line);
-      if (
-        r !== "last week" &&
-        r !== "older" &&
-        avgHr !== undefined &&
-        getHrIntensityLabel(avgHr) === "vigorous"
-      ) {
+      if (r !== "last week" && r !== "older" && avgHr !== undefined && hrLabel === "vigorous") {
         vigorousThisWeek++;
       }
     }

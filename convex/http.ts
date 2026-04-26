@@ -3,7 +3,10 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { GARMIN_PUSH_EVENT_TYPES } from "./garmin/webhookDispatch";
-import { verifyGarminWebhookSignature } from "./garmin/webhookSignature";
+import {
+  garminWebhookFailureStatus,
+  verifyGarminWebhookSignature,
+} from "./garmin/webhookSignature";
 import { resolveAppOrigin } from "./httpOrigin";
 
 const http = httpRouter();
@@ -68,7 +71,9 @@ for (const eventType of GARMIN_PUSH_EVENT_TYPES) {
       const rawBody = await req.text();
       const sigCheck = await verifyGarminWebhookSignature(req, rawBody);
       if (!sigCheck.valid) {
-        return new Response(sigCheck.reason, { status: 401 });
+        return new Response(sigCheck.reason, {
+          status: garminWebhookFailureStatus(sigCheck.reason),
+        });
       }
 
       // Validate JSON up front so we reject malformed bodies before

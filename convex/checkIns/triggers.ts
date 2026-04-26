@@ -194,7 +194,11 @@ async function evaluateHighExternalLoad(
   const seventyTwoHoursAgo = now - 3 * 24 * 60 * 60 * 1000;
   const recentVigorous = externals.filter((e) => {
     const ts = new Date(e.beginTime).getTime();
-    return ts > seventyTwoHoursAgo && e.averageHeartRate >= VIGOROUS_HR_THRESHOLD;
+    return (
+      ts > seventyTwoHoursAgo &&
+      e.averageHeartRate !== undefined &&
+      e.averageHeartRate >= VIGOROUS_HR_THRESHOLD
+    );
   });
 
   if (recentVigorous.length < 3) return null;

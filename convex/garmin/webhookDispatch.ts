@@ -223,6 +223,10 @@ function normalizeForKey(key: WellnessSummaryKey, rawPayload: unknown): Wellness
       return normalizeRespiration(rawPayload);
     case "skinTemp":
       return normalizeSkinTemp(rawPayload);
+    default: {
+      const _exhaustive: never = key;
+      throw new Error(`Unhandled Garmin wellness summary key: ${_exhaustive}`);
+    }
   }
 }
 

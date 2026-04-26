@@ -34,7 +34,7 @@ function formatRetryWindow(rateLimited: NonNullable<BackfillResult["rateLimited"
   return `in about ${Math.ceil(retryAfterSeconds / 60)}m`;
 }
 
-export type GarminBackfillNotice =
+type GarminBackfillNotice =
   | { kind: "success"; message: string }
   | { kind: "warning"; message: string }
   | { kind: "error"; message: string };

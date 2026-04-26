@@ -12,6 +12,11 @@
  */
 
 export type SignatureCheckResult = { valid: true } | { valid: false; reason: string };
+const EMPTY_BODY_REASON = "Empty Garmin webhook body";
+
+export function garminWebhookFailureStatus(reason: string): 400 | 401 {
+  return reason === EMPTY_BODY_REASON ? 400 : 401;
+}
 
 function getConfiguredSecret(): string | null {
   const secret = process.env.GARMIN_WEBHOOK_SECRET;
@@ -41,7 +46,7 @@ export async function verifyGarminWebhookSignature(
   rawBody: string,
 ): Promise<SignatureCheckResult> {
   if (rawBody.length === 0) {
-    return { valid: false, reason: "Empty Garmin webhook body" };
+    return { valid: false, reason: EMPTY_BODY_REASON };
   }
   const configuredSecret = getConfiguredSecret();
   if (!configuredSecret) {

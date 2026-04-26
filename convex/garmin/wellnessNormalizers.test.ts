@@ -305,7 +305,7 @@ describe("normalizeRespiration", () => {
   });
 
   it("uses the local offset when bucketing by calendarDate", () => {
-    const startUtc = Date.UTC(2019, 8, 11, 23, 30, 0) / 1000;
+    const startUtc = Date.UTC(2019, 8, 12, 3, 0, 0) / 1000;
     const [row] = normalizeRespiration({
       allDayRespiration: [
         {
@@ -316,6 +316,20 @@ describe("normalizeRespiration", () => {
       ],
     });
     expect(row.calendarDate).toBe("2019-09-11");
+  });
+
+  it("uses the UTC date when no local offset is provided", () => {
+    const startUtc = Date.UTC(2019, 8, 12, 3, 0, 0) / 1000;
+    const [row] = normalizeRespiration({
+      allDayRespiration: [
+        {
+          startTimeInSeconds: startUtc,
+          startTimeOffsetInSeconds: 0,
+          timeOffsetEpochToBreaths: { "0": 14 },
+        },
+      ],
+    });
+    expect(row.calendarDate).toBe("2019-09-12");
   });
 
   it("drops entries with no map values to average", () => {

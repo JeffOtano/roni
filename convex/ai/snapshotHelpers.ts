@@ -62,17 +62,21 @@ export function capitalizeWorkoutType(workoutType: string): string {
 export function formatExternalActivityLine(a: ExternalActivity): string {
   const type = capitalizeWorkoutType(a.workoutType);
   const mins = Math.round(a.totalDuration / 60);
-  const cal = Math.round(a.totalCalories);
   const date = a.beginTime.split("T")[0];
 
-  let line = `  ${date} — ${type} (${a.source}) | ${mins}min | ${cal} cal`;
-  if (a.distance > 0) {
+  let line = `  ${date} — ${type} (${a.source}) | ${mins}min`;
+  if (a.totalCalories !== undefined) {
+    line += ` | ${Math.round(a.totalCalories)} cal`;
+  }
+  if (a.distance !== undefined && a.distance > 0) {
     const miles = (a.distance / 1609.34).toFixed(1);
     line += ` | ${miles} mi`;
   }
-  const hrLabel = getHrIntensityLabel(a.averageHeartRate);
-  if (hrLabel) {
-    line += ` | Avg HR ${Math.round(a.averageHeartRate)} (${hrLabel})`;
+  if (a.averageHeartRate !== undefined) {
+    const hrLabel = getHrIntensityLabel(a.averageHeartRate);
+    if (hrLabel) {
+      line += ` | Avg HR ${Math.round(a.averageHeartRate)} (${hrLabel})`;
+    }
   }
   return line;
 }

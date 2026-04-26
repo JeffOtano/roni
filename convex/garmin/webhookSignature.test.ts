@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { verifyGarminWebhookSignature } from "./webhookSignature";
+import { garminWebhookFailureStatus, verifyGarminWebhookSignature } from "./webhookSignature";
 
 describe("verifyGarminWebhookSignature", () => {
   afterEach(() => {
@@ -56,5 +56,10 @@ describe("verifyGarminWebhookSignature", () => {
       valid: false,
       reason: "Empty Garmin webhook body",
     });
+  });
+
+  it("maps malformed empty requests to bad request and auth failures to unauthorized", () => {
+    expect(garminWebhookFailureStatus("Empty Garmin webhook body")).toBe(400);
+    expect(garminWebhookFailureStatus("Invalid Garmin webhook secret")).toBe(401);
   });
 });

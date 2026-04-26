@@ -140,12 +140,6 @@ export async function signOAuth1Request(
   for (const [k, v] of params) {
     if (k.startsWith("oauth_")) headerEntries.push([k, v]);
   }
-  // `oauth_callback` and `oauth_verifier` are extras that also belong in the header.
-  for (const [k, v] of Object.entries(opts.extraSignableParams ?? {})) {
-    if (k.startsWith("oauth_") && !headerEntries.find(([hk]) => hk === k)) {
-      headerEntries.push([k, v]);
-    }
-  }
   headerEntries.push(["oauth_signature", signature]);
   headerEntries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 

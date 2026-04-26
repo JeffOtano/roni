@@ -20,6 +20,7 @@ export interface NormalizedGarminActivity {
   totalDuration: number;
   source: "garmin";
   activeCalories?: number;
+  /** Garmin Activity summaries provide active kilocalories, not total calories. */
   totalCalories?: number;
   averageHeartRate?: number;
   maxHeartRate?: number;

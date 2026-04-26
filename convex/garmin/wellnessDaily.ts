@@ -16,6 +16,10 @@ import type { Doc } from "../_generated/dataModel";
 type WellnessDailyPatch = Partial<
   Omit<Doc<"garminWellnessDaily">, "_creationTime" | "_id" | "calendarDate" | "userId">
 >;
+type BodyBatteryExtrema = Pick<
+  Doc<"garminWellnessDaily">,
+  "bodyBatteryHighestValue" | "bodyBatteryLowestValue"
+>;
 
 const patchValidator = v.object({
   sleepDurationSeconds: v.optional(v.number()),
@@ -59,6 +63,29 @@ export function compactWellnessFields(fields: WellnessDailyPatch): WellnessDaily
   ) as WellnessDailyPatch;
 }
 
+export function mergeWellnessFields(
+  existing: BodyBatteryExtrema | null | undefined,
+  fields: WellnessDailyPatch,
+): WellnessDailyPatch {
+  const compactedFields = compactWellnessFields(fields);
+  if (!existing) return compactedFields;
+
+  const incomingHigh = compactedFields.bodyBatteryHighestValue;
+  if (incomingHigh !== undefined && existing.bodyBatteryHighestValue !== undefined) {
+    compactedFields.bodyBatteryHighestValue = Math.max(
+      existing.bodyBatteryHighestValue,
+      incomingHigh,
+    );
+  }
+
+  const incomingLow = compactedFields.bodyBatteryLowestValue;
+  if (incomingLow !== undefined && existing.bodyBatteryLowestValue !== undefined) {
+    compactedFields.bodyBatteryLowestValue = Math.min(existing.bodyBatteryLowestValue, incomingLow);
+  }
+
+  return compactedFields;
+}
+
 export const upsertWellnessDaily = internalMutation({
   args: {
     userId: v.id("users"),
@@ -75,8 +102,8 @@ export const upsertWellnessDaily = internalMutation({
       // Skip patches with no populated fields (e.g. stressDetails with an
       // empty body-battery map) so we don't churn lastIngestedAt for rows
       // whose real data is already correct.
-      const compactedFields = compactWellnessFields(fields);
-      if (Object.keys(compactedFields).length === 0) continue;
+      const incomingFields = compactWellnessFields(fields);
+      if (Object.keys(incomingFields).length === 0) continue;
 
       const existing = await ctx.db
         .query("garminWellnessDaily")
@@ -84,6 +111,8 @@ export const upsertWellnessDaily = internalMutation({
           q.eq("userId", userId).eq("calendarDate", calendarDate),
         )
         .unique();
+
+      const compactedFields = mergeWellnessFields(existing, incomingFields);
 
       if (existing) {
         await ctx.db.patch(existing._id, { ...compactedFields, lastIngestedAt: now });
