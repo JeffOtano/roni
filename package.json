@@ -58,7 +58,7 @@
     "@ai-sdk/openai": "^3.0.53",
     "@ai-sdk/provider": "^3.0.8",
     "@ai-sdk/provider-utils": "^4.0.23",
-    "@arizeai/phoenix-client": "^6.7.0",
+    "@arizeai/phoenix-client": "^6.8.0",
     "@arizeai/phoenix-evals": "^1.0.2",
     "@arizeai/phoenix-otel": "^1.0.0",
     "@base-ui/react": "^1.4.0",
