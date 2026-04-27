@@ -2,7 +2,7 @@
 
 import { Label } from "@/components/ui/label";
 
-export const SPLIT_OPTIONS = [
+const SPLIT_OPTIONS = [
   { value: "ppl", label: "Push / Pull / Legs" },
   { value: "upper_lower", label: "Upper / Lower" },
   { value: "full_body", label: "Full Body" },
