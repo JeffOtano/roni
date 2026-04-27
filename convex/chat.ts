@@ -130,9 +130,14 @@ export const listMessages = query({
       threadId: args.threadId,
       paginationOpts: args.paginationOpts,
     });
+    // Exclude aborted streams: they contain error deltas from failed LLM
+    // attempts that the Vercel AI SDK client re-throws as unhandled promise
+    // rejections (TONALCOACH-1C). Failed messages are already visible through
+    // the paginated query; aborted stream data is noise on the client.
     const streams = await syncStreams(ctx, components.agent, {
       threadId: args.threadId,
       streamArgs: args.streamArgs,
+      includeStatuses: ["streaming", "finished"],
     });
     return { ...paginated, streams };
   },
