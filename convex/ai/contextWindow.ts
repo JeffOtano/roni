@@ -71,25 +71,64 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
     }
   }
 
+  // Build the set of tool-call ids that survive the assistant-message filter
+  // below. Any `tool` role message whose tool-result references a non-kept
+  // call is orphaned (typically from a partially-persisted failed stream)
+  // and must be dropped — Gemini rejects history where a tool turn doesn't
+  // immediately follow its originating user/function-response turn.
+  const keptAssistantToolCallIds = new Set<string>();
+  for (const msg of messages) {
+    if (msg.role !== "assistant") continue;
+    if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
+    for (const part of msg.content as Array<{ type: string; toolCallId?: string }>) {
+      if (part.type !== "tool-call" || !part.toolCallId) continue;
+      if (
+        resolvedToolCallIds.has(part.toolCallId) ||
+        toolCallIdsWithApprovalRequests.has(part.toolCallId)
+      ) {
+        keptAssistantToolCallIds.add(part.toolCallId);
+      }
+    }
+  }
+
   return messages
     .map((msg) => {
-      if (msg.role !== "assistant") return msg;
-      if (typeof msg.content === "string" || !Array.isArray(msg.content)) return msg;
+      if (msg.role === "assistant") {
+        if (typeof msg.content === "string" || !Array.isArray(msg.content)) return msg;
 
-      const parts = msg.content as Array<{ type: string; toolCallId?: string }>;
-      const hasToolCalls = parts.some((p) => p.type === "tool-call");
-      if (!hasToolCalls) return msg;
+        const parts = msg.content as Array<{ type: string; toolCallId?: string }>;
+        const hasToolCalls = parts.some((p) => p.type === "tool-call");
+        if (!hasToolCalls) return msg;
 
-      const filtered = parts.filter(
-        (p) =>
-          p.type !== "tool-call" ||
-          (p.toolCallId &&
-            (resolvedToolCallIds.has(p.toolCallId) ||
-              toolCallIdsWithApprovalRequests.has(p.toolCallId))),
-      );
+        const filtered = parts.filter(
+          (p) =>
+            p.type !== "tool-call" ||
+            (p.toolCallId &&
+              (resolvedToolCallIds.has(p.toolCallId) ||
+                toolCallIdsWithApprovalRequests.has(p.toolCallId))),
+        );
 
-      if (filtered.length === 0) return null;
-      return { ...msg, content: filtered } as ModelMessage;
+        if (filtered.length === 0) return null;
+        return { ...msg, content: filtered } as ModelMessage;
+      }
+
+      if (msg.role === "tool") {
+        if (typeof msg.content === "string" || !Array.isArray(msg.content)) return msg;
+
+        const parts = msg.content as Array<{ type: string; toolCallId?: string }>;
+        // tool-approval-response parts are keyed by approvalId, not toolCallId,
+        // so preserve them regardless of the kept-call set.
+        const filtered = parts.filter(
+          (p) =>
+            p.type === "tool-approval-response" ||
+            (p.toolCallId !== undefined && keptAssistantToolCallIds.has(p.toolCallId)),
+        );
+
+        if (filtered.length === 0) return null;
+        return { ...msg, content: filtered } as ModelMessage;
+      }
+
+      return msg;
     })
     .filter((msg): msg is ModelMessage => msg !== null);
 }
