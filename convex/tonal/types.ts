@@ -4,7 +4,7 @@ export interface TonalUser {
   email: string;
   firstName: string;
   lastName: string;
-  gender: string;
+  gender?: string;
   heightInches: number;
   weightPounds: number;
   auth0Id: string;

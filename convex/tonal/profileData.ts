@@ -6,7 +6,7 @@ export function toUserProfileData(profile: TonalUser) {
     lastName: profile.lastName,
     heightInches: profile.heightInches,
     weightPounds: profile.weightPounds,
-    gender: profile.gender,
+    gender: profile.gender ?? undefined,
     level: profile.tonalStatus ?? "",
     workoutsPerWeek: profile.workoutsPerWeek,
     workoutDurationMin: profile.workoutDurationMin ?? 0,

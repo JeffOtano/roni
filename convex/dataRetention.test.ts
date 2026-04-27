@@ -179,6 +179,18 @@ describe("runDataRetention", () => {
     await expect(t.action(internal.dataRetention.runDataRetention, {})).resolves.toBeNull();
   });
 
+  test("scheduleRetentionContinuation can be called without error (continuation mechanism)", async () => {
+    // Regression for TONALCOACH-17: runDataRetention timed out at 600 s when
+    // large backlogs existed. The fix adds a 540 s time-budget; if time runs
+    // out, it calls scheduleRetentionContinuation so the cron picks up where
+    // it left off. This test verifies the scheduling mutation is callable.
+    const t = convexTest(schema, modules);
+
+    await expect(
+      t.mutation(internal.dataRetention.scheduleRetentionContinuation, {}),
+    ).resolves.not.toThrow();
+  });
+
   test("prunes strengthScoreSnapshots older than 24 months", async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();

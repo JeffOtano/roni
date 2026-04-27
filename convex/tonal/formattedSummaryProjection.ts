@@ -11,11 +11,6 @@ const formattedSummarySchema = z.object({
   movementSets: z.array(movementSetSchema).optional(),
 });
 
-// Strict: Tonal's contract always returns movementSets; missing field is drift.
-const strictFormattedSummarySchema = z.object({
-  movementSets: z.array(movementSetSchema),
-});
-
 /**
  * Project a raw /v6/formatted/users/{id}/workout-summaries/{id} response down
  * to the per-movement totalVolume readers actually use. Drops the per-movement
@@ -35,9 +30,10 @@ export function projectFormattedSummary(raw: unknown): FormattedWorkoutSummary {
 }
 
 /**
- * Strict variant for fresh API responses: throws on schema mismatch so
- * `cachedFetch` can fall back to stale data instead of caching an empty
- * placeholder that would mask upstream drift for the full TTL.
+ * Strict variant for fresh API responses: throws only on a completely unexpected
+ * shape (non-object) so `cachedFetch` can fall back to stale data. Tonal
+ * legitimately omits `movementSets` for some workout types (e.g. free-form,
+ * external), so a missing field is treated as an empty array — not as drift.
  */
 export function projectFormattedSummaryStrict(raw: unknown): FormattedWorkoutSummary {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -47,5 +43,5 @@ export function projectFormattedSummaryStrict(raw: unknown): FormattedWorkoutSum
       }`,
     );
   }
-  return strictFormattedSummarySchema.parse(raw);
+  return projectFormattedSummary(raw);
 }

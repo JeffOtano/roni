@@ -78,24 +78,30 @@ describe("projectFormattedSummaryStrict", () => {
     expect(() => projectFormattedSummaryStrict([])).toThrow(/expected object/);
   });
 
-  it("throws on schema mismatch instead of returning empty movementSets", () => {
+  it("returns empty movementSets on field-level schema mismatch (graceful degradation, no Sentry noise)", () => {
+    // Tonal sometimes omits totalVolume for certain set types; this is not
+    // drift worth throwing on — just return an empty list so the caller gets
+    // a usable (if incomplete) result.
     const malformed = { movementSets: [{ movementId: "m-1" }] };
-    expect(() => projectFormattedSummaryStrict(malformed)).toThrow();
+    expect(projectFormattedSummaryStrict(malformed)).toEqual({ movementSets: [] });
   });
 
-  it("throws when movementSets is absent so cachedFetch does not cache an empty placeholder", () => {
-    expect(() => projectFormattedSummaryStrict({})).toThrow();
-    expect(() => projectFormattedSummaryStrict({ summaryId: "wa-1" })).toThrow();
+  it("returns empty movementSets when movementSets is absent (regression: TONALCOACH-3P)", () => {
+    // Tonal legitimately omits movementSets for free-form / external-session
+    // workout types. The strict variant must NOT throw — doing so was creating
+    // Sentry noise every time such a summary was fetched fresh.
+    expect(projectFormattedSummaryStrict({})).toEqual({ movementSets: [] });
+    expect(projectFormattedSummaryStrict({ summaryId: "wa-1" })).toEqual({ movementSets: [] });
   });
 
-  it("rejects the whole movementSets array when one entry is malformed", () => {
+  it("returns empty movementSets when one entry in movementSets is malformed", () => {
     const mixed = {
       movementSets: [
         { movementId: "mov-0", totalVolume: 1000 },
-        { movementId: "mov-1" },
+        { movementId: "mov-1" }, // missing totalVolume
         { movementId: "mov-2", totalVolume: 1002 },
       ],
     };
-    expect(() => projectFormattedSummaryStrict(mixed)).toThrow();
+    expect(projectFormattedSummaryStrict(mixed)).toEqual({ movementSets: [] });
   });
 });

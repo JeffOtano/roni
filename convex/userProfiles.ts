@@ -11,7 +11,7 @@ const profileDataValidator = v.object({
   lastName: v.string(),
   heightInches: v.number(),
   weightPounds: v.number(),
-  gender: v.string(),
+  gender: v.optional(v.string()),
   level: v.string(),
   workoutsPerWeek: v.number(),
   workoutDurationMin: v.number(),

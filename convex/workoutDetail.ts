@@ -101,7 +101,8 @@ export const getWorkoutDetail = action({
   args: { activityId: v.string() },
   handler: async (ctx, args): Promise<EnrichedWorkoutDetail | null> => {
     if (!UUID_RE.test(args.activityId)) {
-      throw new Error(`Invalid activityId: expected UUID, got "${args.activityId}"`);
+      console.warn(`getWorkoutDetail: invalid activityId format "${args.activityId}"`);
+      return null;
     }
     const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
     // Session expired or user not signed in — AppShell will redirect to /login.

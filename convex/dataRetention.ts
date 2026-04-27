@@ -134,9 +134,20 @@ interface PruneTableConfig {
   query: ExpiredIdsQuery;
 }
 
-async function pruneTable(ctx: ActionCtx, config: PruneTableConfig): Promise<number> {
+interface PruneResult {
+  deleted: number;
+  /** True when all expired rows were removed; false when the deadline was hit. */
+  complete: boolean;
+}
+
+async function pruneTable(
+  ctx: ActionCtx,
+  config: PruneTableConfig,
+  deadline: number,
+): Promise<PruneResult> {
   let deleted = 0;
   while (true) {
+    if (Date.now() >= deadline) return { deleted, complete: false };
     const ids = await ctx.runQuery(config.query, {
       cutoff: config.cutoff,
       limit: config.batchSize,
@@ -146,14 +157,28 @@ async function pruneTable(ctx: ActionCtx, config: PruneTableConfig): Promise<num
     deleted += ids.length;
     if (ids.length < config.batchSize) break;
   }
-  return deleted;
+  return { deleted, complete: true };
 }
 
-/** Main cleanup action. Called by daily cron. */
+/**
+ * Mutation that schedules a continuation run of `runDataRetention`.
+ * Actions cannot call `ctx.scheduler` directly, so the action delegates here.
+ */
+export const scheduleRetentionContinuation = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    await ctx.scheduler.runAfter(0, internal.dataRetention.runDataRetention, {});
+  },
+});
+
+/** Main cleanup action. Called by daily cron (and by itself when work remains). */
 export const runDataRetention = internalAction({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
+    // Leave a 60 s safety buffer inside the 600 s action limit.
+    const deadline = now + 540_000;
+
     const counts = {
       aiUsage: 0,
       toolCalls: 0,
@@ -162,41 +187,102 @@ export const runDataRetention = internalAction({
       cache: 0,
     };
     let partialFailure: string | undefined;
+    let needsContinuation = false;
 
     try {
-      counts.aiUsage = await pruneTable(ctx, {
-        cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
-        batchSize: BATCH_SIZE,
-        query: internal.dataRetention.getExpiredAiUsageIds,
-      });
-      counts.toolCalls = await pruneTable(ctx, {
-        cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
-        batchSize: BATCH_SIZE,
-        query: internal.dataRetention.getExpiredToolCallIds,
-      });
-      counts.aiRun = await pruneTable(ctx, {
-        cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
-        batchSize: BATCH_SIZE,
-        query: internal.dataRetention.getExpiredAiRunIds,
-      });
-      counts.strengthSnapshots = await pruneTable(ctx, {
-        cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
-        batchSize: BATCH_SIZE,
-        query: internal.dataRetention.getExpiredStrengthSnapshotIds,
-      });
-      counts.cache = await pruneTable(ctx, {
-        cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
-        batchSize: CACHE_BATCH_SIZE,
-        query: internal.dataRetention.getExpiredCacheIds,
-      });
+      let result = await pruneTable(
+        ctx,
+        {
+          cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
+          batchSize: BATCH_SIZE,
+          query: internal.dataRetention.getExpiredAiUsageIds,
+        },
+        deadline,
+      );
+      counts.aiUsage = result.deleted;
+      if (!result.complete) {
+        needsContinuation = true;
+      }
+
+      if (!needsContinuation) {
+        result = await pruneTable(
+          ctx,
+          {
+            cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
+            batchSize: BATCH_SIZE,
+            query: internal.dataRetention.getExpiredToolCallIds,
+          },
+          deadline,
+        );
+        counts.toolCalls = result.deleted;
+        if (!result.complete) {
+          needsContinuation = true;
+        }
+      }
+
+      if (!needsContinuation) {
+        result = await pruneTable(
+          ctx,
+          {
+            cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
+            batchSize: BATCH_SIZE,
+            query: internal.dataRetention.getExpiredAiRunIds,
+          },
+          deadline,
+        );
+        counts.aiRun = result.deleted;
+        if (!result.complete) {
+          needsContinuation = true;
+        }
+      }
+
+      if (!needsContinuation) {
+        result = await pruneTable(
+          ctx,
+          {
+            cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
+            batchSize: BATCH_SIZE,
+            query: internal.dataRetention.getExpiredStrengthSnapshotIds,
+          },
+          deadline,
+        );
+        counts.strengthSnapshots = result.deleted;
+        if (!result.complete) {
+          needsContinuation = true;
+        }
+      }
+
+      if (!needsContinuation) {
+        result = await pruneTable(
+          ctx,
+          {
+            cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
+            batchSize: CACHE_BATCH_SIZE,
+            query: internal.dataRetention.getExpiredCacheIds,
+          },
+          deadline,
+        );
+        counts.cache = result.deleted;
+        if (!result.complete) {
+          needsContinuation = true;
+        }
+      }
+
+      if (needsContinuation) {
+        await ctx.runMutation(internal.dataRetention.scheduleRetentionContinuation, {});
+      }
     } catch (err) {
       partialFailure = err instanceof Error ? err.message : String(err);
       throw err;
     } finally {
       const totalDeleted =
         counts.aiUsage + counts.toolCalls + counts.aiRun + counts.strengthSnapshots + counts.cache;
-      if (totalDeleted > 0 || partialFailure) {
-        const prefix = partialFailure ? `partial (${partialFailure}): ` : "";
+      if (totalDeleted > 0 || partialFailure || needsContinuation) {
+        const prefix = partialFailure
+          ? `partial (${partialFailure}): `
+          : needsContinuation
+            ? "partial (deadline): "
+            : "";
         console.log(
           `[dataRetention] ${prefix}Cleaned up ${totalDeleted} records: ${counts.aiUsage} aiUsage, ${counts.toolCalls} toolCalls, ${counts.aiRun} aiRun, ${counts.strengthSnapshots} strengthSnapshots, ${counts.cache} cache`,
         );
@@ -210,6 +296,7 @@ export const runDataRetention = internalAction({
         strength_snapshots_deleted: counts.strengthSnapshots,
         cache_deleted: counts.cache,
         partial_failure: partialFailure ?? null,
+        needs_continuation: needsContinuation,
       });
       await analytics.flush();
     }

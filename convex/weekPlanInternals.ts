@@ -195,9 +195,10 @@ export const deleteWeekPlanInternal = internalMutation({
   },
   handler: async (ctx, args) => {
     const plan = await ctx.db.get(args.weekPlanId);
-    if (!plan || plan.userId !== args.userId) {
-      throw new Error("Week plan not found or access denied");
-    }
+    // Concurrent re-generation can race to delete the same plan — a missing
+    // plan is a valid no-op; a mismatched owner is a security violation.
+    if (!plan) return;
+    if (plan.userId !== args.userId) throw new Error("Week plan access denied");
     for (const day of plan.days) {
       if (!day.workoutPlanId) continue;
       const workout = await ctx.db.get(day.workoutPlanId);

@@ -65,4 +65,14 @@ describe("toUserProfileData", () => {
       tonalCreatedAt: undefined,
     });
   });
+
+  it("handles a missing gender field (regression: TONALCOACH-3M/3N/9)", () => {
+    // Some Tonal accounts have no gender set. The mutation validator used to
+    // require the field, which caused ArgumentValidationError on connect.
+    const tonalUser = buildTonalUser({ gender: undefined });
+
+    const result = toUserProfileData(tonalUser);
+
+    expect(result.gender).toBeUndefined();
+  });
 });
