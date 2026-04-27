@@ -14,7 +14,7 @@ async function seedWeekPlan(
   return t.run(async (ctx) =>
     ctx.db.insert("weekPlans", {
       userId,
-      weekStartDate: "2026-04-21",
+      weekStartDate: "2026-04-20",
       preferredSplit: "ppl",
       targetDays: 3,
       days: Array.from({ length: 7 }, () => ({

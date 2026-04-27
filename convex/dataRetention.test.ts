@@ -179,16 +179,32 @@ describe("runDataRetention", () => {
     await expect(t.action(internal.dataRetention.runDataRetention, {})).resolves.toBeNull();
   });
 
-  test("scheduleRetentionContinuation can be called without error (continuation mechanism)", async () => {
+  test("schedules a continuation when the deadline is hit before all rows are pruned", async () => {
     // Regression for TONALCOACH-17: runDataRetention timed out at 600 s when
-    // large backlogs existed. The fix adds a 540 s time-budget; if time runs
-    // out, it calls scheduleRetentionContinuation so the cron picks up where
-    // it left off. This test verifies the scheduling mutation is callable.
+    // large backlogs existed. The fix adds a time-budget; if time runs out,
+    // a continuation is scheduled so the cron picks up where it left off.
+    // _deadlineOffsetMs: 0 forces an immediate deadline so every pruneTable
+    // call sees Date.now() >= deadline and returns { complete: false }.
     const t = convexTest(schema, modules);
+    const now = Date.now();
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const expiredId = await insertAiRun(t, {
+      userId,
+      runId: "expired",
+      createdAt: now - (RETENTION.aiRunDays + 5) * DAY_MS,
+    });
 
-    await expect(
-      t.mutation(internal.dataRetention.scheduleRetentionContinuation, {}),
-    ).resolves.not.toThrow();
+    await t.action(internal.dataRetention.runDataRetention, { _deadlineOffsetMs: 0 });
+
+    // Deadline hit before any deletion — row must still be present.
+    const afterFirstPass = await t.run(async (ctx) => ctx.db.get(expiredId));
+    expect(afterFirstPass).not.toBeNull();
+
+    // A continuation should have been scheduled in _scheduled_functions.
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(scheduled.some((fn) => fn.name.includes("runDataRetention"))).toBe(true);
   });
 
   test("prunes strengthScoreSnapshots older than 24 months", async () => {

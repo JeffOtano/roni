@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMovementSummaries, filterCatalog } from "./workoutDetail";
+import { buildMovementSummaries, filterCatalog, UUID_RE } from "./workoutDetail";
 import type { EnrichedSetActivity } from "./workoutDetail";
 import type { Movement } from "./tonal/types";
 
@@ -256,9 +256,6 @@ describe("buildMovementSummaries", () => {
 // guard condition stays accurate as the codebase evolves.
 
 describe("activityId UUID format", () => {
-  // Keep in sync with UUID_RE in workoutDetail.ts
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
   it("accepts canonical UUID v4 strings", () => {
     expect(UUID_RE.test("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
     expect(UUID_RE.test("123e4567-e89b-12d3-a456-426614174000")).toBe(true);

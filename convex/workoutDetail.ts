@@ -59,7 +59,7 @@ export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "work
   targetArea?: string;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Return the movementIds that got a new all-time PR in the given activity.

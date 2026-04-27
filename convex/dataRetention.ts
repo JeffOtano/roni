@@ -39,6 +39,11 @@ const BATCH_SIZE = 100;
 /** Cache docs store full API responses and can be ~1MB each; use a smaller batch. */
 const CACHE_BATCH_SIZE = 10;
 
+const ACTION_LIMIT_MS = 600_000;
+const SAFETY_BUFFER_MS = 60_000;
+/** Budget passed to pruneTable; exported so tests can override it via `_deadlineOffsetMs`. */
+export const DEADLINE_OFFSET_MS = ACTION_LIMIT_MS - SAFETY_BUFFER_MS;
+
 type PrunableTable = "aiUsage" | "aiToolCalls" | "aiRun" | "strengthScoreSnapshots" | "tonalCache";
 
 /** Get IDs of aiUsage records older than the retention window. */
@@ -160,123 +165,79 @@ async function pruneTable(
   return { deleted, complete: true };
 }
 
-/**
- * Mutation that schedules a continuation run of `runDataRetention`.
- * Actions cannot call `ctx.scheduler` directly, so the action delegates here.
- */
-export const scheduleRetentionContinuation = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    await ctx.scheduler.runAfter(0, internal.dataRetention.runDataRetention, {});
-  },
-});
+type CountKey = "aiUsage" | "toolCalls" | "aiRun" | "strengthSnapshots" | "cache";
 
 /** Main cleanup action. Called by daily cron (and by itself when work remains). */
 export const runDataRetention = internalAction({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    /** Override the deadline budget for tests (omit in production). */
+    _deadlineOffsetMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const now = Date.now();
-    // Leave a 60 s safety buffer inside the 600 s action limit.
-    const deadline = now + 540_000;
+    const deadline = now + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
 
-    const counts = {
+    const counts: Record<CountKey, number> = {
+      cache: 0,
       aiUsage: 0,
       toolCalls: 0,
       aiRun: 0,
       strengthSnapshots: 0,
-      cache: 0,
     };
+
+    // tonalCache is pruned first so a large AI-usage backlog cannot starve it.
+    const tableConfigs: Array<PruneTableConfig & { key: CountKey }> = [
+      {
+        key: "cache",
+        cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
+        batchSize: CACHE_BATCH_SIZE,
+        query: internal.dataRetention.getExpiredCacheIds,
+      },
+      {
+        key: "aiUsage",
+        cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredAiUsageIds,
+      },
+      {
+        key: "toolCalls",
+        cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredToolCallIds,
+      },
+      {
+        key: "aiRun",
+        cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredAiRunIds,
+      },
+      {
+        key: "strengthSnapshots",
+        cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
+        batchSize: BATCH_SIZE,
+        query: internal.dataRetention.getExpiredStrengthSnapshotIds,
+      },
+    ];
+
     let partialFailure: string | undefined;
     let needsContinuation = false;
 
     try {
-      let result = await pruneTable(
-        ctx,
-        {
-          cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
-          batchSize: BATCH_SIZE,
-          query: internal.dataRetention.getExpiredAiUsageIds,
-        },
-        deadline,
-      );
-      counts.aiUsage = result.deleted;
-      if (!result.complete) {
-        needsContinuation = true;
-      }
-
-      if (!needsContinuation) {
-        result = await pruneTable(
-          ctx,
-          {
-            cutoff: now - RETENTION.aiToolCallsDays * MS_PER_DAY,
-            batchSize: BATCH_SIZE,
-            query: internal.dataRetention.getExpiredToolCallIds,
-          },
-          deadline,
-        );
-        counts.toolCalls = result.deleted;
-        if (!result.complete) {
-          needsContinuation = true;
-        }
-      }
-
-      if (!needsContinuation) {
-        result = await pruneTable(
-          ctx,
-          {
-            cutoff: now - RETENTION.aiRunDays * MS_PER_DAY,
-            batchSize: BATCH_SIZE,
-            query: internal.dataRetention.getExpiredAiRunIds,
-          },
-          deadline,
-        );
-        counts.aiRun = result.deleted;
-        if (!result.complete) {
-          needsContinuation = true;
-        }
-      }
-
-      if (!needsContinuation) {
-        result = await pruneTable(
-          ctx,
-          {
-            cutoff: now - RETENTION.strengthScoreSnapshotDays * MS_PER_DAY,
-            batchSize: BATCH_SIZE,
-            query: internal.dataRetention.getExpiredStrengthSnapshotIds,
-          },
-          deadline,
-        );
-        counts.strengthSnapshots = result.deleted;
-        if (!result.complete) {
-          needsContinuation = true;
-        }
-      }
-
-      if (!needsContinuation) {
-        result = await pruneTable(
-          ctx,
-          {
-            cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
-            batchSize: CACHE_BATCH_SIZE,
-            query: internal.dataRetention.getExpiredCacheIds,
-          },
-          deadline,
-        );
-        counts.cache = result.deleted;
-        if (!result.complete) {
-          needsContinuation = true;
-        }
+      for (const config of tableConfigs) {
+        if (needsContinuation) break;
+        const result = await pruneTable(ctx, config, deadline);
+        counts[config.key] = result.deleted;
+        if (!result.complete) needsContinuation = true;
       }
 
       if (needsContinuation) {
-        await ctx.runMutation(internal.dataRetention.scheduleRetentionContinuation, {});
+        await ctx.scheduler.runAfter(0, internal.dataRetention.runDataRetention, {});
       }
     } catch (err) {
       partialFailure = err instanceof Error ? err.message : String(err);
       throw err;
     } finally {
-      const totalDeleted =
-        counts.aiUsage + counts.toolCalls + counts.aiRun + counts.strengthSnapshots + counts.cache;
+      const totalDeleted = Object.values(counts).reduce((sum, n) => sum + n, 0);
       if (totalDeleted > 0 || partialFailure || needsContinuation) {
         const prefix = partialFailure
           ? `partial (${partialFailure}): `
