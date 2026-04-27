@@ -160,15 +160,14 @@ export async function streamWithRetry(
           await attemptStream({ ctx, agent, promptArgs, telemetry, accumulator });
           return { done: true };
         } catch (error) {
-          if (await tryReportByok(ctx, { ...errorReport, error })) {
+          if (await safeTryReportByok(ctx, { ...errorReport, error })) {
             const cls = classifyByokError(error) ?? "byok_unknown_error";
             accumulator.setTerminalErrorClass(cls);
             span.recordError(cls);
             return { done: true };
           }
-          // Quota errors are technically retryable per HTTP semantics (429),
-          // but RPM/RPD/input-token quotas won't clear in the 3s retry window
-          // — treat as terminal so we don't burn 2 wasted attempts + ~6s.
+          // Quota errors are technically retryable (429), but RPM/RPD/input-token
+          // quotas won't clear in 3s — treat as terminal to avoid wasted retries.
           if (isQuotaError(error) || !isTransientError(error)) {
             const cls = errorClassName(error);
             accumulator.setTerminalErrorClass(cls);
@@ -181,11 +180,10 @@ export async function streamWithRetry(
       };
 
       if ((await runAttempt(primaryAgent)).done) return accumulator;
-      // Finalize any pending assistant messages from the failed attempt before
-      // retrying. Otherwise the next attempt's history loader picks up
-      // orphaned tool-call / tool-result fragments and Gemini rejects with
-      // "function call turn must follow user/function-response turn".
-      // Cleanup must never abort the retry — best-effort only.
+      // Clear pending rows before retry — otherwise the next attempt's
+      // history loader picks up orphaned tool-call/tool-result fragments
+      // and Gemini rejects with "function call turn must follow user/
+      // function-response turn".
       await safeFinalizePending(ctx, threadId, "transient_retry");
       accumulator.markRetry();
       await delay(RETRY_DELAY_MS);
@@ -196,8 +194,6 @@ export async function streamWithRetry(
       accumulator.markFallback("transient_exhaustion");
       const final = await runAttempt(fallbackAgent);
       if (final.done) return accumulator;
-      // Fallback also hit a transient error — surface a provider-attributed
-      // message via reportError (falls back to generic on classification miss).
       const cls = errorClassName(final.error);
       accumulator.setTerminalErrorClass(cls);
       span.recordError(cls);
@@ -337,18 +333,13 @@ async function finalizePendingMessages(
 }
 
 // Best-effort wrappers — failure inside cleanup/reporting must never escape
-// past runInRunSpan, or the user is left with a stuck pending message and no
-// surface for the original error.
-async function safeFinalizePending(ctx: ActionCtx, threadId: string, reason: string) {
-  try {
-    await finalizePendingMessages(ctx, threadId, reason);
-  } catch {}
-}
-async function safeReportError(ctx: ActionCtx, report: ErrorReport) {
-  try {
-    await reportError(ctx, report);
-  } catch {}
-}
+// runInRunSpan or the user is left with a stuck pending message.
+const safeFinalizePending = (ctx: ActionCtx, threadId: string, reason: string) =>
+  finalizePendingMessages(ctx, threadId, reason).catch(() => undefined);
+const safeReportError = (ctx: ActionCtx, report: ErrorReport) =>
+  reportError(ctx, report).catch(() => undefined);
+const safeTryReportByok = (ctx: ActionCtx, report: ErrorReport) =>
+  tryReportByok(ctx, report).catch(() => false);
 
 async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boolean> {
   if (!report.isByok) return false;

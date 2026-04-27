@@ -101,6 +101,15 @@ describe("isContextLimitError", () => {
     expect(isContextLimitError("input_token_count")).toBe(false);
     expect(isContextLimitError(undefined)).toBe(false);
   });
+
+  it("returns false when input_token_count appears without a quota signal", () => {
+    // Guards against a future regression that drops the quota/exceed/limit
+    // requirement — a malformed-prompt error mentioning the field name
+    // shouldn't be reclassified as a transient quota error.
+    const error = new Error("validation failed for field input_token_count");
+
+    expect(isContextLimitError(error)).toBe(false);
+  });
 });
 
 describe("classifyTransientError (context_limit + quota)", () => {
