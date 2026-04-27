@@ -94,7 +94,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.4.4",
+    "@commitlint/cli": "^20.5.2",
     "@commitlint/config-conventional": "^20.4.4",
     "@edge-runtime/vm": "^5.0.0",
     "@next/bundle-analyzer": "^16.2.4",
@@ -106,19 +106,19 @@
     "@types/node": "^25.6.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.5",
     "convex-test": "^0.0.50",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.2.4",
     "husky": "^9.1.7",
-    "jsdom": "^29.0.2",
-    "knip": "^6.4.1",
+    "jsdom": "^29.1.0",
+    "knip": "^6.7.0",
     "lint-staged": "^16.3.3",
     "prettier": "^3.8.3",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.8",
+    "vite": "^8.0.10",
     "vitest": "^4.1.4"
   },
   "overrides": {
