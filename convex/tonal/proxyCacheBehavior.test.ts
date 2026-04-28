@@ -127,6 +127,24 @@ describe("cachedFetch", () => {
     );
   });
 
+  it("does not write the cache when shouldCache returns false", async () => {
+    const { ctx, runMutation } = makeMockCtx();
+    const fetcher = vi.fn().mockResolvedValue(null);
+
+    const result = await cachedFetch<unknown>(ctx, {
+      dataType: "negative-result",
+      ttl: 30 * 24 * 60 * 60 * 1000,
+      fetcher,
+      shouldCache: (d) => d !== null,
+    });
+
+    expect(result).toBeNull();
+    const cacheWriteCalls = runMutation.mock.calls.filter(
+      ([, args]) => args && typeof args === "object" && "data" in args,
+    );
+    expect(cacheWriteCalls).toHaveLength(0);
+  });
+
   it("dedupes repeat calls within a single action via the request-scoped memo", async () => {
     const { ctx, runQuery } = makeMockCtx();
     const fetcher = vi.fn().mockResolvedValue({ ok: true });

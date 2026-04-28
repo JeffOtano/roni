@@ -63,16 +63,18 @@ export async function cachedFetch<T>(
     dataType: string;
     ttl: number;
     fetcher: () => Promise<T>;
+    /** Return false to skip the cache write (e.g. negative results). */
+    shouldCache?: (data: T) => boolean;
   },
 ): Promise<T> {
-  const { userId, dataType, ttl, fetcher } = opts;
+  const { userId, dataType, ttl, fetcher, shouldCache } = opts;
 
   const memo = getCachedFetchMemo(ctx);
   const memoKey = `${userId ?? "global"}:${dataType}`;
   const inflight = memo.get(memoKey);
   if (inflight) return inflight as Promise<T>;
 
-  const promise = doCachedFetch<T>(ctx, userId, dataType, ttl, fetcher);
+  const promise = doCachedFetch<T>(ctx, userId, dataType, ttl, fetcher, shouldCache);
   promise.catch(() => memo.delete(memoKey));
   memo.set(memoKey, promise);
   return promise;
@@ -84,6 +86,7 @@ async function doCachedFetch<T>(
   dataType: string,
   ttl: number,
   fetcher: () => Promise<T>,
+  shouldCache: ((data: T) => boolean) | undefined,
 ): Promise<T> {
   let cached: { data: unknown; expiresAt: number } | null = null;
   try {
@@ -109,7 +112,9 @@ async function doCachedFetch<T>(
         ? data.slice(0, MAX_CACHE_ARRAY_LENGTH)
         : data;
 
-    if (!isCacheValueWithinLimit(cacheData)) {
+    if (shouldCache && !shouldCache(data)) {
+      // Caller opted out — skip the write.
+    } else if (!isCacheValueWithinLimit(cacheData)) {
       console.warn(`cachedFetch(${dataType}): payload too large to cache, skipping write`);
     } else {
       try {
@@ -226,6 +231,9 @@ export async function fetchWorkoutMetaBatch(
             );
             return projectWorkoutMeta(raw);
           },
+          // Empty projection — don't pin a missing title for the 30-day TTL.
+          shouldCache: (meta) =>
+            meta.title != null || meta.targetArea != null || meta.programName != null,
         });
         return { id, data };
       }),
@@ -280,6 +288,8 @@ export const fetchWorkoutDetail = internalAction({
         userId,
         dataType: `workoutDetail:${activityId}`,
         ttl: CACHE_TTLS.immutableWorkout,
+        // Null = 404 or projection rejection — don't pin for the 30-day TTL.
+        shouldCache: (d) => d !== null,
         fetcher: async () => {
           try {
             const raw = await tonalFetch<unknown>(
