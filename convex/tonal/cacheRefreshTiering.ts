@@ -1,8 +1,8 @@
 /**
  * Pure helpers for tiering the refresh-tonal-cache cron by recent app activity.
  *
- * Active users get the existing 30-minute cadence; less-active cohorts back
- * off so the cron stops fanning out a sync to every connected user every run.
+ * Active users get an hourly cadence; less-active cohorts back off so the cron
+ * stops fanning out a sync to every connected user every run.
  */
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -16,9 +16,9 @@ export const TIER_THRESHOLDS_MS = {
 
 /** Minimum interval between cron-driven syncs for each tier. */
 export const TIER_INTERVALS_MS = {
-  active: HOUR_MS / 2,
-  recent: HOUR_MS,
-  lapsing: 6 * HOUR_MS,
+  active: HOUR_MS,
+  recent: 2 * HOUR_MS,
+  lapsing: 12 * HOUR_MS,
 } as const;
 
 // Cron interval scheduling skews by a few seconds; without slack a tier-1 user
