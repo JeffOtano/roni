@@ -55,19 +55,9 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
   });
 
-  it("drops friendly finalize message after reportError rewrites the reason", () => {
+  it("drops the friendly finalize message written by reportError for provider_overload", () => {
     const msg =
       "**Google Gemini is experiencing high demand right now** — this is on their end, not Roni.";
-    expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
-  });
-
-  it("drops transient provider overloaded error", () => {
-    const msg = "The model is overloaded. Try again later.";
-    expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
-  });
-
-  it("drops transient Google resource_exhausted error", () => {
-    const msg = "RESOURCE_EXHAUSTED: Quota exceeded for model";
     expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
   });
 
@@ -77,7 +67,7 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(event, hint)).toBe(false);
   });
 
-  it("keeps errors that mention 'on-demand' but are not transient provider messages", () => {
+  it("keeps errors that mention 'on-demand' but not 'high demand'", () => {
     const msg = "Failed to fetch: network error in on-demand route";
     expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(false);
   });
@@ -94,7 +84,7 @@ describe("sentryBeforeSend", () => {
     expect(sentryBeforeSend(event, hintWithError("byok_key_missing"))).toBeNull();
   });
 
-  it("returns null for transient provider overload error", () => {
+  it("returns null for raw Gemini high-demand stream error", () => {
     const msg = "This model is currently experiencing high demand.";
     expect(sentryBeforeSend(eventWithValue(msg), hintWithError(msg))).toBeNull();
   });
