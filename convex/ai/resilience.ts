@@ -347,13 +347,14 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
 }
 
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
-  const reason = report.error instanceof Error ? report.error.message : String(report.error);
-  await finalizePendingMessages(ctx, report.threadId, reason);
-
   const transientKind = classifyTransientError(report.error);
   const content = transientKind
     ? buildProviderTransientMessage(transientKind, report.provider)
     : AI_ERROR_MESSAGE;
+
+  // Use the user-facing message as the finalize reason so the raw provider
+  // error text does not leak through stream delta processing on the frontend.
+  await finalizePendingMessages(ctx, report.threadId, content);
 
   await saveMessage(ctx, components.agent, {
     threadId: report.threadId,
@@ -365,6 +366,7 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   // message; paging Discord on every Gemini/Claude capacity blip is noise.
   if (transientKind) return;
 
+  const reason = report.error instanceof Error ? report.error.message : String(report.error);
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
     message: reason,

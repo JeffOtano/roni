@@ -12,6 +12,13 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "Wrong email or password",
   '"kind":"RateLimited"',
   "Not authenticated",
+  // Transient AI provider errors surfaced as unhandled JS exceptions when the
+  // AI SDK's stream processor encounters an error delta. These are fully handled
+  // on the backend (retries + friendly assistant message), so frontend noise is
+  // expected and benign.
+  "high demand",
+  "overloaded",
+  "resource_exhausted",
 ];
 
 function errorMessage(event: ErrorEvent, hint: EventHint): string | null {

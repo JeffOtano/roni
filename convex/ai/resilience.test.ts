@@ -336,6 +336,50 @@ describe("buildProviderTransientMessage", () => {
   });
 });
 
+describe("reportError content selection", () => {
+  // reportError is private, but its logic is: content = transient ?
+  // buildProviderTransientMessage(kind, provider) : AI_ERROR_MESSAGE.
+  // These tests guard that the right user-facing string is produced for the
+  // exact Sentry error (TONALCOACH-1C) and that it does NOT contain the raw
+  // provider message — so when finalizePendingMessages uses `content`, users
+  // never see the raw error and Sentry suppression stays effective.
+
+  it("produces a provider-attributed message for Gemini high-demand error", () => {
+    const rawError = new Error(
+      "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    );
+    const kind = classifyTransientError(rawError);
+    expect(kind).toBe("provider_overload");
+
+    const content = buildProviderTransientMessage(kind!, "gemini");
+    expect(content).toContain("Google Gemini");
+    expect(content).toContain("high demand");
+    expect(content).not.toContain("Spikes in demand are usually temporary");
+  });
+
+  it("produces a provider-attributed message for Anthropic overloaded error", () => {
+    const rawError = new Error("overloaded_error: The model is currently overloaded.");
+    const kind = classifyTransientError(rawError);
+    expect(kind).toBe("provider_overload");
+
+    const content = buildProviderTransientMessage(kind!, "claude");
+    expect(content).toContain("Anthropic Claude");
+    expect(content).not.toContain("overloaded_error");
+  });
+
+  it("produces the generic fallback for non-transient errors", () => {
+    const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
+    const nonTransient = new Error("Unexpected database schema mismatch");
+    const kind = classifyTransientError(nonTransient);
+    expect(kind).toBeNull();
+    // When kind is null, reportError uses AI_ERROR_MESSAGE
+    const content = kind
+      ? buildProviderTransientMessage(kind, "gemini")
+      : AI_ERROR_MESSAGE;
+    expect(content).toBe(AI_ERROR_MESSAGE);
+  });
+});
+
 describe("withByokErrorSanitization", () => {
   it("returns the wrapped function's result on success", async () => {
     const result = await withByokErrorSanitization(async () => "ok");

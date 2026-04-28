@@ -249,13 +249,13 @@ async function evaluateUserCheckIn(
   ctx: ActionCtx,
   userId: Id<"users">,
   now: number,
-): Promise<number> {
+): Promise<void> {
   const [prefs, lastCreatedAt] = await Promise.all([
     ctx.runQuery(internal.checkIns.getPreferencesInternal, { userId }),
     ctx.runQuery(internal.checkIns.getLastCheckInCreatedAt, { userId }),
   ]);
   const window = frequencyWindowMs(prefs.frequency);
-  if (lastCreatedAt != null && now - lastCreatedAt < window) return 0;
+  if (lastCreatedAt != null && now - lastCreatedAt < window) return;
 
   const toSend = await ctx.runAction(internal.checkIns.triggers.evaluateTriggersForUser, {
     userId,
@@ -270,68 +270,57 @@ async function evaluateUserCheckIn(
     });
     analytics.capture(userId, "check_in_received", { trigger });
   }
-  return toSend.length;
+  await analytics.flush();
 }
 
 const ELIGIBLE_USERS_PAGE_SIZE = 100;
+
+/**
+ * Scheduled by runCheckInTriggerEvaluation for each eligible user.
+ * Runs in its own action invocation so a single slow Tonal API user
+ * can never cause the whole evaluation run to time out.
+ */
+export const evaluateUserCheckInAction = internalAction({
+  args: { userId: v.id("users"), now: v.number() },
+  handler: async (ctx, { userId, now }) => {
+    try {
+      await evaluateUserCheckIn(ctx, userId, now);
+    } catch (err) {
+      console.error("[check-in] evaluateTriggersForUser failed", {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      ctx
+        .runAction(internal.discord.notifyError, {
+          source: "checkIns",
+          message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
+          userId,
+        })
+        .catch((notifyErr: unknown) =>
+          console.warn("[check-in] discord notify failed", notifyErr),
+        );
+    }
+  },
+});
 
 export const runCheckInTriggerEvaluation = internalAction({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const BATCH_SIZE = 5;
-    const DELAY_MS = 2000;
-    let checkInsSent = 0;
-    let totalEligible = 0;
-
     let cursor: string | null = null;
     while (true) {
       const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
         await ctx.runQuery(internal.checkIns.getEligibleUserIdsPage, {
           paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
         });
-
-      for (let i = 0; i < result.page.length; i += BATCH_SIZE) {
-        const batch = result.page.slice(i, i + BATCH_SIZE);
-        const outcomes = await Promise.allSettled(
-          batch.map((userId) => evaluateUserCheckIn(ctx, userId, now)),
-        );
-        for (let j = 0; j < outcomes.length; j++) {
-          const outcome = outcomes[j];
-          const userId = batch[j];
-          if (outcome.status === "fulfilled") {
-            checkInsSent += outcome.value;
-          } else {
-            const err = outcome.reason;
-            console.error("[check-in] evaluateTriggersForUser failed", {
-              userId,
-              error: err instanceof Error ? err.message : String(err),
-            });
-            ctx
-              .runAction(internal.discord.notifyError, {
-                source: "checkIns",
-                message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
-                userId,
-              })
-              .catch((notifyErr: unknown) =>
-                console.warn("[check-in] discord notify failed", notifyErr),
-              );
-          }
-        }
-        if (i + BATCH_SIZE < result.page.length) {
-          await new Promise((r) => setTimeout(r, DELAY_MS));
-        }
+      for (const userId of result.page) {
+        await ctx.scheduler.runAfter(0, internal.checkIns.evaluateUserCheckInAction, {
+          userId,
+          now,
+        });
       }
-
-      totalEligible += result.page.length;
       if (result.isDone) break;
       cursor = result.continueCursor;
     }
-
-    analytics.captureSystem("check_in_trigger_evaluated", {
-      users_checked: totalEligible,
-      check_ins_sent: checkInsSent,
-    });
-    await analytics.flush();
   },
 });
