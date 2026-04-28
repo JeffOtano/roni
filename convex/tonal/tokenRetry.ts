@@ -77,8 +77,7 @@ export async function withTokenRetry<T>(
       userId,
     });
     if (!lockAcquired) {
-      // Another caller is refreshing. Wait briefly, drop the stale memo entry,
-      // then re-read so withTonalToken returns the freshly persisted token.
+      // Another caller is refreshing — wait, then re-read past the memo.
       await new Promise((r) => setTimeout(r, 2000));
       clearTokenMemo(ctx, userId);
       const { token: retryToken, tonalUserId: retryTonalUserId } = await withTonalToken(
@@ -97,8 +96,6 @@ export async function withTokenRetry<T>(
     }
     await ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
 
-    // Update the request-scoped token memo so any later withTonalToken calls
-    // in this same action see the refreshed token.
     primeTokenMemo(ctx, userId, { token: freshToken, tonalUserId });
 
     try {

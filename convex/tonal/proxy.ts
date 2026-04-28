@@ -48,7 +48,6 @@ export async function withTonalToken(ctx: ActionCtx, userId: Id<"users">): Promi
     return { token, tonalUserId: profile.tonalUserId };
   })();
 
-  // Drop the memo entry on rejection so the next caller can retry from scratch.
   promise.catch(() => memo.delete(userId));
   memo.set(userId, promise);
   return promise;

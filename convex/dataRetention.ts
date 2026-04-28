@@ -184,9 +184,7 @@ export const runDataRetention = internalAction({
       strengthSnapshots: 0,
     };
 
-    // tonalCache cleanup runs in `runCacheRetention` on a weekly cadence —
-    // active users overwrite their rows in place, so dormant rows accumulate
-    // slowly and a daily scan over ~1MB-each docs is wasteful.
+    // tonalCache cleanup runs weekly in `runCacheRetention`.
     const tableConfigs: Array<PruneTableConfig & { key: CountKey }> = [
       {
         key: "aiUsage",
@@ -260,8 +258,7 @@ export const runDataRetention = internalAction({
 
 /**
  * Weekly tonalCache cleanup. Active users overwrite their rows in place via
- * `setCacheEntry`, so retention only collects orphaned rows from dormant
- * users — a daily scan over ~1MB-each cache docs was wasted bandwidth.
+ * `setCacheEntry`, so retention only sweeps orphaned dormant-user rows.
  */
 export const runCacheRetention = internalAction({
   args: {
