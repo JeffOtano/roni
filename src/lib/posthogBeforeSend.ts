@@ -1,3 +1,5 @@
+import type { CaptureResult } from "posthog-js";
+
 // Substrings of error messages that PostHog should drop before sending. They
 // fall into three buckets:
 //   1. Browser/extension noise we cannot fix (Firefox iOS Reader Mode injection,
@@ -38,30 +40,43 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "RESOURCE_EXHAUSTED",
 ];
 
-import type { CaptureResult } from "posthog-js";
+function getStringProp(props: Record<string, unknown>, key: string): string | undefined {
+  const value = props[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getArrayProp(props: Record<string, unknown>, key: string): unknown[] | undefined {
+  const value = props[key];
+  return Array.isArray(value) ? value : undefined;
+}
+
+function entryValueString(entry: unknown): string | undefined {
+  if (entry === null || typeof entry !== "object") return undefined;
+  if (!("value" in entry)) return undefined;
+  const value = (entry as { value: unknown }).value;
+  return typeof value === "string" ? value : undefined;
+}
 
 function extractMessages(event: CaptureResult): string[] {
-  const props = event.properties;
-  if (!props || typeof props !== "object") return [];
+  const rawProps = event.properties;
+  if (!rawProps || typeof rawProps !== "object") return [];
+  const props = rawProps as Record<string, unknown>;
+
   const messages: string[] = [];
-  const message = (props as Record<string, unknown>).$exception_message;
-  if (typeof message === "string") messages.push(message);
-  const values = (props as Record<string, unknown>).$exception_values;
-  if (Array.isArray(values)) {
-    for (const entry of values) {
-      if (entry && typeof (entry as { value?: unknown }).value === "string") {
-        messages.push((entry as { value: string }).value);
-      }
-    }
+
+  const message = getStringProp(props, "$exception_message");
+  if (message !== undefined) messages.push(message);
+
+  for (const entry of getArrayProp(props, "$exception_values") ?? []) {
+    const value = entryValueString(entry);
+    if (value !== undefined) messages.push(value);
   }
-  const list = (props as Record<string, unknown>).$exception_list;
-  if (Array.isArray(list)) {
-    for (const entry of list) {
-      if (entry && typeof (entry as { value?: unknown }).value === "string") {
-        messages.push((entry as { value: string }).value);
-      }
-    }
+
+  for (const entry of getArrayProp(props, "$exception_list") ?? []) {
+    const value = entryValueString(entry);
+    if (value !== undefined) messages.push(value);
   }
+
   return messages;
 }
 

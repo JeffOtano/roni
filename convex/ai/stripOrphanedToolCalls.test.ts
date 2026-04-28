@@ -67,7 +67,9 @@ describe("stripOrphanedToolCalls", () => {
       },
     ];
 
-    expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
+    const result = stripOrphanedToolCalls(msgs);
+
+    expect(result).toEqual(msgs);
   });
 
   it("strips tool-call when a fresh user message abandons the pending approval", () => {
@@ -89,6 +91,7 @@ describe("stripOrphanedToolCalls", () => {
     ];
 
     const result = stripOrphanedToolCalls(msgs);
+
     expect(result).toHaveLength(3);
     const assistantContent = result[1].content as Array<{ type: string; toolCallId?: string }>;
     expect(assistantContent.some((p) => p.type === "tool-call")).toBe(false);
