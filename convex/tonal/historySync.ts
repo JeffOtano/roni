@@ -277,7 +277,7 @@ export const startSyncUserHistory = internalMutation({
 
     // Record the attempt unconditionally so the cron's tier gate throttles
     // the next pass — otherwise a profile with `lastTonalSyncAt === undefined`
-    // and a fresh cache stays eligible every 30 minutes forever.
+    // and a fresh cache stays eligible every cron run forever.
     await ctx.db.patch(profile._id, {
       lastTonalSyncAt: now,
       nextTonalSyncAt: computeNextSyncAt(now, profile.appLastActiveAt, now),
