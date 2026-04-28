@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0](https://github.com/JeffOtano/roni/compare/v0.6.0...v0.7.0) (2026-04-28)
+
+
+### Features
+
+* gracefully disable Garmin when deployment is not configured ([7cd202d](https://github.com/JeffOtano/roni/commit/7cd202de23e5d567ff96061b379c77dea2ae4612))
+
+
+### Bug Fixes
+
+* batch resolve 2 PostHog production errors (g1 history ordering + g2 quota retry) ([#289](https://github.com/JeffOtano/roni/issues/289)) ([a59594e](https://github.com/JeffOtano/roni/commit/a59594e961cd469923bd7521af9890f7cd3cf377))
+* batch resolve top PostHog production errors ([#291](https://github.com/JeffOtano/roni/issues/291)) ([c84c760](https://github.com/JeffOtano/roni/commit/c84c76065cd27d703754e8fe9e743ac9f8b48e70))
+* resolve 5 Sentry production errors (TONALCOACH-3P/1H/3M/12/17) ([#288](https://github.com/JeffOtano/roni/issues/288)) ([3af0285](https://github.com/JeffOtano/roni/commit/3af0285bc376e43b0114750085d70a900f34f372))
+
+
+### Performance Improvements
+
+* cut Convex bill via memoization, longer TTLs, circuit breaker removal ([#294](https://github.com/JeffOtano/roni/issues/294)) ([9bed92b](https://github.com/JeffOtano/roni/commit/9bed92b2f6bbc4f821b8046c2858df06f2791f8d))
+* halve refresh-tonal-cache cadence to cut Convex billing ([#293](https://github.com/JeffOtano/roni/issues/293)) ([2fb2271](https://github.com/JeffOtano/roni/commit/2fb227110780aa88873496abb499ab408c860bb7))
+
 ## [0.6.0](https://github.com/JeffOtano/roni/compare/v0.5.0...v0.6.0) (2026-04-26)
 
 
