@@ -39,10 +39,26 @@ export function mergeConsecutiveSameRole(messages: ModelMessage[]): ModelMessage
 // ---------------------------------------------------------------------------
 
 export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[] {
+  // An approval-request is "live" only when no fresh user message follows it.
+  // If the user types a new prompt instead of clicking approve/deny, the
+  // pending tool-call is abandoned — keeping it in the LLM context produces
+  // Gemini's "function call turn comes immediately after a user turn or after
+  // a function response turn" error, since the fresh user message breaks the
+  // required tool-call → tool-result pairing. Approval responses are written
+  // on `role: "tool"`, so any `role: "user"` message is a fresh prompt.
+  let lastFreshUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastFreshUserIdx = i;
+      break;
+    }
+  }
+
   const approvalIdToToolCallId = new Map<string, string>();
-  const toolCallIdsWithApprovalRequests = new Set<string>();
+  const liveApprovalToolCallIds = new Set<string>();
   const resolvedToolCallIds = new Set<string>();
-  for (const msg of messages) {
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
     if (typeof msg.content === "string" || !Array.isArray(msg.content)) continue;
     for (const part of msg.content as Array<{
       type: string;
@@ -51,7 +67,9 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
     }>) {
       if (part.type === "tool-approval-request" && part.approvalId && part.toolCallId) {
         approvalIdToToolCallId.set(part.approvalId, part.toolCallId);
-        toolCallIdsWithApprovalRequests.add(part.toolCallId);
+        if (i > lastFreshUserIdx) {
+          liveApprovalToolCallIds.add(part.toolCallId);
+        }
       }
       if (part.type === "tool-result" && part.toolCallId) {
         resolvedToolCallIds.add(part.toolCallId);
@@ -84,7 +102,7 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
       if (part.type !== "tool-call" || !part.toolCallId) continue;
       if (
         resolvedToolCallIds.has(part.toolCallId) ||
-        toolCallIdsWithApprovalRequests.has(part.toolCallId)
+        liveApprovalToolCallIds.has(part.toolCallId)
       ) {
         keptAssistantToolCallIds.add(part.toolCallId);
       }
@@ -104,8 +122,7 @@ export function stripOrphanedToolCalls(messages: ModelMessage[]): ModelMessage[]
           (p) =>
             p.type !== "tool-call" ||
             (p.toolCallId &&
-              (resolvedToolCallIds.has(p.toolCallId) ||
-                toolCallIdsWithApprovalRequests.has(p.toolCallId))),
+              (resolvedToolCallIds.has(p.toolCallId) || liveApprovalToolCallIds.has(p.toolCallId))),
         );
 
         if (filtered.length === 0) return null;
