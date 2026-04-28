@@ -15,7 +15,7 @@ if (cronsEnabled()) {
 
   crons.interval(
     "refresh-tonal-cache",
-    { minutes: 30 },
+    { hours: 1 },
     internal.tonal.cacheRefresh.refreshActiveUsers,
   );
 
