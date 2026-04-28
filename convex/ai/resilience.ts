@@ -19,6 +19,7 @@ import { runInRunSpan } from "./otel";
 import {
   buildProviderTransientMessage,
   classifyTransientError,
+  isQuotaError,
   isTransientError,
 } from "./transientErrors";
 
@@ -159,17 +160,19 @@ export async function streamWithRetry(
           await attemptStream({ ctx, agent, promptArgs, telemetry, accumulator });
           return { done: true };
         } catch (error) {
-          if (await tryReportByok(ctx, { ...errorReport, error })) {
+          if (await safeTryReportByok(ctx, { ...errorReport, error })) {
             const cls = classifyByokError(error) ?? "byok_unknown_error";
             accumulator.setTerminalErrorClass(cls);
             span.recordError(cls);
             return { done: true };
           }
-          if (!isTransientError(error)) {
+          // Quota errors are technically retryable (429), but RPM/RPD/input-token
+          // quotas won't clear in 3s — treat as terminal to avoid wasted retries.
+          if (isQuotaError(error) || !isTransientError(error)) {
             const cls = errorClassName(error);
             accumulator.setTerminalErrorClass(cls);
             span.recordError(cls);
-            await reportError(ctx, { ...errorReport, error });
+            await safeReportError(ctx, { ...errorReport, error });
             return { done: true };
           }
           return { done: false, error };
@@ -177,22 +180,24 @@ export async function streamWithRetry(
       };
 
       if ((await runAttempt(primaryAgent)).done) return accumulator;
+      // Clear pending rows before retry — otherwise the next attempt's
+      // history loader picks up orphaned tool-call/tool-result fragments
+      // and Gemini rejects with "function call turn must follow user/
+      // function-response turn".
+      await safeFinalizePending(ctx, threadId, "transient_retry");
       accumulator.markRetry();
       await delay(RETRY_DELAY_MS);
       if ((await runAttempt(primaryAgent)).done) return accumulator;
+      await safeFinalizePending(ctx, threadId, "transient_retry");
       accumulator.markRetry();
 
       accumulator.markFallback("transient_exhaustion");
       const final = await runAttempt(fallbackAgent);
       if (final.done) return accumulator;
-      // Fallback also hit a transient error. Classify it, record the terminal
-      // class on the accumulator + span, then hand off to reportError — which
-      // surfaces a provider-attributed message for transient outages and falls
-      // back to the generic "trouble right now" message otherwise.
       const cls = errorClassName(final.error);
       accumulator.setTerminalErrorClass(cls);
       span.recordError(cls);
-      await reportError(ctx, { ...errorReport, error: final.error });
+      await safeReportError(ctx, { ...errorReport, error: final.error });
       return accumulator;
     },
   );
@@ -315,7 +320,7 @@ async function finalizePendingMessages(
 ): Promise<void> {
   const result = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
     threadId,
-    paginationOpts: { cursor: null, numItems: 10 },
+    paginationOpts: { cursor: null, numItems: 50 },
     order: "desc",
   });
   for (const message of result.page) {
@@ -326,6 +331,15 @@ async function finalizePendingMessages(
     });
   }
 }
+
+// Best-effort wrappers — failure inside cleanup/reporting must never escape
+// runInRunSpan or the user is left with a stuck pending message.
+const safeFinalizePending = (ctx: ActionCtx, threadId: string, reason: string) =>
+  finalizePendingMessages(ctx, threadId, reason).catch(() => undefined);
+const safeReportError = (ctx: ActionCtx, report: ErrorReport) =>
+  reportError(ctx, report).catch(() => undefined);
+const safeTryReportByok = (ctx: ActionCtx, report: ErrorReport) =>
+  tryReportByok(ctx, report).catch(() => false);
 
 async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boolean> {
   if (!report.isByok) return false;
@@ -352,7 +366,7 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
 
   const transientKind = classifyTransientError(report.error);
   const content = transientKind
-    ? buildProviderTransientMessage(transientKind, report.provider)
+    ? buildProviderTransientMessage(transientKind, report.provider, report.isByok)
     : AI_ERROR_MESSAGE;
 
   await saveMessage(ctx, components.agent, {
