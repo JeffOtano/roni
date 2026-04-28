@@ -54,8 +54,9 @@ describe("stripOrphanedToolCalls", () => {
     expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
   });
 
-  it("keeps tool-calls that have a pending approval request", () => {
+  it("keeps tool-calls when an approval request is still pending (no fresh user follow-up)", () => {
     const msgs: ModelMessage[] = [
+      { role: "user", content: "deploy the plan" },
       {
         role: "assistant",
         content: [
@@ -64,10 +65,38 @@ describe("stripOrphanedToolCalls", () => {
           { type: "tool-approval-request", approvalId: "ap1", toolCallId: "tc1" },
         ],
       },
-      { role: "user", content: "What does this change?" },
     ];
 
-    expect(stripOrphanedToolCalls(msgs)).toEqual(msgs);
+    const result = stripOrphanedToolCalls(msgs);
+
+    expect(result).toEqual(msgs);
+  });
+
+  it("strips tool-call when a fresh user message abandons the pending approval", () => {
+    // Reproduces Gemini's "function call turn comes immediately after a user
+    // turn or after a function response turn" error: an unresolved tool-call
+    // followed by a fresh user prompt has no matching tool-result, so Gemini
+    // rejects the conversation. The fix strips the orphan.
+    const msgs: ModelMessage[] = [
+      { role: "user", content: "deploy the plan" },
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Approve this push?" },
+          { type: "tool-call", toolCallId: "tc1", toolName: "approve_week_plan", input: {} },
+          { type: "tool-approval-request", approvalId: "ap1", toolCallId: "tc1" },
+        ],
+      },
+      { role: "user", content: "actually nevermind, what does this change?" },
+    ];
+
+    const result = stripOrphanedToolCalls(msgs);
+
+    expect(result).toHaveLength(3);
+    const assistantContent = result[1].content as Array<{ type: string; toolCallId?: string }>;
+    expect(assistantContent.some((p) => p.type === "tool-call")).toBe(false);
+    expect(assistantContent.some((p) => p.type === "text")).toBe(true);
+    expect(assistantContent.some((p) => p.type === "tool-approval-request")).toBe(true);
   });
 
   it("removes orphaned tool-call with no matching tool-result", () => {
