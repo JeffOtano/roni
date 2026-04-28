@@ -57,7 +57,7 @@ describe("isEligibleForRefresh", () => {
     expect(isEligibleForRefresh(NOW, NOW - 48 * HOUR, undefined)).toBe(true);
   });
 
-  test("active-tier users sync at the 30-minute cadence with cron slack", () => {
+  test("active-tier users sync at the hourly cadence with cron slack", () => {
     const appActive = NOW - 30 * MIN;
     expect(isEligibleForRefresh(NOW, appActive, NOW - (TIER_INTERVALS_MS.active - 30 * 1000))).toBe(
       true,
@@ -65,19 +65,19 @@ describe("isEligibleForRefresh", () => {
     expect(isEligibleForRefresh(NOW, appActive, NOW - 5 * MIN)).toBe(false);
   });
 
-  test("recent-tier users wait an hour between syncs", () => {
+  test("recent-tier users wait two hours between syncs", () => {
     const appActive = NOW - 6 * HOUR;
-    expect(isEligibleForRefresh(NOW, appActive, NOW - 30 * MIN)).toBe(false);
-    expect(isEligibleForRefresh(NOW, appActive, NOW - (HOUR - 30 * 1000))).toBe(true);
-    expect(isEligibleForRefresh(NOW, appActive, NOW - 90 * MIN)).toBe(true);
+    expect(isEligibleForRefresh(NOW, appActive, NOW - 1 * HOUR)).toBe(false);
+    expect(isEligibleForRefresh(NOW, appActive, NOW - (2 * HOUR - 30 * 1000))).toBe(true);
+    expect(isEligibleForRefresh(NOW, appActive, NOW - 3 * HOUR)).toBe(true);
   });
 
-  test("lapsing-tier users wait six hours between syncs", () => {
+  test("lapsing-tier users wait twelve hours between syncs", () => {
     const appActive = NOW - 36 * HOUR;
     expect(isEligibleForRefresh(NOW, appActive, NOW - 1 * HOUR)).toBe(false);
-    expect(isEligibleForRefresh(NOW, appActive, NOW - 5 * HOUR)).toBe(false);
-    expect(isEligibleForRefresh(NOW, appActive, NOW - 6 * HOUR)).toBe(true);
+    expect(isEligibleForRefresh(NOW, appActive, NOW - 11 * HOUR)).toBe(false);
     expect(isEligibleForRefresh(NOW, appActive, NOW - 12 * HOUR)).toBe(true);
+    expect(isEligibleForRefresh(NOW, appActive, NOW - 24 * HOUR)).toBe(true);
   });
 });
 

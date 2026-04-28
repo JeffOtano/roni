@@ -1,10 +1,10 @@
 /**
  * Pure helper that decides whether to skip a cron-driven history sync.
  *
- * The cron runs every 30 minutes for active users; when the last sync just
- * happened and we already have a recent activity high-water mark, kicking off
- * the workflow again is wasted work. Conservative: when we cannot prove
- * freshness, return false so the sync proceeds.
+ * The cron runs hourly for active users; when the last sync just happened and
+ * we already have a recent activity high-water mark, kicking off the workflow
+ * again is wasted work. Conservative: when we cannot prove freshness, return
+ * false so the sync proceeds.
  */
 
 import { CACHE_TTLS } from "./cache";
