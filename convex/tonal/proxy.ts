@@ -55,39 +55,34 @@ export async function withTonalToken(ctx: ActionCtx, userId: Id<"users">): Promi
 
 const MAX_CACHE_ARRAY_LENGTH = 500;
 
+interface CachedFetchOptions<T> {
+  ctx: ActionCtx;
+  userId?: Id<"users">;
+  dataType: string;
+  ttl: number;
+  fetcher: () => Promise<T>;
+  /** Return false to skip the cache write (e.g. negative results). */
+  shouldCache?: (data: T) => boolean;
+}
+
 /** Generic cache-check-then-fetch helper with stale-while-revalidate. */
 export async function cachedFetch<T>(
   ctx: ActionCtx,
-  opts: {
-    userId?: Id<"users">;
-    dataType: string;
-    ttl: number;
-    fetcher: () => Promise<T>;
-    /** Return false to skip the cache write (e.g. negative results). */
-    shouldCache?: (data: T) => boolean;
-  },
+  opts: Omit<CachedFetchOptions<T>, "ctx">,
 ): Promise<T> {
-  const { userId, dataType, ttl, fetcher, shouldCache } = opts;
-
   const memo = getCachedFetchMemo(ctx);
-  const memoKey = `${userId ?? "global"}:${dataType}`;
+  const memoKey = `${opts.userId ?? "global"}:${opts.dataType}`;
   const inflight = memo.get(memoKey);
   if (inflight) return inflight as Promise<T>;
 
-  const promise = doCachedFetch<T>(ctx, userId, dataType, ttl, fetcher, shouldCache);
+  const promise = doCachedFetch<T>({ ctx, ...opts });
   promise.catch(() => memo.delete(memoKey));
   memo.set(memoKey, promise);
   return promise;
 }
 
-async function doCachedFetch<T>(
-  ctx: ActionCtx,
-  userId: Id<"users"> | undefined,
-  dataType: string,
-  ttl: number,
-  fetcher: () => Promise<T>,
-  shouldCache: ((data: T) => boolean) | undefined,
-): Promise<T> {
+async function doCachedFetch<T>(opts: CachedFetchOptions<T>): Promise<T> {
+  const { ctx, userId, dataType, ttl, fetcher, shouldCache } = opts;
   let cached: { data: unknown; expiresAt: number } | null = null;
   try {
     cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, { userId, dataType });

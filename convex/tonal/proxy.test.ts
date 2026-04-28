@@ -161,6 +161,24 @@ describe("withTokenRetry", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
+  it("marks token expired when retry hits 401 on the lock-loser path", async () => {
+    const profile = makeProfile();
+    const ctx = {
+      runQuery: vi.fn(async () => profile),
+      runMutation: vi.fn(async (mutationRef: string) => {
+        if (mutationRef === "acquireTokenRefreshLock") return false;
+        return undefined;
+      }),
+    } as unknown as ActionCtx;
+    const fn = vi.fn().mockRejectedValue(new TonalApiError(401, "Token expired"));
+
+    await expect(withTokenRetry(ctx, TEST_USER_ID, fn)).rejects.toThrow(
+      "Tonal session expired — please reconnect",
+    );
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(ctx.runMutation).toHaveBeenCalledWith("markTokenExpired", { userId: TEST_USER_ID });
+  });
+
   it("propagates non-401 errors on retry without marking expired", async () => {
     const ctx = makeMockCtx();
     const fn = vi

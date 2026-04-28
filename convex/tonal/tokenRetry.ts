@@ -84,7 +84,14 @@ export async function withTokenRetry<T>(
         ctx,
         userId,
       );
-      return fn(retryToken, retryTonalUserId);
+      try {
+        return await fn(retryToken, retryTonalUserId);
+      } catch (retryError) {
+        if (isTonal401(retryError)) {
+          return markExpiredAndThrow(ctx, userId);
+        }
+        throw retryError;
+      }
     }
 
     let freshToken: string;

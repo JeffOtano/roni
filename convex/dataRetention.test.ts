@@ -365,4 +365,29 @@ describe("runCacheRetention", () => {
     expect(remainingIds).toContain(freshId);
     expect(remainingIds).not.toContain(expiredId);
   });
+
+  test("schedules a continuation when the deadline is hit before all rows are pruned", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const now = Date.now();
+    const expiredId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "profile",
+        data: {},
+        fetchedAt: now - 2 * DAY_MS,
+        expiresAt: now - DAY_MS - 60_000,
+      }),
+    );
+
+    await t.action(internal.dataRetention.runCacheRetention, { _deadlineOffsetMs: 0 });
+
+    const stillThere = await t.run(async (ctx) => ctx.db.get(expiredId));
+    expect(stillThere).not.toBeNull();
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(scheduled.some((fn) => fn.name.includes("runCacheRetention"))).toBe(true);
+  });
 });
