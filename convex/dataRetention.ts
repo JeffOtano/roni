@@ -165,7 +165,7 @@ async function pruneTable(
   return { deleted, complete: true };
 }
 
-type CountKey = "aiUsage" | "toolCalls" | "aiRun" | "strengthSnapshots" | "cache";
+type CountKey = "aiUsage" | "toolCalls" | "aiRun" | "strengthSnapshots";
 
 /** Main cleanup action. Called by daily cron (and by itself when work remains). */
 export const runDataRetention = internalAction({
@@ -178,21 +178,16 @@ export const runDataRetention = internalAction({
     const deadline = now + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
 
     const counts: Record<CountKey, number> = {
-      cache: 0,
       aiUsage: 0,
       toolCalls: 0,
       aiRun: 0,
       strengthSnapshots: 0,
     };
 
-    // tonalCache is pruned first so a large AI-usage backlog cannot starve it.
+    // tonalCache cleanup runs in `runCacheRetention` on a weekly cadence —
+    // active users overwrite their rows in place, so dormant rows accumulate
+    // slowly and a daily scan over ~1MB-each docs is wasteful.
     const tableConfigs: Array<PruneTableConfig & { key: CountKey }> = [
-      {
-        key: "cache",
-        cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
-        batchSize: CACHE_BATCH_SIZE,
-        query: internal.dataRetention.getExpiredCacheIds,
-      },
       {
         key: "aiUsage",
         cutoff: now - RETENTION.aiUsageDays * MS_PER_DAY,
@@ -245,7 +240,7 @@ export const runDataRetention = internalAction({
             ? "partial (deadline): "
             : "";
         console.log(
-          `[dataRetention] ${prefix}Cleaned up ${totalDeleted} records: ${counts.aiUsage} aiUsage, ${counts.toolCalls} toolCalls, ${counts.aiRun} aiRun, ${counts.strengthSnapshots} strengthSnapshots, ${counts.cache} cache`,
+          `[dataRetention] ${prefix}Cleaned up ${totalDeleted} records: ${counts.aiUsage} aiUsage, ${counts.toolCalls} toolCalls, ${counts.aiRun} aiRun, ${counts.strengthSnapshots} strengthSnapshots`,
         );
       }
 
@@ -255,10 +250,64 @@ export const runDataRetention = internalAction({
         tool_calls_deleted: counts.toolCalls,
         ai_run_deleted: counts.aiRun,
         strength_snapshots_deleted: counts.strengthSnapshots,
-        cache_deleted: counts.cache,
         partial_failure: partialFailure ?? null,
         needs_continuation: needsContinuation,
       });
+      await analytics.flush();
+    }
+  },
+});
+
+/**
+ * Weekly tonalCache cleanup. Active users overwrite their rows in place via
+ * `setCacheEntry`, so retention only collects orphaned rows from dormant
+ * users — a daily scan over ~1MB-each cache docs was wasted bandwidth.
+ */
+export const runCacheRetention = internalAction({
+  args: {
+    /** Override the deadline budget for tests (omit in production). */
+    _deadlineOffsetMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const deadline = now + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
+
+    let partialFailure: string | undefined;
+
+    try {
+      const result = await pruneTable(
+        ctx,
+        {
+          cutoff: now - RETENTION.expiredCacheHours * MS_PER_HOUR,
+          batchSize: CACHE_BATCH_SIZE,
+          query: internal.dataRetention.getExpiredCacheIds,
+        },
+        deadline,
+      );
+
+      if (!result.complete) {
+        await ctx.scheduler.runAfter(0, internal.dataRetention.runCacheRetention, {});
+      }
+
+      if (result.deleted > 0 || !result.complete) {
+        const prefix = result.complete ? "" : "partial (deadline): ";
+        console.log(`[cacheRetention] ${prefix}Cleaned up ${result.deleted} cache rows`);
+      }
+
+      analytics.captureSystem("cache_retention_completed", {
+        total_deleted: result.deleted,
+        partial_failure: null,
+        needs_continuation: !result.complete,
+      });
+    } catch (err) {
+      partialFailure = err instanceof Error ? err.message : String(err);
+      analytics.captureSystem("cache_retention_completed", {
+        total_deleted: 0,
+        partial_failure: partialFailure,
+        needs_continuation: false,
+      });
+      throw err;
+    } finally {
       await analytics.flush();
     }
   },

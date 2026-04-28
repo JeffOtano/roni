@@ -47,6 +47,12 @@ if (cronsEnabled()) {
 
   crons.cron("data-retention", "0 2 * * *", internal.dataRetention.runDataRetention, {});
 
+  // Weekly cache retention: tonalCache rows are large (~1MB each) and active
+  // users overwrite them in place, so a daily scan was wasteful bandwidth.
+  // Sunday 06:00 UTC keeps it clear of the 03:00 movement and 04:00 workout
+  // catalog syncs.
+  crons.cron("data-retention-cache", "0 6 * * 0", internal.dataRetention.runCacheRetention, {});
+
   crons.interval(
     "sweep-garmin-oauth-states",
     { hours: 1 },

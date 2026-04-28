@@ -248,6 +248,27 @@ describe("runDataRetention", () => {
     expect(remainingIds).not.toContain(oldSnapshotId);
   });
 
+  test("does not prune tonalCache rows (handled by runCacheRetention)", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const now = Date.now();
+
+    const expiredCacheId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "profile",
+        data: {},
+        fetchedAt: now - 2 * DAY_MS,
+        expiresAt: now - DAY_MS - 60_000,
+      }),
+    );
+
+    await t.action(internal.dataRetention.runDataRetention, {});
+
+    const stillThere = await t.run(async (ctx) => ctx.db.get(expiredCacheId));
+    expect(stillThere).not.toBeNull();
+  });
+
   test("preserves completed workouts, exercise performance, and personal records", async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -309,5 +330,39 @@ describe("runDataRetention", () => {
       return { cw: cw.length, ep: ep.length, pr: pr.length };
     });
     expect(counts).toEqual({ cw: 1, ep: 1, pr: 1 });
+  });
+});
+
+describe("runCacheRetention", () => {
+  test("prunes tonalCache rows older than the retention window", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const now = Date.now();
+
+    const expiredId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "profile",
+        data: {},
+        fetchedAt: now - 2 * DAY_MS,
+        expiresAt: now - DAY_MS - 60_000,
+      }),
+    );
+    const freshId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "muscleReadiness",
+        data: {},
+        fetchedAt: now,
+        expiresAt: now + DAY_MS,
+      }),
+    );
+
+    await t.action(internal.dataRetention.runCacheRetention, {});
+
+    const remaining = await t.run(async (ctx) => ctx.db.query("tonalCache").collect());
+    const remainingIds = remaining.map((r) => r._id);
+    expect(remainingIds).toContain(freshId);
+    expect(remainingIds).not.toContain(expiredId);
   });
 });

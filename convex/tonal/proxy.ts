@@ -7,6 +7,7 @@ import { decrypt } from "./encryption";
 import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { isCacheValueWithinLimit, isConvexSizeError } from "./proxyCacheLimits";
+import { getCachedFetchMemo, getTokenMemo, type TokenEntry } from "./proxyMemo";
 import { withTokenRetry } from "./tokenRetry";
 import { projectWorkoutDetail } from "./workoutDetailProjection";
 import {
@@ -25,24 +26,32 @@ import type {
 } from "./types";
 
 /** Resolve encrypted token + tonalUserId for a given Convex user. */
-export async function withTonalToken(
-  ctx: ActionCtx,
-  userId: Id<"users">,
-): Promise<{ token: string; tonalUserId: string }> {
-  const profile = await ctx.runQuery(internal.tonal.cache.getUserProfile, {
-    userId,
-  });
-  if (!profile) {
-    throw new Error("No Tonal profile found — user must link their account");
-  }
+export async function withTonalToken(ctx: ActionCtx, userId: Id<"users">): Promise<TokenEntry> {
+  const memo = getTokenMemo(ctx);
+  const cached = memo.get(userId);
+  if (cached) return cached;
 
-  const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!keyHex) {
-    throw new Error("TOKEN_ENCRYPTION_KEY env var is not set");
-  }
+  const promise = (async () => {
+    const profile = await ctx.runQuery(internal.tonal.cache.getUserProfile, {
+      userId,
+    });
+    if (!profile) {
+      throw new Error("No Tonal profile found — user must link their account");
+    }
 
-  const token = await decrypt(profile.tonalToken, keyHex);
-  return { token, tonalUserId: profile.tonalUserId };
+    const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
+    if (!keyHex) {
+      throw new Error("TOKEN_ENCRYPTION_KEY env var is not set");
+    }
+
+    const token = await decrypt(profile.tonalToken, keyHex);
+    return { token, tonalUserId: profile.tonalUserId };
+  })();
+
+  // Drop the memo entry on rejection so the next caller can retry from scratch.
+  promise.catch(() => memo.delete(userId));
+  memo.set(userId, promise);
+  return promise;
 }
 
 const MAX_CACHE_ARRAY_LENGTH = 500;
@@ -59,6 +68,24 @@ export async function cachedFetch<T>(
 ): Promise<T> {
   const { userId, dataType, ttl, fetcher } = opts;
 
+  const memo = getCachedFetchMemo(ctx);
+  const memoKey = `${userId ?? "global"}:${dataType}`;
+  const inflight = memo.get(memoKey);
+  if (inflight) return inflight as Promise<T>;
+
+  const promise = doCachedFetch<T>(ctx, userId, dataType, ttl, fetcher);
+  promise.catch(() => memo.delete(memoKey));
+  memo.set(memoKey, promise);
+  return promise;
+}
+
+async function doCachedFetch<T>(
+  ctx: ActionCtx,
+  userId: Id<"users"> | undefined,
+  dataType: string,
+  ttl: number,
+  fetcher: () => Promise<T>,
+): Promise<T> {
   let cached: { data: unknown; expiresAt: number } | null = null;
   try {
     cached = await ctx.runQuery(internal.tonal.cache.getCacheEntry, { userId, dataType });
@@ -71,12 +98,6 @@ export async function cachedFetch<T>(
   }
 
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.data as T;
-  }
-
-  const circuitOpen = await ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" });
-  if (circuitOpen && cached) {
-    console.warn(`cachedFetch(${dataType}): circuit open, serving stale data`);
     return cached.data as T;
   }
 
@@ -108,23 +129,12 @@ export async function cachedFetch<T>(
       }
     }
 
-    if (circuitOpen) {
-      await ctx
-        .runMutation(internal.systemHealth.recordSuccess, { service: "tonal" })
-        .catch((err: unknown) => console.warn("[circuitBreaker] recordSuccess failed", err));
-    }
-
     return data;
   } catch (error) {
     // Never swallow auth errors -- the user must reconnect
     if (error instanceof TonalApiError && error.status === 401) throw error;
     if (error instanceof Error && error.message.includes("session expired")) throw error;
 
-    await ctx
-      .runMutation(internal.systemHealth.recordFailure, { service: "tonal" })
-      .catch((err: unknown) => console.warn("[circuitBreaker] recordFailure failed", err));
-
-    // For non-auth errors, fall back to stale data if available
     if (cached) {
       console.warn(`cachedFetch(${dataType}): refresh failed, serving stale data`, error);
       return cached.data as T;
@@ -209,7 +219,7 @@ export async function fetchWorkoutMetaBatch(
       batch.map(async (id) => {
         const data = await cachedFetch<WorkoutMeta>(ctx, {
           dataType: `workoutMeta:${id}`,
-          ttl: CACHE_TTLS.profile,
+          ttl: CACHE_TTLS.immutableWorkout,
           fetcher: async () => {
             const raw = await tonalFetch<{ title?: unknown; targetArea?: unknown }>(
               token,
@@ -270,7 +280,7 @@ export const fetchWorkoutDetail = internalAction({
       cachedFetch<WorkoutActivityDetail | null>(ctx, {
         userId,
         dataType: `workoutDetail:${activityId}`,
-        ttl: CACHE_TTLS.workoutHistory,
+        ttl: CACHE_TTLS.immutableWorkout,
         fetcher: async () => {
           try {
             const raw = await tonalFetch<unknown>(
@@ -281,7 +291,7 @@ export const fetchWorkoutDetail = internalAction({
             if (detail === null) {
               // Schema drift — projectWorkoutDetail already logged Zod issues.
               // Return null so the caller gracefully renders "not found"; the
-              // cache short-circuits repeat requests for CACHE_TTLS.workoutHistory.
+              // cache short-circuits repeat requests for CACHE_TTLS.immutableWorkout.
               console.error(
                 `fetchWorkoutDetail: projectWorkoutDetail rejected payload for activity ${activityId}`,
               );

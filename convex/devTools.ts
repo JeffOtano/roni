@@ -115,11 +115,6 @@ export const getTokenHealth = query({
       profile.tokenRefreshInProgress != null &&
       now - profile.tokenRefreshInProgress < TOKEN_REFRESH_LOCK_TTL_MS;
 
-    const health = await ctx.db
-      .query("systemHealth")
-      .withIndex("by_service", (q) => q.eq("service", "tonal"))
-      .unique();
-
     return {
       tokenExpiresAt: profile.tonalTokenExpiresAt ?? null,
       hasRefreshToken: !!profile.tonalRefreshToken,
@@ -127,9 +122,6 @@ export const getTokenHealth = query({
       refreshLockTimestamp: profile.tokenRefreshInProgress ?? null,
       tonalConnectedAt: profile.tonalConnectedAt ?? null,
       lastActiveAt: profile.lastActiveAt,
-      circuitOpen: health?.circuitOpen ?? false,
-      circuitConsecutiveFailures: health?.consecutiveFailures ?? 0,
-      circuitLastSuccessAt: health?.lastSuccessAt ?? null,
     };
   },
 });

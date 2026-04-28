@@ -11,7 +11,6 @@ const EXPIRED_TOKEN_ALERT_THRESHOLD = 2;
 
 export interface HealthSignals {
   expiredTokenCount: number;
-  circuitOpen: boolean;
 }
 
 /** Pure function: format health signals into a Discord-friendly summary. */
@@ -20,9 +19,6 @@ export function formatHealthSummary(signals: HealthSignals): string {
 
   if (signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD) {
     issues.push(`${signals.expiredTokenCount} expired tokens`);
-  }
-  if (signals.circuitOpen) {
-    issues.push("Tonal API circuit breaker OPEN");
   }
 
   if (issues.length === 0) {
@@ -50,19 +46,14 @@ export const getExpiredTokenCount = internalQuery({
 /** Main health check action. Called by cron every hour. */
 export const runHealthCheck = internalAction({
   handler: async (ctx) => {
-    const [expiredTokenCount, circuitOpen] = await Promise.all([
-      ctx.runQuery(internal.healthCheck.getExpiredTokenCount),
-      ctx.runQuery(internal.systemHealth.isCircuitOpen, { service: "tonal" }),
-    ]);
+    const expiredTokenCount = await ctx.runQuery(internal.healthCheck.getExpiredTokenCount);
 
     const signals: HealthSignals = {
       expiredTokenCount,
-      circuitOpen,
     };
 
     const summary = formatHealthSummary(signals);
-    const hasIssues =
-      signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD || signals.circuitOpen;
+    const hasIssues = signals.expiredTokenCount >= EXPIRED_TOKEN_ALERT_THRESHOLD;
 
     if (hasIssues) {
       await ctx.runAction(internal.discord.notifyError, {
@@ -74,7 +65,6 @@ export const runHealthCheck = internalAction({
     analytics.captureSystem("health_check_completed", {
       has_issues: hasIssues,
       expired_tokens: signals.expiredTokenCount,
-      circuit_open: signals.circuitOpen,
     });
     await analytics.flush();
   },

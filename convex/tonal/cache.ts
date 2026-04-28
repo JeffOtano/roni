@@ -13,6 +13,9 @@ export const CACHE_TTLS: Record<string, number> = {
   workoutHistory: 30 * 60 * 1000, // 30 minutes
   customWorkouts: 5 * 60 * 1000, // 5 minutes
   strengthDistribution: 6 * 60 * 60 * 1000, // 6 hours
+  // Per-workout metadata and per-activity workout details never change once
+  // recorded; cache long enough that re-fetches stop dominating the bill.
+  immutableWorkout: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
 const WORKOUT_HISTORY_CACHE_TYPE = "workoutHistory_v3";
