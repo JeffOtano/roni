@@ -109,7 +109,7 @@ User (chat) --> send message --> AI Coach Agent (Gemini, 31 tools) --> reads con
 
 - Every 15m: recover stuck workout pushes
 - Every 30m: refresh Tonal tokens
-- Every 30m: refresh active user cache (tiered by `appLastActiveAt` recency)
+- Every 1h: refresh active user cache (tiered by `appLastActiveAt` recency)
 - Every 1h: health check
 - Every 1h: activation checks
 - Every 6h: check-in trigger evaluation (missed sessions, milestones)
