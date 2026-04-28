@@ -107,16 +107,17 @@ User (chat) --> send message --> AI Coach Agent (Gemini, 31 tools) --> reads con
 
 ### Scheduled Jobs (`crons.ts`)
 
-- Every 15m: recover stuck workout pushes
 - Every 30m: refresh Tonal tokens
 - Every 1h: refresh active user cache (tiered by `appLastActiveAt` recency)
 - Every 1h: health check
 - Every 1h: activation checks
+- Every 1h: sweep expired Garmin OAuth states
 - Every 6h: check-in trigger evaluation (missed sessions, milestones)
 - Every 6h: garbage-collect orphaned chat-image storage (`internal.fileGc.vacuumUnusedFiles`)
+- Every 6h: sweep expired Garmin webhook events
 - Cron `0 3 * * *`: sync movement catalog
 - Cron `0 4 * * 0`: sync Tonal workout catalog
-- Cron `0 2 * * 0`: data retention cleanup
+- Cron `0 2 * * *`: data retention cleanup
 - All crons are disabled when `DISABLE_CRONS=true` is set (see `convex/lib/env.ts`)
 
 ### Frontend Routes (`src/app/`)
