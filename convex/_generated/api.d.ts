@@ -101,6 +101,7 @@ import type * as migrations from "../migrations.js";
 import type * as migrations_backfillAvgWeight from "../migrations/backfillAvgWeight.js";
 import type * as migrations_backfillNextTonalSyncAt from "../migrations/backfillNextTonalSyncAt.js";
 import type * as migrations_backfillPersonalRecords from "../migrations/backfillPersonalRecords.js";
+import type * as migrations_dropCoachStateCache from "../migrations/dropCoachStateCache.js";
 import type * as migrations_repairOrphanedAuthAccounts from "../migrations/repairOrphanedAuthAccounts.js";
 import type * as migrations_rotateTokenEncryptionKey from "../migrations/rotateTokenEncryptionKey.js";
 import type * as personalRecords from "../personalRecords.js";
@@ -271,6 +272,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/backfillAvgWeight": typeof migrations_backfillAvgWeight;
   "migrations/backfillNextTonalSyncAt": typeof migrations_backfillNextTonalSyncAt;
   "migrations/backfillPersonalRecords": typeof migrations_backfillPersonalRecords;
+  "migrations/dropCoachStateCache": typeof migrations_dropCoachStateCache;
   "migrations/repairOrphanedAuthAccounts": typeof migrations_repairOrphanedAuthAccounts;
   "migrations/rotateTokenEncryptionKey": typeof migrations_rotateTokenEncryptionKey;
   personalRecords: typeof personalRecords;

@@ -13,7 +13,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
-import { requestCoachStateRefresh } from "./coachState";
 import {
   daySlotValidator,
   dayStatusValidator,
@@ -113,7 +112,6 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    await requestCoachStateRefresh(ctx, userId);
     return weekPlanId;
   },
 });
@@ -142,7 +140,6 @@ export const update = mutation({
       ...(args.targetDays !== undefined && { targetDays: args.targetDays }),
       ...(args.days !== undefined && { days: args.days }),
     });
-    await requestCoachStateRefresh(ctx, userId);
     return args.weekPlanId;
   },
 });
@@ -177,7 +174,6 @@ export const linkWorkoutPlanToDay = mutation({
     if (args.estimatedDuration !== undefined) slot.estimatedDuration = args.estimatedDuration;
     days[args.dayIndex] = slot;
     await ctx.db.patch(args.weekPlanId, { days, updatedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, userId);
     return args.weekPlanId;
   },
 });

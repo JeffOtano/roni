@@ -7,7 +7,6 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
-import { requestCoachStateRefresh } from "./coachState";
 
 export const submit = mutation({
   args: {
@@ -43,7 +42,6 @@ export const submit = mutation({
       notes: args.notes?.slice(0, 500),
       createdAt: Date.now(),
     });
-    await requestCoachStateRefresh(ctx, userId);
     return feedbackId;
   },
 });
@@ -105,7 +103,6 @@ export const submitInternal = internalMutation({
       notes: args.notes?.slice(0, 500),
       createdAt: Date.now(),
     });
-    await requestCoachStateRefresh(ctx, args.userId);
     return feedbackId;
   },
 });

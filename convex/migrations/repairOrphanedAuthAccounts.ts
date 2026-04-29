@@ -48,7 +48,6 @@ const USER_TABLE_BATCH_SAFETY_INDEXES = {
   aiBudgetWarnings: "by_userId",
   aiRun: "by_userId_createdAt",
   checkIns: "by_userId",
-  coachState: "by_userId",
   completedWorkouts: "by_userId_date",
   currentStrengthScores: "by_userId",
   emailChangeRequests: "by_userId",

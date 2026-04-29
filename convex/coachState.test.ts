@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
+import { safe } from "./coachState";
 
 const modules = import.meta.glob("./**/*.*s");
 
@@ -14,133 +15,250 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("coachState", () => {
-  test("upserts one materialized snapshot per user", async () => {
-    const t = convexTest(schema, modules);
-    const userId = await createUser(t);
+describe("safe", () => {
+  test("returns the fallback and logs the error when the read function rejects", async () => {
+    const fallback: number[] = [];
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const boom = new Error("boom");
 
-    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "first" });
-    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "second" });
-
-    const rows = await t.run(async (ctx) =>
-      ctx.db
-        .query("coachState")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .collect(),
+    const result = await safe(
+      async () => {
+        throw boom;
+      },
+      fallback,
+      "testSource",
     );
 
-    expect(rows).toHaveLength(1);
-    expect(rows[0].snapshot).toBe("second");
-    expect(rows[0].lastError).toBeUndefined();
+    expect(result).toBe(fallback);
+    expect(errSpy).toHaveBeenCalledWith("gatherSnapshotInputs: testSource read failed", boom);
+    errSpy.mockRestore();
   });
 
-  test("refresh failures preserve the previous snapshot", async () => {
-    const t = convexTest(schema, modules);
-    const userId = await createUser(t);
-
-    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "usable" });
-    await t.mutation(internal.coachState.recordRefreshFailure, { userId, error: "boom" });
-
-    const row = await t.query(internal.coachState.getForUser, { userId });
-
-    expect(row?.snapshot).toBe("usable");
-    expect(row?.lastError).toBe("boom");
-    expect(row?.failedAt).toBeTypeOf("number");
+  test("returns the read value when the read function resolves", async () => {
+    const result = await safe(async () => [1, 2, 3], [] as number[], "testSource");
+    expect(result).toEqual([1, 2, 3]);
   });
+});
 
-  test("skips duplicate snapshot writes when no refresh is pending", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(1000);
+describe("gatherSnapshotInputs", () => {
+  test("returns aggregated reads across all 10 sub-domains", async () => {
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
+    const now = Date.now();
 
-    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "same" });
-    const first = await t.query(internal.coachState.getForUser, { userId });
-
-    vi.setSystemTime(2000);
-    await t.mutation(internal.coachState.upsertSnapshot, { userId, snapshot: "same" });
-    const second = await t.query(internal.coachState.getForUser, { userId });
-
-    expect(second?._id).toBe(first?._id);
-    expect(second?.refreshedAt).toBe(1000);
-  });
-
-  test("clears pending refresh for unchanged snapshots without replacing snapshot fields", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(2000);
-    const t = convexTest(schema, modules);
-    const userId = await createUser(t);
-
-    await t.run(async (ctx) =>
-      ctx.db.insert("coachState", {
+    await t.run(async (ctx) => {
+      await ctx.db.insert("userProfiles", {
         userId,
-        snapshot: "same",
-        snapshotVersion: 1,
-        userTimezone: null,
-        refreshedAt: 1000,
-        refreshRequestedAt: 1500,
-        refreshRequestedTimezone: null,
-      }),
-    );
-
-    await t.mutation(internal.coachState.upsertSnapshot, {
-      userId,
-      snapshot: "same",
-      requestedAt: 1500,
-    });
-    const row = await t.query(internal.coachState.getForUser, { userId });
-
-    expect(row?.snapshot).toBe("same");
-    expect(row?.refreshedAt).toBe(2000);
-    expect(row?.refreshRequestedAt).toBeUndefined();
-  });
-
-  test("older refresh completions keep newer refresh requests pending", async () => {
-    const t = convexTest(schema, modules);
-    const userId = await createUser(t);
-
-    await t.run(async (ctx) =>
-      ctx.db.insert("coachState", {
+        tonalUserId: "tonal-1",
+        tonalToken: "encrypted",
+        profileData: {
+          firstName: "Alice",
+          lastName: "Lifter",
+          heightInches: 66,
+          weightPounds: 150,
+          level: "intermediate",
+          workoutsPerWeek: 4,
+          workoutDurationMin: 30,
+          workoutDurationMax: 60,
+        },
+        lastActiveAt: now,
+      });
+      await ctx.db.insert("currentStrengthScores", {
         userId,
-        snapshot: "old",
-        snapshotVersion: 1,
-        refreshedAt: 50,
-        refreshRequestedAt: 200,
-        refreshRequestedTimezone: "America/New_York",
-      }),
-    );
-
-    await t.mutation(internal.coachState.upsertSnapshot, {
-      userId,
-      snapshot: "built before newer write",
-      requestedAt: 100,
+        bodyRegion: "Upper",
+        score: 450,
+        fetchedAt: now,
+      });
+      await ctx.db.insert("muscleReadiness", {
+        userId,
+        chest: 80,
+        shoulders: 70,
+        back: 85,
+        triceps: 75,
+        biceps: 78,
+        abs: 90,
+        obliques: 85,
+        quads: 60,
+        glutes: 65,
+        hamstrings: 70,
+        calves: 75,
+        fetchedAt: now,
+      });
+      await ctx.db.insert("completedWorkouts", {
+        userId,
+        activityId: "act-w1",
+        tonalWorkoutId: "w1",
+        title: "Push Day",
+        date: "2026-04-23",
+        targetArea: "Upper",
+        totalVolume: 5000,
+        totalDuration: 1800,
+        totalWork: 4500,
+        workoutType: "strength",
+        syncedAt: now,
+      });
+      // Ghost row should be filtered out by readRecentCompletedWorkouts.
+      await ctx.db.insert("completedWorkouts", {
+        userId,
+        activityId: "act-ghost",
+        tonalWorkoutId: "ghost",
+        title: "",
+        date: "2026-04-22",
+        targetArea: "Upper",
+        totalVolume: 0,
+        totalDuration: 0,
+        totalWork: 0,
+        workoutType: "strength",
+        syncedAt: now,
+      });
+      await ctx.db.insert("trainingBlocks", {
+        userId,
+        label: "Building",
+        blockType: "building",
+        weekNumber: 2,
+        totalWeeks: 3,
+        startDate: "2026-04-13",
+        status: "active",
+        createdAt: now,
+      });
+      await ctx.db.insert("workoutFeedback", {
+        userId,
+        activityId: "act-1",
+        rpe: 8,
+        rating: 4,
+        createdAt: now,
+      });
+      await ctx.db.insert("goals", {
+        userId,
+        title: "Bench +20",
+        category: "strength",
+        metric: "bench_press_avg_weight",
+        baselineValue: 100,
+        targetValue: 120,
+        currentValue: 110,
+        deadline: "2026-06-01",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("injuries", {
+        userId,
+        area: "left shoulder",
+        severity: "mild",
+        avoidance: "overhead press",
+        reportedAt: now,
+        status: "active",
+      });
+      await ctx.db.insert("externalActivities", {
+        userId,
+        externalId: "ext-1",
+        source: "Apple Watch",
+        workoutType: "running",
+        beginTime: "2026-04-22T14:00:00Z",
+        totalDuration: 1800,
+        distance: 5000,
+        activeCalories: 300,
+        totalCalories: 350,
+        averageHeartRate: 145,
+        syncedAt: now,
+      });
+      await ctx.db.insert("garminWellnessDaily", {
+        userId,
+        calendarDate: "2026-04-23",
+        sleepDurationSeconds: 25200,
+        hrvLastNightAvg: 50,
+        avgStress: 40,
+        bodyBatteryHighestValue: 85,
+        bodyBatteryLowestValue: 30,
+        lastIngestedAt: now,
+      });
     });
 
-    const row = await t.query(internal.coachState.getForUser, { userId });
+    const inputs = await t.query(internal.coachState.gatherSnapshotInputs, { userId });
 
-    expect(row?.snapshot).toBe("built before newer write");
-    expect(row?.refreshedAt).toBe(0);
-    expect(row?.refreshRequestedAt).toBe(200);
-    expect(row?.refreshRequestedTimezone).toBe("America/New_York");
+    expect(inputs.profile?.profileData?.firstName).toBe("Alice");
+    expect(inputs.scores).toHaveLength(1);
+    expect(inputs.scores[0].bodyRegion).toBe("Upper");
+    expect(inputs.readiness?.chest).toBe(80);
+    expect(inputs.activities).toHaveLength(1);
+    expect(inputs.activities[0].title).toBe("Push Day");
+    expect(inputs.activeBlock?.blockType).toBe("building");
+    expect(inputs.recentFeedback).toHaveLength(1);
+    expect(inputs.recentFeedback[0].rpe).toBe(8);
+    expect(inputs.activeGoals).toHaveLength(1);
+    expect(inputs.activeGoals[0].title).toBe("Bench +20");
+    expect(inputs.activeInjuries).toHaveLength(1);
+    expect(inputs.activeInjuries[0].area).toBe("left shoulder");
+    expect(inputs.externalActivities).toHaveLength(1);
+    expect(inputs.externalActivities[0].source).toBe("Apple Watch");
+    expect(inputs.garminWellness).toHaveLength(1);
+    expect(inputs.garminWellness[0].calendarDate).toBe("2026-04-23");
   });
 
-  test("requestRefresh clears stale requested timezone when omitted", async () => {
+  test("returns empty arrays and nulls for sub-domains the user has no data in", async () => {
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
+    const now = Date.now();
 
-    await t.mutation(internal.coachState.requestRefresh, {
-      userId,
-      userTimezone: "America/Los_Angeles",
+    // Only a profile, nothing else.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("userProfiles", {
+        userId,
+        tonalUserId: "tonal-1",
+        tonalToken: "encrypted",
+        profileData: {
+          firstName: "Bob",
+          lastName: "Newbie",
+          heightInches: 70,
+          weightPounds: 170,
+          level: "beginner",
+          workoutsPerWeek: 3,
+          workoutDurationMin: 30,
+          workoutDurationMax: 45,
+        },
+        lastActiveAt: now,
+      });
     });
-    await t.mutation(internal.coachState.requestRefresh, {
-      userId,
-      userTimezone: "America/New_York",
+
+    const inputs = await t.query(internal.coachState.gatherSnapshotInputs, { userId });
+
+    expect(inputs.profile?.profileData?.firstName).toBe("Bob");
+    expect(inputs.scores).toEqual([]);
+    expect(inputs.readiness).toBeNull();
+    expect(inputs.activities).toEqual([]);
+    expect(inputs.activeBlock).toBeNull();
+    expect(inputs.recentFeedback).toEqual([]);
+    expect(inputs.activeGoals).toEqual([]);
+    expect(inputs.activeInjuries).toEqual([]);
+    expect(inputs.externalActivities).toEqual([]);
+    expect(inputs.garminWellness).toEqual([]);
+  });
+
+  test("returns null profile for users with deletion in progress", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", { deletionInProgress: true }));
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("userProfiles", {
+        userId,
+        tonalUserId: "tonal-1",
+        tonalToken: "encrypted",
+        profileData: {
+          firstName: "Bob",
+          lastName: "Deleted",
+          heightInches: 70,
+          weightPounds: 170,
+          level: "beginner",
+          workoutsPerWeek: 3,
+          workoutDurationMin: 30,
+          workoutDurationMax: 45,
+        },
+        lastActiveAt: Date.now(),
+      });
     });
-    await t.mutation(internal.coachState.requestRefresh, { userId });
 
-    const row = await t.query(internal.coachState.getForUser, { userId });
+    const inputs = await t.query(internal.coachState.gatherSnapshotInputs, { userId });
 
-    expect(row?.refreshRequestedAt).toBeTypeOf("number");
-    expect(row?.refreshRequestedTimezone).toBeNull();
+    expect(inputs.profile).toBeNull();
   });
 });

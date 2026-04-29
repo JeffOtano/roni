@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getFunctionName } from "convex/server";
 import {
   buildTrainingSnapshot,
@@ -7,7 +7,6 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./context";
-import { getTrainingSnapshotForChat } from "./trainingSnapshotCache";
 import { internal } from "../_generated/api";
 import type { ExternalActivity } from "../tonal/types";
 
@@ -147,14 +146,26 @@ describe("formatExternalActivityLine", () => {
 });
 
 describe("buildTrainingSnapshot", () => {
+  const gatherSnapshotInputsName = getFunctionName(internal.coachState.gatherSnapshotInputs);
+  const weekPlansName = getFunctionName(internal.weekPlans.getByUserIdAndWeekStartInternal);
+
+  function emptyInputs() {
+    return {
+      profile: null,
+      scores: [],
+      readiness: null,
+      activities: [],
+      activeBlock: null,
+      recentFeedback: [],
+      activeGoals: [],
+      activeInjuries: [],
+      externalActivities: [],
+      garminWellness: [],
+    };
+  }
+
   it("does not load or inject the exercise catalog into every chat turn", async () => {
     const getAllMovementsName = getFunctionName(internal.tonal.movementSync.getAllMovements);
-    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
-    const nullableQueryNames = new Set([
-      getFunctionName(internal.tonal.syncQueries.getMuscleReadiness),
-      getFunctionName(internal.coach.periodization.getActiveBlock),
-      getFunctionName(internal.weekPlans.getByUserIdAndWeekStartInternal),
-    ]);
     const queryCalls: string[] = [];
     const ctx = {
       runQuery: async (query: unknown) => {
@@ -163,31 +174,32 @@ describe("buildTrainingSnapshot", () => {
         if (queryName === getAllMovementsName) {
           throw new Error("movement catalog should not be loaded");
         }
-        if (queryName === getUserProfileName) {
+        if (queryName === gatherSnapshotInputsName) {
           return {
-            profileData: {
-              firstName: "Alice",
-              lastName: "Lifter",
-              heightInches: 66,
-              weightPounds: 150,
-              level: "intermediate",
-              workoutsPerWeek: 4,
-              dateOfBirth: "1990-01-01",
-            },
-            ownedAccessories: {
-              smartHandles: true,
-              smartBar: true,
-              rope: false,
-              roller: true,
-              weightBar: true,
-              pilatesLoops: true,
-              ankleStraps: true,
+            ...emptyInputs(),
+            profile: {
+              profileData: {
+                firstName: "Alice",
+                lastName: "Lifter",
+                heightInches: 66,
+                weightPounds: 150,
+                level: "intermediate",
+                workoutsPerWeek: 4,
+                dateOfBirth: "1990-01-01",
+              },
+              ownedAccessories: {
+                smartHandles: true,
+                smartBar: true,
+                rope: false,
+                roller: true,
+                weightBar: true,
+                pilatesLoops: true,
+                ankleStraps: true,
+              },
             },
           };
         }
-        if (nullableQueryNames.has(queryName)) {
-          return null;
-        }
+        if (queryName === weekPlansName) return null;
         return [];
       },
     };
@@ -199,46 +211,75 @@ describe("buildTrainingSnapshot", () => {
     expect(snapshot).toContain("Equipment:");
   });
 
-  it("includes recent Garmin wellness signals in the coach snapshot", async () => {
-    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
-    const getGarminWellnessName = getFunctionName(
-      internal.garmin.wellnessDaily.getRecentWellnessDaily,
-    );
-    const nullableQueryNames = new Set([
-      getFunctionName(internal.tonal.syncQueries.getMuscleReadiness),
-      getFunctionName(internal.coach.periodization.getActiveBlock),
-      getFunctionName(internal.weekPlans.getByUserIdAndWeekStartInternal),
-    ]);
+  it("collapses input gathering into a single internal query invocation", async () => {
+    const queryCalls: string[] = [];
     const ctx = {
       runQuery: async (query: unknown) => {
         const queryName = getFunctionName(query as never);
-        if (queryName === getUserProfileName) {
+        queryCalls.push(queryName);
+        if (queryName === gatherSnapshotInputsName) {
           return {
-            profileData: {
-              firstName: "Alice",
-              lastName: "Lifter",
-              heightInches: 66,
-              weightPounds: 150,
-              level: "intermediate",
-              workoutsPerWeek: 4,
+            ...emptyInputs(),
+            profile: {
+              profileData: {
+                firstName: "Alice",
+                lastName: "Lifter",
+                heightInches: 66,
+                weightPounds: 150,
+                level: "intermediate",
+                workoutsPerWeek: 4,
+              },
             },
           };
         }
-        if (queryName === getGarminWellnessName) {
-          return [
-            {
-              calendarDate: "2026-04-24",
-              sleepDurationSeconds: 6 * 60 * 60,
-              hrvLastNightAvg: 44,
-              avgStress: 62,
-              bodyBatteryLowestValue: 18,
-              bodyBatteryHighestValue: 54,
+        if (queryName === weekPlansName) return null;
+        return [];
+      },
+    };
+
+    await buildTrainingSnapshot(ctx as never, "user-1");
+
+    const gatherCalls = queryCalls.filter((name) => name === gatherSnapshotInputsName);
+    expect(gatherCalls).toHaveLength(1);
+    // None of the per-source internal queries should be called directly anymore.
+    expect(queryCalls).not.toContain(getFunctionName(internal.tonal.cache.getUserProfile));
+    expect(queryCalls).not.toContain(
+      getFunctionName(internal.tonal.syncQueries.getCurrentStrengthScores),
+    );
+    expect(queryCalls).not.toContain(getFunctionName(internal.goals.getActiveInternal));
+    expect(queryCalls).not.toContain(getFunctionName(internal.injuries.getActiveInternal));
+  });
+
+  it("includes recent Garmin wellness signals in the coach snapshot", async () => {
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === gatherSnapshotInputsName) {
+          return {
+            ...emptyInputs(),
+            profile: {
+              profileData: {
+                firstName: "Alice",
+                lastName: "Lifter",
+                heightInches: 66,
+                weightPounds: 150,
+                level: "intermediate",
+                workoutsPerWeek: 4,
+              },
             },
-          ];
+            garminWellness: [
+              {
+                calendarDate: "2026-04-24",
+                sleepDurationSeconds: 6 * 60 * 60,
+                hrvLastNightAvg: 44,
+                avgStress: 62,
+                bodyBatteryLowestValue: 18,
+                bodyBatteryHighestValue: 54,
+              },
+            ],
+          };
         }
-        if (nullableQueryNames.has(queryName)) {
-          return null;
-        }
+        if (queryName === weekPlansName) return null;
         return [];
       },
     };
@@ -249,94 +290,5 @@ describe("buildTrainingSnapshot", () => {
     expect(snapshot).toContain("sleep 6h");
     expect(snapshot).toContain("HRV 44ms");
     expect(snapshot).toContain("body battery 18-54");
-  });
-});
-
-describe("getTrainingSnapshotForChat", () => {
-  const NOW = new Date("2026-04-24T12:00:00.000Z");
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("returns a fresh materialized coachState snapshot when available", async () => {
-    const getForUserName = getFunctionName(internal.coachState.getForUser);
-    const ctx = {
-      runQuery: async (query: unknown) => {
-        if (getFunctionName(query as never) === getForUserName) {
-          return { snapshot: "cached snapshot", refreshedAt: NOW.getTime() - 1000 };
-        }
-        throw new Error("live rebuild should not run");
-      },
-    };
-
-    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
-
-    expect(result.snapshot).toBe("cached snapshot");
-    expect(result.source).toBe("coach_state_fresh");
-  });
-
-  it("returns a stale materialized snapshot with stale source when timezone matches", async () => {
-    const getForUserName = getFunctionName(internal.coachState.getForUser);
-    const ctx = {
-      runQuery: async (query: unknown) => {
-        if (getFunctionName(query as never) === getForUserName) {
-          return { snapshot: "old snapshot", refreshedAt: NOW.getTime() - 60 * 60 * 1000 };
-        }
-        throw new Error("live rebuild should not run");
-      },
-    };
-
-    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
-
-    expect(result.snapshot).toBe("old snapshot");
-    expect(result.source).toBe("coach_state_stale");
-  });
-
-  it("uses live rebuild when the cached snapshot was built for another timezone", async () => {
-    const getForUserName = getFunctionName(internal.coachState.getForUser);
-    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
-    const ctx = {
-      runQuery: async (query: unknown) => {
-        const queryName = getFunctionName(query as never);
-        if (queryName === getForUserName) {
-          return {
-            snapshot: "wrong timezone snapshot",
-            refreshedAt: NOW.getTime(),
-            userTimezone: "America/New_York",
-          };
-        }
-        if (queryName === getUserProfileName) return null;
-        return [];
-      },
-    };
-
-    const result = await getTrainingSnapshotForChat(ctx as never, "user-1", "America/Los_Angeles");
-
-    expect(result.source).toBe("live_rebuild");
-    expect(result.snapshot).toContain("No Tonal profile linked yet");
-  });
-
-  it("falls back to live rebuild when coachState has no usable snapshot", async () => {
-    const getForUserName = getFunctionName(internal.coachState.getForUser);
-    const getUserProfileName = getFunctionName(internal.tonal.cache.getUserProfile);
-    const ctx = {
-      runQuery: async (query: unknown) => {
-        const queryName = getFunctionName(query as never);
-        if (queryName === getForUserName) return null;
-        if (queryName === getUserProfileName) return null;
-        return [];
-      },
-    };
-
-    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
-
-    expect(result.source).toBe("live_rebuild");
-    expect(result.snapshot).toContain("No Tonal profile linked yet");
   });
 });
