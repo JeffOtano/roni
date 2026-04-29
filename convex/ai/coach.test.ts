@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { getFunctionName } from "convex/server";
 import type { ModelMessage } from "ai";
 import { escapeTrainingDataTags, makeCoachAgentConfig, shouldUseCrossThreadSearch } from "./coach";
+import { internal } from "../_generated/api";
 
 const testConfig = makeCoachAgentConfig();
 type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandler>>[1];
@@ -10,7 +12,30 @@ interface RunContextOptions {
   ctx?: { runQuery: (...args: unknown[]) => Promise<unknown> };
 }
 
-const EMPTY_PROFILE_CTX = { runQuery: async () => null };
+// Mocked context for tests that don't care about snapshot content: returning
+// empty SnapshotInputs forces the "no profile" rebuild path without throwing
+// on the new gatherSnapshotInputs destructure.
+const GATHER_SNAPSHOT_INPUTS_NAME = getFunctionName(internal.coachState.gatherSnapshotInputs);
+const EMPTY_SNAPSHOT_INPUTS = {
+  profile: null,
+  scores: [],
+  readiness: null,
+  activities: [],
+  activeBlock: null,
+  recentFeedback: [],
+  activeGoals: [],
+  activeInjuries: [],
+  externalActivities: [],
+  garminWellness: [],
+};
+const EMPTY_PROFILE_CTX = {
+  runQuery: async (query: unknown) => {
+    if (getFunctionName(query as never) === GATHER_SNAPSHOT_INPUTS_NAME) {
+      return EMPTY_SNAPSHOT_INPUTS;
+    }
+    return null;
+  },
+};
 
 async function runContextHandler(
   allMessages: ModelMessage[],

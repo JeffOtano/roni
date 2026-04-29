@@ -298,7 +298,7 @@ describe("RunAccumulator", () => {
       snapshotBuildMs: 15,
       contextBuildCount: 1,
       contextMessageCount: 6,
-      snapshotSource: "coach_state_fresh",
+      snapshotSource: "live_rebuild",
     });
     acc.markFirstChunk(903_250);
     acc.markFinished(904_000);
@@ -314,7 +314,7 @@ describe("RunAccumulator", () => {
     expect(row.snapshotBuildMs).toBe(15);
     expect(row.contextBuildCount).toBe(1);
     expect(row.contextMessageCount).toBe(6);
-    expect(row.snapshotSource).toBe("coach_state_fresh");
+    expect(row.snapshotSource).toBe("live_rebuild");
   });
 
   it("ignores additional markFirstChunk calls after the first one", () => {

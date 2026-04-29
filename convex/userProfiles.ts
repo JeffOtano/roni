@@ -3,7 +3,6 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { internal } from "./_generated/api";
 import { getEffectiveUserId } from "./lib/auth";
 import { preferredSplitValidator } from "./weekPlanHelpers";
-import { requestCoachStateRefresh } from "./coachState";
 import { patchUserActivity } from "./userProfileActivity";
 
 const profileDataValidator = v.object({
@@ -71,7 +70,6 @@ export const create = internalMutation({
         lastActiveAt: reconnectedAt,
         appLastActiveAt: reconnectedAt,
       });
-      if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
       return existing._id;
     }
 
@@ -86,7 +84,6 @@ export const create = internalMutation({
       lastActiveAt: now,
       appLastActiveAt: now,
     });
-    if (args.profileData) await requestCoachStateRefresh(ctx, args.userId);
     return id;
   },
 });
@@ -203,7 +200,6 @@ export const saveTrainingPreferences = mutation({
         sessionDurationMinutes: args.sessionDurationMinutes,
       },
     });
-    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -236,7 +232,6 @@ export const completeOnboarding = mutation({
         sessionDurationMinutes: args.sessionDurationMinutes,
       },
     });
-    await requestCoachStateRefresh(ctx, userId);
 
     // Notify Discord of new signup completion
     const name = profile.profileData
@@ -276,7 +271,6 @@ export const saveTrainingPreferencesInternal = internalMutation({
         sessionDurationMinutes: prefs.sessionDurationMinutes,
       },
     });
-    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -325,7 +319,6 @@ export const updateProfileData = internalMutation({
       lastName: profileData.lastName,
       name: `${profileData.firstName} ${profileData.lastName}`,
     });
-    await requestCoachStateRefresh(ctx, userId);
   },
 });
 

@@ -254,19 +254,6 @@ export default defineSchema({
     completedAt: v.number(),
   }).index("by_key", ["key"]),
 
-  /** Materialized training snapshot used by the coach hot path. */
-  coachState: defineTable({
-    userId: v.id("users"),
-    snapshot: v.string(),
-    snapshotVersion: v.number(),
-    userTimezone: v.optional(v.union(v.string(), v.null())),
-    refreshedAt: v.number(),
-    refreshRequestedAt: v.optional(v.number()),
-    refreshRequestedTimezone: v.optional(v.union(v.string(), v.null())),
-    failedAt: v.optional(v.number()),
-    lastError: v.optional(v.string()),
-  }).index("by_userId", ["userId"]),
-
   /** AI-generated workout plans. Lifecycle: draft -> pushing -> pushed -> completed. */
   workoutPlans: defineTable({
     userId: v.id("users"),
@@ -538,11 +525,14 @@ export default defineSchema({
     snapshotBuildMs: v.optional(v.number()),
     contextBuildCount: v.optional(v.number()),
     contextMessageCount: v.optional(v.number()),
+    // Hotfix: widened to accept legacy literals so existing aiRun rows validate
+    // until the narrowSnapshotSource migration backfills them. Re-narrow to
+    // v.literal("live_rebuild") in a follow-up commit once the migration completes.
     snapshotSource: v.optional(
       v.union(
+        v.literal("live_rebuild"),
         v.literal("coach_state_fresh"),
         v.literal("coach_state_stale"),
-        v.literal("live_rebuild"),
       ),
     ),
     retrievalEnabled: v.optional(v.boolean()),

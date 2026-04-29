@@ -61,11 +61,13 @@ const aiRunArgs = {
   snapshotBuildMs: v.optional(v.number()),
   contextBuildCount: v.optional(v.number()),
   contextMessageCount: v.optional(v.number()),
+  // Hotfix: widened to accept legacy literals (matches schema.ts). Re-narrow
+  // once the narrowSnapshotSource migration completes on prod.
   snapshotSource: v.optional(
     v.union(
+      v.literal("live_rebuild"),
       v.literal("coach_state_fresh"),
       v.literal("coach_state_stale"),
-      v.literal("live_rebuild"),
     ),
   ),
   retrievalEnabled: v.optional(v.boolean()),
