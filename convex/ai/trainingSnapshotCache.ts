@@ -1,7 +1,7 @@
 import type { ActionCtx } from "../_generated/server";
 import { buildTrainingSnapshot } from "./context";
 
-export type TrainingSnapshotSource = "coach_state_fresh" | "coach_state_stale" | "live_rebuild";
+export type TrainingSnapshotSource = "live_rebuild";
 
 export interface TrainingSnapshotResult {
   snapshot: string;
@@ -9,7 +9,7 @@ export interface TrainingSnapshotResult {
   snapshotBuildMs: number;
 }
 
-type SnapshotCtx = Pick<ActionCtx, "runQuery"> & Partial<Pick<ActionCtx, "runMutation">>;
+type SnapshotCtx = Pick<ActionCtx, "runQuery">;
 
 export async function getTrainingSnapshotForChat(
   ctx: SnapshotCtx,

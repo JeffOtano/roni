@@ -21,26 +21,29 @@ const GARMIN_WELLNESS_LIMIT = Math.min(
 
 export interface SnapshotInputs {
   profile: Doc<"userProfiles"> | null;
-  scores: Doc<"currentStrengthScores">[];
+  scores: ReadonlyArray<Doc<"currentStrengthScores">>;
   readiness: Doc<"muscleReadiness"> | null;
-  activities: Doc<"completedWorkouts">[];
+  activities: ReadonlyArray<Doc<"completedWorkouts">>;
   activeBlock: Doc<"trainingBlocks"> | null;
-  recentFeedback: Doc<"workoutFeedback">[];
-  activeGoals: Doc<"goals">[];
-  activeInjuries: Doc<"injuries">[];
-  externalActivities: Doc<"externalActivities">[];
-  garminWellness: Doc<"garminWellnessDaily">[];
+  recentFeedback: ReadonlyArray<Doc<"workoutFeedback">>;
+  activeGoals: ReadonlyArray<Doc<"goals">>;
+  activeInjuries: ReadonlyArray<Doc<"injuries">>;
+  externalActivities: ReadonlyArray<Doc<"externalActivities">>;
+  garminWellness: ReadonlyArray<Doc<"garminWellnessDaily">>;
 }
 
 /**
- * Per-source resilience helper. If `read` rejects, return `fallback` so a
- * single sub-domain failure inside `gatherSnapshotInputs` does not poison
- * the other 9 reads. Exported for direct unit testing of the rejection path.
+ * Per-source resilience helper. If `read` rejects, log the error tagged with
+ * `sourceName` and return `fallback`, so a single sub-domain failure inside
+ * `gatherSnapshotInputs` does not poison the other 9 reads but is still
+ * visible in Convex logs for triage. Exported for direct unit testing of the
+ * rejection path.
  */
-export async function safe<T>(read: () => Promise<T>, fallback: T): Promise<T> {
+export async function safe<T>(read: () => Promise<T>, fallback: T, sourceName: string): Promise<T> {
   try {
     return await read();
-  } catch {
+  } catch (err) {
+    console.error(`gatherSnapshotInputs: ${sourceName} read failed`, err);
     return fallback;
   }
 }
@@ -58,7 +61,7 @@ export async function safe<T>(read: () => Promise<T>, fallback: T): Promise<T> {
 export const gatherSnapshotInputs = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }): Promise<SnapshotInputs> => {
-    const profile = await safe(() => readUserProfile(ctx, userId), null);
+    const profile = await safe(() => readUserProfile(ctx, userId), null, "profile");
 
     const [
       scores,
@@ -78,6 +81,7 @@ export const gatherSnapshotInputs = internalQuery({
             .withIndex("by_userId", (q) => q.eq("userId", userId))
             .collect(),
         [],
+        "scores",
       ),
       safe<Doc<"muscleReadiness"> | null>(
         () =>
@@ -86,9 +90,14 @@ export const gatherSnapshotInputs = internalQuery({
             .withIndex("by_userId", (q) => q.eq("userId", userId))
             .first(),
         null,
+        "readiness",
       ),
-      safe<Doc<"completedWorkouts">[]>(() => readRecentCompletedWorkouts(ctx, userId), []),
-      safe<Doc<"trainingBlocks"> | null>(() => readActiveBlock(ctx, userId), null),
+      safe<Doc<"completedWorkouts">[]>(
+        () => readRecentCompletedWorkouts(ctx, userId),
+        [],
+        "activities",
+      ),
+      safe<Doc<"trainingBlocks"> | null>(() => readActiveBlock(ctx, userId), null, "activeBlock"),
       safe<Doc<"workoutFeedback">[]>(
         () =>
           ctx.db
@@ -97,6 +106,7 @@ export const gatherSnapshotInputs = internalQuery({
             .order("desc")
             .take(RECENT_FEEDBACK_LIMIT),
         [],
+        "recentFeedback",
       ),
       safe<Doc<"goals">[]>(
         () =>
@@ -105,6 +115,7 @@ export const gatherSnapshotInputs = internalQuery({
             .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "active"))
             .collect(),
         [],
+        "activeGoals",
       ),
       safe<Doc<"injuries">[]>(
         () =>
@@ -113,6 +124,7 @@ export const gatherSnapshotInputs = internalQuery({
             .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "active"))
             .collect(),
         [],
+        "activeInjuries",
       ),
       safe<Doc<"externalActivities">[]>(
         () =>
@@ -122,6 +134,7 @@ export const gatherSnapshotInputs = internalQuery({
             .order("desc")
             .take(RECENT_EXTERNAL_ACTIVITIES_LIMIT),
         [],
+        "externalActivities",
       ),
       safe<Doc<"garminWellnessDaily">[]>(
         () =>
@@ -131,6 +144,7 @@ export const gatherSnapshotInputs = internalQuery({
             .order("desc")
             .take(GARMIN_WELLNESS_LIMIT),
         [],
+        "garminWellness",
       ),
     ]);
 

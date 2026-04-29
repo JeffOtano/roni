@@ -15,7 +15,7 @@ describe("getTrainingSnapshotForChat", () => {
     vi.useRealTimers();
   });
 
-  it("builds the snapshot via live rebuild on every call", async () => {
+  it("rebuilds on every call (no cached source)", async () => {
     const gatherSnapshotInputsName = getFunctionName(internal.coachState.gatherSnapshotInputs);
     const ctx = {
       runQuery: async (query: unknown) => {
@@ -37,9 +37,12 @@ describe("getTrainingSnapshotForChat", () => {
       },
     };
 
-    const result = await getTrainingSnapshotForChat(ctx as never, "user-1");
+    const first = await getTrainingSnapshotForChat(ctx as never, "user-1");
+    const second = await getTrainingSnapshotForChat(ctx as never, "user-1");
 
-    expect(result.source).toBe("live_rebuild");
-    expect(result.snapshot).toContain("No Tonal profile linked yet");
+    expect(first.source).toBe("live_rebuild");
+    expect(second.source).toBe("live_rebuild");
+    expect(first.snapshot).toContain("No Tonal profile linked yet");
+    expect(second.snapshot).toContain("No Tonal profile linked yet");
   });
 });

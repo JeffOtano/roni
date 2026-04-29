@@ -12,9 +12,9 @@ interface RunContextOptions {
   ctx?: { runQuery: (...args: unknown[]) => Promise<unknown> };
 }
 
-// Mocked context for tests that don't care about snapshot content: stale
-// coachState miss + empty SnapshotInputs forces the "no profile" rebuild path
-// without throwing on the new gatherSnapshotInputs destructure.
+// Mocked context for tests that don't care about snapshot content: returning
+// empty SnapshotInputs forces the "no profile" rebuild path without throwing
+// on the new gatherSnapshotInputs destructure.
 const GATHER_SNAPSHOT_INPUTS_NAME = getFunctionName(internal.coachState.gatherSnapshotInputs);
 const EMPTY_SNAPSHOT_INPUTS = {
   profile: null,

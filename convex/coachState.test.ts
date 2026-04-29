@@ -16,16 +16,26 @@ afterEach(() => {
 });
 
 describe("safe", () => {
-  test("returns the fallback when the read function rejects", async () => {
+  test("returns the fallback and logs the error when the read function rejects", async () => {
     const fallback: number[] = [];
-    const result = await safe(async () => {
-      throw new Error("boom");
-    }, fallback);
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const boom = new Error("boom");
+
+    const result = await safe(
+      async () => {
+        throw boom;
+      },
+      fallback,
+      "testSource",
+    );
+
     expect(result).toBe(fallback);
+    expect(errSpy).toHaveBeenCalledWith("gatherSnapshotInputs: testSource read failed", boom);
+    errSpy.mockRestore();
   });
 
   test("returns the read value when the read function resolves", async () => {
-    const result = await safe(async () => [1, 2, 3], [] as number[]);
+    const result = await safe(async () => [1, 2, 3], [] as number[], "testSource");
     expect(result).toEqual([1, 2, 3]);
   });
 });

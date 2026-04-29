@@ -45,7 +45,7 @@ export interface AiRunRow {
   snapshotBuildMs?: number;
   contextBuildCount?: number;
   contextMessageCount?: number;
-  snapshotSource?: "coach_state_fresh" | "coach_state_stale" | "live_rebuild";
+  snapshotSource?: "live_rebuild";
   retrievalEnabled?: boolean;
   approvalPauses: number;
   workoutPlanCreatedId?: Id<"workoutPlans">;

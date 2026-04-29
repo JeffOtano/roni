@@ -87,7 +87,6 @@ async function takeBatchForDeletion(
     case "injuries":
     case "emailChangeRequests":
     case "aiBudgetWarnings":
-    case "coachState":
     case "strengthScoreSnapshots":
     case "currentStrengthScores":
     case "muscleReadiness":
