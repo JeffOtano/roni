@@ -19,6 +19,7 @@ import { runInRunSpan } from "./otel";
 import {
   buildProviderTransientMessage,
   classifyTransientError,
+  finalizeReasonForError,
   isQuotaError,
   isTransientError,
 } from "./transientErrors";
@@ -365,6 +366,7 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   // error bodies (quota messages, potential key echoes) never reach the client
   // through the @convex-dev/agent streaming channel.
   await finalizePendingMessages(ctx, report.threadId, finalizeReasonForError(report.error));
+  const reason = report.error instanceof Error ? report.error.message : String(report.error);
 
   const transientKind = classifyTransientError(report.error);
   const content = transientKind
