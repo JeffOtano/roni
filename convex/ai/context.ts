@@ -2,9 +2,9 @@ import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { detectMissedSessions, formatMissedSessionContext } from "../coach/missedSessionDetection";
-import { MAX_RECENT_WELLNESS_DAILY_ROWS } from "../garmin/wellnessDaily";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import type { OwnedAccessories } from "../tonal/accessories";
+import type { SnapshotInputs } from "../coachState";
 export { getRecencyLabel } from "./timeDecay";
 import { getRecencyLabel } from "./timeDecay";
 import {
@@ -16,18 +16,10 @@ import {
   type SnapshotSection,
   trimSnapshot,
 } from "./snapshotHelpers";
-import {
-  formatGarminWellnessLines,
-  GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT,
-} from "./garminWellnessSnapshot";
+import { formatGarminWellnessLines } from "./garminWellnessSnapshot";
 
 // Re-export for backward compatibility (tests, other consumers)
 export { type SnapshotSection, trimSnapshot, getHrIntensityLabel, formatExternalActivityLine };
-
-const GARMIN_WELLNESS_QUERY_LIMIT = Math.min(
-  GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT,
-  MAX_RECENT_WELLNESS_DAILY_ROWS,
-);
 
 export async function buildTrainingSnapshot(
   ctx: Pick<ActionCtx, "runQuery">,
@@ -36,16 +28,24 @@ export async function buildTrainingSnapshot(
 ): Promise<string> {
   const convexUserId = userId as Id<"users">;
 
-  const profile = await ctx.runQuery(internal.tonal.cache.getUserProfile, {
+  // Single internalQuery replaces the prior 10-runQuery fan-out. See
+  // ADR 0001 §0 (Alt-A): Convex bills function invocations separately from
+  // document reads, so collapsing 10 → 1 cuts cache-miss chat-turn invocations
+  // by ~9x. Per-source error isolation lives inside the query via safe<T>();
+  // we deliberately do NOT swallow errors at this call site so infrastructure
+  // failures surface to streamWithRetry / Phoenix telemetry instead of being
+  // collapsed into a misleading "reconnect Tonal" message.
+  const inputs: SnapshotInputs = await ctx.runQuery(internal.coachState.gatherSnapshotInputs, {
     userId: convexUserId,
   });
 
-  if (!profile?.profileData) {
+  const profile = inputs.profile;
+  const pd = profile?.profileData;
+  if (!profile || !pd) {
     return "No Tonal profile linked yet. Ask the user to connect their Tonal account.";
   }
 
-  // Parallel fetch: Tonal data + coaching data
-  const [
+  const {
     scores,
     readiness,
     activities,
@@ -55,42 +55,7 @@ export async function buildTrainingSnapshot(
     activeInjuries,
     externalActivities,
     garminWellness,
-  ] = await Promise.all([
-    ctx
-      .runQuery(internal.tonal.syncQueries.getCurrentStrengthScores, { userId: convexUserId })
-      .catch(() => []),
-    ctx
-      .runQuery(internal.tonal.syncQueries.getMuscleReadiness, { userId: convexUserId })
-      .catch(() => null),
-    ctx
-      .runQuery(internal.tonal.syncQueries.getRecentCompletedWorkouts, {
-        userId: convexUserId,
-        limit: 20,
-      })
-      .catch(() => []),
-    ctx
-      .runQuery(internal.coach.periodization.getActiveBlock, { userId: convexUserId })
-      .catch(() => null),
-    ctx
-      .runQuery(internal.workoutFeedback.getRecentInternal, { userId: convexUserId, limit: 5 })
-      .catch(() => []),
-    ctx.runQuery(internal.goals.getActiveInternal, { userId: convexUserId }).catch(() => []),
-    ctx.runQuery(internal.injuries.getActiveInternal, { userId: convexUserId }).catch(() => []),
-    ctx
-      .runQuery(internal.tonal.syncQueries.getRecentExternalActivities, {
-        userId: convexUserId,
-        limit: 20,
-      })
-      .catch(() => []),
-    ctx
-      .runQuery(internal.garmin.wellnessDaily.getRecentWellnessDaily, {
-        userId: convexUserId,
-        limit: GARMIN_WELLNESS_QUERY_LIMIT,
-      })
-      .catch(() => []),
-  ]);
-
-  const pd = profile.profileData;
+  } = inputs;
   const sections: SnapshotSection[] = [];
 
   // Priority 1: User profile + onboarding + preferences
