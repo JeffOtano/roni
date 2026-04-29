@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildByokErrorMessage,
   classifyByokError,
+  finalizeReasonForError,
   isTransientError,
   withByokErrorSanitization,
 } from "./resilience";
-import { buildProviderTransientMessage, classifyTransientError } from "./transientErrors";
 
 function apiCallError(overrides: {
   statusCode?: number;
@@ -239,100 +239,61 @@ describe("buildByokErrorMessage", () => {
   });
 });
 
-describe("classifyTransientError", () => {
-  it("returns null for non-transient errors", () => {
-    expect(classifyTransientError(new Error("database blew up"))).toBeNull();
-  });
-
-  it("returns 'provider_overload' for 'high demand'", () => {
-    expect(
-      classifyTransientError(new Error("This model is currently experiencing high demand.")),
-    ).toBe("provider_overload");
-  });
-
-  it("returns 'provider_overload' for 'overloaded'", () => {
-    expect(classifyTransientError(new Error("The model is overloaded, try again."))).toBe(
-      "provider_overload",
+describe("finalizeReasonForError", () => {
+  it("returns 'rate_limit' for a Gemini quota-exceeded message", () => {
+    const error = new Error(
+      "You exceeded your current quota, please check your plan and billing details.",
     );
-  });
-
-  it("returns 'provider_overload' for 'try again later'", () => {
-    expect(classifyTransientError(new Error("Service busy — please try again later."))).toBe(
-      "provider_overload",
-    );
-  });
-
-  it("returns 'rate_limit' for explicit rate limit text", () => {
-    expect(classifyTransientError(new Error("Rate limit exceeded"))).toBe("rate_limit");
+    expect(finalizeReasonForError(error)).toBe("rate_limit");
   });
 
   it("returns 'rate_limit' for a 429 APICallError", () => {
-    expect(
-      classifyTransientError(apiCallError({ statusCode: 429, isRetryable: true, message: "" })),
-    ).toBe("rate_limit");
+    expect(finalizeReasonForError(apiCallError({ statusCode: 429, isRetryable: true }))).toBe(
+      "rate_limit",
+    );
   });
 
-  it("returns 'timeout' for AbortError name", () => {
+  it("returns 'provider_overload' for high-demand messages", () => {
+    const error = new Error("This model is currently experiencing high demand.");
+    expect(finalizeReasonForError(error)).toBe("provider_overload");
+  });
+
+  it("returns 'context_limit' for input_token_count quota errors", () => {
+    const error = new Error("input_token_count exceeds the model maximum");
+    expect(finalizeReasonForError(error)).toBe("context_limit");
+  });
+
+  it("returns 'timeout' for AbortError", () => {
     const error = new Error("aborted");
     error.name = "AbortError";
-    expect(classifyTransientError(error)).toBe("timeout");
+    expect(finalizeReasonForError(error)).toBe("timeout");
   });
 
-  it("returns 'network' for fetch TypeError", () => {
-    expect(classifyTransientError(new TypeError("fetch failed"))).toBe("network");
+  it("returns 'network' for fetch TypeErrors", () => {
+    expect(finalizeReasonForError(new TypeError("fetch failed"))).toBe("network");
   });
 
-  it("returns 'server_error' for a bare 500", () => {
-    expect(classifyTransientError(Object.assign(new Error("Internal"), { status: 500 }))).toBe(
+  it("returns 'server_error' for 5xx status errors", () => {
+    expect(finalizeReasonForError(Object.assign(new Error("Internal"), { status: 500 }))).toBe(
       "server_error",
     );
   });
 
-  it("returns 'server_error' for a bare 504 gateway timeout", () => {
-    expect(classifyTransientError(Object.assign(new Error("Bad"), { status: 504 }))).toBe(
-      "server_error",
-    );
+  it("returns 'internal_error' for unclassifiable errors", () => {
+    expect(finalizeReasonForError(new Error("database connection lost"))).toBe("internal_error");
   });
 
-  it("falls back to 'provider_overload' for a retryable APICallError with no matching signal", () => {
-    expect(
-      classifyTransientError(
-        apiCallError({ statusCode: 418, isRetryable: true, message: "teapot" }),
-      ),
-    ).toBe("provider_overload");
-  });
-});
-
-describe("buildProviderTransientMessage", () => {
-  it("names the provider and blames upstream for overload", () => {
-    const msg = buildProviderTransientMessage("provider_overload", "gemini");
-    expect(msg).toContain("Google Gemini");
-    expect(msg).toContain("not Roni");
-    expect(msg).toContain("(/settings)");
+  it("returns 'internal_error' for non-Error values", () => {
+    expect(finalizeReasonForError("string error")).toBe("internal_error");
+    expect(finalizeReasonForError(null)).toBe("internal_error");
   });
 
-  it("keeps rate-limit messaging short and directive", () => {
-    const msg = buildProviderTransientMessage("rate_limit", "claude");
-    expect(msg).toContain("Anthropic Claude");
-    expect(msg).toContain("rate-limited");
-  });
-
-  it("phrases timeouts as being on the provider's side", () => {
-    const msg = buildProviderTransientMessage("timeout", "openai");
-    expect(msg).toContain("OpenAI");
-    expect(msg).toContain("timed out");
-  });
-
-  it("labels network hiccups against the provider name", () => {
-    const msg = buildProviderTransientMessage("network", "openrouter");
-    expect(msg).toContain("OpenRouter");
-    expect(msg.toLowerCase()).toContain("network");
-  });
-
-  it("attributes server errors to the provider", () => {
-    const msg = buildProviderTransientMessage("server_error", "gemini");
-    expect(msg).toContain("Google Gemini");
-    expect(msg).toContain("not Roni");
+  it("never returns the raw error message (no provider key leakage)", () => {
+    const rawKey = "AIzaSyLeakedKey_shouldNotAppear";
+    const error = new Error(`API key not valid. ${rawKey}`);
+    const reason = finalizeReasonForError(error);
+    expect(reason).not.toContain(rawKey);
+    expect(reason).not.toContain("API key");
   });
 });
 

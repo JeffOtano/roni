@@ -26,7 +26,7 @@ import {
 // Re-export for backwards compatibility with existing callers/tests.
 export { buildByokErrorMessage, classifyByokError, withByokErrorSanitization } from "./byokErrors";
 export type { ByokErrorCode } from "./byokErrors";
-export { isTransientError } from "./transientErrors";
+export { finalizeReasonForError, isTransientError } from "./transientErrors";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
 const MAX_OUTPUT_TOKENS = 4096;
@@ -361,8 +361,10 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
 }
 
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
-  const reason = report.error instanceof Error ? report.error.message : String(report.error);
-  await finalizePendingMessages(ctx, report.threadId, reason);
+  // Use a classified sentinel rather than the raw error message so provider
+  // error bodies (quota messages, potential key echoes) never reach the client
+  // through the @convex-dev/agent streaming channel.
+  await finalizePendingMessages(ctx, report.threadId, finalizeReasonForError(report.error));
 
   const transientKind = classifyTransientError(report.error);
   const content = transientKind

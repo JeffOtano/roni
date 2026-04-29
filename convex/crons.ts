@@ -25,7 +25,12 @@ if (cronsEnabled()) {
     internal.activation.runActivationCheckForEligibleUsers,
   );
 
-  crons.interval("check-in-triggers", { hours: 6 }, internal.checkIns.runCheckInTriggerEvaluation);
+  crons.interval(
+    "check-in-triggers",
+    { hours: 6 },
+    internal.checkIns.runCheckInTriggerEvaluation,
+    {},
+  );
 
   crons.cron(
     "sync-movement-catalog",

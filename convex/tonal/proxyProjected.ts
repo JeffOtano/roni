@@ -12,7 +12,7 @@
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
-import { tonalFetch } from "./client";
+import { TonalApiError, tonalFetch } from "./client";
 import { CACHE_TTLS } from "./cache";
 import { cachedFetch } from "./proxy";
 import { withTokenRetry } from "./tokenRetry";
@@ -55,21 +55,30 @@ export const fetchFormattedSummary = internalAction({
     userId: v.id("users"),
     summaryId: v.string(),
   },
-  handler: async (ctx, { userId, summaryId }): Promise<FormattedWorkoutSummary> => {
+  handler: async (ctx, { userId, summaryId }): Promise<FormattedWorkoutSummary | null> => {
     const result = await withTokenRetry(ctx, userId, (token, tonalUserId) =>
-      cachedFetch<FormattedWorkoutSummary>(ctx, {
+      cachedFetch<FormattedWorkoutSummary | null>(ctx, {
         userId,
         dataType: `formattedSummary:${summaryId}`,
         ttl: CACHE_TTLS.workoutHistory,
+        shouldCache: (d) => d !== null,
         fetcher: async () => {
-          const raw = await tonalFetch<unknown>(
-            token,
-            `/v6/formatted/users/${tonalUserId}/workout-summaries/${summaryId}`,
-          );
-          return projectFormattedSummaryStrict(raw);
+          try {
+            const raw = await tonalFetch<unknown>(
+              token,
+              `/v6/formatted/users/${tonalUserId}/workout-summaries/${summaryId}`,
+            );
+            return projectFormattedSummaryStrict(raw);
+          } catch (error) {
+            if (error instanceof TonalApiError && error.status === 404) {
+              return null;
+            }
+            throw error;
+          }
         },
       }),
     );
+    if (result === null) return null;
     return projectFormattedSummary(result);
   },
 });

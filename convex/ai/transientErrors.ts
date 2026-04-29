@@ -146,6 +146,16 @@ export function classifyTransientError(error: unknown): TransientErrorKind | nul
   return "provider_overload";
 }
 
+/**
+ * Returns a safe, non-sensitive finalize reason for pending streaming messages.
+ * Uses error classification so raw provider bodies (quota messages, key echoes)
+ * never reach the client through the @convex-dev/agent streaming channel.
+ */
+export function finalizeReasonForError(error: unknown): string {
+  const kind = classifyTransientError(error);
+  return kind ?? "internal_error";
+}
+
 // ---------------------------------------------------------------------------
 // User-facing messages that attribute the outage to the upstream provider
 // ---------------------------------------------------------------------------

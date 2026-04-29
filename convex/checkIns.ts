@@ -276,62 +276,63 @@ async function evaluateUserCheckIn(
 const ELIGIBLE_USERS_PAGE_SIZE = 100;
 
 export const runCheckInTriggerEvaluation = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    now: v.optional(v.number()),
+  },
+  handler: async (ctx, { cursor: cursorArg = null, now: nowArg }) => {
+    const now = nowArg ?? Date.now();
     const BATCH_SIZE = 5;
     const DELAY_MS = 2000;
     let checkInsSent = 0;
-    let totalEligible = 0;
 
-    let cursor: string | null = null;
-    while (true) {
-      const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
-        await ctx.runQuery(internal.checkIns.getEligibleUserIdsPage, {
-          paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
-        });
+    const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
+      await ctx.runQuery(internal.checkIns.getEligibleUserIdsPage, {
+        paginationOpts: { cursor: cursorArg, numItems: ELIGIBLE_USERS_PAGE_SIZE },
+      });
 
-      for (let i = 0; i < result.page.length; i += BATCH_SIZE) {
-        const batch = result.page.slice(i, i + BATCH_SIZE);
-        const outcomes = await Promise.allSettled(
-          batch.map((userId) => evaluateUserCheckIn(ctx, userId, now)),
-        );
-        for (let j = 0; j < outcomes.length; j++) {
-          const outcome = outcomes[j];
-          const userId = batch[j];
-          if (outcome.status === "fulfilled") {
-            checkInsSent += outcome.value;
-          } else {
-            const err = outcome.reason;
-            console.error("[check-in] evaluateTriggersForUser failed", {
+    for (let i = 0; i < result.page.length; i += BATCH_SIZE) {
+      const batch = result.page.slice(i, i + BATCH_SIZE);
+      const outcomes = await Promise.allSettled(
+        batch.map((userId) => evaluateUserCheckIn(ctx, userId, now)),
+      );
+      for (let j = 0; j < outcomes.length; j++) {
+        const outcome = outcomes[j];
+        const userId = batch[j];
+        if (outcome.status === "fulfilled") {
+          checkInsSent += outcome.value;
+        } else {
+          const err = outcome.reason;
+          console.error("[check-in] evaluateTriggersForUser failed", {
+            userId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          ctx
+            .runAction(internal.discord.notifyError, {
+              source: "checkIns",
+              message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
               userId,
-              error: err instanceof Error ? err.message : String(err),
-            });
-            ctx
-              .runAction(internal.discord.notifyError, {
-                source: "checkIns",
-                message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
-                userId,
-              })
-              .catch((notifyErr: unknown) =>
-                console.warn("[check-in] discord notify failed", notifyErr),
-              );
-          }
-        }
-        if (i + BATCH_SIZE < result.page.length) {
-          await new Promise((r) => setTimeout(r, DELAY_MS));
+            })
+            .catch((notifyErr: unknown) =>
+              console.warn("[check-in] discord notify failed", notifyErr),
+            );
         }
       }
-
-      totalEligible += result.page.length;
-      if (result.isDone) break;
-      cursor = result.continueCursor;
+      if (i + BATCH_SIZE < result.page.length) {
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
     }
 
-    analytics.captureSystem("check_in_trigger_evaluated", {
-      users_checked: totalEligible,
-      check_ins_sent: checkInsSent,
-    });
-    await analytics.flush();
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.checkIns.runCheckInTriggerEvaluation, {
+        cursor: result.continueCursor,
+        now,
+      });
+    } else {
+      analytics.captureSystem("check_in_trigger_evaluated", {
+        check_ins_sent: checkInsSent,
+      });
+      await analytics.flush();
+    }
   },
 });
