@@ -83,7 +83,7 @@ export const swapExerciseTool = createTool({
 
 export const addExerciseTool = createTool({
   description:
-    "Add an exercise to a specific day's draft workout. Use this when the user wants to include an extra exercise (e.g., a finisher, an isolation move) without rebuilding the week. The exercise is added as a new straight-set block before the cooldown. The movementId MUST come from a prior search_exercises result.",
+    "Add an exercise to a specific day's draft workout. Use this when the user wants to include an extra exercise (e.g., a finisher, an isolation move) without rebuilding the week. The exercise is added as a new straight-set block before the cooldown. Pass warmUp:true to mark the exercise as a warmup. The movementId MUST come from a prior search_exercises result.",
   inputSchema: z.object({
     dayIndex: z.number().int().min(0).max(6).describe("Day of the week: 0=Monday..6=Sunday"),
     movementId: z.string().describe("The movement ID to add (from search_exercises)"),
@@ -98,6 +98,12 @@ export const addExerciseTool = createTool({
     chains: z.boolean().optional().describe("Enable chains mode"),
     burnout: z.boolean().optional().describe("Enable burnout/AMRAP on this exercise"),
     dropSet: z.boolean().optional().describe("Enable drop set mode"),
+    warmUp: z
+      .boolean()
+      .optional()
+      .describe(
+        "Mark this exercise as a warmup. Sets warmUp:true on the persisted exercise so Tonal renders it as a warmup. Use for mobility, activation, and prep movements at the top of the session.",
+      ),
   }),
   execute: withToolTracking(
     "add_exercise",
