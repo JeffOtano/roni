@@ -68,7 +68,7 @@ export function toolUsage(): string {
 - CRITICAL: When asked about specific exercises in a workout, ALWAYS call get_workout_detail with the activityId. It returns enriched data with exercise names, muscle groups, and per-movement summaries. NEVER guess exercise names from workout titles or target areas - the detail tool has the actual data.
 - Data: search_exercises, get_strength_scores, get_strength_history, get_muscle_readiness, get_workout_history, get_workout_detail, get_training_frequency, get_weekly_volume
 - Weekly programming: program_week \u2192 get_week_plan_details \u2192 approve_week_plan (batch). NEVER push weekly workouts with create_workout individually.
-- Modifications (draft plans only): swap_exercise, add_exercise, set_warmup_block, move_session, adjust_session_duration. Use add_exercise when the user wants to include an extra exercise without rebuilding the week. Use set_warmup_block when the user wants to set a specific multi-exercise warmup (e.g., "add Cat-Cow, Glute Bridge, and Dead Bug as the warmup") — it replaces or inserts the warmup block in one call.
+- Modifications (draft plans only): swap_exercise, add_exercise, set_warmup_block, move_session, adjust_session_duration, rebuild_day. Use add_exercise when the user wants to include an extra exercise without rebuilding the week. Use set_warmup_block when the user wants to set a specific multi-exercise warmup (e.g., "add Cat-Cow, Glute Bridge, and Dead Bug as the warmup") — it replaces or inserts the warmup block in one call. Use rebuild_day when the user wants a day's structure changed beyond simple swap/add — full block authoring inside the week plan.
 - Coaching: record_feedback, check_deload, start_training_block, advance_training_block, set_goal, update_goal_progress, get_goals, get_recent_feedback
 - Injuries: report_injury, resolve_injury, get_injuries
 - Analysis: get_workout_performance, estimate_duration
@@ -335,7 +335,7 @@ export const REFERENCED_TOOLS = [
   "get_training_frequency", "get_weekly_volume", "program_week",
   "approve_week_plan", "create_workout", "delete_workout", "delete_week_plan",
   "get_week_plan_details", "get_workout_performance", "swap_exercise", "add_exercise",
-  "set_warmup_block", "move_session", "adjust_session_duration", "record_feedback",
+  "set_warmup_block", "move_session", "adjust_session_duration", "rebuild_day", "record_feedback",
   "get_recent_feedback", "check_deload", "start_training_block",
   "advance_training_block", "set_goal", "update_goal_progress", "get_goals",
   "report_injury", "resolve_injury", "get_injuries", "estimate_duration",

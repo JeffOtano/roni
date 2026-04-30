@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from "vitest";
 import { z } from "zod";
+import { rebuildDayTool } from "./rebuildDayTool";
 import { addExerciseTool, setWarmupBlockTool } from "./weekModificationTools";
 
 describe("addExerciseTool input schema", () => {
@@ -52,5 +53,39 @@ describe("setWarmupBlockTool input schema", () => {
       ],
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("rebuildDayTool input schema", () => {
+  it("requires at least one block with at least one exercise", () => {
+    const empty = (rebuildDayTool.inputSchema as z.ZodObject<z.ZodRawShape>).safeParse({
+      dayIndex: 0,
+      blocks: [],
+    });
+    expect(empty.success).toBe(false);
+
+    const emptyExercises = (rebuildDayTool.inputSchema as z.ZodObject<z.ZodRawShape>).safeParse({
+      dayIndex: 0,
+      blocks: [{ exercises: [] }],
+    });
+    expect(emptyExercises.success).toBe(false);
+  });
+
+  it("accepts a typical 3-block authored workout", () => {
+    const ok = (rebuildDayTool.inputSchema as z.ZodObject<z.ZodRawShape>).safeParse({
+      dayIndex: 0,
+      title: "Pull/Hinge",
+      blocks: [
+        {
+          exercises: [
+            { movementId: "a", sets: 2, duration: 30, warmUp: true },
+            { movementId: "b", sets: 2, duration: 30, warmUp: true },
+          ],
+        },
+        { exercises: [{ movementId: "c", sets: 3, reps: 10 }] },
+        { exercises: [{ movementId: "d", sets: 3, reps: 12 }] },
+      ],
+    });
+    expect(ok.success).toBe(true);
   });
 });
