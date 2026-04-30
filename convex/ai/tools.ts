@@ -139,7 +139,8 @@ export const getMuscleReadinessTool = createTool({
 });
 
 export const getWorkoutHistoryTool = createTool({
-  description: "Get recent workout history (dates, titles, target areas, volume).",
+  description:
+    "LIST a window of recent completed workouts: one row per workout with activityId, date, title, target area, total volume, duration. Start here when the user asks 'what have I done lately' or you need an activityId to drill into. Does NOT include exercise names or per-movement details — call get_workout_detail with the activityId for that. Does NOT include PR/plateau/trend analysis — call get_workout_performance for that.",
   inputSchema: z.object({
     limit: z.number().optional().default(20).describe("Max workouts to return"),
   }),
@@ -167,7 +168,7 @@ export const getWorkoutHistoryTool = createTool({
 
 export const getWorkoutDetailTool = createTool({
   description:
-    "Get full workout detail with exercise names, sets, reps, volume, and per-movement summaries. Returns enriched data with movementName and muscleGroups resolved from the movement catalog.",
+    "DRILL into a SINGLE completed workout by activityId: returns every exercise (with resolved movementName + muscleGroups), every set (weight, reps, duration, PR flag), per-movement summaries. Use this when the user asks about specific exercises in a specific workout — never guess from titles. Requires an activityId (get one from get_workout_history first). Does NOT compare across workouts — that is get_workout_performance.",
   inputSchema: z.object({
     activityId: z.string().describe("Activity ID from workout history"),
   }),
