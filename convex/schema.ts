@@ -525,16 +525,7 @@ export default defineSchema({
     snapshotBuildMs: v.optional(v.number()),
     contextBuildCount: v.optional(v.number()),
     contextMessageCount: v.optional(v.number()),
-    // Hotfix: widened to accept legacy literals so existing aiRun rows validate
-    // until the narrowSnapshotSource migration backfills them. Re-narrow to
-    // v.literal("live_rebuild") in a follow-up commit once the migration completes.
-    snapshotSource: v.optional(
-      v.union(
-        v.literal("live_rebuild"),
-        v.literal("coach_state_fresh"),
-        v.literal("coach_state_stale"),
-      ),
-    ),
+    snapshotSource: v.optional(v.literal("live_rebuild")),
     retrievalEnabled: v.optional(v.boolean()),
 
     approvalPauses: v.number(),
