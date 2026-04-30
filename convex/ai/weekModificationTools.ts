@@ -145,9 +145,16 @@ export const addExerciseTool = createTool({
       });
       if (!result.ok) return { success: false, error: result.error };
 
+      const updated = await ctx.runQuery(internal.workoutPlans.getById, {
+        planId: day.workoutPlanId,
+        userId,
+      });
+      const blockCount = updated?.blocks.length ?? -1;
+      const exerciseCount = updated?.blocks.reduce((sum, b) => sum + b.exercises.length, 0) ?? -1;
+
       return {
         success: true,
-        message: `Added exercise to ${DAY_NAMES[input.dayIndex]}. Use get_week_plan_details to see the updated plan.`,
+        message: `Added exercise to ${DAY_NAMES[input.dayIndex]} (now ${blockCount} blocks, ${exerciseCount} exercises). Use get_week_plan_details to see the updated plan.`,
       };
     },
   ),
