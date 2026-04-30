@@ -56,6 +56,7 @@ import type * as coach_normalizeBlocks from "../coach/normalizeBlocks.js";
 import type * as coach_periodization from "../coach/periodization.js";
 import type * as coach_prDetection from "../coach/prDetection.js";
 import type * as coach_pushAndVerify from "../coach/pushAndVerify.js";
+import type * as coach_rebuildDay from "../coach/rebuildDay.js";
 import type * as coach_weekModifications from "../coach/weekModifications.js";
 import type * as coach_weekProgramming from "../coach/weekProgramming.js";
 import type * as coach_weekProgrammingDirect from "../coach/weekProgrammingDirect.js";
@@ -227,6 +228,7 @@ declare const fullApi: ApiFromModules<{
   "coach/periodization": typeof coach_periodization;
   "coach/prDetection": typeof coach_prDetection;
   "coach/pushAndVerify": typeof coach_pushAndVerify;
+  "coach/rebuildDay": typeof coach_rebuildDay;
   "coach/weekModifications": typeof coach_weekModifications;
   "coach/weekProgramming": typeof coach_weekProgramming;
   "coach/weekProgrammingDirect": typeof coach_weekProgrammingDirect;
