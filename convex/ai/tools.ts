@@ -377,13 +377,25 @@ export const estimateDurationTool = createTool({
   }),
   execute: withToolTracking(
     "estimate_duration",
-    async (ctx, input, _options): Promise<{ estimatedMinutes: number }> => {
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; estimatedMinutes: number } | { success: false; error: string }> => {
       const userId = requireUserId(ctx);
-      const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
-        userId,
-        blocks: input.blocks,
-      })) as { duration: number };
-      return { estimatedMinutes: Math.round(result.duration / 60) };
+      try {
+        const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
+          userId,
+          blocks: input.blocks,
+        })) as { duration: number };
+        return { success: true, estimatedMinutes: Math.round(result.duration / 60) };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          error: `Could not estimate duration: ${msg}. Verify every movementId came from search_exercises and that each exercise has sets ≥ 1.`,
+        };
+      }
     },
   ),
 });

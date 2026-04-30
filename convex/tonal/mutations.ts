@@ -379,9 +379,15 @@ export const estimateWorkout = internalAction({
   handler: async (ctx, { userId, blocks }): Promise<WorkoutEstimate> => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
-    // Tonal's /v6/user-workouts/estimate expects a bare SetList array, not
-    // a wrapper object. Sending { sets: [...] } produces a 400 with
-    // "cannot unmarshal object into Go value of type content.SetList".
+    // Reject empty payloads up front; Tonal would otherwise return its
+    // misleading "cannot unmarshal object into Go value of type content.SetList"
+    // 400 for both empty arrays and JSON-object wrappers.
+    if (sets.length === 0) {
+      throw new Error(
+        "estimateWorkout: no sets to estimate. Verify every exercise has a valid movementId resolvable in the catalog.",
+      );
+    }
+    // Endpoint expects a bare SetList array, not a wrapper object.
     return withTokenRetry(ctx, userId, async (token) =>
       tonalFetch<WorkoutEstimate>(token, "/v6/user-workouts/estimate", {
         method: "POST",
