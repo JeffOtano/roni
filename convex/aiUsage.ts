@@ -68,6 +68,19 @@ const aiRunArgs = {
   workoutPushOutcome: v.optional(
     v.union(v.literal("pushed"), v.literal("failed"), v.literal("none")),
   ),
+  pushDivergence: v.optional(
+    v.object({
+      missingMovements: v.array(v.string()),
+      extraMovements: v.array(v.string()),
+      setCountMismatches: v.array(
+        v.object({
+          movementId: v.string(),
+          intended: v.number(),
+          stored: v.number(),
+        }),
+      ),
+    }),
+  ),
   createdAt: v.number(),
 };
 

@@ -53,12 +53,12 @@ import {
   setWarmupBlockTool,
   swapExerciseTool,
 } from "./weekModificationTools";
+import { programWeekTool } from "./programWeekTool";
 import {
   approveWeekPlanTool,
   deleteWeekPlanTool,
   getWeekPlanDetailsTool,
   getWorkoutPerformanceTool,
-  programWeekTool,
 } from "./weekTools";
 import {
   advanceTrainingBlockTool,

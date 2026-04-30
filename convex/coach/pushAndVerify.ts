@@ -11,6 +11,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "./weekProgrammingHelpers";
 import type { BlockInput } from "../tonal/transforms";
+import type { PushDivergence } from "../tonal/mutations";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,6 +26,7 @@ interface PushResult {
   tonalWorkoutId?: string;
   error?: string;
   exerciseCount?: number;
+  pushDivergence?: PushDivergence | null;
 }
 
 export interface WeekPushResult {
@@ -46,6 +48,7 @@ type CreateWorkoutResult =
       title: string;
       setCount: number;
       planId: Id<"workoutPlans">;
+      pushDivergence: PushDivergence | null;
     }
   | { success: false; error: string; planId: Id<"workoutPlans"> };
 
@@ -189,6 +192,7 @@ export const pushWeekPlanToTonal = internalAction({
           title: result.title,
           tonalWorkoutId: result.workoutId,
           exerciseCount: countExercises(wp.blocks),
+          pushDivergence: result.pushDivergence,
         });
         pushed++;
       } else {
