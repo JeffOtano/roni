@@ -33,6 +33,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "convex:smoke": "convex dev --once --typecheck enable",
     "setup": "tsx scripts/setup.ts",
     "knip": "knip",
     "test:e2e": "playwright test",
