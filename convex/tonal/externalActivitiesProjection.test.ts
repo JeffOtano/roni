@@ -66,9 +66,25 @@ describe("projectExternalActivities", () => {
     expect(projectExternalActivities([{ ...VALID_RAW, source: "Strava" }])[0].source).toBe("other");
   });
 
-  it("rejects payloads missing required fields", () => {
+  it("rejects payloads missing truly required fields", () => {
     const malformed = [{ ...VALID_RAW, beginTime: undefined }];
     expect(projectExternalActivities(malformed)).toEqual([]);
+  });
+
+  it("accepts activities without distance (e.g. strength training)", () => {
+    const { distance: _d, ...noDistance } = VALID_RAW;
+    const result = projectExternalActivities([noDistance]);
+    expect(result).toHaveLength(1);
+    expect(result[0].distance).toBeUndefined();
+  });
+
+  it("accepts activities without calorie or heart-rate fields", () => {
+    const { activeCalories: _a, totalCalories: _t, averageHeartRate: _hr, ...minimal } = VALID_RAW;
+    const result = projectExternalActivities([minimal]);
+    expect(result).toHaveLength(1);
+    expect(result[0].activeCalories).toBeUndefined();
+    expect(result[0].totalCalories).toBeUndefined();
+    expect(result[0].averageHeartRate).toBeUndefined();
   });
 
   it("produces a smaller cache footprint than the raw response", () => {
@@ -95,12 +111,27 @@ describe("projectExternalActivitiesStrict", () => {
     expect(() => projectExternalActivitiesStrict({ data: [] })).toThrow(/expected array/);
   });
 
-  it("throws on schema mismatch instead of returning an empty array", () => {
+  it("throws on schema mismatch for truly required fields", () => {
     const malformed = [{ ...VALID_RAW, beginTime: undefined }];
     expect(() => projectExternalActivitiesStrict(malformed)).toThrow();
   });
 
-  it("rejects the whole array when one entry is malformed", () => {
+  it("does NOT throw when optional numeric fields are absent", () => {
+    const {
+      distance: _d,
+      activeCalories: _a,
+      totalCalories: _t,
+      averageHeartRate: _hr,
+      ...minimal
+    } = VALID_RAW;
+    expect(() => projectExternalActivitiesStrict([minimal])).not.toThrow();
+    const result = projectExternalActivitiesStrict([minimal]);
+    expect(result).toHaveLength(1);
+    expect(result[0].distance).toBeUndefined();
+    expect(result[0].totalCalories).toBeUndefined();
+  });
+
+  it("rejects the whole array when one entry is missing a required field", () => {
     const mixed = [VALID_RAW, { ...VALID_RAW, beginTime: undefined }, VALID_RAW];
     expect(() => projectExternalActivitiesStrict(mixed)).toThrow();
   });

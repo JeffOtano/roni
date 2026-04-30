@@ -137,13 +137,28 @@ export const checkActivation = internalAction({
 const BATCH_SIZE = 5;
 const DELAY_MS = 2000;
 
+const ACTION_LIMIT_MS = 600_000;
+const SAFETY_BUFFER_MS = 60_000;
+const DEADLINE_OFFSET_MS = ACTION_LIMIT_MS - SAFETY_BUFFER_MS;
+
 export const runActivationCheckForEligibleUsers = internalAction({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    /** Override the deadline budget for tests (omit in production). */
+    _deadlineOffsetMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const deadline = Date.now() + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
     let cursor: string | null = null;
     let totalChecked = 0;
 
     while (true) {
+      if (Date.now() >= deadline) {
+        console.warn(
+          "[activation] Deadline reached — stopping early. Remaining users will be checked in the next cron run.",
+        );
+        break;
+      }
+
       const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
         await ctx.runQuery(internal.activation.getEligibleUserIdsPage, {
           paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
