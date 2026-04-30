@@ -168,7 +168,9 @@ describe("addExerciseToDraft warmUp passthrough", () => {
     expect(result.ok).toBe(true);
 
     const wp = await t.run((ctx) => ctx.db.get(planId));
-    const lastBlockExercise = wp!.blocks.at(-1)!.exercises[0];
+    // Bracket access (not .at(-1)) to stay under Convex's tsc lib target,
+    // which lacks Array.prototype.at — the Vercel deploy typecheck rejects it.
+    const lastBlockExercise = wp!.blocks[wp!.blocks.length - 1]!.exercises[0];
     expect(lastBlockExercise.movementId).toBe("mov-warmup-1");
     expect(lastBlockExercise.warmUp).toBe(true);
   });
