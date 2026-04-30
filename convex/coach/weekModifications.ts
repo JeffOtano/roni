@@ -165,6 +165,72 @@ export const addExerciseToDraft = internalMutation({
 });
 
 // ---------------------------------------------------------------------------
+// setWarmupBlock
+// ---------------------------------------------------------------------------
+
+/**
+ * Replace (or insert) the warmup block at index 0 of a draft workout.
+ * Each exercise gets warmUp:true. Used by the LLM when it wants a multi-exercise
+ * warmup at the start of the session in a single tool call.
+ */
+export const setWarmupBlock = internalMutation({
+  args: {
+    userId: v.id("users"),
+    workoutPlanId: v.id("workoutPlans"),
+    exercises: v.array(
+      v.object({
+        movementId: v.string(),
+        sets: v.number(),
+        reps: v.optional(v.number()),
+        duration: v.optional(v.number()),
+      }),
+    ),
+  },
+  handler: async (ctx, { userId, workoutPlanId, exercises }): Promise<DraftModificationResult> => {
+    if (exercises.length === 0) {
+      throw new Error("setWarmupBlock requires at least one exercise");
+    }
+
+    const wp = await ctx.db.get(workoutPlanId);
+    if (!wp || wp.userId !== userId) {
+      return { ok: false, error: "Workout plan not found or access denied" };
+    }
+    if (wp.status !== "draft") {
+      return { ok: false, error: "Can only set warmup block on draft workout plans" };
+    }
+
+    // Validate every movementId exists in the catalog before any write.
+    for (const ex of exercises) {
+      const movement = await ctx.db
+        .query("movements")
+        .withIndex("by_tonalId", (q) => q.eq("tonalId", ex.movementId))
+        .first();
+      if (!movement) {
+        return {
+          ok: false,
+          error: `Invalid movementId: ${ex.movementId}. Use search_exercises to get valid IDs.`,
+        };
+      }
+    }
+
+    const warmupExercises = exercises.map((ex) => ({ ...ex, warmUp: true }));
+    const blocks = [...wp.blocks];
+    const firstBlockIsWarmup =
+      (blocks[0]?.exercises.length ?? 0) > 0 && blocks[0].exercises.every((e) => e.warmUp === true);
+
+    if (firstBlockIsWarmup) {
+      blocks[0] = { exercises: warmupExercises };
+    } else {
+      blocks.unshift({ exercises: warmupExercises });
+    }
+
+    const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, blocks);
+    await ctx.db.patch(workoutPlanId, { blocks: normalizedBlocks });
+    return { ok: true };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // swapDaySlots
 // ---------------------------------------------------------------------------
 
