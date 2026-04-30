@@ -10,6 +10,7 @@ import {
   buildListSearchText,
   buildMovementSearchFields,
   matchesNameSearch,
+  matchesNameSearchStrict,
 } from "./movementSearch";
 import { mapDocToMovement } from "./movementMapping";
 import type { Movement } from "./types";
@@ -22,6 +23,7 @@ const SEARCH_FIELDS_VERSION = 1;
 
 type MovementDoc = Doc<"movements">;
 type SearchIndexKind = "name" | "muscleGroup" | "trainingType";
+type MatchMode = "loose" | "strict";
 
 type MovementSearchFilters = {
   name?: string;
@@ -36,10 +38,12 @@ export const searchMovements = internalQuery({
     muscleGroup: v.optional(v.string()),
     trainingType: v.optional(v.string()),
     limit: v.optional(v.number()),
+    matchMode: v.optional(v.union(v.literal("loose"), v.literal("strict"))),
   },
   handler: async (ctx, args): Promise<Movement[]> => {
     const limit = clampLimit(args.limit);
     const filters = normalizeFilters(args);
+    const matchMode: MatchMode = args.matchMode ?? "loose";
     const indexKind = selectIndexKind(filters);
 
     if (!indexKind) {
@@ -49,11 +53,11 @@ export const searchMovements = internalQuery({
 
     if (!(await searchFieldsAreReady(ctx))) {
       // Existing catalogs may lack the indexed fields; preserve search results until backfill marks them ready.
-      const fallbackMatches = await loadFallbackMatches(ctx, filters, limit);
+      const fallbackMatches = await loadFallbackMatches(ctx, filters, limit, matchMode);
       return fallbackMatches.map(mapDocToMovement);
     }
 
-    const exactResults = await loadIndexedMatches(ctx, filters, indexKind, limit);
+    const exactResults = await loadIndexedMatches(ctx, filters, indexKind, limit, matchMode);
     return exactResults.map(mapDocToMovement);
   },
 });
@@ -136,6 +140,7 @@ async function loadIndexedMatches(
   filters: MovementSearchFilters,
   indexKind: SearchIndexKind,
   limit: number,
+  matchMode: MatchMode,
 ): Promise<MovementDoc[]> {
   if (indexKind === "name" && filters.name) {
     return collectMatches(
@@ -146,6 +151,7 @@ async function loadIndexedMatches(
         ),
       filters,
       limit,
+      matchMode,
     );
   }
 
@@ -158,6 +164,7 @@ async function loadIndexedMatches(
         ),
       filters,
       limit,
+      matchMode,
     );
   }
 
@@ -170,6 +177,7 @@ async function loadIndexedMatches(
         ),
       filters,
       limit,
+      matchMode,
     );
   }
 
@@ -180,18 +188,20 @@ async function loadFallbackMatches(
   ctx: QueryCtx,
   filters: MovementSearchFilters,
   limit: number,
+  matchMode: MatchMode,
 ): Promise<MovementDoc[]> {
-  return collectMatches(ctx.db.query("movements"), filters, limit);
+  return collectMatches(ctx.db.query("movements"), filters, limit, matchMode);
 }
 
 async function collectMatches(
   query: AsyncIterable<MovementDoc>,
   filters: MovementSearchFilters,
   limit: number,
+  matchMode: MatchMode,
 ): Promise<MovementDoc[]> {
   const matches: MovementDoc[] = [];
   for await (const doc of query) {
-    if (matchesFilters(doc, filters)) {
+    if (matchesFilters(doc, filters, matchMode)) {
       matches.push(doc);
       if (matches.length >= limit) break;
     }
@@ -199,8 +209,18 @@ async function collectMatches(
   return matches;
 }
 
-function matchesFilters(doc: MovementDoc, filters: MovementSearchFilters): boolean {
-  if (filters.name && !matchesNameSearch(doc, filters.name)) return false;
+function matchesFilters(
+  doc: MovementDoc,
+  filters: MovementSearchFilters,
+  matchMode: MatchMode,
+): boolean {
+  if (filters.name) {
+    const nameMatches =
+      matchMode === "strict"
+        ? matchesNameSearchStrict(doc, filters.name)
+        : matchesNameSearch(doc, filters.name);
+    if (!nameMatches) return false;
+  }
 
   if (filters.muscleGroup) {
     const muscleGroup = filters.muscleGroup.toLowerCase();
