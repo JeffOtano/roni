@@ -173,3 +173,114 @@ describe("addExerciseToDraft warmUp passthrough", () => {
     expect(lastBlockExercise.warmUp).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// addExerciseToDraft — integration tests
+// ---------------------------------------------------------------------------
+
+/** Minimal movement document satisfying the schema's required fields. */
+function makeMovementDoc(tonalId: string, countReps = true) {
+  return {
+    tonalId,
+    name: tonalId,
+    shortName: tonalId,
+    muscleGroups: ["Quads"],
+    skillLevel: 1,
+    publishState: "published",
+    sortOrder: 1,
+    onMachine: true,
+    inFreeLift: false,
+    countReps,
+    isTwoSided: false,
+    isBilateral: true,
+    isAlternating: false,
+    descriptionHow: "",
+    descriptionWhy: "",
+    lastSyncedAt: 1000,
+  };
+}
+
+describe("addExerciseToDraft under concurrent calls", () => {
+  it("three parallel calls all persist (no silent drop)", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+
+    await t.run(async (ctx) => {
+      for (const id of ["mov-a", "mov-b", "mov-c", "mov-existing"]) {
+        await ctx.db.insert("movements", makeMovementDoc(id));
+      }
+    });
+
+    const planId = await t.run((ctx) =>
+      ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Test",
+        blocks: [
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+        ],
+        status: "draft",
+        createdAt: Date.now(),
+      }),
+    );
+
+    const results = await Promise.all(
+      ["mov-a", "mov-b", "mov-c"].map((m) =>
+        t.mutation(internal.coach.weekModifications.addExerciseToDraft, {
+          userId,
+          workoutPlanId: planId,
+          movementId: m,
+          sets: 3,
+          reps: 10,
+        }),
+      ),
+    );
+
+    for (const r of results) expect(r.ok).toBe(true);
+
+    const wp = await t.run((ctx) => ctx.db.get(planId));
+    const allMovementIds = wp!.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
+    expect(allMovementIds).toContain("mov-a");
+    expect(allMovementIds).toContain("mov-b");
+    expect(allMovementIds).toContain("mov-c");
+  });
+
+  it("integrity guard does not fire under normal operation", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+
+    await t.run(async (ctx) => {
+      for (const id of ["mov-existing", "mov-new"]) {
+        await ctx.db.insert("movements", makeMovementDoc(id));
+      }
+    });
+
+    const planId = await t.run((ctx) =>
+      ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Test",
+        blocks: [
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+        ],
+        status: "draft",
+        createdAt: Date.now(),
+      }),
+    );
+
+    const result = await t.mutation(internal.coach.weekModifications.addExerciseToDraft, {
+      userId,
+      workoutPlanId: planId,
+      movementId: "mov-new",
+      sets: 3,
+      reps: 10,
+    });
+
+    expect(result.ok).toBe(true);
+
+    const wp = await t.run((ctx) => ctx.db.get(planId));
+    const allMovementIds = wp!.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
+    expect(allMovementIds).toContain("mov-existing");
+    expect(allMovementIds).toContain("mov-new");
+  });
+});

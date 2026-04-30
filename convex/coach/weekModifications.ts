@@ -127,6 +127,10 @@ export const addExerciseToDraft = internalMutation({
       };
     }
 
+    const beforeMovementIds = new Set(
+      wp.blocks.flatMap((b) => b.exercises.map((e) => e.movementId)),
+    );
+
     const blocks = [...wp.blocks];
     const newExercise = { movementId, sets, ...opts };
 
@@ -140,6 +144,21 @@ export const addExerciseToDraft = internalMutation({
     }
 
     const normalizedBlocks = await normalizeBlocksAgainstCatalog(ctx, blocks);
+
+    // Integrity guard: every previously-persisted movement must still be present
+    // after normalization. Catches silent drops introduced by normalizeBlocksAgainstCatalog
+    // or future code paths.
+    const afterMovementIds = new Set(
+      normalizedBlocks.flatMap((b) => b.exercises.map((e) => e.movementId)),
+    );
+    for (const id of beforeMovementIds) {
+      if (!afterMovementIds.has(id)) {
+        const msg = `addExerciseToDraft integrity error: movement ${id} dropped during normalization (plan ${workoutPlanId})`;
+        console.error(msg);
+        throw new Error(msg);
+      }
+    }
+
     await ctx.db.patch(workoutPlanId, { blocks: normalizedBlocks });
     return { ok: true };
   },
