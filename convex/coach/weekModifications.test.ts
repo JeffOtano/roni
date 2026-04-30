@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { describe, expect, it, test } from "vitest";
+import { internal } from "../_generated/api";
+import schema from "../schema";
 import type { BlockInput } from "../tonal/transforms";
+
+// Vite normalizes same-directory glob keys to "./foo.ts" instead of
+// "../coach/foo.ts", which breaks convex-test module resolution.
+// Remap ./foo.ts -> ../coach/foo.ts to match the expected path format.
+const rawModules = import.meta.glob("../**/*.*s");
+const modules: typeof rawModules = {};
+for (const [key, value] of Object.entries(rawModules)) {
+  modules[key.startsWith("./") ? "../coach/" + key.slice(2) : key] = value;
+}
 
 /** Pure version of the swap logic from weekModifications.ts for unit testing. */
 function swapMovementInBlocks(
@@ -101,5 +114,62 @@ describe("day slot swap (pure logic)", () => {
     const days: DaySlot[] = [{ sessionType: "push", status: "programmed", workoutPlanId: "wp1" }];
     const result = swapDays(days, 0, 0);
     expect(result).toEqual(days);
+  });
+});
+
+describe("addExerciseToDraft warmUp passthrough", () => {
+  test("persists warmUp:true on the new exercise when the arg is set", async () => {
+    const t = convexTest(schema, modules);
+
+    const userId = await t.run(async (ctx) => {
+      return ctx.db.insert("users", {});
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("movements", {
+        tonalId: "mov-warmup-1",
+        name: "Cat-Cow",
+        shortName: "Cat-Cow",
+        muscleGroups: ["Back"],
+        skillLevel: 1,
+        publishState: "published",
+        sortOrder: 1,
+        onMachine: false,
+        inFreeLift: true,
+        countReps: false,
+        isTwoSided: false,
+        isBilateral: false,
+        isAlternating: false,
+        descriptionHow: "On all fours, alternate between arching and rounding your back.",
+        descriptionWhy: "Improves spinal mobility.",
+        lastSyncedAt: Date.now(),
+      });
+    });
+
+    const planId = await t.run(async (ctx) => {
+      return ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Test",
+        blocks: [{ exercises: [{ movementId: "mov-other", sets: 3, reps: 10 }] }],
+        status: "draft",
+        createdAt: Date.now(),
+      });
+    });
+
+    const result = await t.mutation(internal.coach.weekModifications.addExerciseToDraft, {
+      userId,
+      workoutPlanId: planId,
+      movementId: "mov-warmup-1",
+      sets: 2,
+      duration: 30,
+      warmUp: true,
+    });
+
+    expect(result.ok).toBe(true);
+
+    const wp = await t.run((ctx) => ctx.db.get(planId));
+    const lastBlockExercise = wp!.blocks.at(-1)!.exercises[0];
+    expect(lastBlockExercise.movementId).toBe("mov-warmup-1");
+    expect(lastBlockExercise.warmUp).toBe(true);
   });
 });
