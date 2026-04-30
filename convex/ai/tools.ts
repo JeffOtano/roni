@@ -11,24 +11,42 @@ import type {
 import type { EnrichedWorkoutDetail } from "../workoutDetail";
 import { requireUserId, withToolTracking } from "./helpers";
 
+export const KNOWN_TRAINING_TYPES = [
+  "Strength",
+  "High Intensity",
+  "Mobility",
+  "Recovery",
+  "Yoga",
+  "Pilates",
+  "Pre & Postnatal",
+] as const;
+
 export const searchExercisesTool = createTool({
   description:
-    "Search Tonal's exercise catalog by name, muscle group, and/or training type. Use this before naming, suggesting, swapping, or programming exercises; results include canonical Tonal names, movement IDs, accessory requirements, and duration-vs-rep behavior.",
+    "Search Tonal's exercise catalog by name, muscle group, and/or training type. Use this before naming, suggesting, swapping, or programming exercises; results include canonical Tonal names, movement IDs, accessory requirements, and duration-vs-rep behavior. Default match is name-strict (matches name/shortName only) — set looseMatch:true to also match in descriptions if a strict search returns nothing.",
   inputSchema: z.object({
     name: z
       .string()
       .optional()
       .describe(
-        "Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL'). Use shorter names when an exact search misses.",
+        "Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL'). Match is on name and shortName by default — descriptions are not searched.",
       ),
     muscleGroup: z
       .string()
       .optional()
       .describe("Use when exploring options for a body part, e.g. Chest, Back, Quads, Shoulders."),
     trainingType: z
-      .string()
+      .enum(KNOWN_TRAINING_TYPES)
       .optional()
-      .describe("Use to narrow by type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
+      .describe(
+        `Use to narrow by type. Valid values: ${KNOWN_TRAINING_TYPES.join(", ")}. Note: there is NO 'Warm-up' tag — Tonal warmups are tagged 'Mobility'.`,
+      ),
+    looseMatch: z
+      .boolean()
+      .optional()
+      .describe(
+        "When true, fall back to matching in exercise descriptions in addition to name/shortName. Use only if a strict search returns no results. Default: false (strict, name-only).",
+      ),
   }),
   execute: withToolTracking("search_exercises", async (ctx, input, _options) => {
     const results = (await ctx.runQuery(internal.tonal.movementSearchQueries.searchMovements, {
@@ -36,6 +54,7 @@ export const searchExercisesTool = createTool({
       muscleGroup: input.muscleGroup,
       trainingType: input.trainingType,
       limit: 30,
+      matchMode: input.looseMatch ? "loose" : "strict",
     })) as Movement[];
 
     return results.map((m) => ({

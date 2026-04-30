@@ -168,6 +168,31 @@ export function matchesNameSearch(movement: SearchableMovement, query: string): 
   return false;
 }
 
+/**
+ * Strict name-only matcher. Identical to matchesNameSearch except descriptions
+ * are excluded — name and shortName only. Aliases still expand. Use when callers
+ * want a low-false-positive search (e.g. LLM tools picking a specific movement).
+ */
+export function matchesNameSearchStrict(movement: SearchableMovement, query: string): boolean {
+  const q = query.toLowerCase().trim();
+  if (!q) return true;
+
+  const fields = [movement.name.toLowerCase(), movement.shortName.toLowerCase()];
+
+  if (fields.some((f) => f.includes(q))) return true;
+
+  const queryWords = q.split(/[\s\-]+/).filter((w) => w.length >= 3);
+  if (queryWords.some((w) => fields.some((f) => f.includes(w)))) return true;
+
+  const termsToExpand = [q, ...queryWords, ...buildSubphrases(queryWords)];
+  for (const term of termsToExpand) {
+    const aliases = ALIAS_LOOKUP.get(term);
+    if (aliases?.some((a) => fields.some((f) => f.includes(a)))) return true;
+  }
+
+  return false;
+}
+
 function addSearchTerm(terms: Set<string>, value: string) {
   const normalized = normalizeSearchText(value);
   if (normalized) terms.add(normalized);

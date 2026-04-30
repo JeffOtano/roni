@@ -3,6 +3,7 @@ import {
   buildListSearchText,
   buildMovementSearchFields,
   matchesNameSearch,
+  matchesNameSearchStrict,
 } from "./movementSearch";
 
 const rdl = {
@@ -134,6 +135,49 @@ describe("matchesNameSearch", () => {
   it("matches hamstring curl → prone bench hamstring curl", () => {
     const pbhc = { name: "Prone Bench Hamstring Curl", shortName: "Prone Bench Hamstring Curl" };
     expect(matchesNameSearch(pbhc, "hamstring curl")).toBe(true);
+  });
+});
+
+describe("matchesNameSearchStrict", () => {
+  const cat = {
+    name: "Single Leg Chop",
+    shortName: "SL Chop",
+    descriptionHow: "Brace glutes and bridge core to maintain stability",
+    descriptionWhy: "Trains anti-rotation",
+  };
+
+  it("does NOT match on description-only hits", () => {
+    expect(matchesNameSearchStrict(cat, "Glute Bridge")).toBe(false);
+  });
+
+  it("matches on direct name substring", () => {
+    expect(matchesNameSearchStrict({ ...cat, name: "Resisted Glute Bridge" }, "Glute Bridge")).toBe(
+      true,
+    );
+  });
+
+  it("matches on alias group within name only", () => {
+    const sldlMovement = {
+      name: "Single Leg Romanian Deadlift",
+      shortName: "SL RDL",
+      descriptionHow: "",
+      descriptionWhy: "",
+    };
+    expect(matchesNameSearchStrict(sldlMovement, "RDL")).toBe(true);
+  });
+
+  it("returns false when query has no name overlap even if descriptions hint at it", () => {
+    expect(
+      matchesNameSearchStrict(
+        {
+          name: "Standing Chop",
+          shortName: "Std Chop",
+          descriptionHow: "Hip thrust pattern",
+          descriptionWhy: "",
+        },
+        "Hip Thrust",
+      ),
+    ).toBe(false);
   });
 });
 
