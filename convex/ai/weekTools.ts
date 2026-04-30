@@ -206,7 +206,7 @@ export const deleteWeekPlanTool = createTool({
 
 export const getWorkoutPerformanceTool = createTool({
   description:
-    "Get performance summary for the user's recent training. Shows PRs (personal records), plateaus, regressions, and progression trends per exercise. Use this when the user asks about their progress, after they complete a workout, or when you want to acknowledge their recent performance.",
+    "ANALYZE per-movement trends across recent training: PRs (personal records), plateaus, regressions, progression. Use this for 'how am I progressing on bench press', 'am I plateauing', 'recap my recent gains'. Does NOT list individual workouts — that is get_workout_history. Does NOT show per-set detail of one workout — that is get_workout_detail.",
   inputSchema: z.object({}),
   execute: withToolTracking(
     "get_workout_performance",
