@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, expect, it, test } from "vitest";
+import type { BlockInput } from "../tonal/transforms";
 import { internal } from "../_generated/api";
 import schema from "../schema";
-import type { BlockInput } from "../tonal/transforms";
 
 // Vite normalizes same-directory glob keys to "./foo.ts" instead of
 // "../coach/foo.ts", which breaks convex-test module resolution.

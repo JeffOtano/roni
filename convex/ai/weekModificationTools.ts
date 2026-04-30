@@ -161,6 +161,77 @@ export const addExerciseTool = createTool({
 });
 
 // ---------------------------------------------------------------------------
+// setWarmupBlockTool
+// ---------------------------------------------------------------------------
+
+export const setWarmupBlockTool = createTool({
+  description:
+    "Set the warmup block for a specific day's draft workout. Replaces the existing warmup block (if any) or inserts a new warmup block at the start. Each exercise is marked warmUp:true. Use this when the user asks for a specific set of warmup movements (e.g. 'add Cat-Cow, Glute Bridge, and Dead Bug as the warmup'). All movementIds MUST come from prior search_exercises results.",
+  inputSchema: z.object({
+    dayIndex: z.number().int().min(0).max(6).describe("Day of the week: 0=Monday..6=Sunday"),
+    exercises: z
+      .array(
+        z.object({
+          movementId: z.string().describe("UUID from search_exercises"),
+          sets: z.number().int().min(1).max(4).describe("Sets per warmup movement (typically 1-2)"),
+          reps: z.number().int().optional().describe("Reps (omit for duration-based movements)"),
+          duration: z
+            .number()
+            .int()
+            .optional()
+            .describe("Duration in seconds (for plank, bridge, etc.)"),
+        }),
+      )
+      .min(1)
+      .max(5)
+      .describe("Warmup movements in execution order. 1-5 movements typical."),
+  }),
+  execute: withToolTracking(
+    "set_warmup_block",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
+
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as {
+        _id: Id<"weekPlans">;
+        days: { workoutPlanId?: Id<"workoutPlans">; sessionType: string }[];
+      } | null;
+
+      if (!weekPlan) {
+        return { success: false, error: "No week plan found for the current week." };
+      }
+
+      const day = weekPlan.days[input.dayIndex];
+      if (!day?.workoutPlanId) {
+        return {
+          success: false,
+          error: `No workout linked to ${DAY_NAMES[input.dayIndex]}. Nothing to set warmup on.`,
+        };
+      }
+
+      const result = await ctx.runMutation(internal.coach.weekModifications.setWarmupBlock, {
+        userId,
+        workoutPlanId: day.workoutPlanId,
+        exercises: input.exercises,
+      });
+      if (!result.ok) return { success: false, error: result.error };
+
+      return {
+        success: true,
+        message: `Set warmup block for ${DAY_NAMES[input.dayIndex]} with ${input.exercises.length} movement(s). Use get_week_plan_details to see the updated plan.`,
+      };
+    },
+  ),
+});
+
+// ---------------------------------------------------------------------------
 // moveSessionTool
 // ---------------------------------------------------------------------------
 
