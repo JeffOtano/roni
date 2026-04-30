@@ -84,6 +84,12 @@ Returns a summary of the full week plan with exercises, sets, reps/duration, and
           weekPlanId: string;
           summary: DraftWeekSummary;
           reasoningHints: string;
+          degenerateDays?: {
+            dayIndex: number;
+            dayName: string;
+            eliminatedByInjury: number;
+            eliminatedByAccessory: number;
+          }[];
         }
       | { success: false; error: string }
     > => {
@@ -114,7 +120,17 @@ Returns a summary of the full week plan with exercises, sets, reps/duration, and
         sessionDurationMinutes: sessionDuration,
         trainingDayIndicesOverride: input.trainingDays ?? saved?.trainingDays,
       })) as
-        | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
+        | {
+            success: true;
+            weekPlanId: Id<"weekPlans">;
+            summary: DraftWeekSummary;
+            degenerateDays: {
+              dayIndex: number;
+              dayName: string;
+              eliminatedByInjury: number;
+              eliminatedByAccessory: number;
+            }[];
+          }
         | { success: false; error: string };
 
       if (!result.success) return result;
@@ -133,7 +149,12 @@ Returns a summary of the full week plan with exercises, sets, reps/duration, and
         isDeload: false,
       });
 
-      return { ...result, reasoningHints };
+      const degenerateNote =
+        result.degenerateDays.length > 0
+          ? `\n\nWARNING: ${result.degenerateDays.length} day(s) had to be programmed with a heavily-restricted exercise pool because of injury filters. Affected days: ${result.degenerateDays.map((d) => d.dayName).join(", ")}. The plan may feel monotonous. Consider asking the user to relax their injury list or use search_exercises to find alternative compound movements.`
+          : "";
+
+      return { ...result, reasoningHints: reasoningHints + degenerateNote };
     },
   ),
 });
