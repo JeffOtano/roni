@@ -1,6 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
-import { api, internal } from "../_generated/api";
+import { internal } from "../_generated/api";
 import type {
   Activity,
   Movement,
@@ -173,11 +173,16 @@ export const getWorkoutDetailTool = createTool({
   }),
   execute: withToolTracking(
     "get_workout_detail",
-    async (ctx, input, _options): Promise<EnrichedWorkoutDetail> => {
-      // Use the enriched action that joins movement IDs with names from the catalog
-      const detail = (await ctx.runAction(api.workoutDetail.getWorkoutDetail, {
+    async (ctx, input, _options): Promise<EnrichedWorkoutDetail | null> => {
+      // Call the internal action with explicit userId. Calling the public
+      // action via `api.workoutDetail.getWorkoutDetail` from the agent runtime
+      // failed ~46% of the time with "Not authenticated" — the agent runtime
+      // doesn't reliably propagate auth context through runAction.
+      const userId = requireUserId(ctx);
+      const detail = (await ctx.runAction(internal.workoutDetail.getWorkoutDetailInternal, {
+        userId,
         activityId: input.activityId,
-      })) as EnrichedWorkoutDetail;
+      })) as EnrichedWorkoutDetail | null;
       return detail;
     },
   ),
