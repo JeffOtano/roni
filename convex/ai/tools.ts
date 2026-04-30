@@ -256,7 +256,14 @@ export const createWorkoutTool = createTool({
       input,
       _options,
     ): Promise<
-      | { success: true; workoutId: string; title: string; setCount: number; planId: string }
+      | {
+          success: true;
+          workoutId: string;
+          title: string;
+          setCount: number;
+          planId: string;
+          divergenceWarning?: string;
+        }
       | { success: false; error: string }
     > => {
       const userId = requireUserId(ctx);
@@ -296,11 +303,32 @@ export const createWorkoutTool = createTool({
         }),
       }));
 
-      return ctx.runAction(internal.tonal.mutations.createWorkout, {
+      const pushed = await ctx.runAction(internal.tonal.mutations.createWorkout, {
         userId,
         title: input.title,
         blocks: correctedBlocks,
       });
+
+      if (!pushed.success) return pushed;
+
+      // Strip pushDivergence from the LLM-visible return; it is a structured object
+      // the LLM has no schema for. Surface only a human-readable warning when needed.
+      const { pushDivergence: _pushDivergence, ...pushedSummary } = pushed;
+
+      if (
+        _pushDivergence &&
+        (_pushDivergence.missingMovements.length > 0 ||
+          _pushDivergence.extraMovements.length > 0 ||
+          _pushDivergence.setCountMismatches.length > 0)
+      ) {
+        console.warn(`createWorkoutTool: divergence on ${pushed.workoutId}`, _pushDivergence);
+        return {
+          ...pushedSummary,
+          divergenceWarning: `WARNING: Tonal stored the workout differently than sent. Missing movements: ${_pushDivergence.missingMovements.length}. Set-count mismatches: ${_pushDivergence.setCountMismatches.length}. Tell the user to verify the workout on their Tonal.`,
+        };
+      }
+
+      return pushedSummary;
     },
   ),
 });
