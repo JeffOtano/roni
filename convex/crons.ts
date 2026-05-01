@@ -11,6 +11,7 @@ if (cronsEnabled()) {
     "refresh-tonal-tokens",
     { minutes: 30 },
     internal.tonal.tokenRefresh.refreshExpiringTokens,
+    {},
   );
 
   crons.interval(
@@ -23,9 +24,15 @@ if (cronsEnabled()) {
     "check-activation",
     { hours: 1 },
     internal.activation.runActivationCheckForEligibleUsers,
+    {},
   );
 
-  crons.interval("check-in-triggers", { hours: 6 }, internal.checkIns.runCheckInTriggerEvaluation);
+  crons.interval(
+    "check-in-triggers",
+    { hours: 6 },
+    internal.checkIns.runCheckInTriggerEvaluation,
+    {},
+  );
 
   crons.cron(
     "sync-movement-catalog",
