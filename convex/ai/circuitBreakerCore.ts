@@ -2,6 +2,7 @@ import type { ProviderId } from "./providers";
 
 export const CIRCUIT_BREAKER_WINDOW_MS = 60_000;
 export const CIRCUIT_BREAKER_OPEN_MS = 5 * 60_000;
+export const HALF_OPEN_PROBE_TIMEOUT_MS = 5 * 60_000;
 const CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5;
 const CIRCUIT_BREAKER_FAILED_COST_THRESHOLD_USD = 1;
 
@@ -179,11 +180,14 @@ export function decideCircuitRoute(args: {
     };
   }
 
-  if (state.probeRunId && state.probeRunId !== runId) {
+  const probeClaimExpired =
+    state.probeClaimedAt !== undefined && state.probeClaimedAt + HALF_OPEN_PROBE_TIMEOUT_MS <= now;
+
+  if (state.probeRunId && state.probeRunId !== runId && !probeClaimExpired) {
     return { route: "fallback", reason: "half_open_busy", nextState: null };
   }
 
-  if (state.probeRunId === runId) {
+  if (state.probeRunId === runId && !probeClaimExpired) {
     return { route: "primary", reason: "half_open_probe", nextState: null };
   }
 

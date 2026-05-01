@@ -144,6 +144,28 @@ describe("decideCircuitRoute", () => {
       reason: "half_open_busy",
     });
   });
+
+  it("claims a new half-open probe after the previous probe expires", () => {
+    const state: StoredCircuitBreakerState = {
+      provider: "gemini",
+      state: "half_open",
+      lastStateChangedAt: 2_001,
+      probeRunId: "run-2",
+      probeClaimedAt: 2_001,
+    };
+
+    expect(decideCircuitRoute({ state, now: 302_001, runId: "run-3" })).toEqual({
+      route: "primary",
+      reason: "half_open_probe",
+      nextState: {
+        provider: "gemini",
+        state: "half_open",
+        lastStateChangedAt: 302_001,
+        probeRunId: "run-3",
+        probeClaimedAt: 302_001,
+      },
+    });
+  });
 });
 
 describe("resolveHalfOpenProbeResult", () => {
