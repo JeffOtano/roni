@@ -96,6 +96,7 @@ export const record = internalMutation({
     totalTokens: v.number(),
     cacheReadTokens: v.optional(v.number()),
     cacheWriteTokens: v.optional(v.number()),
+    stoppedByBudget: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("aiUsage", { ...args, createdAt: Date.now() });
@@ -230,6 +231,29 @@ export const recordRouting = internalMutation({
       outputTokens: 0,
       totalTokens: 0,
       routedIntent: intent,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const recordBudgetStop = internalMutation({
+  args: {
+    userId: v.id("users"),
+    threadId: v.string(),
+    provider: v.string(),
+    model: v.string(),
+  },
+  handler: async (ctx, { userId, threadId, provider, model }) => {
+    await ctx.db.insert("aiUsage", {
+      userId,
+      threadId,
+      agentName: "budget-cap",
+      model,
+      provider,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      stoppedByBudget: true,
       createdAt: Date.now(),
     });
   },
