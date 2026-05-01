@@ -49,16 +49,65 @@ describe("shouldDropSentryEvent", () => {
     ).toBe(true);
   });
 
-  it("drops Gemini free-tier quota exceeded errors (exceeded your current quota)", () => {
-    const msg =
-      "Uncaught Error: You exceeded your current quota, please check your plan and billing details.";
-    expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
+  it("drops Gemini turn-ordering errors", () => {
+    const payload =
+      "Please ensure that function call turn comes immediately after a user turn or after a function response turn.";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
+  it("drops Gemini quota errors (including AI SDK retry-wrapped form)", () => {
+    const wrapped =
+      "Failed after 3 attempts. Last error: You exceeded your current quota, please check your plan and billing details.";
+    expect(shouldDropSentryEvent(eventWithValue(wrapped), hintWithError(wrapped))).toBe(true);
+  });
+
+  it("drops truncated Gemini quota variants (no billing-details suffix)", () => {
+    const truncated = "You exceeded your current quota, please check your plan.";
+    expect(shouldDropSentryEvent(eventWithValue(truncated), hintWithError(truncated))).toBe(true);
   });
 
   it("drops Gemini free-tier metric quota errors (generate_content_free_tier_requests)", () => {
     const msg =
       "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash";
     expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
+  });
+
+  it("drops Gemini high-demand / overload errors", () => {
+    const payload =
+      "This model is currently experiencing high demand. Spikes in demand are usually temporary.";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
+  it("drops Gemini RESOURCE_EXHAUSTED errors", () => {
+    const payload = "Error: 429 RESOURCE_EXHAUSTED";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
+  it("drops Firefox iOS reader-mode injection noise", () => {
+    const payload = "undefined is not an object (evaluating 'window.__firefox__.reader')";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
+  it("drops Chrome extension runtime.sendMessage noise", () => {
+    const payload = "Invalid call to runtime.sendMessage(). Tab not found.";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
+  it("drops cross-origin Script error noise", () => {
+    expect(
+      shouldDropSentryEvent(eventWithValue("Script error."), hintWithError("Script error.")),
+    ).toBe(true);
+  });
+
+  it("drops benign ResizeObserver loop warnings", () => {
+    const payload = "ResizeObserver loop completed with undelivered notifications.";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
+  it("drops third-party minified n.standardSelectors errors", () => {
+    const payload =
+      "TypeError: Cannot read properties of undefined (reading 'n.standardSelectors')";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
   });
 
   it("keeps real errors", () => {

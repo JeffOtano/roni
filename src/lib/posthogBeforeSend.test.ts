@@ -54,6 +54,23 @@ describe("shouldDropPosthogEvent", () => {
     expect(dropped).toBe(true);
   });
 
+  it("drops AI SDK retry-wrapped quota errors", () => {
+    const event = makeEvent({
+      properties: {
+        $exception_values: [
+          {
+            value:
+              "Failed after 3 attempts. Last error: You exceeded your current quota, please check your plan and billing details.",
+          },
+        ],
+      },
+    });
+
+    const dropped = shouldDropPosthogEvent(event);
+
+    expect(dropped).toBe(true);
+  });
+
   it("drops Gemini high-demand errors", () => {
     const event = makeEvent({
       properties: {
