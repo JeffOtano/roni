@@ -73,7 +73,7 @@ export function budgetCapStopCondition(
     if (estimatedCostUsd < config.maxInteractionUsd) return false;
 
     tripped = true;
-    const lastStep = steps.at(-1);
+    const lastStep = steps[steps.length - 1];
     onTrip?.({
       estimatedCostUsd,
       modelId: lastStep ? getStepModelId(lastStep) : undefined,
