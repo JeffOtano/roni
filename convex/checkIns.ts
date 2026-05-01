@@ -328,7 +328,7 @@ export const runCheckInTriggerEvaluation = internalAction({
       cursor = result.continueCursor;
     }
 
-    analytics.captureSystem("check_in_trigger_evaluation_started", {
+    analytics.captureSystem("check_in_trigger_evaluation_scheduled", {
       users_scheduled: totalScheduled,
     });
     await analytics.flush();

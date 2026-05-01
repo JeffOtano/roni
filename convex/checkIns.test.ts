@@ -32,14 +32,16 @@ describe("frequencyWindowMs", () => {
 });
 
 // ---------------------------------------------------------------------------
-// hasRecentCheckIn query semantics
+// hasRecentCheckIn boundary semantics (documentation-only)
 // ---------------------------------------------------------------------------
-// The query uses .withIndex("by_userId_createdAt", q => q.eq("userId").gte("createdAt", since))
-// so it never loads check-ins older than `since`, and uses .first() to stop at
-// the first match.  The correctness of the index-bound approach is validated
-// through the typed schema; these tests document the expected Boolean outcomes.
+// These tests do NOT exercise hasRecentCheckIn directly — running the Convex
+// query requires Convex test infrastructure. They assert the plain JS boundary
+// comparison the query relies on (createdAt >= since) so the documented
+// boundary behavior cannot drift silently. The actual index-bound query is
+// .withIndex("by_userId_createdAt", q => q.eq("userId").gte("createdAt", since))
+// followed by .first(), which is type-checked through the schema.
 
-describe("hasRecentCheckIn semantics", () => {
+describe("hasRecentCheckIn boundary semantics (documented)", () => {
   it("a check-in exactly at the since boundary counts as recent", () => {
     const since = 1000;
     const checkInCreatedAt = 1000;
