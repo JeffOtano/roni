@@ -104,6 +104,12 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
   });
 
+  it("drops third-party minified n.standardSelectors errors", () => {
+    const payload =
+      "TypeError: Cannot read properties of undefined (reading 'n.standardSelectors')";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
   it("keeps real errors", () => {
     const event = eventWithValue("TypeError: Cannot read properties of undefined");
     const hint = hintWithError("TypeError: Cannot read properties of undefined");
