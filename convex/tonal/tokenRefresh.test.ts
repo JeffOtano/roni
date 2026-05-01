@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { describe, test } from "vitest";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 
@@ -14,18 +14,32 @@ for (const [key, value] of Object.entries(rawModules)) {
 }
 
 describe("refreshExpiringTokens", () => {
+  let originalKey: string | undefined;
+
+  beforeEach(() => {
+    originalKey = process.env.TOKEN_ENCRYPTION_KEY;
+  });
+
+  afterEach(() => {
+    if (originalKey === undefined) {
+      delete process.env.TOKEN_ENCRYPTION_KEY;
+    } else {
+      process.env.TOKEN_ENCRYPTION_KEY = originalKey;
+    }
+  });
+
   test("returns without error when TOKEN_ENCRYPTION_KEY is not set", async () => {
-    // The action checks for TOKEN_ENCRYPTION_KEY before entering the processing
-    // loop. In the test environment the env var is absent, so the action exits
-    // early. This verifies that the early-return path does not throw.
+    delete process.env.TOKEN_ENCRYPTION_KEY;
     const t = convexTest(schema, modules);
 
     await t.action(internal.tonal.tokenRefresh.refreshExpiringTokens, {});
   });
 
   test("completes without error when no tokens are expiring", async () => {
-    // TOKEN_ENCRYPTION_KEY is absent so the action returns early regardless of
-    // what's in the DB, but this confirms the action shape is callable.
+    // 64 hex chars = 32-byte AES key. Real value not needed because the
+    // expiring-tokens page is empty (token expires far outside the 2-hour
+    // window), so decryptToken/refreshTonalToken are never invoked.
+    process.env.TOKEN_ENCRYPTION_KEY = "00".repeat(32);
     const t = convexTest(schema, modules);
 
     await t.run(async (ctx) => {
@@ -35,7 +49,6 @@ describe("refreshExpiringTokens", () => {
         tonalUserId: `tonal-${userId}`,
         tonalToken: "token",
         lastActiveAt: Date.now(),
-        // Token expires far in the future — not within the 2-hour window
         tonalTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
       });
     });

@@ -26,14 +26,7 @@ export const refreshExpiringTokens = internalAction({
 
     const deadline = Date.now() + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
     let cursor: string | null = null;
-    while (true) {
-      if (Date.now() >= deadline) {
-        console.warn(
-          "[tokenRefresh] Deadline reached — stopping early. Remaining tokens will be refreshed in the next cron run.",
-        );
-        break;
-      }
-
+    pages: while (true) {
       const page: {
         page: Doc<"userProfiles">[];
         isDone: boolean;
@@ -44,6 +37,12 @@ export const refreshExpiringTokens = internalAction({
       });
 
       for (const profile of page.page) {
+        if (Date.now() >= deadline) {
+          console.warn(
+            "[tokenRefresh] Deadline reached — stopping early. Remaining tokens will be refreshed in the next cron run.",
+          );
+          break pages;
+        }
         try {
           if (
             await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId: profile.userId })

@@ -33,10 +33,10 @@ import { buildInstructions } from "./promptSections";
 //                        update_goal_progress, get_goals, report_injury,
 //                        resolve_injury, get_injuries, get_weekly_volume
 // ---------------------------------------------------------------------------
+import { estimateDurationTool } from "./estimationTools";
 import {
   createWorkoutTool,
   deleteWorkoutTool,
-  estimateDurationTool,
   getMuscleReadinessTool,
   getStrengthHistoryTool,
   getStrengthScoresTool,
