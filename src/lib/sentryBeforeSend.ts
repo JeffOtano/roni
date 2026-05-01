@@ -37,9 +37,12 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "function call turn comes immediately after",
   "model is currently experiencing high demand",
   "RESOURCE_EXHAUSTED",
-  // Gemini free-tier quota errors. The narrow full phrases avoid
-  // over-suppressing legitimate quota incidents from other services.
-  "You exceeded your current quota, please check your plan and billing details",
+  // Gemini free-tier quota errors. The leading "You exceeded" prefix is
+  // Gemini's exact phrasing (capitalized "You exceeded ..."), so it covers
+  // both the full billing sentence and truncated variants without matching
+  // generic "...have exceeded your current quota" messages from other
+  // services.
+  "You exceeded your current quota",
   "generate_content_free_tier_requests",
 ];
 

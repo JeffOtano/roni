@@ -61,6 +61,11 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(wrapped), hintWithError(wrapped))).toBe(true);
   });
 
+  it("drops truncated Gemini quota variants (no billing-details suffix)", () => {
+    const truncated = "You exceeded your current quota, please check your plan.";
+    expect(shouldDropSentryEvent(eventWithValue(truncated), hintWithError(truncated))).toBe(true);
+  });
+
   it("drops Gemini free-tier metric quota errors (generate_content_free_tier_requests)", () => {
     const msg =
       "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash";
