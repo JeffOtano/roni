@@ -460,6 +460,7 @@ export default defineSchema({
   })
     .index("by_createdAt", ["createdAt"])
     .index("by_provider_createdAt", ["provider", "createdAt"])
+    .index("by_provider_breaker_type_createdAt", ["provider", "breakerEvent.type", "createdAt"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
 
   aiBudgetWarnings: defineTable({

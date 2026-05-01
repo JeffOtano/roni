@@ -20,7 +20,7 @@ describe("estimateAttemptCostUsd", () => {
         cacheReadTokens: 20_000,
         cacheWriteTokens: 0,
       }),
-    ).toBeCloseTo(0.1065);
+    ).toBeCloseTo(0.1065, 4);
   });
 
   it("normalizes provider-prefixed Gemini model ids", () => {
@@ -33,7 +33,7 @@ describe("estimateAttemptCostUsd", () => {
         cacheReadTokens: 50_000,
         cacheWriteTokens: 0,
       }),
-    ).toBeCloseTo(0.1525);
+    ).toBeCloseTo(0.1525, 4);
   });
 
   it("returns undefined for unknown models", () => {
@@ -67,6 +67,15 @@ describe("evaluateBreakerOpenReason", () => {
         recentFailedCostUsd: 1.01,
       }),
     ).toBe("cost_threshold");
+  });
+
+  it("stays closed at the exact failed-cost threshold", () => {
+    expect(
+      evaluateBreakerOpenReason({
+        recentFailures: 2,
+        recentFailedCostUsd: 1,
+      }),
+    ).toBeNull();
   });
 
   it("stays closed below both thresholds", () => {

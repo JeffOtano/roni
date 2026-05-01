@@ -218,14 +218,16 @@ export const recordPrimaryAttemptFailure = internalMutation({
       };
     }
 
-    const recentRows = await ctx.db
+    const failureRows = await ctx.db
       .query("aiUsage")
-      .withIndex("by_provider_createdAt", (q) =>
-        q.eq("provider", provider).gte("createdAt", now - CIRCUIT_BREAKER_WINDOW_MS),
+      .withIndex("by_provider_breaker_type_createdAt", (q) =>
+        q
+          .eq("provider", provider)
+          .eq("breakerEvent.type", "attempt_failed")
+          .gte("createdAt", now - CIRCUIT_BREAKER_WINDOW_MS),
       )
       .collect();
 
-    const failureRows = recentRows.filter((row) => row.breakerEvent?.type === "attempt_failed");
     const recentFailures = failureRows.length;
     const recentFailedCostUsd = failureRows.reduce((sum, row) => sum + (row.totalCostUsd ?? 0), 0);
     const openReason = evaluateBreakerOpenReason({ recentFailures, recentFailedCostUsd });

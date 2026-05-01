@@ -159,15 +159,33 @@ export async function runWithPrimaryCircuitBreaker(args: CircuitBreakerFlowArgs)
   const firstAttemptSnapshot = accumulator.snapshotUsage();
   const firstAttempt = await runAttempt(primaryAgent);
   if (firstAttempt.done) {
-    if (isHalfOpenProbe && firstAttempt.success) {
+    if (isHalfOpenProbe) {
       const finalUsage = accumulator.snapshotUsage();
-      await ctx.runMutation(recordPrimaryAttemptSuccessRef, {
-        provider,
-        runId,
-        userId: breakerUserId,
-        threadId,
-        model: finalUsage.modelId ?? primaryModelName,
-      });
+      if (firstAttempt.success) {
+        await ctx.runMutation(recordPrimaryAttemptSuccessRef, {
+          provider,
+          runId,
+          userId: breakerUserId,
+          threadId,
+          model: finalUsage.modelId ?? primaryModelName,
+        });
+      } else {
+        const failure = await ctx.runMutation(recordPrimaryAttemptFailureRef, {
+          provider,
+          runId,
+          userId: breakerUserId,
+          threadId,
+          model: finalUsage.modelId ?? primaryModelName,
+          errorClass: "TerminalPrimaryAttemptFailure",
+        });
+        if (failure.opened && failure.openReason) {
+          await notifyBreakerOpened({
+            openReason: failure.openReason,
+            recentFailures: failure.recentFailures,
+            recentFailedCostUsd: failure.recentFailedCostUsd,
+          });
+        }
+      }
     }
     return;
   }
