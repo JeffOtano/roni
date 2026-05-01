@@ -185,25 +185,28 @@ describe("retryOn5xx", () => {
     // 500 ("error getting activities for user") should be retried rather than
     // thrown immediately, which was the root cause of TONALCOACH-3V.
     vi.useFakeTimers();
-    let calls = 0;
-    const activities = [{ activityId: "a1" }];
-    const fn = async () => {
-      calls++;
-      if (calls === 1)
-        throw new TonalApiError(
-          500,
-          '{"message":"error getting activities for user","status":500}',
-        );
-      return activities;
-    };
+    try {
+      let calls = 0;
+      const activities = [{ activityId: "a1" }];
+      const fn = async () => {
+        calls++;
+        if (calls === 1)
+          throw new TonalApiError(
+            500,
+            '{"message":"error getting activities for user","status":500}',
+          );
+        return activities;
+      };
 
-    const promise = retryOn5xx(fn, 2);
-    await vi.runAllTimersAsync();
-    const result = await promise;
+      const promise = retryOn5xx(fn, 2);
+      await vi.runAllTimersAsync();
+      const result = await promise;
 
-    expect(result).toBe(activities);
-    expect(calls).toBe(2);
-    vi.useRealTimers();
+      expect(result).toBe(activities);
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

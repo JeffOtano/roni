@@ -16,7 +16,8 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   // rate-limit message. These strings surface via @convex-dev/agent's internal
   // finalizeMessage call before our sanitized code can be written, so they
   // appear in Sentry even though the error is fully handled.
-  "exceeded your current quota",
+  // Both patterns are Gemini-specific to avoid over-suppressing real incidents.
+  "You exceeded your current quota, please check your plan and billing details",
   "generate_content_free_tier_requests",
 ];
 
