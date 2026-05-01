@@ -14,7 +14,6 @@ export const USER_DATA_TABLES = [
   { table: "aiUsage", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "aiBudgetWarnings", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "aiRun", delete: "byUserIdBatch", jsonExportKey: null },
-  { table: "coachState", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "completedWorkouts", delete: "byUserIdBatch", jsonExportKey: "completedWorkouts" },
   {
     table: "exercisePerformance",

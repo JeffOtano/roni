@@ -8,7 +8,6 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { getEffectiveUserId } from "./lib/auth";
 import { rateLimiter } from "./rateLimits";
-import { requestCoachStateRefresh } from "./coachState";
 
 const MAX_ACTIVE_INJURIES = 10;
 const severityValidator = v.union(v.literal("mild"), v.literal("moderate"), v.literal("severe"));
@@ -46,7 +45,6 @@ export const report = mutation({
       reportedAt: Date.now(),
       status: "active",
     });
-    await requestCoachStateRefresh(ctx, userId);
     return injuryId;
   },
 });
@@ -59,7 +57,6 @@ export const resolve = mutation({
     const injury = await ctx.db.get(args.injuryId);
     if (!injury || injury.userId !== userId) throw new Error("Injury not found");
     await ctx.db.patch(args.injuryId, { status: "resolved", resolvedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -78,7 +75,6 @@ export const updateSeverity = mutation({
       severity: args.severity,
       ...(args.notes !== undefined ? { notes: args.notes.slice(0, 500) } : {}),
     });
-    await requestCoachStateRefresh(ctx, userId);
   },
 });
 
@@ -136,7 +132,6 @@ export const reportInternal = internalMutation({
       reportedAt: Date.now(),
       status: "active",
     });
-    await requestCoachStateRefresh(ctx, args.userId);
     return injuryId;
   },
 });
@@ -148,6 +143,5 @@ export const resolveInternal = internalMutation({
     const injury = await ctx.db.get(args.injuryId);
     if (!injury || injury.userId !== args.userId) throw new Error("Injury not found");
     await ctx.db.patch(args.injuryId, { status: "resolved", resolvedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, args.userId);
   },
 });

@@ -13,15 +13,12 @@ function makeCacheKey(userId: unknown, dataType: string) {
   return `${String(userId ?? "global")}:${dataType}`;
 }
 
-function makeMockCtx(circuitOpen = false) {
+function makeMockCtx() {
   const cache = new Map<string, CacheRow>();
 
   const runQuery = vi.fn(async (_ref: unknown, args: Record<string, unknown>) => {
     if ("dataType" in args) {
       return cache.get(makeCacheKey(args.userId, String(args.dataType))) ?? null;
-    }
-    if ("service" in args) {
-      return circuitOpen;
     }
     return null;
   });
@@ -105,14 +102,16 @@ describe("cachedFetch", () => {
     const fetcher = vi.fn().mockResolvedValue({ payload: "x".repeat(MAX_CACHE_VALUE_BYTES + 1) });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
+    // Use distinct dataTypes so the request-scoped memo doesn't dedupe — we
+    // care about the oversized-skip property, not the dedupe property here.
     await cachedFetch(ctx, {
-      dataType: "oversized",
+      dataType: "oversized-a",
       ttl: 60_000,
       fetcher,
     });
 
     await cachedFetch(ctx, {
-      dataType: "oversized",
+      dataType: "oversized-b",
       ttl: 60_000,
       fetcher,
     });
@@ -124,34 +123,45 @@ describe("cachedFetch", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(cacheWriteCalls).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledWith(
-      "cachedFetch(oversized): payload too large to cache, skipping write",
+      "cachedFetch(oversized-a): payload too large to cache, skipping write",
     );
   });
 
-  it("records circuit recovery only when the circuit was open", async () => {
-    const closed = makeMockCtx(false);
-    await cachedFetch(closed.ctx, {
-      dataType: "closed-circuit",
-      ttl: 60_000,
-      fetcher: async () => ({ ok: true }),
+  it("does not write the cache when shouldCache returns false", async () => {
+    const { ctx, runMutation } = makeMockCtx();
+    const fetcher = vi.fn().mockResolvedValue(null);
+
+    const result = await cachedFetch<unknown>(ctx, {
+      dataType: "negative-result",
+      ttl: 30 * 24 * 60 * 60 * 1000,
+      fetcher,
+      shouldCache: (d) => d !== null,
     });
 
-    const open = makeMockCtx(true);
-    await cachedFetch(open.ctx, {
-      dataType: "open-circuit",
-      ttl: 60_000,
-      fetcher: async () => ({ ok: true }),
-    });
-
-    const closedRecoveryWrites = closed.runMutation.mock.calls.filter(
-      ([, args]) => args && typeof args === "object" && "service" in args,
+    expect(result).toBeNull();
+    const cacheWriteCalls = runMutation.mock.calls.filter(
+      ([, args]) => args && typeof args === "object" && "data" in args,
     );
-    const openRecoveryWrites = open.runMutation.mock.calls.filter(
-      ([, args]) => args && typeof args === "object" && "service" in args,
-    );
+    expect(cacheWriteCalls).toHaveLength(0);
+  });
 
-    expect(closedRecoveryWrites).toHaveLength(0);
-    expect(openRecoveryWrites).toHaveLength(1);
+  it("dedupes repeat calls within a single action via the request-scoped memo", async () => {
+    const { ctx, runQuery } = makeMockCtx();
+    const fetcher = vi.fn().mockResolvedValue({ ok: true });
+
+    const [first, second] = await Promise.all([
+      cachedFetch(ctx, { dataType: "memo-test", ttl: 60_000, fetcher }),
+      cachedFetch(ctx, { dataType: "memo-test", ttl: 60_000, fetcher }),
+    ]);
+
+    expect(first).toEqual({ ok: true });
+    expect(second).toEqual({ ok: true });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    // Only one DB read for the cache lookup despite two callers.
+    const cacheReadCalls = runQuery.mock.calls.filter(
+      ([, args]) => args && typeof args === "object" && "dataType" in args,
+    );
+    expect(cacheReadCalls).toHaveLength(1);
   });
 });
 

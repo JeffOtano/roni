@@ -83,7 +83,7 @@ export const swapExerciseTool = createTool({
 
 export const addExerciseTool = createTool({
   description:
-    "Add an exercise to a specific day's draft workout. Use this when the user wants to include an extra exercise (e.g., a finisher, an isolation move) without rebuilding the week. The exercise is added as a new straight-set block before the cooldown. The movementId MUST come from a prior search_exercises result.",
+    "Add an exercise to a specific day's draft workout. Use this when the user wants to include an extra exercise (e.g., a finisher, an isolation move) without rebuilding the week. The exercise is added as a new straight-set block before the cooldown. Pass warmUp:true to mark the exercise as a warmup. The movementId MUST come from a prior search_exercises result.",
   inputSchema: z.object({
     dayIndex: z.number().int().min(0).max(6).describe("Day of the week: 0=Monday..6=Sunday"),
     movementId: z.string().describe("The movement ID to add (from search_exercises)"),
@@ -98,6 +98,12 @@ export const addExerciseTool = createTool({
     chains: z.boolean().optional().describe("Enable chains mode"),
     burnout: z.boolean().optional().describe("Enable burnout/AMRAP on this exercise"),
     dropSet: z.boolean().optional().describe("Enable drop set mode"),
+    warmUp: z
+      .boolean()
+      .optional()
+      .describe(
+        "Mark this exercise as a warmup. Sets warmUp:true on the persisted exercise so Tonal renders it as a warmup. Use for mobility, activation, and prep movements at the top of the session.",
+      ),
   }),
   execute: withToolTracking(
     "add_exercise",
@@ -139,9 +145,87 @@ export const addExerciseTool = createTool({
       });
       if (!result.ok) return { success: false, error: result.error };
 
+      const updated = await ctx.runQuery(internal.workoutPlans.getById, {
+        planId: day.workoutPlanId,
+        userId,
+      });
+      const blockCount = updated?.blocks.length ?? -1;
+      const exerciseCount = updated?.blocks.reduce((sum, b) => sum + b.exercises.length, 0) ?? -1;
+
       return {
         success: true,
-        message: `Added exercise to ${DAY_NAMES[input.dayIndex]}. Use get_week_plan_details to see the updated plan.`,
+        message: `Added exercise to ${DAY_NAMES[input.dayIndex]} (now ${blockCount} blocks, ${exerciseCount} exercises). Use get_week_plan_details to see the updated plan.`,
+      };
+    },
+  ),
+});
+
+// ---------------------------------------------------------------------------
+// setWarmupBlockTool
+// ---------------------------------------------------------------------------
+
+export const setWarmupBlockTool = createTool({
+  description:
+    "Set the warmup block for a specific day's draft workout. Replaces the existing warmup block (if any) or inserts a new warmup block at the start. Each exercise is marked warmUp:true. Use this when the user asks for a specific set of warmup movements (e.g. 'add Cat-Cow, Glute Bridge, and Dead Bug as the warmup'). All movementIds MUST come from prior search_exercises results.",
+  inputSchema: z.object({
+    dayIndex: z.number().int().min(0).max(6).describe("Day of the week: 0=Monday..6=Sunday"),
+    exercises: z
+      .array(
+        z.object({
+          movementId: z.string().describe("UUID from search_exercises"),
+          sets: z.number().int().min(1).max(4).describe("Sets per warmup movement (typically 1-2)"),
+          reps: z.number().int().optional().describe("Reps (omit for duration-based movements)"),
+          duration: z
+            .number()
+            .int()
+            .optional()
+            .describe("Duration in seconds (for plank, bridge, etc.)"),
+        }),
+      )
+      .min(1)
+      .max(5)
+      .describe("Warmup movements in execution order. 1-5 movements typical."),
+  }),
+  execute: withToolTracking(
+    "set_warmup_block",
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; message: string } | { success: false; error: string }> => {
+      const userId = requireUserId(ctx);
+      const weekStartDate = getWeekStartDateString(new Date());
+
+      const weekPlan = (await ctx.runQuery(internal.weekPlans.getByUserIdAndWeekStartInternal, {
+        userId,
+        weekStartDate,
+      })) as {
+        _id: Id<"weekPlans">;
+        days: { workoutPlanId?: Id<"workoutPlans">; sessionType: string }[];
+      } | null;
+
+      if (!weekPlan) {
+        return { success: false, error: "No week plan found for the current week." };
+      }
+
+      const day = weekPlan.days[input.dayIndex];
+      if (!day?.workoutPlanId) {
+        return {
+          success: false,
+          error: `No workout linked to ${DAY_NAMES[input.dayIndex]}. Nothing to set warmup on.`,
+        };
+      }
+
+      const result = await ctx.runMutation(internal.coach.weekModifications.setWarmupBlock, {
+        userId,
+        workoutPlanId: day.workoutPlanId,
+        exercises: input.exercises,
+      });
+      if (!result.ok) return { success: false, error: result.error };
+
+      return {
+        success: true,
+        message: `Set warmup block for ${DAY_NAMES[input.dayIndex]} with ${input.exercises.length} movement(s). Use get_week_plan_details to see the updated plan.`,
       };
     },
   ),

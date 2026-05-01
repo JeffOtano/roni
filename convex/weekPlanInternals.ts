@@ -16,7 +16,6 @@ import {
 import { blockInputValidator } from "./validators";
 import { WORKOUT_SOURCE } from "./workoutPlans";
 import { normalizeBlocksAgainstCatalog } from "./coach/normalizeBlocks";
-import { requestCoachStateRefresh } from "./coachState";
 
 /** Internal: get week plan by userId and weekStartDate (for cron/check-ins). */
 export const getByUserIdAndWeekStartInternal = internalQuery({
@@ -61,7 +60,6 @@ export const setDayStatusInternal = internalMutation({
     const days = [...plan.days];
     days[dayIndex] = { ...days[dayIndex], status };
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, plan.userId);
   },
 });
 
@@ -94,7 +92,6 @@ export const linkWorkoutPlanToDayInternal = internalMutation({
     if (args.estimatedDuration !== undefined) slot.estimatedDuration = args.estimatedDuration;
     days[args.dayIndex] = slot;
     await ctx.db.patch(args.weekPlanId, { days, updatedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, args.userId);
     return args.weekPlanId;
   },
 });
@@ -135,7 +132,6 @@ export const createForUserInternal = internalMutation({
       createdAt: now,
       updatedAt: now,
     });
-    await requestCoachStateRefresh(ctx, args.userId);
     return weekPlanId;
   },
 });
@@ -161,7 +157,6 @@ export const batchUpdateDayStatusesInternal = internalMutation({
       days[dayIndex] = { ...days[dayIndex], status };
     }
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, plan.userId);
   },
 });
 
@@ -195,9 +190,10 @@ export const deleteWeekPlanInternal = internalMutation({
   },
   handler: async (ctx, args) => {
     const plan = await ctx.db.get(args.weekPlanId);
-    if (!plan || plan.userId !== args.userId) {
-      throw new Error("Week plan not found or access denied");
-    }
+    // Concurrent re-generation can race to delete the same plan — a missing
+    // plan is a valid no-op; a mismatched owner is a security violation.
+    if (!plan) return;
+    if (plan.userId !== args.userId) throw new Error("Week plan access denied");
     for (const day of plan.days) {
       if (!day.workoutPlanId) continue;
       const workout = await ctx.db.get(day.workoutPlanId);
@@ -206,7 +202,6 @@ export const deleteWeekPlanInternal = internalMutation({
       }
     }
     await ctx.db.delete(args.weekPlanId);
-    await requestCoachStateRefresh(ctx, args.userId);
   },
 });
 
@@ -256,7 +251,6 @@ export const replaceDraftWithPushed = internalMutation({
       ...(estimatedDuration != null && { estimatedDuration }),
     };
     await ctx.db.patch(weekPlanId, { days, updatedAt: Date.now() });
-    await requestCoachStateRefresh(ctx, plan.userId);
 
     // 2. THEN delete the draft (if it still exists and is still a draft).
     // If this fails, we have an orphaned draft record (harmless cleanup).

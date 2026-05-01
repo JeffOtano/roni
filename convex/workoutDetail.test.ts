@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMovementSummaries, filterCatalog } from "./workoutDetail";
+import { buildMovementSummaries, filterCatalog, UUID_RE } from "./workoutDetail";
 import type { EnrichedSetActivity } from "./workoutDetail";
 import type { Movement } from "./tonal/types";
 
@@ -243,5 +243,36 @@ describe("buildMovementSummaries", () => {
 
     const result = buildMovementSummaries(sets, new Map());
     expect(result[0].avgWeightLbs).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// activityId format validation (regression: TONALCOACH-1H)
+// ---------------------------------------------------------------------------
+// The getWorkoutDetail action returns null (instead of throwing) when the
+// activityId is not a UUID. Sentry was capturing the throw as an uncaught
+// error every time a date-formatted ID was passed (e.g. "2026-04-25").
+// These tests verify the UUID regex correctly classifies inputs so the
+// guard condition stays accurate as the codebase evolves.
+
+describe("activityId UUID format", () => {
+  it("accepts canonical UUID v4 strings", () => {
+    expect(UUID_RE.test("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
+    expect(UUID_RE.test("123e4567-e89b-12d3-a456-426614174000")).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(UUID_RE.test("550E8400-E29B-41D4-A716-446655440000")).toBe(true);
+  });
+
+  it("rejects date strings (the input that triggered TONALCOACH-1H)", () => {
+    expect(UUID_RE.test("2026-04-25")).toBe(false);
+    expect(UUID_RE.test("2026-04-25T00:00:00Z")).toBe(false);
+  });
+
+  it("rejects other non-UUID strings", () => {
+    expect(UUID_RE.test("not-a-uuid")).toBe(false);
+    expect(UUID_RE.test("")).toBe(false);
+    expect(UUID_RE.test("2026-04")).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  computePushDivergence,
   correctDurationRepsMismatch,
   enrichPushErrorMessage,
   formatTonalTitle,
@@ -328,5 +329,63 @@ describe("correctDurationRepsMismatch", () => {
     expect(sets[0].prescribedReps).toBeUndefined();
     expect(sets[1].prescribedReps).toBe(8);
     expect(sets[2].prescribedReps).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computePushDivergence
+// ---------------------------------------------------------------------------
+
+describe("computePushDivergence", () => {
+  it("returns null when intended and stored sets match exactly", () => {
+    const intended = [
+      { movementId: "a", sets: 3 },
+      { movementId: "b", sets: 2 },
+    ];
+    const storedSets = [
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "b", prescribedDuration: 30 },
+      { movementId: "b", prescribedDuration: 30 },
+    ];
+    expect(computePushDivergence(intended, storedSets)).toBeNull();
+  });
+
+  it("flags a missing movement", () => {
+    const intended = [
+      { movementId: "a", sets: 3 },
+      { movementId: "b", sets: 2 },
+    ];
+    const storedSets = [
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "a", prescribedReps: 10 },
+    ];
+    const div = computePushDivergence(intended, storedSets);
+    expect(div).not.toBeNull();
+    expect(div!.missingMovements).toContain("b");
+  });
+
+  it("flags a set-count mismatch", () => {
+    const intended = [{ movementId: "a", sets: 3 }];
+    const storedSets = [
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "a", prescribedReps: 10 },
+    ];
+    const div = computePushDivergence(intended, storedSets);
+    expect(div).not.toBeNull();
+    expect(div!.setCountMismatches).toEqual([{ movementId: "a", intended: 3, stored: 2 }]);
+  });
+
+  it("flags an extra movement that wasn't sent", () => {
+    const intended = [{ movementId: "a", sets: 1 }];
+    const storedSets = [
+      { movementId: "a", prescribedReps: 10 },
+      { movementId: "z", prescribedReps: 10 },
+    ];
+    const div = computePushDivergence(intended, storedSets);
+    expect(div).not.toBeNull();
+    expect(div!.extraMovements).toContain("z");
   });
 });

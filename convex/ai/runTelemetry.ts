@@ -1,5 +1,6 @@
 import type { StepResult, ToolSet } from "ai";
 import type { Id } from "../_generated/dataModel";
+import type { PushDivergence } from "../tonal/mutations";
 
 /** Row shape produced by `RunAccumulator.toRow()`. Matches the `aiRun` table validator. */
 export interface AiRunRow {
@@ -45,11 +46,12 @@ export interface AiRunRow {
   snapshotBuildMs?: number;
   contextBuildCount?: number;
   contextMessageCount?: number;
-  snapshotSource?: "coach_state_fresh" | "coach_state_stale" | "live_rebuild";
+  snapshotSource?: "live_rebuild";
   retrievalEnabled?: boolean;
   approvalPauses: number;
   workoutPlanCreatedId?: Id<"workoutPlans">;
   workoutPushOutcome?: "pushed" | "failed" | "none";
+  pushDivergence?: PushDivergence;
   createdAt: number;
 }
 
@@ -101,11 +103,18 @@ type CreateWorkoutOutput =
       title: string;
       setCount: number;
       planId: Id<"workoutPlans">;
+      pushDivergence?: PushDivergence | null;
     }
   | { success: false; error: string; planId?: Id<"workoutPlans"> };
 
 type ApproveWeekPlanOutput =
-  | { success: boolean; pushed: number; failed: number; skipped: number; results: unknown[] }
+  | {
+      success: boolean;
+      pushed: number;
+      failed: number;
+      skipped: number;
+      results: { pushDivergence?: PushDivergence | null }[];
+    }
   | { error: string };
 
 function isCreateWorkoutOutput(value: unknown): value is CreateWorkoutOutput {
@@ -144,6 +153,7 @@ export class RunAccumulator {
   private approvalPauses = 0;
   private workoutPlanCreatedId?: Id<"workoutPlans">;
   private workoutPushOutcome?: AiRunRow["workoutPushOutcome"];
+  private pushDivergence?: PushDivergence;
   private readonly startedAt: number;
   private readonly scheduledAt?: number;
   private readonly processingStartedAt?: number;
@@ -248,6 +258,11 @@ export class RunAccumulator {
     this.workoutPushOutcome = outcome;
   }
 
+  /** Record push divergence from the Tonal read-back; last-write-wins (one push per run). */
+  recordPushDivergence(div: PushDivergence | null): void {
+    this.pushDivergence = div ?? undefined;
+  }
+
   setContextTiming(metrics: ContextTimingMetrics): void {
     this.contextBuildMs = metrics.contextBuildMs;
     this.snapshotBuildMs = metrics.snapshotBuildMs;
@@ -308,6 +323,7 @@ export class RunAccumulator {
       approvalPauses: this.approvalPauses,
       workoutPlanCreatedId: this.workoutPlanCreatedId,
       workoutPushOutcome: this.workoutPushOutcome,
+      pushDivergence: this.pushDivergence,
       createdAt: this.startedAt,
     };
   }
@@ -319,6 +335,9 @@ export class RunAccumulator {
       if (result.toolName === "create_workout" && isCreateWorkoutOutput(result.output)) {
         if (result.output.success) {
           this.workoutPlanCreatedId = result.output.planId;
+          if (result.output.pushDivergence !== undefined) {
+            this.recordPushDivergence(result.output.pushDivergence);
+          }
           // A successful create_workout leaves a draft needing user approval.
           this.markApprovalPause();
         }
@@ -340,6 +359,13 @@ export class RunAccumulator {
           this.workoutPushOutcome = "failed";
         } else {
           this.workoutPushOutcome = "pushed";
+        }
+        // Record first non-null divergence encountered across pushed days.
+        if (!("error" in out)) {
+          const firstDivergent = out.results.find((r) => r.pushDivergence != null);
+          if (firstDivergent?.pushDivergence !== undefined) {
+            this.recordPushDivergence(firstDivergent.pushDivergence);
+          }
         }
       }
     }

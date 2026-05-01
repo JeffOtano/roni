@@ -57,6 +57,12 @@ npm run build               # Production build
 npx convex env set KEY value   # Set backend environment variable
 npx convex deploy              # Deploy to production
 
+# Smoke-test schema changes against the dev deployment before pushing.
+# Pushes the branch's schema to dev once; fails locally if any existing row
+# fails validation under the new shape. Auto-runs via the pre-push hook on
+# any push that touches convex/schema.ts or convex/aiUsage.ts.
+npm run convex:smoke
+
 # Silence cron jobs on dev (optional, recommended)
 npx convex env set DISABLE_CRONS true
 ```
@@ -107,16 +113,17 @@ User (chat) --> send message --> AI Coach Agent (Gemini, 31 tools) --> reads con
 
 ### Scheduled Jobs (`crons.ts`)
 
-- Every 15m: recover stuck workout pushes
 - Every 30m: refresh Tonal tokens
-- Every 30m: refresh active user cache (tiered by `appLastActiveAt` recency)
+- Every 1h: refresh active user cache (tiered by `appLastActiveAt` recency)
 - Every 1h: health check
 - Every 1h: activation checks
+- Every 1h: sweep expired Garmin OAuth states
 - Every 6h: check-in trigger evaluation (missed sessions, milestones)
 - Every 6h: garbage-collect orphaned chat-image storage (`internal.fileGc.vacuumUnusedFiles`)
+- Every 6h: sweep expired Garmin webhook events
 - Cron `0 3 * * *`: sync movement catalog
 - Cron `0 4 * * 0`: sync Tonal workout catalog
-- Cron `0 2 * * 0`: data retention cleanup
+- Cron `0 2 * * *`: data retention cleanup
 - All crons are disabled when `DISABLE_CRONS=true` is set (see `convex/lib/env.ts`)
 
 ### Frontend Routes (`src/app/`)
@@ -252,6 +259,7 @@ When principles conflict, the higher number always wins.
 - Every new mutation/action: check if it needs rate limiting (see `convex/rateLimits.ts`).
 - Validate external input with Zod at the action boundary. Internal functions receive typed data.
 - The Tonal API integration uses `cachedFetch` pattern -- check cache, fetch if expired, update cache.
+- **Schema narrows that could reject existing rows must use widen → migrate → narrow.** Convex validates schema against existing data on `npx convex deploy` (Vercel runs this on every merge to main). A narrowing PR that ships before its data backfill migration runs will fail the deploy and lock prod until recovered. Pattern: PR 1 ships the migration code with the validator still wide; operator runs the migration; PR 2 ships the narrow. The `npm run convex:smoke` pre-push hook catches this against the dev deployment if dev has the same data shape.
 
 ## Key Type Locations
 

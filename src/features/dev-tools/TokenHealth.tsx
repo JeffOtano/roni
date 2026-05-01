@@ -74,19 +74,6 @@ export function TokenHealth() {
         )}
       </StatusCard>
 
-      <StatusCard label="Circuit Breaker">
-        <div className="flex items-center gap-2">
-          <Badge variant={health.circuitOpen ? "destructive" : "default"}>
-            {health.circuitOpen ? "OPEN" : "closed"}
-          </Badge>
-          {health.circuitConsecutiveFailures > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {health.circuitConsecutiveFailures} failures
-            </span>
-          )}
-        </div>
-      </StatusCard>
-
       <StatusCard label="Tonal Connected">
         {health.tonalConnectedAt
           ? new Date(health.tonalConnectedAt).toLocaleDateString()

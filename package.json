@@ -1,6 +1,6 @@
 {
   "name": "roni",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Unofficial AI coach, compatible with Tonal fitness machines. Not affiliated with Tonal Systems, Inc.",
   "license": "MIT",
   "keywords": [
@@ -33,6 +33,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "convex:smoke": "convex dev --once --typecheck enable",
     "setup": "tsx scripts/setup.ts",
     "knip": "knip",
     "test:e2e": "playwright test",

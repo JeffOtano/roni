@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalQuery } from "./_generated/server";
+import { action, internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { normalizeTargetArea } from "./lib/targetArea";
 import type {
@@ -59,7 +59,7 @@ export interface EnrichedWorkoutDetail extends Omit<WorkoutActivityDetail, "work
   targetArea?: string;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Return the movementIds that got a new all-time PR in the given activity.
@@ -97,16 +97,23 @@ export const getCompletedWorkoutMeta = internalQuery({
   },
 });
 
-export const getWorkoutDetail = action({
-  args: { activityId: v.string() },
+/**
+ * Inner action: takes an explicit `userId`. Used by both the public
+ * `getWorkoutDetail` (which resolves userId from auth) and the LLM tool
+ * wrapper (which already has the userId via `requireUserId`).
+ *
+ * The 30-day audit on `get_workout_detail` showed a 46% success rate — every
+ * failure was "Not authenticated". The agent runtime doesn't reliably
+ * propagate auth through `ctx.runAction(api.publicAction)`, so the tool
+ * wrapper now calls this internal version with the userId it already has.
+ */
+export const getWorkoutDetailInternal = internalAction({
+  args: { userId: v.id("users"), activityId: v.string() },
   handler: async (ctx, args): Promise<EnrichedWorkoutDetail | null> => {
     if (!UUID_RE.test(args.activityId)) {
-      throw new Error(`Invalid activityId: expected UUID, got "${args.activityId}"`);
+      console.warn(`getWorkoutDetail: invalid activityId format "${args.activityId}"`);
+      return null;
     }
-    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
-    // Session expired or user not signed in — AppShell will redirect to /login.
-    // Returning null keeps this out of Sentry (vs. throwing "Not authenticated").
-    if (!userId) return null;
 
     const [detail, movements, formattedSummary, workoutMeta, prMovementIdList]: [
       unknown,
@@ -117,23 +124,23 @@ export const getWorkoutDetail = action({
     ] = await Promise.all([
       ctx
         .runAction(internal.tonal.proxy.fetchWorkoutDetail, {
-          userId,
+          userId: args.userId,
           activityId: args.activityId,
         })
         .catch((): null => null),
       ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx
         .runAction(internal.tonal.proxyProjected.fetchFormattedSummary, {
-          userId,
+          userId: args.userId,
           summaryId: args.activityId,
         })
         .catch((): null => null),
       ctx.runQuery(internal.workoutDetail.getCompletedWorkoutMeta, {
-        userId,
+        userId: args.userId,
         activityId: args.activityId,
       }),
       ctx.runQuery(internal.workoutDetail.getPRMovementIdsForActivity, {
-        userId,
+        userId: args.userId,
         activityId: args.activityId,
       }),
     ]);
@@ -175,6 +182,25 @@ export const getWorkoutDetail = action({
       workoutTitle: workoutMeta?.title ?? undefined,
       targetArea: workoutMeta ? normalizeTargetArea(workoutMeta.targetArea) : undefined,
     };
+  },
+});
+
+/**
+ * Public action for frontend use (`useAction` in `(app)/activity/[id]/page.tsx`).
+ * Resolves the authenticated user from the request context, then delegates.
+ */
+export const getWorkoutDetail = action({
+  args: { activityId: v.string() },
+  handler: async (ctx, args): Promise<EnrichedWorkoutDetail | null> => {
+    const userId = await ctx.runQuery(internal.lib.auth.resolveEffectiveUserId, {});
+    // Session expired or user not signed in — AppShell will redirect to /login.
+    // Returning null keeps this out of Sentry (vs. throwing "Not authenticated").
+    if (!userId) return null;
+
+    return ctx.runAction(internal.workoutDetail.getWorkoutDetailInternal, {
+      userId,
+      activityId: args.activityId,
+    });
   },
 });
 

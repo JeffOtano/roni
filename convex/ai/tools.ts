@@ -1,6 +1,6 @@
 import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
-import { api, internal } from "../_generated/api";
+import { internal } from "../_generated/api";
 import type {
   Activity,
   Movement,
@@ -11,24 +11,42 @@ import type {
 import type { EnrichedWorkoutDetail } from "../workoutDetail";
 import { requireUserId, withToolTracking } from "./helpers";
 
+export const KNOWN_TRAINING_TYPES = [
+  "Strength",
+  "High Intensity",
+  "Mobility",
+  "Recovery",
+  "Yoga",
+  "Pilates",
+  "Pre & Postnatal",
+] as const;
+
 export const searchExercisesTool = createTool({
   description:
-    "Search Tonal's exercise catalog by name, muscle group, and/or training type. Use this before naming, suggesting, swapping, or programming exercises; results include canonical Tonal names, movement IDs, accessory requirements, and duration-vs-rep behavior.",
+    "Search Tonal's exercise catalog by name, muscle group, and/or training type. Use this before naming, suggesting, swapping, or programming exercises; results include canonical Tonal names, movement IDs, accessory requirements, and duration-vs-rep behavior. Default match is name-strict (matches name/shortName only) — set looseMatch:true to also match in descriptions if a strict search returns nothing.",
   inputSchema: z.object({
     name: z
       .string()
       .optional()
       .describe(
-        "Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL'). Use shorter names when an exact search misses.",
+        "Exercise name or common name (e.g. 'Romanian Deadlift', 'RDL'). Match is on name and shortName by default — descriptions are not searched.",
       ),
     muscleGroup: z
       .string()
       .optional()
       .describe("Use when exploring options for a body part, e.g. Chest, Back, Quads, Shoulders."),
     trainingType: z
-      .string()
+      .enum(KNOWN_TRAINING_TYPES)
       .optional()
-      .describe("Use to narrow by type: Warm-up, Mobility, Recovery, Yoga, Strength, etc."),
+      .describe(
+        `Use to narrow by type. Valid values: ${KNOWN_TRAINING_TYPES.join(", ")}. Note: there is NO 'Warm-up' tag — Tonal warmups are tagged 'Mobility'.`,
+      ),
+    looseMatch: z
+      .boolean()
+      .optional()
+      .describe(
+        "When true, fall back to matching in exercise descriptions in addition to name/shortName. Use only if a strict search returns no results. Default: false (strict, name-only).",
+      ),
   }),
   execute: withToolTracking("search_exercises", async (ctx, input, _options) => {
     const results = (await ctx.runQuery(internal.tonal.movementSearchQueries.searchMovements, {
@@ -36,6 +54,7 @@ export const searchExercisesTool = createTool({
       muscleGroup: input.muscleGroup,
       trainingType: input.trainingType,
       limit: 30,
+      matchMode: input.looseMatch ? "loose" : "strict",
     })) as Movement[];
 
     return results.map((m) => ({
@@ -120,7 +139,8 @@ export const getMuscleReadinessTool = createTool({
 });
 
 export const getWorkoutHistoryTool = createTool({
-  description: "Get recent workout history (dates, titles, target areas, volume).",
+  description:
+    "LIST a window of recent completed workouts: one row per workout with activityId, date, title, target area, total volume, duration. Start here when the user asks 'what have I done lately' or you need an activityId to drill into. Does NOT include exercise names or per-movement details — call get_workout_detail with the activityId for that. Does NOT include PR/plateau/trend analysis — call get_workout_performance for that.",
   inputSchema: z.object({
     limit: z.number().optional().default(20).describe("Max workouts to return"),
   }),
@@ -148,17 +168,22 @@ export const getWorkoutHistoryTool = createTool({
 
 export const getWorkoutDetailTool = createTool({
   description:
-    "Get full workout detail with exercise names, sets, reps, volume, and per-movement summaries. Returns enriched data with movementName and muscleGroups resolved from the movement catalog.",
+    "DRILL into a SINGLE completed workout by activityId: returns every exercise (with resolved movementName + muscleGroups), every set (weight, reps, duration, PR flag), per-movement summaries. Use this when the user asks about specific exercises in a specific workout — never guess from titles. Requires an activityId (get one from get_workout_history first). Does NOT compare across workouts — that is get_workout_performance.",
   inputSchema: z.object({
     activityId: z.string().describe("Activity ID from workout history"),
   }),
   execute: withToolTracking(
     "get_workout_detail",
-    async (ctx, input, _options): Promise<EnrichedWorkoutDetail> => {
-      // Use the enriched action that joins movement IDs with names from the catalog
-      const detail = (await ctx.runAction(api.workoutDetail.getWorkoutDetail, {
+    async (ctx, input, _options): Promise<EnrichedWorkoutDetail | null> => {
+      // Call the internal action with explicit userId. Calling the public
+      // action via `api.workoutDetail.getWorkoutDetail` from the agent runtime
+      // failed ~46% of the time with "Not authenticated" — the agent runtime
+      // doesn't reliably propagate auth context through runAction.
+      const userId = requireUserId(ctx);
+      const detail = (await ctx.runAction(internal.workoutDetail.getWorkoutDetailInternal, {
+        userId,
         activityId: input.activityId,
-      })) as EnrichedWorkoutDetail;
+      })) as EnrichedWorkoutDetail | null;
       return detail;
     },
   ),
@@ -237,7 +262,14 @@ export const createWorkoutTool = createTool({
       input,
       _options,
     ): Promise<
-      | { success: true; workoutId: string; title: string; setCount: number; planId: string }
+      | {
+          success: true;
+          workoutId: string;
+          title: string;
+          setCount: number;
+          planId: string;
+          divergenceWarning?: string;
+        }
       | { success: false; error: string }
     > => {
       const userId = requireUserId(ctx);
@@ -277,11 +309,32 @@ export const createWorkoutTool = createTool({
         }),
       }));
 
-      return ctx.runAction(internal.tonal.mutations.createWorkout, {
+      const pushed = await ctx.runAction(internal.tonal.mutations.createWorkout, {
         userId,
         title: input.title,
         blocks: correctedBlocks,
       });
+
+      if (!pushed.success) return pushed;
+
+      // Strip pushDivergence from the LLM-visible return; it is a structured object
+      // the LLM has no schema for. Surface only a human-readable warning when needed.
+      const { pushDivergence: _pushDivergence, ...pushedSummary } = pushed;
+
+      if (
+        _pushDivergence &&
+        (_pushDivergence.missingMovements.length > 0 ||
+          _pushDivergence.extraMovements.length > 0 ||
+          _pushDivergence.setCountMismatches.length > 0)
+      ) {
+        console.warn(`createWorkoutTool: divergence on ${pushed.workoutId}`, _pushDivergence);
+        return {
+          ...pushedSummary,
+          divergenceWarning: `WARNING: Tonal stored the workout differently than sent. Missing movements: ${_pushDivergence.missingMovements.length}. Set-count mismatches: ${_pushDivergence.setCountMismatches.length}. Tell the user to verify the workout on their Tonal.`,
+        };
+      }
+
+      return pushedSummary;
     },
   ),
 });
@@ -324,13 +377,25 @@ export const estimateDurationTool = createTool({
   }),
   execute: withToolTracking(
     "estimate_duration",
-    async (ctx, input, _options): Promise<{ estimatedMinutes: number }> => {
+    async (
+      ctx,
+      input,
+      _options,
+    ): Promise<{ success: true; estimatedMinutes: number } | { success: false; error: string }> => {
       const userId = requireUserId(ctx);
-      const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
-        userId,
-        blocks: input.blocks,
-      })) as { duration: number };
-      return { estimatedMinutes: Math.round(result.duration / 60) };
+      try {
+        const result = (await ctx.runAction(internal.tonal.mutations.estimateWorkout, {
+          userId,
+          blocks: input.blocks,
+        })) as { duration: number };
+        return { success: true, estimatedMinutes: Math.round(result.duration / 60) };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          error: `Could not estimate duration: ${msg}. Verify every movementId came from search_exercises and that each exercise has sets ≥ 1.`,
+        };
+      }
     },
   ),
 });

@@ -61,18 +61,25 @@ const aiRunArgs = {
   snapshotBuildMs: v.optional(v.number()),
   contextBuildCount: v.optional(v.number()),
   contextMessageCount: v.optional(v.number()),
-  snapshotSource: v.optional(
-    v.union(
-      v.literal("coach_state_fresh"),
-      v.literal("coach_state_stale"),
-      v.literal("live_rebuild"),
-    ),
-  ),
+  snapshotSource: v.optional(v.literal("live_rebuild")),
   retrievalEnabled: v.optional(v.boolean()),
   approvalPauses: v.number(),
   workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
   workoutPushOutcome: v.optional(
     v.union(v.literal("pushed"), v.literal("failed"), v.literal("none")),
+  ),
+  pushDivergence: v.optional(
+    v.object({
+      missingMovements: v.array(v.string()),
+      extraMovements: v.array(v.string()),
+      setCountMismatches: v.array(
+        v.object({
+          movementId: v.string(),
+          intended: v.number(),
+          stored: v.number(),
+        }),
+      ),
+    }),
   ),
   createdAt: v.number(),
 };

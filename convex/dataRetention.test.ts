@@ -179,6 +179,34 @@ describe("runDataRetention", () => {
     await expect(t.action(internal.dataRetention.runDataRetention, {})).resolves.toBeNull();
   });
 
+  test("schedules a continuation when the deadline is hit before all rows are pruned", async () => {
+    // Regression for TONALCOACH-17: runDataRetention timed out at 600 s when
+    // large backlogs existed. The fix adds a time-budget; if time runs out,
+    // a continuation is scheduled so the cron picks up where it left off.
+    // _deadlineOffsetMs: 0 forces an immediate deadline so every pruneTable
+    // call sees Date.now() >= deadline and returns { complete: false }.
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const expiredId = await insertAiRun(t, {
+      userId,
+      runId: "expired",
+      createdAt: now - (RETENTION.aiRunDays + 5) * DAY_MS,
+    });
+
+    await t.action(internal.dataRetention.runDataRetention, { _deadlineOffsetMs: 0 });
+
+    // Deadline hit before any deletion — row must still be present.
+    const afterFirstPass = await t.run(async (ctx) => ctx.db.get(expiredId));
+    expect(afterFirstPass).not.toBeNull();
+
+    // A continuation should have been scheduled in _scheduled_functions.
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(scheduled.some((fn) => fn.name.includes("runDataRetention"))).toBe(true);
+  });
+
   test("prunes strengthScoreSnapshots older than 24 months", async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -218,6 +246,27 @@ describe("runDataRetention", () => {
     const remainingIds = remaining.map((r) => r._id);
     expect(remainingIds).toContain(freshSnapshotId);
     expect(remainingIds).not.toContain(oldSnapshotId);
+  });
+
+  test("does not prune tonalCache rows (handled by runCacheRetention)", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const now = Date.now();
+
+    const expiredCacheId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "profile",
+        data: {},
+        fetchedAt: now - 2 * DAY_MS,
+        expiresAt: now - DAY_MS - 60_000,
+      }),
+    );
+
+    await t.action(internal.dataRetention.runDataRetention, {});
+
+    const stillThere = await t.run(async (ctx) => ctx.db.get(expiredCacheId));
+    expect(stillThere).not.toBeNull();
   });
 
   test("preserves completed workouts, exercise performance, and personal records", async () => {
@@ -281,5 +330,64 @@ describe("runDataRetention", () => {
       return { cw: cw.length, ep: ep.length, pr: pr.length };
     });
     expect(counts).toEqual({ cw: 1, ep: 1, pr: 1 });
+  });
+});
+
+describe("runCacheRetention", () => {
+  test("prunes tonalCache rows older than the retention window", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const now = Date.now();
+
+    const expiredId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "profile",
+        data: {},
+        fetchedAt: now - 2 * DAY_MS,
+        expiresAt: now - DAY_MS - 60_000,
+      }),
+    );
+    const freshId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "muscleReadiness",
+        data: {},
+        fetchedAt: now,
+        expiresAt: now + DAY_MS,
+      }),
+    );
+
+    await t.action(internal.dataRetention.runCacheRetention, {});
+
+    const remaining = await t.run(async (ctx) => ctx.db.query("tonalCache").collect());
+    const remainingIds = remaining.map((r) => r._id);
+    expect(remainingIds).toContain(freshId);
+    expect(remainingIds).not.toContain(expiredId);
+  });
+
+  test("schedules a continuation when the deadline is hit before all rows are pruned", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+    const now = Date.now();
+    const expiredId = await t.run(async (ctx) =>
+      ctx.db.insert("tonalCache", {
+        userId,
+        dataType: "profile",
+        data: {},
+        fetchedAt: now - 2 * DAY_MS,
+        expiresAt: now - DAY_MS - 60_000,
+      }),
+    );
+
+    await t.action(internal.dataRetention.runCacheRetention, { _deadlineOffsetMs: 0 });
+
+    const stillThere = await t.run(async (ctx) => ctx.db.get(expiredId));
+    expect(stillThere).not.toBeNull();
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(scheduled.some((fn) => fn.name.includes("runCacheRetention"))).toBe(true);
   });
 });

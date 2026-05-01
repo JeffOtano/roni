@@ -13,6 +13,7 @@ export const CACHE_TTLS: Record<string, number> = {
   workoutHistory: 30 * 60 * 1000, // 30 minutes
   customWorkouts: 5 * 60 * 1000, // 5 minutes
   strengthDistribution: 6 * 60 * 60 * 1000, // 6 hours
+  immutableWorkout: 30 * 24 * 60 * 60 * 1000, // 30 days — historical workout data never changes
 };
 
 const WORKOUT_HISTORY_CACHE_TYPE = "workoutHistory_v3";

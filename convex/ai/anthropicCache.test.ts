@@ -1,11 +1,35 @@
 import { describe, expect, it } from "vitest";
+import { getFunctionName } from "convex/server";
 import type { ModelMessage } from "ai";
 import { coachAgentConfig, makeCoachAgentConfig } from "./coach";
+import { internal } from "../_generated/api";
 
 const claudeTestConfig = makeCoachAgentConfig({ provider: "claude" });
 type ContextHandlerArgs = Parameters<NonNullable<typeof claudeTestConfig.contextHandler>>[1];
 
-const EMPTY_PROFILE_CTX = { runQuery: async () => null };
+// Empty SnapshotInputs forces the "no profile" rebuild path through
+// buildTrainingSnapshot without exercising any of its renderers.
+const GATHER_SNAPSHOT_INPUTS_NAME = getFunctionName(internal.coachState.gatherSnapshotInputs);
+const EMPTY_SNAPSHOT_INPUTS = {
+  profile: null,
+  scores: [],
+  readiness: null,
+  activities: [],
+  activeBlock: null,
+  recentFeedback: [],
+  activeGoals: [],
+  activeInjuries: [],
+  externalActivities: [],
+  garminWellness: [],
+};
+const EMPTY_PROFILE_CTX = {
+  runQuery: async (query: unknown) => {
+    if (getFunctionName(query as never) === GATHER_SNAPSHOT_INPUTS_NAME) {
+      return EMPTY_SNAPSHOT_INPUTS;
+    }
+    return null;
+  },
+};
 
 async function runClaudeContextHandler(
   allMessages: ModelMessage[],

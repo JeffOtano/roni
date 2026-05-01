@@ -5,6 +5,7 @@ import { decrypt, encrypt } from "./encryption";
 import { TonalApiError } from "./client";
 import { refreshTonalToken } from "./auth";
 import { withTonalToken } from "./proxy";
+import { clearTokenMemo, primeTokenMemo } from "./proxyMemo";
 
 const SESSION_EXPIRED_MSG = "Tonal session expired — please reconnect at /connect-tonal";
 
@@ -76,13 +77,21 @@ export async function withTokenRetry<T>(
       userId,
     });
     if (!lockAcquired) {
-      // Another caller is refreshing. Wait briefly and retry with potentially fresh token.
+      // Another caller is refreshing — wait, then re-read past the memo.
       await new Promise((r) => setTimeout(r, 2000));
+      clearTokenMemo(ctx, userId);
       const { token: retryToken, tonalUserId: retryTonalUserId } = await withTonalToken(
         ctx,
         userId,
       );
-      return fn(retryToken, retryTonalUserId);
+      try {
+        return await fn(retryToken, retryTonalUserId);
+      } catch (retryError) {
+        if (isTonal401(retryError)) {
+          return markExpiredAndThrow(ctx, userId);
+        }
+        throw retryError;
+      }
     }
 
     let freshToken: string;
@@ -93,6 +102,8 @@ export async function withTokenRetry<T>(
       return markExpiredAndThrow(ctx, userId);
     }
     await ctx.runMutation(internal.userProfiles.releaseTokenRefreshLock, { userId });
+
+    primeTokenMemo(ctx, userId, { token: freshToken, tonalUserId });
 
     try {
       return await fn(freshToken, tonalUserId);

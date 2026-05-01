@@ -37,7 +37,7 @@ export default defineSchema({
         lastName: v.string(),
         heightInches: v.number(),
         weightPounds: v.number(),
-        gender: v.string(),
+        gender: v.optional(v.string()),
         level: v.string(),
         workoutsPerWeek: v.number(),
         workoutDurationMin: v.number(),
@@ -253,19 +253,6 @@ export default defineSchema({
     version: v.number(),
     completedAt: v.number(),
   }).index("by_key", ["key"]),
-
-  /** Materialized training snapshot used by the coach hot path. */
-  coachState: defineTable({
-    userId: v.id("users"),
-    snapshot: v.string(),
-    snapshotVersion: v.number(),
-    userTimezone: v.optional(v.union(v.string(), v.null())),
-    refreshedAt: v.number(),
-    refreshRequestedAt: v.optional(v.number()),
-    refreshRequestedTimezone: v.optional(v.union(v.string(), v.null())),
-    failedAt: v.optional(v.number()),
-    lastError: v.optional(v.string()),
-  }).index("by_userId", ["userId"]),
 
   /** AI-generated workout plans. Lifecycle: draft -> pushing -> pushed -> completed. */
   workoutPlans: defineTable({
@@ -538,19 +525,26 @@ export default defineSchema({
     snapshotBuildMs: v.optional(v.number()),
     contextBuildCount: v.optional(v.number()),
     contextMessageCount: v.optional(v.number()),
-    snapshotSource: v.optional(
-      v.union(
-        v.literal("coach_state_fresh"),
-        v.literal("coach_state_stale"),
-        v.literal("live_rebuild"),
-      ),
-    ),
+    snapshotSource: v.optional(v.literal("live_rebuild")),
     retrievalEnabled: v.optional(v.boolean()),
 
     approvalPauses: v.number(),
     workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
     workoutPushOutcome: v.optional(
       v.union(v.literal("pushed"), v.literal("failed"), v.literal("none")),
+    ),
+    pushDivergence: v.optional(
+      v.object({
+        missingMovements: v.array(v.string()),
+        extraMovements: v.array(v.string()),
+        setCountMismatches: v.array(
+          v.object({
+            movementId: v.string(),
+            intended: v.number(),
+            stored: v.number(),
+          }),
+        ),
+      }),
     ),
 
     createdAt: v.number(),
@@ -730,16 +724,6 @@ export default defineSchema({
     .index("by_durationMinutes", ["durationMinutes"])
     .index("by_equipmentConfig", ["equipmentConfig"])
     .index("by_generationVersion", ["generationVersion"]),
-
-  /** Circuit breaker state for external API health tracking. Single-row table. */
-  systemHealth: defineTable({
-    service: v.string(), // "tonal"
-    consecutiveFailures: v.number(),
-    lastFailureAt: v.optional(v.number()),
-    circuitOpen: v.boolean(), // true = tripped, don't call API
-    circuitOpenedAt: v.optional(v.number()),
-    lastSuccessAt: v.optional(v.number()),
-  }).index("by_service", ["service"]),
 
   /**
    * Per-user Garmin Connect OAuth 1.0a credentials + granted permissions.

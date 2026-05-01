@@ -15,7 +15,7 @@ if (cronsEnabled()) {
 
   crons.interval(
     "refresh-tonal-cache",
-    { minutes: 30 },
+    { hours: 1 },
     internal.tonal.cacheRefresh.refreshActiveUsers,
   );
 
@@ -46,6 +46,9 @@ if (cronsEnabled()) {
   crons.interval("vacuum-unused-files", { hours: 6 }, internal.fileGc.vacuumUnusedFiles);
 
   crons.cron("data-retention", "0 2 * * *", internal.dataRetention.runDataRetention, {});
+
+  // Sunday 06:00 UTC keeps clear of the 03:00 / 04:00 catalog syncs.
+  crons.cron("data-retention-cache", "0 6 * * 0", internal.dataRetention.runCacheRetention, {});
 
   crons.interval(
     "sweep-garmin-oauth-states",
