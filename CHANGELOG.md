@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0](https://github.com/JeffOtano/roni/compare/v0.7.0...v0.8.0) (2026-05-01)
+
+
+### Features
+
+* **coach-tools:** add rebuild_day tool for full-block authoring inside the week plan ([#307](https://github.com/JeffOtano/roni/issues/307)) ([394d11d](https://github.com/JeffOtano/roni/commit/394d11d5ecd066027f2cac5a9420eb0b759be707))
+* **coach-tools:** add set_warmup_block tool for multi-exercise warmups ([#306](https://github.com/JeffOtano/roni/issues/306)) ([cd64aa6](https://github.com/JeffOtano/roni/commit/cd64aa6ceb8297f12651b0417f28776d3749f99b))
+* **coach-tools:** expose warmUp flag on add_exercise tool ([#302](https://github.com/JeffOtano/roni/issues/302)) ([14a2b65](https://github.com/JeffOtano/roni/commit/14a2b6587ac0b89f6697bf0a96900f6d391aa485))
+* **coach-tools:** tighten descriptions to disambiguate workout-info tools ([#311](https://github.com/JeffOtano/roni/issues/311)) ([102af06](https://github.com/JeffOtano/roni/commit/102af066fa7d62cac8d1d55fd630bf3406e104b1))
+* **coach-tools:** tighten search_exercises (name-strict mode + trainingType allowlist) ([#303](https://github.com/JeffOtano/roni/issues/303)) ([ba368bf](https://github.com/JeffOtano/roni/commit/ba368bf4070a9be5f35e92ca77b23709b8e6f710))
+* **coach:** surface degenerate exercise selection from program_week ([#305](https://github.com/JeffOtano/roni/issues/305)) ([2054788](https://github.com/JeffOtano/roni/commit/20547881e52d451ba079534c4f1b8a03ceb8e147))
+* **tonal:** real push verification — diff stored workout against intent ([#308](https://github.com/JeffOtano/roni/issues/308)) ([1757768](https://github.com/JeffOtano/roni/commit/1757768727ea8e68189df978b48637e14d4a8f26))
+
+
+### Bug Fixes
+
+* **backend:** guard action loops against timeout and fix Zod schema ([#301](https://github.com/JeffOtano/roni/issues/301)) ([851f6dc](https://github.com/JeffOtano/roni/commit/851f6dc31f29f4ad23a24d3096d48bf2fff0ad7f))
+* **coach:** guard add_exercise against silent block drop and surface post-write counts ([#304](https://github.com/JeffOtano/roni/issues/304)) ([341bbe2](https://github.com/JeffOtano/roni/commit/341bbe2f86c60a623319c1d473c534773d2c68ef))
+* **coach:** increase Tonal push gap from 2s to 5s ([#309](https://github.com/JeffOtano/roni/issues/309)) ([42f7142](https://github.com/JeffOtano/roni/commit/42f714205d93a82e86a5a149e7f6f90bd3ed3ffd))
+* **coachState:** widen aiRun.snapshotSource validator to unblock prod deploy ([#298](https://github.com/JeffOtano/roni/issues/298)) ([3b87ecd](https://github.com/JeffOtano/roni/commit/3b87ecd41e2abea322b9355f2e4e6297b080cad0))
+* resolve three production Sentry issues (TONALCOACH-17, 1C, 3V) ([#315](https://github.com/JeffOtano/roni/issues/315)) ([0d5cb07](https://github.com/JeffOtano/roni/commit/0d5cb07096c598a64685fe14e464553a9b296557))
+* sync sentryBeforeSend filter list with posthogBeforeSend ([#317](https://github.com/JeffOtano/roni/issues/317)) ([5afd27d](https://github.com/JeffOtano/roni/commit/5afd27d760a92d2e5d7c771c7727103b76580907))
+* **tonal:** reject empty estimate payloads + return structured error to LLM ([#310](https://github.com/JeffOtano/roni/issues/310)) ([da34cb5](https://github.com/JeffOtano/roni/commit/da34cb55a645133ee37eadf035635c626361f99d))
+* **workoutDetail:** split into internal+public actions to fix LLM tool auth ([#313](https://github.com/JeffOtano/roni/issues/313)) ([96677ce](https://github.com/JeffOtano/roni/commit/96677ce45f8d11d27600d76a591da001148b2e2b))
+
+
+### Refactoring
+
+* **coachState:** collapse 10-runQuery fan-out into single internalQuery ([#295](https://github.com/JeffOtano/roni/issues/295)) ([0ca0696](https://github.com/JeffOtano/roni/commit/0ca069649faa17418de1f1c7f3c4afc563ef26fa))
+* **coachState:** re-narrow aiRun.snapshotSource to live_rebuild ([#299](https://github.com/JeffOtano/roni/issues/299)) ([52990fd](https://github.com/JeffOtano/roni/commit/52990fd0c69dc75ac3a5877d3205b9cbf584d39b))
+
 ## [0.7.0](https://github.com/JeffOtano/roni/compare/v0.6.0...v0.7.0) (2026-04-28)
 
 
