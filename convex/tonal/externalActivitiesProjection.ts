@@ -9,10 +9,14 @@ const externalActivitySchema = z.object({
   workoutType: z.string(),
   beginTime: z.string(),
   totalDuration: z.number(),
-  distance: z.number(),
-  activeCalories: z.number(),
-  totalCalories: z.number(),
-  averageHeartRate: z.number(),
+  // Tonal legitimately omits these for non-cardio activity types (e.g. strength
+  // training tracked by Garmin). The ExternalActivity interface already marks
+  // them optional; the Zod schema must match so the strict projector does not
+  // throw a ZodError for valid API responses.
+  distance: z.number().optional(),
+  activeCalories: z.number().optional(),
+  totalCalories: z.number().optional(),
+  averageHeartRate: z.number().optional(),
   source: z.string().transform(normalizeExternalActivitySource),
   externalId: z.string(),
 });

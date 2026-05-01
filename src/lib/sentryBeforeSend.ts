@@ -30,13 +30,17 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "Wrong email or password",
   '"kind":"RateLimited"',
   "Not authenticated",
-  // Gemini / provider transient errors that already produce an attributed
-  // user-facing message server-side. The client stream consumer still throws,
+  // Provider transient errors (Gemini turn-ordering, Anthropic overload,
+  // gRPC RESOURCE_EXHAUSTED) that streamWithRetry already surfaces as a
+  // friendly user-facing message. The client stream consumer still throws,
   // which is what Sentry captures here.
   "function call turn comes immediately after",
-  "exceeded your current quota",
   "model is currently experiencing high demand",
   "RESOURCE_EXHAUSTED",
+  // Gemini free-tier quota errors. The narrow full phrases avoid
+  // over-suppressing legitimate quota incidents from other services.
+  "You exceeded your current quota, please check your plan and billing details",
+  "generate_content_free_tier_requests",
 ];
 
 function errorMessage(event: ErrorEvent, hint: EventHint): string | null {

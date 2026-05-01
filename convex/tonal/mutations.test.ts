@@ -179,6 +179,32 @@ describe("retryOn5xx", () => {
     expect(fn).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
   });
+
+  it("retries Tonal 500 from eligibility-style fetchers and succeeds on second attempt", async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const activities = [{ activityId: "a1" }];
+      const fn = async () => {
+        calls++;
+        if (calls === 1)
+          throw new TonalApiError(
+            500,
+            '{"message":"error getting activities for user","status":500}',
+          );
+        return activities;
+      };
+
+      const promise = retryOn5xx(fn, 2);
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(activities);
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("pushWorkoutToTonal catch block", () => {

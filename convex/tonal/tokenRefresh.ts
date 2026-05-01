@@ -1,3 +1,4 @@
+import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -5,9 +6,16 @@ import { decryptToken, encryptToken, refreshTonalToken } from "./auth";
 import * as analytics from "../lib/posthog";
 
 const EXPIRING_TOKENS_PAGE_SIZE = 200;
+const ACTION_LIMIT_MS = 600_000;
+const SAFETY_BUFFER_MS = 60_000;
+const DEADLINE_OFFSET_MS = ACTION_LIMIT_MS - SAFETY_BUFFER_MS;
 
 export const refreshExpiringTokens = internalAction({
-  handler: async (ctx) => {
+  args: {
+    /** Override the deadline budget for tests (omit in production). */
+    _deadlineOffsetMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const twoHoursFromNow = Date.now() + 2 * 60 * 60 * 1000;
 
     const keyHex = process.env.TOKEN_ENCRYPTION_KEY;
@@ -16,8 +24,9 @@ export const refreshExpiringTokens = internalAction({
       return;
     }
 
+    const deadline = Date.now() + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
     let cursor: string | null = null;
-    while (true) {
+    pages: while (true) {
       const page: {
         page: Doc<"userProfiles">[];
         isDone: boolean;
@@ -28,6 +37,12 @@ export const refreshExpiringTokens = internalAction({
       });
 
       for (const profile of page.page) {
+        if (Date.now() >= deadline) {
+          console.warn(
+            "[tokenRefresh] Deadline reached — stopping early. Remaining tokens will be refreshed in the next cron run.",
+          );
+          break pages;
+        }
         try {
           if (
             await ctx.runQuery(internal.lib.auth.getDeletionInProgress, { userId: profile.userId })

@@ -61,6 +61,12 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(wrapped), hintWithError(wrapped))).toBe(true);
   });
 
+  it("drops Gemini free-tier metric quota errors (generate_content_free_tier_requests)", () => {
+    const msg =
+      "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash";
+    expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
+  });
+
   it("drops Gemini high-demand / overload errors", () => {
     const payload =
       "This model is currently experiencing high demand. Spikes in demand are usually temporary.";
