@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import { GARMIN_WELLNESS_SNAPSHOT_ROW_LIMIT } from "./ai/garminWellnessSnapshot";
+import { MAX_EXCLUDED_EXERCISES } from "./exerciseExclusions";
 import { isDeletionInProgress } from "./lib/auth";
 import { MAX_RECENT_WELLNESS_DAILY_ROWS } from "./garmin/wellnessDaily";
 
@@ -28,6 +29,7 @@ export interface SnapshotInputs {
   recentFeedback: ReadonlyArray<Doc<"workoutFeedback">>;
   activeGoals: ReadonlyArray<Doc<"goals">>;
   activeInjuries: ReadonlyArray<Doc<"injuries">>;
+  exerciseExclusions: ReadonlyArray<Doc<"exerciseExclusions">>;
   externalActivities: ReadonlyArray<Doc<"externalActivities">>;
   garminWellness: ReadonlyArray<Doc<"garminWellnessDaily">>;
 }
@@ -35,7 +37,7 @@ export interface SnapshotInputs {
 /**
  * Per-source resilience helper. If `read` rejects, log the error tagged with
  * `sourceName` and return `fallback`, so a single sub-domain failure inside
- * `gatherSnapshotInputs` does not poison the other 9 reads but is still
+ * `gatherSnapshotInputs` does not poison the other reads but is still
  * visible in Convex logs for triage. Exported for direct unit testing of the
  * rejection path.
  */
@@ -49,7 +51,7 @@ export async function safe<T>(read: () => Promise<T>, fallback: T, sourceName: s
 }
 
 /**
- * Single internal query that performs all 10 reads buildTrainingSnapshot
+ * Single internal query that performs all reads buildTrainingSnapshot
  * previously fanned out across separate runQuery calls. Inlining lets
  * `ctx.db.query` reads count under one function invocation instead of 10 —
  * see ADR 0001 §0 (Alt-A) for the cost rationale.
@@ -71,6 +73,7 @@ export const gatherSnapshotInputs = internalQuery({
       recentFeedback,
       activeGoals,
       activeInjuries,
+      exerciseExclusions,
       externalActivities,
       garminWellness,
     ] = await Promise.all([
@@ -126,6 +129,11 @@ export const gatherSnapshotInputs = internalQuery({
         [],
         "activeInjuries",
       ),
+      safe<Doc<"exerciseExclusions">[]>(
+        () => readExerciseExclusions(ctx, userId),
+        [],
+        "exerciseExclusions",
+      ),
       safe<Doc<"externalActivities">[]>(
         () =>
           ctx.db
@@ -157,6 +165,7 @@ export const gatherSnapshotInputs = internalQuery({
       recentFeedback,
       activeGoals,
       activeInjuries,
+      exerciseExclusions,
       externalActivities,
       garminWellness,
     };
@@ -200,4 +209,15 @@ async function readActiveBlock(
     .withIndex("by_userId_status", (q) => q.eq("userId", userId).eq("status", "active"))
     .collect();
   return blocks[0] ?? null;
+}
+
+async function readExerciseExclusions(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+): Promise<Doc<"exerciseExclusions">[]> {
+  return await ctx.db
+    .query("exerciseExclusions")
+    .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
+    .order("desc")
+    .take(MAX_EXCLUDED_EXERCISES);
 }

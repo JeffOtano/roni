@@ -22,6 +22,7 @@ import { CheckInPreferences } from "@/features/settings/CheckInPreferences";
 import { ChangePassword } from "@/features/settings/ChangePassword";
 import { EmailChange } from "@/features/settings/EmailChange";
 import { EquipmentSettings } from "@/features/settings/EquipmentSettings";
+import { ExerciseExclusions } from "@/features/settings/ExerciseExclusions";
 import { DataExport } from "@/features/settings/DataExport";
 import { DeleteAccount } from "@/features/settings/DeleteAccount";
 import { ProfileCard } from "@/features/settings/ProfileCard";
@@ -171,6 +172,12 @@ function SettingsPageInner() {
       <section className="mb-10">
         <h2 className={SECTION_HEADING}>Equipment</h2>
         <EquipmentSettings />
+      </section>
+
+      {/* Excluded Exercises */}
+      <section className="mb-10" id="excluded-exercises">
+        <h2 className={SECTION_HEADING}>Excluded Exercises</h2>
+        <ExerciseExclusions />
       </section>
 
       {/* Check-in Preferences */}

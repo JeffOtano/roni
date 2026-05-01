@@ -75,6 +75,12 @@ interface ExportedData extends Record<JsonExportSectionKey | "exportedAt" | "use
     source: string;
     distance: number;
   }[];
+  exerciseExclusions: {
+    movementId: string;
+    movementName: string;
+    muscleGroups: string[];
+    createdAt: number;
+  }[];
   garminWellnessDaily: GarminWellnessDailyExportRow[];
 }
 
@@ -211,6 +217,12 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId_beginTime", (q) => q.eq("userId", userId))
       .collect();
 
+    const exerciseExclusions = await ctx.db
+      .query("exerciseExclusions")
+      .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
     const garminWellnessDaily = await ctx.db
       .query("garminWellnessDaily")
       .withIndex("by_userId_calendarDate", (q) => q.eq("userId", userId))
@@ -322,6 +334,12 @@ export const collectUserData = internalQuery({
         averageHeartRate: ea.averageHeartRate,
         source: ea.source,
         distance: ea.distance,
+      })),
+      exerciseExclusions: exerciseExclusions.map((exclusion) => ({
+        movementId: exclusion.movementId,
+        movementName: exclusion.movementName,
+        muscleGroups: exclusion.muscleGroups,
+        createdAt: exclusion.createdAt,
       })),
       garminWellnessDaily: garminWellnessDaily.map(garminWellnessDailyToExportRow),
     };

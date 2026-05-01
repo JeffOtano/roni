@@ -298,17 +298,19 @@ export const adjustDayDuration = internalAction({
     const maxExercises =
       SESSION_DURATION_TO_MAX_EXERCISES[newDurationMinutes] ?? DEFAULT_MAX_EXERCISES;
 
-    // Fetch catalog, recent movement IDs, user profile, and active injuries in parallel
-    const [catalog, lastUsedMovementIds, profile, activeInjuries]: [
+    // Fetch catalog, recent movement IDs, user profile, active injuries, and exclusions in parallel.
+    const [catalog, lastUsedMovementIds, profile, activeInjuries, exerciseExclusions]: [
       Movement[],
       string[],
       Doc<"userProfiles"> | null,
       Doc<"injuries">[],
+      { movementId: string }[],
     ] = await Promise.all([
       ctx.runQuery(internal.tonal.movementSync.getAllMovements),
       ctx.runQuery(internal.workoutPlans.getRecentMovementIds, { userId }),
       ctx.runQuery(internal.userProfiles.getByUserId, { userId }),
       ctx.runQuery(internal.injuries.getActiveInternal, { userId }),
+      ctx.runQuery(internal.exerciseExclusions.getForUser, { userId }),
     ]);
 
     const userLevel = parseUserLevel(
@@ -320,6 +322,7 @@ export const adjustDayDuration = internalAction({
       .flatMap((inj) => inj.avoidance.split(",").map((s) => s.trim()))
       .filter((s) => s.length > 0);
     const excludeAccessories = computeExcludedAccessories(profile?.ownedAccessories ?? undefined);
+    const excludeMovementIds = exerciseExclusions.map((exclusion) => exclusion.movementId);
 
     const movementIds = selectExercises({
       catalog,
@@ -329,6 +332,7 @@ export const adjustDayDuration = internalAction({
       lastUsedMovementIds: lastUsedMovementIds as string[],
       constraints: {
         excludeNameSubstrings: injuryAvoidances.length > 0 ? injuryAvoidances : undefined,
+        excludeMovementIds: excludeMovementIds.length > 0 ? excludeMovementIds : undefined,
         excludeAccessories: excludeAccessories.length > 0 ? excludeAccessories : undefined,
       },
     });

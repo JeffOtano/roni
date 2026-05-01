@@ -153,6 +153,34 @@ describe("selectWarmupExercises", () => {
     expect(result).toEqual(["warmup-none"]);
   });
 
+  it("respects exact movement ID exclusions", () => {
+    const catalog: Movement[] = [
+      movement({
+        id: "warmup-excluded",
+        name: "Shoulder Mobility",
+        muscleGroups: ["Shoulders"],
+        skillLevel: 1,
+        trainingTypes: ["Warm-up"],
+      }),
+      movement({
+        id: "warmup-allowed",
+        name: "Chest Opener",
+        muscleGroups: ["Shoulders"],
+        skillLevel: 1,
+        trainingTypes: ["Warm-up"],
+      }),
+    ];
+
+    const result = selectWarmupExercises({
+      catalog,
+      targetMuscleGroups: ["Shoulders"],
+      maxExercises: 3,
+      constraints: { excludeMovementIds: ["warmup-excluded"] },
+    });
+
+    expect(result).toEqual(["warmup-allowed"]);
+  });
+
   it("does not filter by skill level", () => {
     const catalog: Movement[] = [
       movement({

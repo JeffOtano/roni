@@ -29,6 +29,8 @@ export interface ExerciseSelectionInput {
   constraints?: {
     /** Exclude movements whose name contains any of these substrings (case-insensitive). E.g. ["Overhead"] for no overhead pressing. */
     excludeNameSubstrings?: string[];
+    /** Exclude exact Tonal movement IDs selected by the user. */
+    excludeMovementIds?: string[];
     /** Tonal API accessory strings the user does NOT have — movements requiring these are excluded. */
     excludeAccessories?: string[];
   };
@@ -67,10 +69,12 @@ export function selectExercises(input: ExerciseSelectionInput): string[] {
   const lastUsedSet = new Set(lastUsedMovementIds);
   const recentWeeksSet = new Set(recentWeeksMovementIds ?? []);
   const excludeSubstrings = (constraints?.excludeNameSubstrings ?? []).map((s) => s.toLowerCase());
+  const excludeMovementIdSet = new Set(constraints?.excludeMovementIds ?? []);
   const excludeAccessorySet = new Set(constraints?.excludeAccessories ?? []);
 
   const eligible = catalog.filter((m) => {
     if (lastUsedSet.has(m.id)) return false;
+    if (excludeMovementIdSet.has(m.id)) return false;
     const matchesTarget = m.muscleGroups.some((g) => targetSet.has(g.toLowerCase()));
     if (!matchesTarget) return false;
     if (excludeSubstrings.length) {
@@ -113,6 +117,7 @@ export interface ExerciseSelectionDiagnostics {
   catalogSize: number;
   matchedTarget: number;
   eliminatedByInjury: number;
+  eliminatedByMovementId: number;
   eliminatedByAccessory: number;
   eliminatedByLastUsed: number;
   eliminatedBySkillCap: number;
@@ -139,10 +144,12 @@ export function selectExercisesWithDiagnostics(
   const targetSet = new Set(targetMuscleGroups.map((g) => g.toLowerCase()));
   const lastUsedSet = new Set(lastUsedMovementIds);
   const excludeSubstrings = (constraints?.excludeNameSubstrings ?? []).map((s) => s.toLowerCase());
+  const excludeMovementIdSet = new Set(constraints?.excludeMovementIds ?? []);
   const excludeAccessorySet = new Set(constraints?.excludeAccessories ?? []);
 
   let matchedTarget = 0;
   let eliminatedByInjury = 0;
+  let eliminatedByMovementId = 0;
   let eliminatedByAccessory = 0;
   let eliminatedByLastUsed = 0;
   let eliminatedBySkillCap = 0;
@@ -151,6 +158,10 @@ export function selectExercisesWithDiagnostics(
   for (const m of catalog) {
     if (lastUsedSet.has(m.id)) {
       eliminatedByLastUsed++;
+      continue;
+    }
+    if (excludeMovementIdSet.has(m.id)) {
+      eliminatedByMovementId++;
       continue;
     }
     const matchesTarget = m.muscleGroups.some((g) => targetSet.has(g.toLowerCase()));
@@ -194,6 +205,7 @@ export function selectExercisesWithDiagnostics(
       catalogSize: catalog.length,
       matchedTarget,
       eliminatedByInjury,
+      eliminatedByMovementId,
       eliminatedByAccessory,
       eliminatedByLastUsed,
       eliminatedBySkillCap,
@@ -210,6 +222,7 @@ export interface WarmupCooldownInput {
   maxExercises: number;
   constraints?: {
     excludeAccessories?: string[];
+    excludeMovementIds?: string[];
   };
 }
 
@@ -237,10 +250,12 @@ export function selectCooldownExercises(input: WarmupCooldownInput): string[] {
 function selectByTrainingType(input: WarmupCooldownInput, fallbackChain: string[][]): string[] {
   const { catalog, targetMuscleGroups, maxExercises, constraints } = input;
   const targetSet = new Set(targetMuscleGroups.map((g) => g.toLowerCase()));
+  const excludeMovementIdSet = new Set(constraints?.excludeMovementIds ?? []);
   const excludeAccessorySet = new Set(constraints?.excludeAccessories ?? []);
 
   const eligible = catalog.filter((m) => {
     if (!m.trainingTypes?.length) return false;
+    if (excludeMovementIdSet.has(m.id)) return false;
     if (!m.muscleGroups.some((g) => targetSet.has(g.toLowerCase()))) return false;
     if (excludeAccessorySet.size > 0 && m.onMachineInfo?.accessory) {
       if (excludeAccessorySet.has(m.onMachineInfo.accessory)) return false;

@@ -85,6 +85,7 @@ async function takeBatchForDeletion(
     case "checkIns":
     case "workoutPlans":
     case "injuries":
+    case "exerciseExclusions":
     case "emailChangeRequests":
     case "aiBudgetWarnings":
     case "strengthScoreSnapshots":

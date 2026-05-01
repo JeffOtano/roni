@@ -85,6 +85,7 @@ const NAV_PILLS = [
   { label: "Strength trends", href: "/strength" },
   { label: "Personal records", href: "/prs" },
   { label: "Browse exercises", href: "/exercises" },
+  { label: "Excluded exercises", href: "/settings#excluded-exercises" },
 ] as const;
 
 // ---------------------------------------------------------------------------
