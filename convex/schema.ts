@@ -427,6 +427,7 @@ export default defineSchema({
     totalTokens: v.number(),
     cacheReadTokens: v.optional(v.number()),
     cacheWriteTokens: v.optional(v.number()),
+    stoppedByBudget: v.optional(v.boolean()),
     routedIntent: v.optional(v.string()),
     createdAt: v.number(),
   })

@@ -1,17 +1,14 @@
 "use node";
 
-// Node runtime required: this module imports ./otel, which loads
-// @arizeai/phoenix-otel → @opentelemetry/sdk-trace-node → context-async-hooks's
-// require("async_hooks"). Marking it "use node" keeps the Convex bundler
-// from trying to ship async_hooks into the V8 isolate.
-
 import type { Agent } from "@convex-dev/agent";
 import type { ModelMessage } from "@ai-sdk/provider-utils";
 import { saveMessage } from "@convex-dev/agent";
-import type { StepResult, TelemetrySettings, ToolSet } from "ai";
+import { stepCountIs, type StepResult, type TelemetrySettings, type ToolSet } from "ai";
 import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
+import { budgetCapStopCondition, type BudgetCapTrip } from "./budgetCap";
+import { COACH_MAX_STEPS } from "./coach";
 import { type ProviderId } from "./providers";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
@@ -29,12 +26,10 @@ export type { ByokErrorCode } from "./byokErrors";
 export { isTransientError } from "./transientErrors";
 
 const AI_ERROR_MESSAGE = "I'm having trouble right now. Please try again in a moment.";
+const BUDGET_CAP_MESSAGE =
+  "This is getting expensive on your API key, so I'm simplifying here. Ask a narrower follow-up if you want me to keep going.";
 const MAX_OUTPUT_TOKENS = 4096;
 const RETRY_DELAY_MS = 3000;
-
-// ---------------------------------------------------------------------------
-// Stream with retry + fallback
-// ---------------------------------------------------------------------------
 
 interface StreamWithRetryArgs {
   primaryAgent: Agent;
@@ -43,25 +38,15 @@ interface StreamWithRetryArgs {
   userId: string;
   prompt?: string | Array<ModelMessage>;
   promptMessageId?: string;
-  /** True when the user is on their own API key (not the house key). */
   isByok: boolean;
-  /** The active provider. Drives the provider-specific BYOK error message. */
   provider: ProviderId;
-  /** Distinguishes a fresh user message from an approval-continuation turn. */
   source: "chat" | "approval_continuation";
-  /** Deployment environment — surfaces in dashboards to slice dev vs prod. */
   environment: "dev" | "prod";
-  /** Vercel commit SHA when available. */
   release?: string;
-  /** Hash of STATIC_INSTRUCTIONS; lets us correlate prompt changes to metrics. */
   promptVersion?: string;
-  /** True when the user attached at least one image to this turn. */
   hasImages?: boolean;
-  /** Server-side enqueue timestamp from the mutation that scheduled this action. */
   scheduledAt?: number;
-  /** Timestamp captured at processMessage handler entry. */
   processingStartedAt?: number;
-  /** Whether semantic cross-thread retrieval was enabled for this turn. */
   retrievalEnabled?: boolean;
 }
 
@@ -122,7 +107,6 @@ export async function streamWithRetry(
       isByok,
     },
     async (span) => {
-      // runId matches the Phoenix trace id so `aiRun.runId` joins to Phoenix traces.
       const runId = span.runId;
       const telemetry: TelemetryArgs = {
         runId,
@@ -166,8 +150,6 @@ export async function streamWithRetry(
             span.recordError(cls);
             return { done: true };
           }
-          // Quota errors are technically retryable (429), but RPM/RPD/input-token
-          // quotas won't clear in 3s — treat as terminal to avoid wasted retries.
           if (isQuotaError(error) || !isTransientError(error)) {
             const cls = errorClassName(error);
             accumulator.setTerminalErrorClass(cls);
@@ -180,10 +162,6 @@ export async function streamWithRetry(
       };
 
       if ((await runAttempt(primaryAgent)).done) return accumulator;
-      // Clear pending rows before retry — otherwise the next attempt's
-      // history loader picks up orphaned tool-call/tool-result fragments
-      // and Gemini rejects with "function call turn must follow user/
-      // function-response turn".
       await safeFinalizePending(ctx, threadId, "transient_retry");
       accumulator.markRetry();
       await delay(RETRY_DELAY_MS);
@@ -239,12 +217,22 @@ async function attemptStream({
   const { threadId, userId } = telemetry;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("Stream timeout"), ATTEMPT_TIMEOUT_MS);
+  let budgetTrip: BudgetCapTrip | undefined;
   try {
     const { thread } = await agent.continueThread(ctx, { threadId, userId });
+    const stopWhen = telemetry.isByok
+      ? [
+          stepCountIs(COACH_MAX_STEPS),
+          budgetCapStopCondition(telemetry.provider, (trip) => {
+            budgetTrip = trip;
+          }),
+        ]
+      : stepCountIs(COACH_MAX_STEPS);
     const result = await thread.streamText(
       {
         ...promptArgs,
         abortSignal: controller.signal,
+        stopWhen,
         experimental_telemetry: buildTelemetryConfig(telemetry),
         experimental_context: { runId: telemetry.runId },
         onChunk: (event: { chunk: { type: string } }) => {
@@ -272,6 +260,20 @@ async function attemptStream({
       STREAM_OPTIONS,
     );
     await result.text;
+
+    if (budgetTrip) {
+      await ctx.runMutation(internal.aiUsage.recordBudgetStop, {
+        userId: userId as Id<"users">,
+        threadId,
+        provider: telemetry.provider,
+        model: budgetTrip.modelId ?? "unknown",
+      });
+      await saveMessage(ctx, components.agent, {
+        threadId,
+        userId,
+        message: { role: "assistant", content: BUDGET_CAP_MESSAGE },
+      });
+    }
   } finally {
     clearTimeout(timeout);
   }
