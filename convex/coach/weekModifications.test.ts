@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { describe, expect, it, test } from "vitest";
 import type { BlockInput } from "../tonal/transforms";
+import { internal } from "../_generated/api";
+import schema from "../schema";
+
+// Vite normalizes same-directory glob keys to "./foo.ts" instead of
+// "../coach/foo.ts", which breaks convex-test module resolution.
+// Remap ./foo.ts -> ../coach/foo.ts to match the expected path format.
+const rawModules = import.meta.glob("../**/*.*s");
+const modules: typeof rawModules = {};
+for (const [key, value] of Object.entries(rawModules)) {
+  modules[key.startsWith("./") ? "../coach/" + key.slice(2) : key] = value;
+}
 
 /** Pure version of the swap logic from weekModifications.ts for unit testing. */
 function swapMovementInBlocks(
@@ -101,5 +114,175 @@ describe("day slot swap (pure logic)", () => {
     const days: DaySlot[] = [{ sessionType: "push", status: "programmed", workoutPlanId: "wp1" }];
     const result = swapDays(days, 0, 0);
     expect(result).toEqual(days);
+  });
+});
+
+describe("addExerciseToDraft warmUp passthrough", () => {
+  test("persists warmUp:true on the new exercise when the arg is set", async () => {
+    const t = convexTest(schema, modules);
+
+    const userId = await t.run(async (ctx) => {
+      return ctx.db.insert("users", {});
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("movements", {
+        tonalId: "mov-warmup-1",
+        name: "Cat-Cow",
+        shortName: "Cat-Cow",
+        muscleGroups: ["Back"],
+        skillLevel: 1,
+        publishState: "published",
+        sortOrder: 1,
+        onMachine: false,
+        inFreeLift: true,
+        countReps: false,
+        isTwoSided: false,
+        isBilateral: false,
+        isAlternating: false,
+        descriptionHow: "On all fours, alternate between arching and rounding your back.",
+        descriptionWhy: "Improves spinal mobility.",
+        lastSyncedAt: Date.now(),
+      });
+    });
+
+    const planId = await t.run(async (ctx) => {
+      return ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Test",
+        blocks: [{ exercises: [{ movementId: "mov-other", sets: 3, reps: 10 }] }],
+        status: "draft",
+        createdAt: Date.now(),
+      });
+    });
+
+    const result = await t.mutation(internal.coach.weekModifications.addExerciseToDraft, {
+      userId,
+      workoutPlanId: planId,
+      movementId: "mov-warmup-1",
+      sets: 2,
+      duration: 30,
+      warmUp: true,
+    });
+
+    expect(result.ok).toBe(true);
+
+    const wp = await t.run((ctx) => ctx.db.get(planId));
+    // Bracket access (not .at(-1)) to stay under Convex's tsc lib target,
+    // which lacks Array.prototype.at — the Vercel deploy typecheck rejects it.
+    const lastBlockExercise = wp!.blocks[wp!.blocks.length - 1]!.exercises[0];
+    expect(lastBlockExercise.movementId).toBe("mov-warmup-1");
+    expect(lastBlockExercise.warmUp).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addExerciseToDraft — integration tests
+// ---------------------------------------------------------------------------
+
+/** Minimal movement document satisfying the schema's required fields. */
+function makeMovementDoc(tonalId: string, countReps = true) {
+  return {
+    tonalId,
+    name: tonalId,
+    shortName: tonalId,
+    muscleGroups: ["Quads"],
+    skillLevel: 1,
+    publishState: "published",
+    sortOrder: 1,
+    onMachine: true,
+    inFreeLift: false,
+    countReps,
+    isTwoSided: false,
+    isBilateral: true,
+    isAlternating: false,
+    descriptionHow: "",
+    descriptionWhy: "",
+    lastSyncedAt: 1000,
+  };
+}
+
+describe("addExerciseToDraft under concurrent calls", () => {
+  it("three parallel calls all persist (no silent drop)", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+
+    await t.run(async (ctx) => {
+      for (const id of ["mov-a", "mov-b", "mov-c", "mov-existing"]) {
+        await ctx.db.insert("movements", makeMovementDoc(id));
+      }
+    });
+
+    const planId = await t.run((ctx) =>
+      ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Test",
+        blocks: [
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+        ],
+        status: "draft",
+        createdAt: Date.now(),
+      }),
+    );
+
+    const results = await Promise.all(
+      ["mov-a", "mov-b", "mov-c"].map((m) =>
+        t.mutation(internal.coach.weekModifications.addExerciseToDraft, {
+          userId,
+          workoutPlanId: planId,
+          movementId: m,
+          sets: 3,
+          reps: 10,
+        }),
+      ),
+    );
+
+    for (const r of results) expect(r.ok).toBe(true);
+
+    const wp = await t.run((ctx) => ctx.db.get(planId));
+    const allMovementIds = wp!.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
+    expect(allMovementIds).toContain("mov-a");
+    expect(allMovementIds).toContain("mov-b");
+    expect(allMovementIds).toContain("mov-c");
+  });
+
+  it("integrity guard does not fire under normal operation", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+
+    await t.run(async (ctx) => {
+      for (const id of ["mov-existing", "mov-new"]) {
+        await ctx.db.insert("movements", makeMovementDoc(id));
+      }
+    });
+
+    const planId = await t.run((ctx) =>
+      ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Test",
+        blocks: [
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+          { exercises: [{ movementId: "mov-existing", sets: 3, reps: 10 }] },
+        ],
+        status: "draft",
+        createdAt: Date.now(),
+      }),
+    );
+
+    const result = await t.mutation(internal.coach.weekModifications.addExerciseToDraft, {
+      userId,
+      workoutPlanId: planId,
+      movementId: "mov-new",
+      sets: 3,
+      reps: 10,
+    });
+
+    expect(result.ok).toBe(true);
+
+    const wp = await t.run((ctx) => ctx.db.get(planId));
+    const allMovementIds = wp!.blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
+    expect(allMovementIds).toContain("mov-existing");
+    expect(allMovementIds).toContain("mov-new");
   });
 });

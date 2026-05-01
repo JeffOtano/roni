@@ -12,6 +12,72 @@ import { WORKOUT_SOURCE } from "../workoutPlans";
 import { withTokenRetry } from "./tokenRetry";
 import { blockInputValidator } from "../validators";
 
+export interface PushDivergence {
+  missingMovements: string[];
+  extraMovements: string[];
+  setCountMismatches: { movementId: string; intended: number; stored: number }[];
+}
+
+interface IntendedSet {
+  movementId: string;
+  sets: number;
+}
+
+interface StoredSet {
+  movementId: string;
+  prescribedReps?: number;
+  prescribedDuration?: number;
+}
+
+/**
+ * Compare intended (what we sent to Tonal) vs stored (what Tonal actually saved).
+ * Returns null when they match exactly. Returns a structured divergence object
+ * listing missing movements, extra movements, and per-movement set-count mismatches
+ * when they don't.
+ *
+ * "Intended" is in (movementId, sets) compact form. "Stored" is one entry per
+ * actual set in Tonal's response. The function expands intended into per-set
+ * counts internally for comparison.
+ */
+export function computePushDivergence(
+  intended: IntendedSet[],
+  storedSets: StoredSet[],
+): PushDivergence | null {
+  const intendedCounts = new Map<string, number>();
+  for (const it of intended) {
+    intendedCounts.set(it.movementId, (intendedCounts.get(it.movementId) ?? 0) + it.sets);
+  }
+  const storedCounts = new Map<string, number>();
+  for (const s of storedSets) {
+    storedCounts.set(s.movementId, (storedCounts.get(s.movementId) ?? 0) + 1);
+  }
+
+  const missingMovements: string[] = [];
+  const setCountMismatches: PushDivergence["setCountMismatches"] = [];
+  for (const [movementId, intendedSetCount] of intendedCounts) {
+    const storedCount = storedCounts.get(movementId) ?? 0;
+    if (storedCount === 0) missingMovements.push(movementId);
+    else if (storedCount !== intendedSetCount) {
+      setCountMismatches.push({ movementId, intended: intendedSetCount, stored: storedCount });
+    }
+  }
+
+  const extraMovements: string[] = [];
+  for (const movementId of storedCounts.keys()) {
+    if (!intendedCounts.has(movementId)) extraMovements.push(movementId);
+  }
+
+  if (
+    missingMovements.length === 0 &&
+    extraMovements.length === 0 &&
+    setCountMismatches.length === 0
+  ) {
+    return null;
+  }
+
+  return { missingMovements, extraMovements, setCountMismatches };
+}
+
 /** Mutates `sets` in place; returns the number of corrections made. */
 export function correctDurationRepsMismatch(
   sets: WorkoutSetInput[],
@@ -67,7 +133,10 @@ export const pushWorkoutToTonal = internalAction({
     title: v.string(),
     blocks: blockInputValidator,
   },
-  handler: async (ctx, { userId, title, blocks }): Promise<{ id: string }> => {
+  handler: async (
+    ctx,
+    { userId, title, blocks },
+  ): Promise<{ id: string; pushDivergence: PushDivergence | null }> => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     if (catalog.length === 0) {
       throw new Error(
@@ -107,17 +176,30 @@ export const pushWorkoutToTonal = internalAction({
       }
       const tonalWorkoutId = workout.id;
 
-      // Best-effort verification; never throws — the push itself already succeeded.
+      // Real verification: fetch the stored workout and diff against intent.
+      let pushDivergence: PushDivergence | null = null;
       try {
-        const customWorkouts = await tonalFetch<Array<{ id: string }>>(token, `/v6/user-workouts`);
-        if (!customWorkouts?.some((w) => w.id === tonalWorkoutId)) {
-          console.warn(`Push verification: workout ${tonalWorkoutId} not found in read-back`);
+        const stored = await tonalFetch<{
+          id: string;
+          sets?: { movementId: string; prescribedReps?: number; prescribedDuration?: number }[];
+        }>(token, `/v6/user-workouts/${tonalWorkoutId}`);
+        if (stored.sets !== undefined) {
+          // sets[] in the request is already expanded one-per-set, so each row counts as 1.
+          const intended = sets.map((s) => ({ movementId: s.movementId, sets: 1 }));
+          pushDivergence = computePushDivergence(intended, stored.sets);
+          if (pushDivergence) {
+            console.warn(
+              `Push divergence on workout ${tonalWorkoutId}:`,
+              JSON.stringify(pushDivergence),
+            );
+          }
         }
-      } catch {
-        console.warn(`Push verification: could not read back custom workouts list`);
+        // If stored.sets is undefined, we cannot verify; leave pushDivergence null.
+      } catch (err) {
+        console.warn(`Push verification: read-back failed for ${tonalWorkoutId}`, err);
       }
 
-      return { id: tonalWorkoutId };
+      return { id: tonalWorkoutId, pushDivergence };
     });
   },
 });
@@ -197,6 +279,7 @@ export const createWorkout = internalAction({
         title: string;
         setCount: number;
         planId: Id<"workoutPlans">;
+        pushDivergence: PushDivergence | null;
       }
     | { success: false; error: string; planId: Id<"workoutPlans"> }
   > => {
@@ -204,11 +287,14 @@ export const createWorkout = internalAction({
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
       const tonalTitle = title;
-      const { id } = await ctx.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
-        userId,
-        title: tonalTitle,
-        blocks,
-      });
+      const { id, pushDivergence } = await ctx.runAction(
+        internal.tonal.mutations.pushWorkoutToTonal,
+        {
+          userId,
+          title: tonalTitle,
+          blocks,
+        },
+      );
       const now = Date.now();
       const planId = await ctx.runMutation(internal.workoutPlans.create, {
         userId,
@@ -234,6 +320,7 @@ export const createWorkout = internalAction({
         title,
         setCount: sets.length,
         planId,
+        pushDivergence,
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -292,9 +379,15 @@ export const estimateWorkout = internalAction({
   handler: async (ctx, { userId, blocks }): Promise<WorkoutEstimate> => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     const sets = expandBlocksToSets(blocks as BlockInput[], catalog);
-    // Tonal's /v6/user-workouts/estimate expects a bare SetList array, not
-    // a wrapper object. Sending { sets: [...] } produces a 400 with
-    // "cannot unmarshal object into Go value of type content.SetList".
+    // Reject empty payloads up front; Tonal would otherwise return its
+    // misleading "cannot unmarshal object into Go value of type content.SetList"
+    // 400 for both empty arrays and JSON-object wrappers.
+    if (sets.length === 0) {
+      throw new Error(
+        "estimateWorkout: no sets to estimate. Verify every exercise has a valid movementId resolvable in the catalog.",
+      );
+    }
+    // Endpoint expects a bare SetList array, not a wrapper object.
     return withTokenRetry(ctx, userId, async (token) =>
       tonalFetch<WorkoutEstimate>(token, "/v6/user-workouts/estimate", {
         method: "POST",

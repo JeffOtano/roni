@@ -15,7 +15,7 @@ import {
 } from "../weekPlans";
 import {
   selectCooldownExercises,
-  selectExercises,
+  selectExercisesWithDiagnostics,
   selectWarmupExercises,
 } from "./exerciseSelection";
 import type { ExerciseSelectionInput } from "./exerciseSelection";
@@ -120,7 +120,17 @@ export const generateDraftWeekPlan = internalAction({
     ctx,
     args,
   ): Promise<
-    | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
+    | {
+        success: true;
+        weekPlanId: Id<"weekPlans">;
+        summary: DraftWeekSummary;
+        degenerateDays: {
+          dayIndex: number;
+          dayName: string;
+          eliminatedByInjury: number;
+          eliminatedByAccessory: number;
+        }[];
+      }
     | { success: false; error: string }
   > => {
     const weekStartDate = args.weekStartDate ?? getWeekStartDateString(new Date());
@@ -171,6 +181,12 @@ export const generateDraftWeekPlan = internalAction({
     // Build drafts for each training day (sequential to avoid movement reuse)
     const daySummaries: DraftDaySummary[] = [];
     const catalog = data.catalog;
+    const degenerateDays: {
+      dayIndex: number;
+      dayName: string;
+      eliminatedByInjury: number;
+      eliminatedByAccessory: number;
+    }[] = [];
 
     for (const { dayIndex, sessionType } of daySessions) {
       const targetMuscleGroups =
@@ -180,7 +196,7 @@ export const generateDraftWeekPlan = internalAction({
       const wcCounts = WARMUP_COOLDOWN_COUNTS[sessionDurationMinutes] ?? DEFAULT_WARMUP_COOLDOWN;
       const mainMaxExercises = maxExercises - wcCounts.warmup - wcCounts.cooldown;
 
-      const rawMovementIds = selectExercises({
+      const selection = selectExercisesWithDiagnostics({
         catalog,
         targetMuscleGroups,
         userLevel: data.userLevel,
@@ -188,6 +204,15 @@ export const generateDraftWeekPlan = internalAction({
         lastUsedMovementIds: data.lastUsedMovementIds,
         constraints: data.constraints,
       });
+      if (selection.diagnostics.fellThroughDiversity) {
+        degenerateDays.push({
+          dayIndex,
+          dayName: DAY_NAMES[dayIndex],
+          eliminatedByInjury: selection.diagnostics.eliminatedByInjury,
+          eliminatedByAccessory: selection.diagnostics.eliminatedByAccessory,
+        });
+      }
+      const rawMovementIds = selection.ids;
       if (rawMovementIds.length === 0) continue;
 
       // Sort exercises to minimize equipment switching and arm adjustments
@@ -307,6 +332,7 @@ export const generateDraftWeekPlan = internalAction({
         sessionDurationMinutes,
         days: daySummaries,
       },
+      degenerateDays,
     };
   },
 });

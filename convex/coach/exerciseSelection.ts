@@ -109,6 +109,101 @@ export function selectExercises(input: ExerciseSelectionInput): string[] {
   return ordered.slice(0, maxExercises).map((m) => m.id);
 }
 
+export interface ExerciseSelectionDiagnostics {
+  catalogSize: number;
+  matchedTarget: number;
+  eliminatedByInjury: number;
+  eliminatedByAccessory: number;
+  eliminatedByLastUsed: number;
+  eliminatedBySkillCap: number;
+  eligibleCount: number;
+  fellThroughDiversity: boolean;
+  eligibleMuscleGroupCount: number;
+}
+
+export interface ExerciseSelectionWithDiagnostics {
+  ids: string[];
+  diagnostics: ExerciseSelectionDiagnostics;
+}
+
+/**
+ * Same as selectExercises, but also returns per-stage filter counts and
+ * a `fellThroughDiversity` flag (true when the eligible set covers fewer than
+ * 2 of the requested target muscle groups). Use from the week-programming
+ * pipeline to surface degenerate plans to the caller.
+ */
+export function selectExercisesWithDiagnostics(
+  input: ExerciseSelectionInput,
+): ExerciseSelectionWithDiagnostics {
+  const { catalog, targetMuscleGroups, userLevel, lastUsedMovementIds, constraints } = input;
+  const targetSet = new Set(targetMuscleGroups.map((g) => g.toLowerCase()));
+  const lastUsedSet = new Set(lastUsedMovementIds);
+  const excludeSubstrings = (constraints?.excludeNameSubstrings ?? []).map((s) => s.toLowerCase());
+  const excludeAccessorySet = new Set(constraints?.excludeAccessories ?? []);
+
+  let matchedTarget = 0;
+  let eliminatedByInjury = 0;
+  let eliminatedByAccessory = 0;
+  let eliminatedByLastUsed = 0;
+  let eliminatedBySkillCap = 0;
+
+  const eligible: Movement[] = [];
+  for (const m of catalog) {
+    if (lastUsedSet.has(m.id)) {
+      eliminatedByLastUsed++;
+      continue;
+    }
+    const matchesTarget = m.muscleGroups.some((g) => targetSet.has(g.toLowerCase()));
+    if (!matchesTarget) continue;
+    matchedTarget++;
+    if (excludeSubstrings.length > 0) {
+      const nameLower = m.name.toLowerCase();
+      if (excludeSubstrings.some((sub) => nameLower.includes(sub))) {
+        eliminatedByInjury++;
+        continue;
+      }
+    }
+    if (excludeAccessorySet.size > 0 && m.onMachineInfo?.accessory) {
+      if (excludeAccessorySet.has(m.onMachineInfo.accessory)) {
+        eliminatedByAccessory++;
+        continue;
+      }
+    }
+    if (m.skillLevel > userLevel + MAX_SKILL_LEVEL_DELTA) {
+      eliminatedBySkillCap++;
+      continue;
+    }
+    eligible.push(m);
+  }
+
+  // Reuse selectExercises for the sort/slice path so IDs are identical.
+  const ids = selectExercises(input);
+
+  // Diversity floor: count distinct target muscle groups across all eligible
+  // movements. Fewer than 2 groups means the filter degenerated (e.g. all lunges).
+  const groupsCovered = new Set<string>();
+  for (const m of eligible) {
+    for (const g of m.muscleGroups) {
+      if (targetSet.has(g.toLowerCase())) groupsCovered.add(g.toLowerCase());
+    }
+  }
+
+  return {
+    ids,
+    diagnostics: {
+      catalogSize: catalog.length,
+      matchedTarget,
+      eliminatedByInjury,
+      eliminatedByAccessory,
+      eliminatedByLastUsed,
+      eliminatedBySkillCap,
+      eligibleCount: eligible.length,
+      fellThroughDiversity: groupsCovered.size < 2,
+      eligibleMuscleGroupCount: groupsCovered.size,
+    },
+  };
+}
+
 export interface WarmupCooldownInput {
   catalog: Movement[];
   targetMuscleGroups: string[];
