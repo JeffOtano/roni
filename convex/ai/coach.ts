@@ -265,7 +265,12 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
       const staticSystem: ModelMessage = {
         role: "system",
         content: STATIC_INSTRUCTIONS,
-        providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+        providerOptions: {
+          anthropic: {
+            cacheControl: { type: "ephemeral" },
+            effort: "medium",
+          },
+        },
       };
 
       if (!args.userId || messages.length === 0) {

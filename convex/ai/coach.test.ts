@@ -158,7 +158,7 @@ describe("coachAgentConfig.contextHandler — Anthropic prompt caching", () => {
     expect(first.role).toBe("system");
     expect(typeof first.content === "string" && first.content).toContain("PERSONALITY:");
     expect(first.providerOptions).toEqual({
-      anthropic: { cacheControl: { type: "ephemeral" } },
+      anthropic: { cacheControl: { type: "ephemeral" }, effort: "medium" },
     });
   });
 
