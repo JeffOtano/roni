@@ -275,8 +275,8 @@ const ELIGIBLE_USERS_PAGE_SIZE = 100;
 
 /**
  * Evaluates check-in triggers for a single user and sends any due check-ins.
- * Scheduled by runCheckInTriggerEvaluation — each user runs in its own action
- * so the orchestrator never approaches the 600 s hard cap.
+ * Each user runs in its own action so total work scales with the user count
+ * without any single action approaching the 600 s hard cap.
  */
 export const evaluateCheckInForUser = internalAction({
   args: { userId: v.id("users") },
@@ -304,8 +304,8 @@ export const evaluateCheckInForUser = internalAction({
 
 /**
  * Orchestrates check-in trigger evaluation across all eligible users.
- * Paginates the user table and schedules one evaluateCheckInForUser action
- * per user so no single action can time out regardless of user count.
+ * Fans out per-user evaluations via the scheduler so no single action can
+ * approach the 600 s hard cap as the user base grows.
  */
 export const runCheckInTriggerEvaluation = internalAction({
   args: {},

@@ -181,9 +181,6 @@ describe("retryOn5xx", () => {
   });
 
   it("retries Tonal 500 from eligibility-style fetchers and succeeds on second attempt", async () => {
-    // Mirrors the fetchWorkoutHistoryForEligibility pattern: a transient Tonal
-    // 500 ("error getting activities for user") should be retried rather than
-    // thrown immediately, which was the root cause of TONALCOACH-3V.
     vi.useFakeTimers();
     try {
       let calls = 0;
