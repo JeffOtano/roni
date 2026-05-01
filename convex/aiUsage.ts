@@ -116,8 +116,54 @@ export interface CacheHitRateRow {
 export interface AiUsageTokenRow {
   provider: string;
   inputTokens: number;
+  outputTokens?: number;
+  totalTokens?: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
+}
+
+interface UsageCostMultipliers {
+  cacheRead: number;
+  cacheWrite: number;
+  output: number;
+}
+
+const DEFAULT_USAGE_COST_MULTIPLIERS: UsageCostMultipliers = {
+  cacheRead: 1,
+  cacheWrite: 1,
+  output: 1,
+};
+
+const USAGE_COST_MULTIPLIERS_BY_PROVIDER: Partial<Record<string, UsageCostMultipliers>> = {
+  claude: {
+    cacheRead: 0.1,
+    cacheWrite: 1.25,
+    output: 5,
+  },
+};
+
+function getUsageCostMultipliers(provider?: string) {
+  if (!provider) return DEFAULT_USAGE_COST_MULTIPLIERS;
+  return USAGE_COST_MULTIPLIERS_BY_PROVIDER[provider] ?? DEFAULT_USAGE_COST_MULTIPLIERS;
+}
+
+export function calculateWeightedUsageTokens(row: AiUsageTokenRow): number {
+  const cacheReadTokens = row.cacheReadTokens ?? 0;
+  const cacheWriteTokens = row.cacheWriteTokens ?? 0;
+  const outputTokens = row.outputTokens ?? 0;
+
+  if (row.cacheReadTokens === undefined && row.cacheWriteTokens === undefined) {
+    return row.totalTokens ?? row.inputTokens + outputTokens;
+  }
+
+  const freshInputTokens = Math.max(0, row.inputTokens - cacheReadTokens - cacheWriteTokens);
+  const multipliers = getUsageCostMultipliers(row.provider);
+  return (
+    freshInputTokens +
+    cacheWriteTokens * multipliers.cacheWrite +
+    cacheReadTokens * multipliers.cacheRead +
+    outputTokens * multipliers.output
+  );
 }
 
 export function aggregateCacheHitsByProvider(rows: AiUsageTokenRow[]): CacheHitRateRow[] {
@@ -228,7 +274,7 @@ export const claimDailyBudgetWarning = internalMutation({
   },
 });
 
-/** Get total tokens used by a user today (UTC day boundary). */
+/** Get weighted budget tokens used by a user today (UTC day boundary). */
 export const getDailyTokenUsage = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -243,7 +289,7 @@ export const getDailyTokenUsage = internalQuery({
       )
       .collect();
 
-    return records.reduce((sum, r) => sum + r.totalTokens, 0);
+    return records.reduce((sum, record) => sum + calculateWeightedUsageTokens(record), 0);
   },
 });
 
@@ -265,10 +311,11 @@ export const getDailyTokenUsageStats = internalQuery({
     let latestUsageTokens = 0;
     let totalTokens = 0;
     for (const record of records) {
-      totalTokens += record.totalTokens;
-      if (record.totalTokens > 0 && record.createdAt >= latestCreatedAt) {
+      const weightedTokens = calculateWeightedUsageTokens(record);
+      totalTokens += weightedTokens;
+      if (weightedTokens > 0 && record.createdAt >= latestCreatedAt) {
         latestCreatedAt = record.createdAt;
-        latestUsageTokens = record.totalTokens;
+        latestUsageTokens = weightedTokens;
       }
     }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateCacheHitsByProvider,
   BUDGET_WARNING_THRESHOLD,
+  calculateWeightedUsageTokens,
   DAILY_TOKEN_BUDGET,
 } from "./aiUsage";
 
@@ -68,5 +69,30 @@ describe("aggregateCacheHitsByProvider", () => {
       cacheWriteTokens: 0,
       cacheReadRatio: 0,
     });
+  });
+});
+
+describe("calculateWeightedUsageTokens", () => {
+  it("applies Claude cache and output multipliers", () => {
+    expect(
+      calculateWeightedUsageTokens({
+        provider: "claude",
+        inputTokens: 1_000,
+        outputTokens: 200,
+        cacheReadTokens: 600,
+        cacheWriteTokens: 100,
+      }),
+    ).toBe(1_485);
+  });
+
+  it("falls back to stored totalTokens for historical rows without cache fields", () => {
+    expect(
+      calculateWeightedUsageTokens({
+        provider: "claude",
+        inputTokens: 800,
+        outputTokens: 200,
+        totalTokens: 1_000,
+      }),
+    ).toBe(1_000);
   });
 });
