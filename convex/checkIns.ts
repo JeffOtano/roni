@@ -272,6 +272,9 @@ async function evaluateUserCheckIn(
 }
 
 const ELIGIBLE_USERS_PAGE_SIZE = 100;
+const ACTION_LIMIT_MS = 600_000;
+const SAFETY_BUFFER_MS = 60_000;
+const DEADLINE_OFFSET_MS = ACTION_LIMIT_MS - SAFETY_BUFFER_MS;
 
 /**
  * Evaluates check-in triggers for a single user and sends any due check-ins.
@@ -308,18 +311,35 @@ export const evaluateCheckInForUser = internalAction({
  * approach the 600 s hard cap as the user base grows.
  */
 export const runCheckInTriggerEvaluation = internalAction({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    /** Override the deadline budget for tests (omit in production). */
+    _deadlineOffsetMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const deadline = Date.now() + (args._deadlineOffsetMs ?? DEADLINE_OFFSET_MS);
     let cursor: string | null = null;
     let totalScheduled = 0;
 
-    while (true) {
+    pages: while (true) {
+      if (Date.now() >= deadline) {
+        console.warn(
+          "[check-in] Deadline reached - stopping early. Remaining users will be evaluated in the next cron run.",
+        );
+        break;
+      }
+
       const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
         await ctx.runQuery(internal.checkIns.getEligibleUserIdsPage, {
           paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
         });
 
       for (const userId of result.page) {
+        if (Date.now() >= deadline) {
+          console.warn(
+            "[check-in] Deadline reached - stopping early. Remaining users will be evaluated in the next cron run.",
+          );
+          break pages;
+        }
         await ctx.scheduler.runAfter(0, internal.checkIns.evaluateCheckInForUser, { userId });
         totalScheduled++;
       }
