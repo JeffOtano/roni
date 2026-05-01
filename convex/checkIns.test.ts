@@ -143,4 +143,18 @@ describe("runCheckInTriggerEvaluation", () => {
 
     await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
   });
+
+  test("exits before scheduling users when deadline is already past", async () => {
+    const t = convexTest(schema, modules);
+    await insertUserWithProfile(t);
+
+    await t.action(internal.checkIns.runCheckInTriggerEvaluation, {
+      _deadlineOffsetMs: -1,
+    });
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(scheduled.some((fn) => fn.name.includes("evaluateCheckInForUser"))).toBe(false);
+  });
 });

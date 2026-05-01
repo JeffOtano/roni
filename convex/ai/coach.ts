@@ -83,6 +83,7 @@ const sharedEmbeddingModel = serverProvider.textEmbeddingModel("gemini-embedding
 
 const STATIC_INSTRUCTIONS = buildInstructions();
 const RECENT_MESSAGES_LIMIT = 40;
+export const COACH_MAX_STEPS = 25;
 
 /**
  * Cheap fingerprint of the static system prompt. Surfaces in `aiRun.promptVersion`
@@ -210,7 +211,7 @@ export const coachAgentConfig = {
     get_weekly_volume: getWeeklyVolumeTool,
   }),
 
-  maxSteps: 25,
+  maxSteps: COACH_MAX_STEPS,
 
   // Disable the AI SDK's built-in retry (default maxRetries: 2 = 3 attempts).
   // streamWithRetry already handles retries with primary -> retry -> fallback.
