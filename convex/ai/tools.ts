@@ -180,11 +180,10 @@ export const getWorkoutDetailTool = createTool({
       // failed ~46% of the time with "Not authenticated" — the agent runtime
       // doesn't reliably propagate auth context through runAction.
       const userId = requireUserId(ctx);
-      const detail = (await ctx.runAction(internal.workoutDetail.getWorkoutDetailInternal, {
+      return (await ctx.runAction(internal.workoutDetail.getWorkoutDetailInternal, {
         userId,
         activityId: input.activityId,
       })) as EnrichedWorkoutDetail | null;
-      return detail;
     },
   ),
 });
