@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 import { buildListSearchText } from "./movementSearch";
@@ -221,6 +221,51 @@ describe("searchMovements", () => {
     expect(second).toMatchObject({ scanned: 1, patched: 1, hasMore: false });
     expect(stateAfterDone?.version).toBe(1);
     expect(docs.every((doc) => doc.nameSearchText && doc.muscleGroupsSearchText)).toBe(true);
+  });
+
+  it("with matchMode:strict, ignores description matches", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      // m-chop: name has no "glute bridge" but description mentions "glutes" and "bridge"
+      await ctx.db.insert(
+        "movements",
+        makeDoc({
+          id: "m-chop",
+          name: "Single Leg Chop",
+          shortName: "SL Chop",
+          descriptionHow: "Brace glutes and bridge core to maintain stability",
+          descriptionWhy: "Trains anti-rotation",
+        }),
+      );
+      // m-gb: name is "Resisted Glute Bridge" — should match strict search
+      await ctx.db.insert(
+        "movements",
+        makeDoc({
+          id: "m-gb",
+          name: "Resisted Glute Bridge",
+          shortName: "Glute Bridge",
+          descriptionHow: "",
+          descriptionWhy: "",
+        }),
+      );
+      await ctx.db.insert("movementSearchState", {
+        key: "movement_search_fields",
+        version: 1,
+        completedAt: Date.now(),
+      });
+    });
+
+    const strict = await t.query(internal.tonal.movementSearchQueries.searchMovements, {
+      name: "Glute Bridge",
+      matchMode: "strict",
+    });
+    expect(strict.map((m) => m.id)).toEqual(["m-gb"]);
+
+    const loose = await t.query(internal.tonal.movementSearchQueries.searchMovements, {
+      name: "Glute Bridge",
+    });
+    expect(loose.map((m) => m.id).sort()).toEqual(["m-chop", "m-gb"].sort());
   });
 
   test("movement sync preserves derived training type search fields", async () => {

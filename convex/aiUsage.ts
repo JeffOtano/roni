@@ -61,20 +61,25 @@ const aiRunArgs = {
   snapshotBuildMs: v.optional(v.number()),
   contextBuildCount: v.optional(v.number()),
   contextMessageCount: v.optional(v.number()),
-  // Hotfix: widened to accept legacy literals (matches schema.ts). Re-narrow
-  // once the narrowSnapshotSource migration completes on prod.
-  snapshotSource: v.optional(
-    v.union(
-      v.literal("live_rebuild"),
-      v.literal("coach_state_fresh"),
-      v.literal("coach_state_stale"),
-    ),
-  ),
+  snapshotSource: v.optional(v.literal("live_rebuild")),
   retrievalEnabled: v.optional(v.boolean()),
   approvalPauses: v.number(),
   workoutPlanCreatedId: v.optional(v.id("workoutPlans")),
   workoutPushOutcome: v.optional(
     v.union(v.literal("pushed"), v.literal("failed"), v.literal("none")),
+  ),
+  pushDivergence: v.optional(
+    v.object({
+      missingMovements: v.array(v.string()),
+      extraMovements: v.array(v.string()),
+      setCountMismatches: v.array(
+        v.object({
+          movementId: v.string(),
+          intended: v.number(),
+          stored: v.number(),
+        }),
+      ),
+    }),
   ),
   createdAt: v.number(),
 };

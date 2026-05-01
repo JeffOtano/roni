@@ -15,7 +15,7 @@ import {
 } from "./contextWindow";
 import { buildInstructions } from "./promptSections";
 // ---------------------------------------------------------------------------
-// Tool registry (31 tools across 4 files)
+// Tool registry (32 tools across 4 files)
 // ---------------------------------------------------------------------------
 // tools.ts (10):        search_exercises, get_strength_scores, get_strength_history,
 //                       get_muscle_readiness, get_workout_history, get_workout_detail,
@@ -25,8 +25,8 @@ import { buildInstructions } from "./promptSections";
 // weekTools.ts (5):     program_week, get_week_plan_details, delete_week_plan,
 //                       approve_week_plan, get_workout_performance
 //
-// weekModificationTools.ts (4): swap_exercise, add_exercise, move_session,
-//                               adjust_session_duration
+// weekModificationTools.ts (6): swap_exercise, add_exercise, set_warmup_block,
+//                               move_session, adjust_session_duration, rebuild_day
 //
 // coachingTools.ts (12): record_feedback, get_recent_feedback, check_deload,
 //                        start_training_block, advance_training_block, set_goal,
@@ -45,18 +45,20 @@ import {
   getWorkoutHistoryTool,
   searchExercisesTool,
 } from "./tools";
+import { rebuildDayTool } from "./rebuildDayTool";
 import {
   addExerciseTool,
   adjustSessionDurationTool,
   moveSessionTool,
+  setWarmupBlockTool,
   swapExerciseTool,
 } from "./weekModificationTools";
+import { programWeekTool } from "./programWeekTool";
 import {
   approveWeekPlanTool,
   deleteWeekPlanTool,
   getWeekPlanDetailsTool,
   getWorkoutPerformanceTool,
-  programWeekTool,
 } from "./weekTools";
 import {
   advanceTrainingBlockTool,
@@ -189,8 +191,10 @@ export const coachAgentConfig = {
     get_workout_performance: getWorkoutPerformanceTool,
     swap_exercise: swapExerciseTool,
     add_exercise: addExerciseTool,
+    set_warmup_block: setWarmupBlockTool,
     move_session: moveSessionTool,
     adjust_session_duration: adjustSessionDurationTool,
+    rebuild_day: rebuildDayTool,
     // Coaching features
     record_feedback: recordFeedbackTool,
     get_recent_feedback: getRecentFeedbackTool,

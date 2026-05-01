@@ -1,142 +1,26 @@
 /**
  * AI agent tools for weekly training programming.
  *
- * - programWeekTool: generates a draft week plan (no Tonal push)
  * - getWeekPlanDetailsTool: retrieves current week plan with resolved exercise names
  * - deleteWeekPlanTool: deletes the current week plan and its draft workouts
+ * - getWorkoutPerformanceTool: PR / plateau / volume summary for a movement
+ * - approveWeekPlanTool: pushes all draft day workouts to Tonal
+ *
+ * programWeekTool lives in `./programWeekTool.ts` (split for file-size budget).
  */
 
 import { createTool } from "@convex-dev/agent";
 import { z } from "zod";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import type { DraftWeekSummary } from "../coach/weekProgrammingHelpers";
 import { DAY_NAMES } from "../coach/weekProgrammingHelpers";
 import type { WorkoutPerformanceSummary } from "../coach/prDetection";
 import type { WeekPushResult } from "../coach/pushAndVerify";
 import type { Movement } from "../tonal/types";
+import type { PushDivergence } from "../tonal/mutations";
 import { getWeekStartDateString } from "../weekPlanHelpers";
 import { requireUserId, withToolTracking } from "./helpers";
-import { buildReasoningPrompt } from "./weekReasoning";
-
-// ---------------------------------------------------------------------------
-// Session duration validation
-// ---------------------------------------------------------------------------
-
-const ALLOWED_SESSION_DURATIONS = [30, 45, 60] as const;
-type SessionDuration = (typeof ALLOWED_SESSION_DURATIONS)[number];
-
-function validateSessionDuration(value: unknown): SessionDuration | undefined {
-  const parsed =
-    typeof value === "number" ? value : typeof value === "string" ? parseInt(value, 10) : undefined;
-  if (Number.isInteger(parsed) && ALLOWED_SESSION_DURATIONS.includes(parsed as SessionDuration)) {
-    return parsed as SessionDuration;
-  }
-  return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// programWeekTool
-// ---------------------------------------------------------------------------
-
-export const programWeekTool = createTool({
-  description: `Program the user's full training week. Creates draft workouts for each training day based on their split, available days, and session duration.
-
-IMPORTANT: The backend algorithm selects the exact exercises, sets, and reps — you do NOT. Your job is to call this tool, then faithfully describe what it returned in the \`summary\` field. Never pre-announce specific exercises before calling this tool (e.g. "I'll program bench press, rows, and squats..."), because the algorithm may pick differently based on user history, muscle readiness, injuries, and progressive overload. Never describe exercise names, sets, or reps that are not present in the returned \`summary\`.
-
-Duration-based movements in the summary use a duration (seconds) instead of reps. Describe them in seconds (e.g. "30s hold") — never as "4x10".
-
-Returns a summary of the full week plan with exercises, sets, reps/duration, and progressive overload targets. The plan is NOT pushed to Tonal yet — present it to the user for approval first, then use approve_week_plan. If the user already has saved preferences, you can omit the parameters to use their saved preferences.`,
-  inputSchema: z.object({
-    preferredSplit: z
-      .enum(["ppl", "upper_lower", "full_body", "bro_split"])
-      .optional()
-      .describe(
-        "Training split. ppl = Push/Pull/Legs, upper_lower = Upper/Lower, full_body = Full Body, bro_split = Bodybuilding body-part split (Chest/Back/Shoulders/Arms/Legs). Omit to use saved preferences.",
-      ),
-    trainingDays: z
-      .array(z.number().int().min(0).max(6))
-      .optional()
-      .describe(
-        "Day indices: 0=Monday, 1=Tuesday, ..., 6=Sunday. Omit to auto-space based on count.",
-      ),
-    targetDays: z
-      .number()
-      .int()
-      .min(1)
-      .max(7)
-      .optional()
-      .describe("Number of training days per week (used if trainingDays is omitted)."),
-    sessionDurationMinutes: z
-      .enum(["30", "45", "60"])
-      .optional()
-      .describe("Session duration. Omit to use saved preferences."),
-  }),
-  execute: withToolTracking(
-    "program_week",
-    async (
-      ctx,
-      input,
-      _options,
-    ): Promise<
-      | {
-          success: true;
-          weekPlanId: string;
-          summary: DraftWeekSummary;
-          reasoningHints: string;
-        }
-      | { success: false; error: string }
-    > => {
-      const userId = requireUserId(ctx);
-
-      // Load saved preferences as defaults
-      const saved = (await ctx.runQuery(internal.userProfiles.getTrainingPreferencesInternal, {
-        userId,
-      })) as {
-        preferredSplit?: "ppl" | "upper_lower" | "full_body" | "bro_split";
-        trainingDays?: number[];
-        sessionDurationMinutes?: number;
-      } | null;
-
-      const preferredSplit = input.preferredSplit ?? saved?.preferredSplit ?? "ppl";
-      const inputDuration = validateSessionDuration(input.sessionDurationMinutes);
-      const savedDuration = validateSessionDuration(saved?.sessionDurationMinutes);
-      const sessionDuration = inputDuration ?? savedDuration ?? 45;
-
-      const targetDays =
-        input.trainingDays?.length ?? input.targetDays ?? saved?.trainingDays?.length ?? 3;
-
-      const result = (await ctx.runAction(internal.coach.weekProgramming.generateDraftWeekPlan, {
-        userId,
-        weekStartDate: getWeekStartDateString(new Date()),
-        preferredSplit,
-        targetDays,
-        sessionDurationMinutes: sessionDuration,
-        trainingDayIndicesOverride: input.trainingDays ?? saved?.trainingDays,
-      })) as
-        | { success: true; weekPlanId: Id<"weekPlans">; summary: DraftWeekSummary }
-        | { success: false; error: string };
-
-      if (!result.success) return result;
-
-      // Build lightweight reasoning hints from data already in scope.
-      // The AI agent has the full training snapshot (muscle readiness,
-      // injuries, feedback) in its context — no need to duplicate here.
-      const reasoningHints = buildReasoningPrompt({
-        split: preferredSplit,
-        targetDays,
-        sessionDuration,
-        muscleReadiness: {},
-        recentWorkouts: [],
-        activeInjuries: [],
-        recentFeedback: null,
-        isDeload: false,
-      });
-
-      return { ...result, reasoningHints };
-    },
-  ),
-});
+import { type DayDivergence, formatPushDivergenceNote } from "./divergenceNote";
 
 // ---------------------------------------------------------------------------
 // getWeekPlanDetailsTool
@@ -322,7 +206,7 @@ export const deleteWeekPlanTool = createTool({
 
 export const getWorkoutPerformanceTool = createTool({
   description:
-    "Get performance summary for the user's recent training. Shows PRs (personal records), plateaus, regressions, and progression trends per exercise. Use this when the user asks about their progress, after they complete a workout, or when you want to acknowledge their recent performance.",
+    "ANALYZE per-movement trends across recent training: PRs (personal records), plateaus, regressions, progression. Use this for 'how am I progressing on bench press', 'am I plateauing', 'recap my recent gains'. Does NOT list individual workouts — that is get_workout_history. Does NOT show per-set detail of one workout — that is get_workout_detail.",
   inputSchema: z.object({}),
   execute: withToolTracking(
     "get_workout_performance",
@@ -347,7 +231,11 @@ export const approveWeekPlanTool = createTool({
   inputSchema: z.object({}),
   execute: withToolTracking(
     "approve_week_plan",
-    async (ctx, _input, _options): Promise<WeekPushResult | { error: string }> => {
+    async (
+      ctx,
+      _input,
+      _options,
+    ): Promise<(WeekPushResult & { divergenceNote?: string }) | { error: string }> => {
       const userId = requireUserId(ctx);
       const weekStartDate = getWeekStartDateString(new Date());
 
@@ -364,6 +252,23 @@ export const approveWeekPlanTool = createTool({
         userId,
         weekPlanId: plan._id,
       })) as WeekPushResult;
+
+      // Aggregate per-day divergence and surface to LLM.
+      const dayDivergences: DayDivergence[] = result.results
+        .filter(
+          (r): r is typeof r & { pushDivergence: PushDivergence } =>
+            r.status === "pushed" &&
+            r.pushDivergence != null &&
+            (r.pushDivergence.missingMovements.length > 0 ||
+              r.pushDivergence.extraMovements.length > 0 ||
+              r.pushDivergence.setCountMismatches.length > 0),
+        )
+        .map((r) => ({ dayName: r.dayName, divergence: r.pushDivergence }));
+
+      const divergenceNote = formatPushDivergenceNote(dayDivergences);
+      if (divergenceNote) {
+        return { ...result, divergenceNote };
+      }
 
       return result;
     },

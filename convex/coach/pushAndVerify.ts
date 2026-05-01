@@ -11,6 +11,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { DAY_NAMES } from "./weekProgrammingHelpers";
 import type { BlockInput } from "../tonal/transforms";
+import type { PushDivergence } from "../tonal/mutations";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,6 +26,7 @@ interface PushResult {
   tonalWorkoutId?: string;
   error?: string;
   exerciseCount?: number;
+  pushDivergence?: PushDivergence | null;
 }
 
 export interface WeekPushResult {
@@ -46,6 +48,7 @@ type CreateWorkoutResult =
       title: string;
       setCount: number;
       planId: Id<"workoutPlans">;
+      pushDivergence: PushDivergence | null;
     }
   | { success: false; error: string; planId: Id<"workoutPlans"> };
 
@@ -165,9 +168,11 @@ export const pushWeekPlanToTonal = internalAction({
         continue;
       }
 
-      // Brief delay between pushes to avoid Tonal API rate limits
+      // Gap between pushes to stay under Tonal's per-user `createTonalWorkout`
+      // rate limit. 30-day audit showed ~5% of approve_week_plan runs hit
+      // RateLimited with retryAfter 1–8s; 5s removes the contention.
       if (pushed > 0) {
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 5000));
       }
 
       const result = await pushOneWorkout(ctx, userId, wp);
@@ -189,6 +194,7 @@ export const pushWeekPlanToTonal = internalAction({
           title: result.title,
           tonalWorkoutId: result.workoutId,
           exerciseCount: countExercises(wp.blocks),
+          pushDivergence: result.pushDivergence,
         });
         pushed++;
       } else {
