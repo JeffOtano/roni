@@ -321,6 +321,7 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
 export interface CoachAgentPair {
   primary: Agent;
   fallback: Agent;
+  primaryModelName: string;
 }
 
 export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAgentPair {
@@ -339,7 +340,7 @@ export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAg
     ...config,
   });
 
-  return { primary, fallback };
+  return { primary, fallback, primaryModelName: "gemini-3-flash-preview" };
 }
 
 export interface ProviderAgentArgs {
@@ -381,7 +382,7 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
     fallback = primary;
   }
 
-  return { primary, fallback };
+  return { primary, fallback, primaryModelName };
 }
 
 // Never pass to streamText/generateText; storage-only (tool approvals).

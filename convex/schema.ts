@@ -427,10 +427,38 @@ export default defineSchema({
     totalTokens: v.number(),
     cacheReadTokens: v.optional(v.number()),
     cacheWriteTokens: v.optional(v.number()),
+    totalCostUsd: v.optional(v.number()),
     routedIntent: v.optional(v.string()),
+    breakerEvent: v.optional(
+      v.object({
+        type: v.union(
+          v.literal("attempt_failed"),
+          v.literal("opened"),
+          v.literal("closed"),
+          v.literal("short_circuited"),
+        ),
+        state: v.union(v.literal("closed"), v.literal("open"), v.literal("half_open")),
+        reason: v.optional(
+          v.union(
+            v.literal("error_threshold"),
+            v.literal("cost_threshold"),
+            v.literal("half_open_failure"),
+            v.literal("open_circuit"),
+            v.literal("half_open_busy"),
+            v.literal("probe_success"),
+          ),
+        ),
+        recentFailures: v.optional(v.number()),
+        recentFailedCostUsd: v.optional(v.number()),
+        openUntil: v.optional(v.number()),
+        errorClass: v.optional(v.string()),
+        runId: v.string(),
+      }),
+    ),
     createdAt: v.number(),
   })
     .index("by_createdAt", ["createdAt"])
+    .index("by_provider_createdAt", ["provider", "createdAt"])
     .index("by_userId_createdAt", ["userId", "createdAt"]),
 
   aiBudgetWarnings: defineTable({
@@ -440,6 +468,29 @@ export default defineSchema({
   })
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId", ["userId"]),
+
+  aiProviderCircuitBreakers: defineTable({
+    provider: v.union(
+      v.literal("gemini"),
+      v.literal("claude"),
+      v.literal("openai"),
+      v.literal("openrouter"),
+    ),
+    state: v.union(v.literal("closed"), v.literal("open"), v.literal("half_open")),
+    openUntil: v.optional(v.number()),
+    probeRunId: v.optional(v.string()),
+    probeClaimedAt: v.optional(v.number()),
+    lastStateChangedAt: v.number(),
+    lastOpenReason: v.optional(
+      v.union(
+        v.literal("error_threshold"),
+        v.literal("cost_threshold"),
+        v.literal("half_open_failure"),
+      ),
+    ),
+    lastOpenFailureCount: v.optional(v.number()),
+    lastOpenFailedCostUsd: v.optional(v.number()),
+  }).index("by_provider", ["provider"]),
 
   /** AI agent tool execution log (latency, success/error tracking). */
   aiToolCalls: defineTable({
@@ -485,7 +536,11 @@ export default defineSchema({
     toolSequence: v.array(v.string()),
     retryCount: v.number(),
     fallbackReason: v.optional(
-      v.union(v.literal("transient_exhaustion"), v.literal("primary_error")),
+      v.union(
+        v.literal("transient_exhaustion"),
+        v.literal("primary_error"),
+        v.literal("circuit_open"),
+      ),
     ),
     finishReason: v.optional(
       v.union(

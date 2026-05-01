@@ -15,7 +15,7 @@ export interface AiRunRow {
   totalSteps: number;
   toolSequence: string[];
   retryCount: number;
-  fallbackReason?: "transient_exhaustion" | "primary_error";
+  fallbackReason?: "transient_exhaustion" | "primary_error" | "circuit_open";
   finishReason?:
     | "stop"
     | "tool-calls"
@@ -77,6 +77,15 @@ export interface ContextTimingMetrics {
   contextBuildCount?: number;
   contextMessageCount?: number;
   snapshotSource?: AiRunRow["snapshotSource"];
+}
+
+export interface AttemptUsageSnapshot {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  modelId?: string;
+  provider?: string;
 }
 
 const ALLOWED_FINISH_REASONS = new Set<AiRunRow["finishReason"]>([
@@ -269,6 +278,28 @@ export class RunAccumulator {
     this.contextBuildCount = metrics.contextBuildCount;
     this.contextMessageCount = metrics.contextMessageCount;
     this.snapshotSource = metrics.snapshotSource;
+  }
+
+  snapshotUsage(): AttemptUsageSnapshot {
+    return {
+      inputTokens: this.inputTokens,
+      outputTokens: this.outputTokens,
+      cacheReadTokens: this.cacheReadTokens,
+      cacheWriteTokens: this.cacheWriteTokens,
+      modelId: this.modelId,
+      provider: this.provider,
+    };
+  }
+
+  usageDeltaSince(snapshot: AttemptUsageSnapshot): AttemptUsageSnapshot {
+    return {
+      inputTokens: Math.max(0, this.inputTokens - snapshot.inputTokens),
+      outputTokens: Math.max(0, this.outputTokens - snapshot.outputTokens),
+      cacheReadTokens: Math.max(0, this.cacheReadTokens - snapshot.cacheReadTokens),
+      cacheWriteTokens: Math.max(0, this.cacheWriteTokens - snapshot.cacheWriteTokens),
+      modelId: this.modelId ?? snapshot.modelId,
+      provider: this.provider ?? snapshot.provider,
+    };
   }
 
   toRow(): AiRunRow {

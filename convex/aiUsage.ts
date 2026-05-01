@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { estimateAttemptCostUsd } from "./ai/circuitBreakerCore";
 
 /** Daily per-user token budget. Configurable - change this constant to adjust. */
 export const DAILY_TOKEN_BUDGET = 500_000;
@@ -26,7 +27,11 @@ const aiRunArgs = {
   toolSequence: v.array(v.string()),
   retryCount: v.number(),
   fallbackReason: v.optional(
-    v.union(v.literal("transient_exhaustion"), v.literal("primary_error")),
+    v.union(
+      v.literal("transient_exhaustion"),
+      v.literal("primary_error"),
+      v.literal("circuit_open"),
+    ),
   ),
   finishReason: v.optional(
     v.union(
@@ -98,7 +103,19 @@ export const record = internalMutation({
     cacheWriteTokens: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert("aiUsage", { ...args, createdAt: Date.now() });
+    await ctx.db.insert("aiUsage", {
+      ...args,
+      totalCostUsd:
+        estimateAttemptCostUsd({
+          provider: args.provider,
+          model: args.model,
+          inputTokens: args.inputTokens,
+          outputTokens: args.outputTokens,
+          cacheReadTokens: args.cacheReadTokens ?? 0,
+          cacheWriteTokens: args.cacheWriteTokens ?? 0,
+        }) ?? undefined,
+      createdAt: Date.now(),
+    });
   },
 });
 

@@ -76,7 +76,7 @@ export const processMessage = internalAction({
 
       const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds);
 
-      const { primary, fallback } = buildCoachAgentsForProvider({
+      const { primary, fallback, primaryModelName } = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
         retrievalEnabled,
@@ -86,6 +86,7 @@ export const processMessage = internalAction({
         streamWithRetry(ctx, {
           primaryAgent: primary,
           fallbackAgent: fallback,
+          primaryModelName,
           threadId,
           userId,
           promptMessageId: messageId,
@@ -147,7 +148,7 @@ export const continueAfterApproval = action({
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
       provider = providerConfig.provider;
 
-      const { primary, fallback } = buildCoachAgentsForProvider({
+      const { primary, fallback, primaryModelName } = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
         retrievalEnabled,
@@ -157,6 +158,7 @@ export const continueAfterApproval = action({
         streamWithRetry(ctx, {
           primaryAgent: primary,
           fallbackAgent: fallback,
+          primaryModelName,
           threadId,
           userId,
           promptMessageId: messageId,

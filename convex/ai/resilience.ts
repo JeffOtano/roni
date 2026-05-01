@@ -13,6 +13,7 @@ import { components, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { type ProviderId } from "./providers";
+import { type AttemptOutcome, runWithPrimaryCircuitBreaker } from "./resilienceCircuitBreaker";
 import { type AccumulatorInit, RunAccumulator } from "./runTelemetry";
 import { buildByokErrorMessage, classifyByokError } from "./byokErrors";
 import { runInRunSpan } from "./otel";
@@ -39,6 +40,7 @@ const RETRY_DELAY_MS = 3000;
 interface StreamWithRetryArgs {
   primaryAgent: Agent;
   fallbackAgent: Agent;
+  primaryModelName: string;
   threadId: string;
   userId: string;
   prompt?: string | Array<ModelMessage>;
@@ -77,8 +79,6 @@ const STREAM_OPTIONS = {
 // Convex actions have a 600s hard cap; budget 180s per attempt so 3 fit.
 const ATTEMPT_TIMEOUT_MS = 180_000;
 
-type AttemptOutcome = { done: true } | { done: false; error: unknown };
-
 export async function streamWithRetry(
   ctx: ActionCtx,
   args: StreamWithRetryArgs,
@@ -86,6 +86,7 @@ export async function streamWithRetry(
   const {
     primaryAgent,
     fallbackAgent,
+    primaryModelName,
     threadId,
     userId,
     isByok,
@@ -158,13 +159,13 @@ export async function streamWithRetry(
       const runAttempt = async (agent: Agent): Promise<AttemptOutcome> => {
         try {
           await attemptStream({ ctx, agent, promptArgs, telemetry, accumulator });
-          return { done: true };
+          return { done: true, success: true };
         } catch (error) {
           if (await safeTryReportByok(ctx, { ...errorReport, error })) {
             const cls = classifyByokError(error) ?? "byok_unknown_error";
             accumulator.setTerminalErrorClass(cls);
             span.recordError(cls);
-            return { done: true };
+            return { done: true, success: false };
           }
           // Quota errors are technically retryable (429), but RPM/RPD/input-token
           // quotas won't clear in 3s — treat as terminal to avoid wasted retries.
@@ -173,31 +174,32 @@ export async function streamWithRetry(
             accumulator.setTerminalErrorClass(cls);
             span.recordError(cls);
             await safeReportError(ctx, { ...errorReport, error });
-            return { done: true };
+            return { done: true, success: false };
           }
           return { done: false, error };
         }
       };
 
-      if ((await runAttempt(primaryAgent)).done) return accumulator;
-      // Clear pending rows before retry — otherwise the next attempt's
-      // history loader picks up orphaned tool-call/tool-result fragments
-      // and Gemini rejects with "function call turn must follow user/
-      // function-response turn".
-      await safeFinalizePending(ctx, threadId, "transient_retry");
-      accumulator.markRetry();
-      await delay(RETRY_DELAY_MS);
-      if ((await runAttempt(primaryAgent)).done) return accumulator;
-      await safeFinalizePending(ctx, threadId, "transient_retry");
-      accumulator.markRetry();
-
-      accumulator.markFallback("transient_exhaustion");
-      const final = await runAttempt(fallbackAgent);
-      if (final.done) return accumulator;
-      const cls = errorClassName(final.error);
-      accumulator.setTerminalErrorClass(cls);
-      span.recordError(cls);
-      await safeReportError(ctx, { ...errorReport, error: final.error });
+      await runWithPrimaryCircuitBreaker({
+        ctx,
+        primaryAgent,
+        fallbackAgent,
+        primaryModelName,
+        provider,
+        runId,
+        threadId,
+        userId,
+        accumulator,
+        retryDelayMs: RETRY_DELAY_MS,
+        runAttempt,
+        finalizePending: (reason) => safeFinalizePending(ctx, threadId, reason),
+        recordTerminalError: async (error) => {
+          const cls = errorClassName(error);
+          accumulator.setTerminalErrorClass(cls);
+          span.recordError(cls);
+          await safeReportError(ctx, { ...errorReport, error });
+        },
+      });
       return accumulator;
     },
   );
@@ -384,8 +386,4 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
     message: reason,
     userId: report.userId,
   });
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
