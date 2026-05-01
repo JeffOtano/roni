@@ -178,6 +178,32 @@ describe("retryOn5xx", () => {
     expect(fn).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
   });
+
+  it("retries Tonal 500 from eligibility-style fetchers and succeeds on second attempt", async () => {
+    // Mirrors the fetchWorkoutHistoryForEligibility pattern: a transient Tonal
+    // 500 ("error getting activities for user") should be retried rather than
+    // thrown immediately, which was the root cause of TONALCOACH-3V.
+    vi.useFakeTimers();
+    let calls = 0;
+    const activities = [{ activityId: "a1" }];
+    const fn = async () => {
+      calls++;
+      if (calls === 1)
+        throw new TonalApiError(
+          500,
+          '{"message":"error getting activities for user","status":500}',
+        );
+      return activities;
+    };
+
+    const promise = retryOn5xx(fn, 2);
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result).toBe(activities);
+    expect(calls).toBe(2);
+    vi.useRealTimers();
+  });
 });
 
 describe("pushWorkoutToTonal catch block", () => {

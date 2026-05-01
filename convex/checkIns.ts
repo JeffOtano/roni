@@ -176,17 +176,15 @@ export const hasRecentCheckIn = internalQuery({
     triggerContext: v.optional(v.string()),
   },
   handler: async (ctx, { userId, trigger, since, triggerContext }) => {
-    const recent = await ctx.db
+    const base = ctx.db
       .query("checkIns")
-      .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
-      .order("desc")
-      .collect();
-    return recent.some(
-      (c) =>
-        c.trigger === trigger &&
-        c.createdAt >= since &&
-        (triggerContext === undefined || c.triggerContext === triggerContext),
-    );
+      .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId).gte("createdAt", since))
+      .filter((q) => q.eq(q.field("trigger"), trigger));
+    const found =
+      triggerContext !== undefined
+        ? await base.filter((q) => q.eq(q.field("triggerContext"), triggerContext)).first()
+        : await base.first();
+    return found !== null;
   },
 });
 
@@ -234,7 +232,7 @@ export const getLastCheckInCreatedAt = internalQuery({
   },
 });
 
-function frequencyWindowMs(frequency: "daily" | "every_other_day" | "weekly"): number {
+export function frequencyWindowMs(frequency: "daily" | "every_other_day" | "weekly"): number {
   switch (frequency) {
     case "daily":
       return 24 * 60 * 60 * 1000;
@@ -275,62 +273,63 @@ async function evaluateUserCheckIn(
 
 const ELIGIBLE_USERS_PAGE_SIZE = 100;
 
+/**
+ * Evaluates check-in triggers for a single user and sends any due check-ins.
+ * Scheduled by runCheckInTriggerEvaluation — each user runs in its own action
+ * so the orchestrator never approaches the 600 s hard cap.
+ */
+export const evaluateCheckInForUser = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const now = Date.now();
+    try {
+      await evaluateUserCheckIn(ctx, userId, now);
+    } catch (err) {
+      console.error("[check-in] evaluateCheckInForUser failed", {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      ctx
+        .runAction(internal.discord.notifyError, {
+          source: "checkIns",
+          message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
+          userId,
+        })
+        .catch((notifyErr: unknown) => console.warn("[check-in] discord notify failed", notifyErr));
+    } finally {
+      await analytics.flush();
+    }
+  },
+});
+
+/**
+ * Orchestrates check-in trigger evaluation across all eligible users.
+ * Paginates the user table and schedules one evaluateCheckInForUser action
+ * per user so no single action can time out regardless of user count.
+ */
 export const runCheckInTriggerEvaluation = internalAction({
   args: {},
   handler: async (ctx) => {
-    const now = Date.now();
-    const BATCH_SIZE = 5;
-    const DELAY_MS = 2000;
-    let checkInsSent = 0;
-    let totalEligible = 0;
-
     let cursor: string | null = null;
+    let totalScheduled = 0;
+
     while (true) {
       const result: { page: Id<"users">[]; isDone: boolean; continueCursor: string } =
         await ctx.runQuery(internal.checkIns.getEligibleUserIdsPage, {
           paginationOpts: { cursor, numItems: ELIGIBLE_USERS_PAGE_SIZE },
         });
 
-      for (let i = 0; i < result.page.length; i += BATCH_SIZE) {
-        const batch = result.page.slice(i, i + BATCH_SIZE);
-        const outcomes = await Promise.allSettled(
-          batch.map((userId) => evaluateUserCheckIn(ctx, userId, now)),
-        );
-        for (let j = 0; j < outcomes.length; j++) {
-          const outcome = outcomes[j];
-          const userId = batch[j];
-          if (outcome.status === "fulfilled") {
-            checkInsSent += outcome.value;
-          } else {
-            const err = outcome.reason;
-            console.error("[check-in] evaluateTriggersForUser failed", {
-              userId,
-              error: err instanceof Error ? err.message : String(err),
-            });
-            ctx
-              .runAction(internal.discord.notifyError, {
-                source: "checkIns",
-                message: `Trigger evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
-                userId,
-              })
-              .catch((notifyErr: unknown) =>
-                console.warn("[check-in] discord notify failed", notifyErr),
-              );
-          }
-        }
-        if (i + BATCH_SIZE < result.page.length) {
-          await new Promise((r) => setTimeout(r, DELAY_MS));
-        }
+      for (const userId of result.page) {
+        await ctx.scheduler.runAfter(0, internal.checkIns.evaluateCheckInForUser, { userId });
+        totalScheduled++;
       }
 
-      totalEligible += result.page.length;
       if (result.isDone) break;
       cursor = result.continueCursor;
     }
 
-    analytics.captureSystem("check_in_trigger_evaluated", {
-      users_checked: totalEligible,
-      check_ins_sent: checkInsSent,
+    analytics.captureSystem("check_in_trigger_evaluation_started", {
+      users_scheduled: totalScheduled,
     });
     await analytics.flush();
   },

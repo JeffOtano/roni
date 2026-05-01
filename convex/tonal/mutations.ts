@@ -170,7 +170,9 @@ export const fetchWorkoutHistoryForEligibility = internalAction({
         dataType: "workoutHistoryEligibility",
         ttl: 60 * 5,
         fetcher: () =>
-          tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=100`),
+          retryOn5xx(() =>
+            tonalFetch<Activity[]>(token, `/v6/users/${tonalUserId}/activities?limit=100`),
+          ),
       }),
     ),
 });

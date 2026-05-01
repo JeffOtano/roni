@@ -12,6 +12,10 @@ const TRANSIENT_MESSAGE_PATTERNS = [
   "try again later",
   "rate limit",
   "resource_exhausted",
+  // Gemini free-tier quota exhaustion surfaces as a per-minute rate limit;
+  // the provider says "please retry in Xs" so retrying is appropriate.
+  "exceeded your current quota",
+  "quota exceeded",
 ];
 
 const OVERLOAD_MESSAGE_PATTERNS = ["high demand", "unavailable", "overloaded", "try again later"];
@@ -66,7 +70,13 @@ export function classifyTransientError(error: unknown): TransientErrorKind | nul
     const lower = error.message.toLowerCase();
     if (lower.includes("timeout") || lower.includes("aborted")) return "timeout";
     if (OVERLOAD_MESSAGE_PATTERNS.some((p) => lower.includes(p))) return "provider_overload";
-    if (lower.includes("rate limit") || lower.includes("resource_exhausted")) return "rate_limit";
+    if (
+      lower.includes("rate limit") ||
+      lower.includes("resource_exhausted") ||
+      lower.includes("quota exceeded") ||
+      lower.includes("exceeded your current quota")
+    )
+      return "rate_limit";
   }
 
   const status = extractStatus(error);
