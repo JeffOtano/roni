@@ -114,6 +114,20 @@ describe("isTransientError", () => {
     // SDK says don't retry (e.g., auth-layer 429), trust it.
     expect(isTransientError(apiCallError({ statusCode: 429, isRetryable: false }))).toBe(false);
   });
+
+  it("returns true for Gemini free-tier quota exceeded (exceeded your current quota)", () => {
+    const error = new Error(
+      "Uncaught Error: You exceeded your current quota, please check your plan and billing details.",
+    );
+    expect(isTransientError(error)).toBe(true);
+  });
+
+  it("returns true for quota exceeded message variant", () => {
+    const error = new Error(
+      "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests",
+    );
+    expect(isTransientError(error)).toBe(true);
+  });
 });
 
 describe("classifyByokError", () => {
@@ -300,6 +314,20 @@ describe("classifyTransientError", () => {
         apiCallError({ statusCode: 418, isRetryable: true, message: "teapot" }),
       ),
     ).toBe("provider_overload");
+  });
+
+  it("returns 'rate_limit' for Gemini free-tier quota exceeded message", () => {
+    const error = new Error(
+      "Uncaught Error: You exceeded your current quota, please check your plan and billing details.",
+    );
+    expect(classifyTransientError(error)).toBe("rate_limit");
+  });
+
+  it("returns 'rate_limit' for quota exceeded metric message", () => {
+    const error = new Error(
+      "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests",
+    );
+    expect(classifyTransientError(error)).toBe("rate_limit");
   });
 });
 

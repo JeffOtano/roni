@@ -49,6 +49,18 @@ describe("shouldDropSentryEvent", () => {
     ).toBe(true);
   });
 
+  it("drops Gemini free-tier quota exceeded errors (exceeded your current quota)", () => {
+    const msg =
+      "Uncaught Error: You exceeded your current quota, please check your plan and billing details.";
+    expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
+  });
+
+  it("drops Gemini free-tier metric quota errors (generate_content_free_tier_requests)", () => {
+    const msg =
+      "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash";
+    expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
+  });
+
   it("keeps real errors", () => {
     const event = eventWithValue("TypeError: Cannot read properties of undefined");
     const hint = hintWithError("TypeError: Cannot read properties of undefined");

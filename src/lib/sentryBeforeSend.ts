@@ -12,6 +12,13 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "Wrong email or password",
   '"kind":"RateLimited"',
   "Not authenticated",
+  // Gemini free-tier quota errors are handled: the user receives a friendly
+  // rate-limit message. These strings surface via @convex-dev/agent's internal
+  // finalizeMessage call before our sanitized code can be written, so they
+  // appear in Sentry even though the error is fully handled.
+  // Both patterns are Gemini-specific to avoid over-suppressing real incidents.
+  "You exceeded your current quota, please check your plan and billing details",
+  "generate_content_free_tier_requests",
 ];
 
 function errorMessage(event: ErrorEvent, hint: EventHint): string | null {
