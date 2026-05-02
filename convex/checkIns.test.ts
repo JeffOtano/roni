@@ -144,17 +144,68 @@ describe("runCheckInTriggerEvaluation", () => {
     await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
   });
 
-  test("exits before scheduling users when deadline is already past", async () => {
+  test("schedules evaluateCheckInForUser for each eligible user", async () => {
     const t = convexTest(schema, modules);
     await insertUserWithProfile(t);
+    await insertUserWithProfile(t);
 
+    await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    const userEvals = scheduled.filter((fn) => fn.name.includes("evaluateCheckInForUser"));
+    expect(userEvals).toHaveLength(2);
+  });
+
+  test("does not schedule ineligible users (disabled or muted)", async () => {
+    const t = convexTest(schema, modules);
+    // Eligible
+    await insertUserWithProfile(t);
+    // Ineligible — disabled
+    await insertUserWithProfile(t, {
+      checkInPreferences: { enabled: false, frequency: "daily", muted: false },
+    });
+    // Ineligible — muted
+    await insertUserWithProfile(t, {
+      checkInPreferences: { enabled: true, frequency: "daily", muted: true },
+    });
+
+    await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    const userEvals = scheduled.filter((fn) => fn.name.includes("evaluateCheckInForUser"));
+    expect(userEvals).toHaveLength(1);
+  });
+
+  test("schedules itself for the next page when there are more results", async () => {
+    const t = convexTest(schema, modules);
+    // Insert more users than one page (PAGE_SIZE=100) to force pagination.
+    // Use a small page that is easy to exceed in tests by passing cursor manually.
+    // We simulate multi-page by passing a cursor from a real first-page result.
+    await insertUserWithProfile(t);
+    await insertUserWithProfile(t);
+
+    // Fetch the first page with numItems=1 to simulate a mid-pagination state.
+    const firstPage = await t.query(internal.checkIns.getEligibleUserIdsPage, {
+      paginationOpts: { cursor: null, numItems: 1 },
+    });
+    expect(firstPage.isDone).toBe(false);
+
+    // Run evaluation starting from that mid-pagination cursor.
     await t.action(internal.checkIns.runCheckInTriggerEvaluation, {
-      _deadlineOffsetMs: -1,
+      cursor: firstPage.continueCursor,
+      totalScheduled: 1,
     });
 
     const scheduled = await t.run(async (ctx) =>
       ctx.db.system.query("_scheduled_functions").collect(),
     );
-    expect(scheduled.some((fn) => fn.name.includes("evaluateCheckInForUser"))).toBe(false);
+    // Should have scheduled one evaluateCheckInForUser (for the second user)
+    // and NOT scheduled another runCheckInTriggerEvaluation (the second page is done).
+    const userEvals = scheduled.filter((fn) => fn.name.includes("evaluateCheckInForUser"));
+    expect(userEvals).toHaveLength(1);
   });
 });
