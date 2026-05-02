@@ -63,16 +63,18 @@ export async function fetchAndComputePlanData(
   initialDays: { sessionType: SessionType | "rest"; status: "programmed" }[];
   goalScheme: RepSetScheme;
 }> {
-  const [profile, catalog, lastUsedMovementIds, activeInjuries]: [
+  const [profile, catalog, lastUsedMovementIds, activeInjuries, exerciseExclusions]: [
     Doc<"userProfiles"> | null,
     Movement[],
     string[],
     Doc<"injuries">[],
+    { movementId: string }[],
   ] = await Promise.all([
     ctx.runQuery(internal.userProfiles.getByUserId, { userId }),
     ctx.runQuery(internal.tonal.movementSync.getAllMovements),
     ctx.runQuery(internal.workoutPlans.getRecentMovementIds, { userId }),
     ctx.runQuery(internal.injuries.getActiveInternal, { userId }),
+    ctx.runQuery(internal.exerciseExclusions.getForUser, { userId }),
   ]);
   const userLevel = parseUserLevel(profile?.profileData?.level);
   const trainingDayIndices = getTrainingDayIndices(targetDays);
@@ -88,6 +90,7 @@ export async function fetchAndComputePlanData(
     .flatMap((inj) => inj.avoidance.split(",").map((s) => s.trim()))
     .filter((s) => s.length > 0);
   const excludeAccessories = computeExcludedAccessories(profile?.ownedAccessories ?? undefined);
+  const excludeMovementIds = exerciseExclusions.map((exclusion) => exclusion.movementId);
 
   return {
     catalog,
@@ -95,6 +98,7 @@ export async function fetchAndComputePlanData(
     userLevel,
     constraints: {
       excludeNameSubstrings: injuryAvoidances.length > 0 ? injuryAvoidances : undefined,
+      excludeMovementIds: excludeMovementIds.length > 0 ? excludeMovementIds : undefined,
       excludeAccessories: excludeAccessories.length > 0 ? excludeAccessories : undefined,
     },
     daySessions,
@@ -128,6 +132,7 @@ export const generateDraftWeekPlan = internalAction({
           dayIndex: number;
           dayName: string;
           eliminatedByInjury: number;
+          eliminatedByMovementId: number;
           eliminatedByAccessory: number;
         }[];
       }
@@ -185,8 +190,13 @@ export const generateDraftWeekPlan = internalAction({
       dayIndex: number;
       dayName: string;
       eliminatedByInjury: number;
+      eliminatedByMovementId: number;
       eliminatedByAccessory: number;
     }[] = [];
+    const warmupCooldownConstraints = {
+      excludeAccessories: data.constraints?.excludeAccessories,
+      excludeMovementIds: data.constraints?.excludeMovementIds,
+    };
 
     for (const { dayIndex, sessionType } of daySessions) {
       const targetMuscleGroups =
@@ -209,6 +219,7 @@ export const generateDraftWeekPlan = internalAction({
           dayIndex,
           dayName: DAY_NAMES[dayIndex],
           eliminatedByInjury: selection.diagnostics.eliminatedByInjury,
+          eliminatedByMovementId: selection.diagnostics.eliminatedByMovementId,
           eliminatedByAccessory: selection.diagnostics.eliminatedByAccessory,
         });
       }
@@ -219,18 +230,17 @@ export const generateDraftWeekPlan = internalAction({
       const movementIds = sortForMinimalEquipmentSwitches(rawMovementIds, catalog);
 
       // Select warmup and cooldown exercises
-      const accessoryConstraints = { excludeAccessories: data.constraints?.excludeAccessories };
       const warmupIds = selectWarmupExercises({
         catalog,
         targetMuscleGroups,
         maxExercises: wcCounts.warmup,
-        constraints: accessoryConstraints,
+        constraints: warmupCooldownConstraints,
       });
       const cooldownIds = selectCooldownExercises({
         catalog,
         targetMuscleGroups,
         maxExercises: wcCounts.cooldown,
-        constraints: accessoryConstraints,
+        constraints: warmupCooldownConstraints,
       });
 
       // Progressive overload suggestions

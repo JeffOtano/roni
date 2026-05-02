@@ -38,7 +38,11 @@ type CreatePlanResult =
       userLevel: number;
       maxExercises: number;
       lastUsedMovementIds: string[];
-      constraints: { excludeNameSubstrings?: string[]; excludeAccessories?: string[] };
+      constraints: {
+        excludeNameSubstrings?: string[];
+        excludeMovementIds?: string[];
+        excludeAccessories?: string[];
+      };
       sessionDurationMinutes: number;
       weekStartDate: string;
       userId: Id<"users">;

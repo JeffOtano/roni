@@ -152,6 +152,18 @@ export default defineSchema({
     .index("by_appLastActiveAt", ["appLastActiveAt"])
     .index("by_lastActiveAt", ["lastActiveAt"]),
 
+  /** Per-user exact movement exclusions for exercise selection. */
+  exerciseExclusions: defineTable({
+    userId: v.id("users"),
+    movementId: v.string(),
+    movementName: v.string(),
+    muscleGroups: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_movementId", ["userId", "movementId"])
+    .index("by_userId_createdAt", ["userId", "createdAt"]),
+
   /** In-app check-ins (proactive messages). No SMS. */
   checkIns: defineTable({
     userId: v.id("users"),

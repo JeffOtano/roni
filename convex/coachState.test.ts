@@ -41,7 +41,7 @@ describe("safe", () => {
 });
 
 describe("gatherSnapshotInputs", () => {
-  test("returns aggregated reads across all 10 sub-domains", async () => {
+  test("returns aggregated reads across all snapshot sub-domains", async () => {
     const t = convexTest(schema, modules);
     const userId = await createUser(t);
     const now = Date.now();
@@ -149,6 +149,13 @@ describe("gatherSnapshotInputs", () => {
         reportedAt: now,
         status: "active",
       });
+      await ctx.db.insert("exerciseExclusions", {
+        userId,
+        movementId: "movement-lateral-raise",
+        movementName: "Lateral Raise",
+        muscleGroups: ["Shoulders"],
+        createdAt: now,
+      });
       await ctx.db.insert("externalActivities", {
         userId,
         externalId: "ext-1",
@@ -189,6 +196,8 @@ describe("gatherSnapshotInputs", () => {
     expect(inputs.activeGoals[0].title).toBe("Bench +20");
     expect(inputs.activeInjuries).toHaveLength(1);
     expect(inputs.activeInjuries[0].area).toBe("left shoulder");
+    expect(inputs.exerciseExclusions).toHaveLength(1);
+    expect(inputs.exerciseExclusions[0].movementName).toBe("Lateral Raise");
     expect(inputs.externalActivities).toHaveLength(1);
     expect(inputs.externalActivities[0].source).toBe("Apple Watch");
     expect(inputs.garminWellness).toHaveLength(1);
@@ -230,6 +239,7 @@ describe("gatherSnapshotInputs", () => {
     expect(inputs.recentFeedback).toEqual([]);
     expect(inputs.activeGoals).toEqual([]);
     expect(inputs.activeInjuries).toEqual([]);
+    expect(inputs.exerciseExclusions).toEqual([]);
     expect(inputs.externalActivities).toEqual([]);
     expect(inputs.garminWellness).toEqual([]);
   });

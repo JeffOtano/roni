@@ -75,6 +75,7 @@ Returns a summary of the full week plan with exercises, sets, reps/duration, and
             dayIndex: number;
             dayName: string;
             eliminatedByInjury: number;
+            eliminatedByMovementId: number;
             eliminatedByAccessory: number;
           }[];
         }
@@ -115,6 +116,7 @@ Returns a summary of the full week plan with exercises, sets, reps/duration, and
               dayIndex: number;
               dayName: string;
               eliminatedByInjury: number;
+              eliminatedByMovementId: number;
               eliminatedByAccessory: number;
             }[];
           }
@@ -138,7 +140,7 @@ Returns a summary of the full week plan with exercises, sets, reps/duration, and
 
       const degenerateNote =
         result.degenerateDays.length > 0
-          ? `\n\nWARNING: ${result.degenerateDays.length} day(s) had to be programmed with a heavily-restricted exercise pool because of injury filters. Affected days: ${result.degenerateDays.map((d) => d.dayName).join(", ")}. The plan may feel monotonous. Consider asking the user to relax their injury list or use search_exercises to find alternative compound movements.`
+          ? `\n\nWARNING: ${result.degenerateDays.length} day(s) had to be programmed with a heavily-restricted exercise pool because of injury, exercise exclusion, or equipment filters. Affected days: ${result.degenerateDays.map((d) => d.dayName).join(", ")}. The plan may feel monotonous. Consider asking the user to relax their restrictions or use search_exercises to find alternative compound movements.`
           : "";
 
       return { ...result, reasoningHints: reasoningHints + degenerateNote };

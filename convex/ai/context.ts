@@ -53,6 +53,7 @@ export async function buildTrainingSnapshot(
     recentFeedback,
     activeGoals,
     activeInjuries,
+    exerciseExclusions,
     externalActivities,
     garminWellness,
   } = inputs;
@@ -119,7 +120,19 @@ export async function buildTrainingSnapshot(
   }
   sections.push({ priority: 2, lines: equipmentLines });
 
-  // Priority 3: Active injuries
+  // Priority 3: Explicit exercise exclusions and active injuries
+  const excludedExercises = (exerciseExclusions ?? []) as Doc<"exerciseExclusions">[];
+  if (excludedExercises.length > 0) {
+    const exclusionLines: string[] = [`Excluded Exercises:`];
+    for (const exclusion of excludedExercises) {
+      const groups =
+        exclusion.muscleGroups.length > 0 ? ` | ${exclusion.muscleGroups.join(", ")}` : "";
+      exclusionLines.push(`  ${exclusion.movementName} (${exclusion.movementId})${groups}`);
+    }
+    exclusionLines.push(`  → Exercise selection MUST NOT program these movements.`);
+    sections.push({ priority: 3, lines: exclusionLines });
+  }
+
   const injuries = activeInjuries as Doc<"injuries">[];
   if (injuries.length > 0) {
     const injuryLines: string[] = [`Active Injuries/Limitations:`];

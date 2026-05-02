@@ -102,4 +102,44 @@ describe("selectExercisesWithDiagnostics", () => {
     };
     expect(selectExercisesWithDiagnostics(input).ids).toEqual(selectExercises(input));
   });
+
+  it("counts exact movement ID exclusions separately from injury keywords", () => {
+    const catalog = [
+      mk("c1", "Bench Press", ["Chest", "Triceps"]),
+      mk("c2", "Overhead Press", ["Shoulders", "Triceps"]),
+      mk("iso1", "Fly", ["Chest"]),
+    ];
+
+    const result = selectExercisesWithDiagnostics({
+      catalog,
+      targetMuscleGroups: ["Chest", "Triceps", "Shoulders"],
+      userLevel: 2,
+      maxExercises: 5,
+      lastUsedMovementIds: [],
+      constraints: { excludeMovementIds: ["c2"] },
+    });
+
+    expect(result.ids).toEqual(["c1", "iso1"]);
+    expect(result.diagnostics.eliminatedByMovementId).toBe(1);
+    expect(result.diagnostics.eliminatedByInjury).toBe(0);
+  });
+
+  it("counts exact movement ID exclusions before target muscle filtering", () => {
+    const catalog = [
+      mk("c1", "Bench Press", ["Chest", "Triceps"]),
+      mk("leg1", "Goblet Squat", ["Quads", "Glutes"]),
+    ];
+
+    const result = selectExercisesWithDiagnostics({
+      catalog,
+      targetMuscleGroups: ["Chest", "Triceps"],
+      userLevel: 2,
+      maxExercises: 5,
+      lastUsedMovementIds: [],
+      constraints: { excludeMovementIds: ["leg1"] },
+    });
+
+    expect(result.ids).toEqual(["c1"]);
+    expect(result.diagnostics.eliminatedByMovementId).toBe(1);
+  });
 });

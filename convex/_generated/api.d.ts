@@ -82,6 +82,7 @@ import type * as discord from "../discord.js";
 import type * as email from "../email.js";
 import type * as emailChange from "../emailChange.js";
 import type * as emailTemplates from "../emailTemplates.js";
+import type * as exerciseExclusions from "../exerciseExclusions.js";
 import type * as fileGc from "../fileGc.js";
 import type * as garmin_activityNormalizer from "../garmin/activityNormalizer.js";
 import type * as garmin_backfill from "../garmin/backfill.js";
@@ -257,6 +258,7 @@ declare const fullApi: ApiFromModules<{
   email: typeof email;
   emailChange: typeof emailChange;
   emailTemplates: typeof emailTemplates;
+  exerciseExclusions: typeof exerciseExclusions;
   fileGc: typeof fileGc;
   "garmin/activityNormalizer": typeof garmin_activityNormalizer;
   "garmin/backfill": typeof garmin_backfill;

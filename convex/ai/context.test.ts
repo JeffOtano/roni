@@ -159,6 +159,7 @@ describe("buildTrainingSnapshot", () => {
       recentFeedback: [],
       activeGoals: [],
       activeInjuries: [],
+      exerciseExclusions: [],
       externalActivities: [],
       garminWellness: [],
     };
@@ -290,5 +291,43 @@ describe("buildTrainingSnapshot", () => {
     expect(snapshot).toContain("sleep 6h");
     expect(snapshot).toContain("HRV 44ms");
     expect(snapshot).toContain("body battery 18-54");
+  });
+
+  it("includes exact exercise exclusions in the coach snapshot", async () => {
+    const ctx = {
+      runQuery: async (query: unknown) => {
+        const queryName = getFunctionName(query as never);
+        if (queryName === gatherSnapshotInputsName) {
+          return {
+            ...emptyInputs(),
+            profile: {
+              profileData: {
+                firstName: "Alice",
+                lastName: "Lifter",
+                heightInches: 66,
+                weightPounds: 150,
+                level: "intermediate",
+                workoutsPerWeek: 4,
+              },
+            },
+            exerciseExclusions: [
+              {
+                movementId: "movement-lateral-raise",
+                movementName: "Lateral Raise",
+                muscleGroups: ["Shoulders"],
+              },
+            ],
+          };
+        }
+        if (queryName === weekPlansName) return null;
+        return [];
+      },
+    };
+
+    const snapshot = await buildTrainingSnapshot(ctx as never, "user-1");
+
+    expect(snapshot).toContain("Excluded Exercises");
+    expect(snapshot).toContain("Lateral Raise (movement-lateral-raise)");
+    expect(snapshot).toContain("Exercise selection MUST NOT program these movements");
   });
 });

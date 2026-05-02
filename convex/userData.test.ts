@@ -97,4 +97,51 @@ describe("USER_DATA_TABLES", () => {
     expect(data.garminWellnessDaily[0]).not.toHaveProperty("_creationTime");
     expect(data.garminWellnessDaily[0]).not.toHaveProperty("userId");
   });
+
+  test("collectUserData exports exercise exclusions", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("users", {});
+      await ctx.db.insert("exerciseExclusions", {
+        userId: id,
+        movementId: "movement-lateral-raise",
+        movementName: "Lateral Raise",
+        muscleGroups: ["Shoulders"],
+        createdAt: 1_714_000_000_000,
+      });
+      return id;
+    });
+
+    const data = await t.query(internal.dataExport.collectUserData, { userId });
+
+    expect(data.exerciseExclusions).toEqual([
+      {
+        movementId: "movement-lateral-raise",
+        movementName: "Lateral Raise",
+        muscleGroups: ["Shoulders"],
+        createdAt: 1_714_000_000_000,
+      },
+    ]);
+  });
+
+  test("collectUserData exports every exercise exclusion", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("users", {});
+      for (let i = 0; i < 101; i++) {
+        await ctx.db.insert("exerciseExclusions", {
+          userId: id,
+          movementId: `movement-${i}`,
+          movementName: `Movement ${i}`,
+          muscleGroups: ["Chest"],
+          createdAt: i,
+        });
+      }
+      return id;
+    });
+
+    const data = await t.query(internal.dataExport.collectUserData, { userId });
+
+    expect(data.exerciseExclusions).toHaveLength(101);
+  });
 });
