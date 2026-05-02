@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ProviderId } from "../../../convex/ai/providers";
@@ -26,12 +26,9 @@ export function ModelOverrideSection({
   readonly onSave: (args: { modelOverride?: string }) => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(modelOverride ?? "");
+  const [draftValue, setDraftValue] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setValue(modelOverride ?? "");
-  }, [modelOverride]);
+  const value = draftValue ?? modelOverride ?? "";
 
   const defaultModel = DEFAULT_MODEL_BY_PROVIDER[provider];
 
@@ -40,6 +37,7 @@ export function ModelOverrideSection({
     try {
       const trimmed = value.trim();
       await onSave({ modelOverride: trimmed || undefined });
+      setDraftValue(null);
       toast.success(trimmed ? "Model override saved" : "Reset to default model");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save model override");
@@ -52,7 +50,7 @@ export function ModelOverrideSection({
     setSaving(true);
     try {
       await onSave({ modelOverride: undefined });
-      setValue("");
+      setDraftValue(null);
       toast.success("Reset to default model");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to reset model");
@@ -83,7 +81,7 @@ export function ModelOverrideSection({
                 id="model-override"
                 type="text"
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
+                onChange={(e) => setDraftValue(e.target.value)}
                 placeholder={defaultModel || "Enter model name"}
                 disabled={saving}
               />
