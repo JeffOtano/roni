@@ -2,7 +2,6 @@ import type { StepResult, ToolSet } from "ai";
 import type { Id } from "../_generated/dataModel";
 import type { PushDivergence } from "../tonal/mutations";
 
-/** Row shape produced by `RunAccumulator.toRow()`. Matches the `aiRun` table validator. */
 export interface AiRunRow {
   runId: string;
   userId: Id<"users">;
@@ -15,7 +14,7 @@ export interface AiRunRow {
   totalSteps: number;
   toolSequence: string[];
   retryCount: number;
-  fallbackReason?: "transient_exhaustion" | "primary_error";
+  fallbackReason?: "transient_exhaustion" | "primary_error" | "circuit_open";
   finishReason?:
     | "stop"
     | "tool-calls"
@@ -67,7 +66,6 @@ export interface AccumulatorInit {
   scheduledAt?: number;
   processingStartedAt?: number;
   retrievalEnabled?: boolean;
-  /** Turn start timestamp in ms. Defaults to `Date.now()`; injectable for tests. */
   startedAt?: number;
 }
 
@@ -77,6 +75,15 @@ export interface ContextTimingMetrics {
   contextBuildCount?: number;
   contextMessageCount?: number;
   snapshotSource?: AiRunRow["snapshotSource"];
+}
+
+export interface AttemptUsageSnapshot {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  modelId?: string;
+  provider?: string;
 }
 
 const ALLOWED_FINISH_REASONS = new Set<AiRunRow["finishReason"]>([
@@ -89,7 +96,6 @@ const ALLOWED_FINISH_REASONS = new Set<AiRunRow["finishReason"]>([
   "unknown",
 ]);
 
-/** Coerce the SDK's finishReason into the enum the aiRun validator accepts. */
 function normalizeFinishReason(raw: StepResult<ToolSet>["finishReason"]): AiRunRow["finishReason"] {
   return ALLOWED_FINISH_REASONS.has(raw as AiRunRow["finishReason"])
     ? (raw as AiRunRow["finishReason"])
@@ -127,16 +133,6 @@ function isApproveWeekPlanOutput(value: unknown): value is ApproveWeekPlanOutput
   return "pushed" in value || "failed" in value || "error" in value;
 }
 
-/**
- * Per-turn accumulator for the `aiRun` telemetry row.
- *
- * Wraps a single user turn (primary attempt, retry, optional fallback) and
- * collects: tokens, tool sequence, finish reason, retry/fallback state, and
- * Roni-specific outcomes (workout plan created, week plan push result).
- *
- * Not thread-safe; instantiated once per turn in `streamWithRetry` and
- * persisted in the caller's `finally` block.
- */
 export class RunAccumulator {
   private totalSteps = 0;
   private readonly toolSequence: string[] = [];
@@ -176,7 +172,6 @@ export class RunAccumulator {
     this.retrievalEnabled = init.retrievalEnabled;
   }
 
-  /** First text delta from the model — used for TTFT. Ignored after the first call. */
   markFirstChunk(now: number = Date.now()): void {
     if (this.timeToFirstTokenMs !== undefined) return;
     this.timeToFirstTokenMs = Math.max(0, now - this.startedAt);
@@ -185,7 +180,6 @@ export class RunAccumulator {
     }
   }
 
-  /** Called once from `onFinish`. Records TTLT and throughput when possible. */
   markFinished(now: number = Date.now()): void {
     this.timeToLastTokenMs = Math.max(0, now - this.startedAt);
     if (this.scheduledAt !== undefined) {
@@ -199,7 +193,6 @@ export class RunAccumulator {
     }
   }
 
-  /** Called once per step (inner LLM call) inside `streamText`. */
   onStepFinish(step: StepResult<ToolSet>): void {
     this.totalSteps += 1;
 
@@ -258,7 +251,6 @@ export class RunAccumulator {
     this.workoutPushOutcome = outcome;
   }
 
-  /** Record push divergence from the Tonal read-back; last-write-wins (one push per run). */
   recordPushDivergence(div: PushDivergence | null): void {
     this.pushDivergence = div ?? undefined;
   }
@@ -269,6 +261,28 @@ export class RunAccumulator {
     this.contextBuildCount = metrics.contextBuildCount;
     this.contextMessageCount = metrics.contextMessageCount;
     this.snapshotSource = metrics.snapshotSource;
+  }
+
+  snapshotUsage(): AttemptUsageSnapshot {
+    return {
+      inputTokens: this.inputTokens,
+      outputTokens: this.outputTokens,
+      cacheReadTokens: this.cacheReadTokens,
+      cacheWriteTokens: this.cacheWriteTokens,
+      modelId: this.modelId,
+      provider: this.provider,
+    };
+  }
+
+  usageDeltaSince(snapshot: AttemptUsageSnapshot): AttemptUsageSnapshot {
+    return {
+      inputTokens: Math.max(0, this.inputTokens - snapshot.inputTokens),
+      outputTokens: Math.max(0, this.outputTokens - snapshot.outputTokens),
+      cacheReadTokens: Math.max(0, this.cacheReadTokens - snapshot.cacheReadTokens),
+      cacheWriteTokens: Math.max(0, this.cacheWriteTokens - snapshot.cacheWriteTokens),
+      modelId: this.modelId ?? snapshot.modelId,
+      provider: this.provider ?? snapshot.provider,
+    };
   }
 
   toRow(): AiRunRow {
@@ -293,10 +307,6 @@ export class RunAccumulator {
       outputTokens: this.outputTokens,
       cacheReadTokens: this.cacheReadTokens,
       cacheWriteTokens: this.cacheWriteTokens,
-      // totalCostUsd intentionally left undefined: AI SDK v6 usage doesn't
-      // surface per-token USD, and Roni runs on a mix of BYOK and house keys
-      // so a single per-model rate would be wrong. Compute downstream from
-      // token counts + per-model rates if needed.
       totalCostUsd: undefined,
       scheduledAt: this.scheduledAt,
       processingStartedAt: this.processingStartedAt,
@@ -338,14 +348,11 @@ export class RunAccumulator {
           if (result.output.pushDivergence !== undefined) {
             this.recordPushDivergence(result.output.pushDivergence);
           }
-          // A successful create_workout leaves a draft needing user approval.
           this.markApprovalPause();
         }
         continue;
       }
 
-      // program_week builds a full 7-day plan that the user must approve
-      // before anything pushes to Tonal. Treat each success as a pause.
       if (result.toolName === "program_week" && isSuccessToolOutput(result.output)) {
         this.markApprovalPause();
         continue;
@@ -360,7 +367,6 @@ export class RunAccumulator {
         } else {
           this.workoutPushOutcome = "pushed";
         }
-        // Record first non-null divergence encountered across pushed days.
         if (!("error" in out)) {
           const firstDivergent = out.results.find((r) => r.pushDivergence != null);
           if (firstDivergent?.pushDivergence !== undefined) {
