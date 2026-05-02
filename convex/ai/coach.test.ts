@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { getFunctionName } from "convex/server";
 import type { ModelMessage } from "ai";
-import { escapeTrainingDataTags, makeCoachAgentConfig, shouldUseCrossThreadSearch } from "./coach";
+import {
+  type CoachAgentConfigOptions,
+  escapeTrainingDataTags,
+  makeCoachAgentConfig,
+  shouldUseCrossThreadSearch,
+} from "./coach";
 import { internal } from "../_generated/api";
 
 const testConfig = makeCoachAgentConfig();
@@ -10,6 +15,7 @@ type ContextHandlerArgs = Parameters<NonNullable<typeof testConfig.contextHandle
 interface RunContextOptions {
   userId?: string;
   ctx?: { runQuery: (...args: unknown[]) => Promise<unknown> };
+  config?: CoachAgentConfigOptions;
 }
 
 // Mocked context for tests that don't care about snapshot content: returning
@@ -25,6 +31,7 @@ const EMPTY_SNAPSHOT_INPUTS = {
   recentFeedback: [],
   activeGoals: [],
   activeInjuries: [],
+  exerciseExclusions: [],
   externalActivities: [],
   garminWellness: [],
 };
@@ -41,6 +48,7 @@ async function runContextHandler(
   allMessages: ModelMessage[],
   options: RunContextOptions = {},
 ): Promise<ModelMessage[]> {
+  const config = options.config ? makeCoachAgentConfig(options.config) : testConfig;
   const args: ContextHandlerArgs = {
     allMessages,
     search: [],
@@ -53,7 +61,7 @@ async function runContextHandler(
   };
 
   const ctx = (options.ctx ?? undefined) as never;
-  return testConfig.contextHandler!(ctx, args);
+  return config.contextHandler!(ctx, args);
 }
 
 function nonSystemMessages(messages: ModelMessage[]): ModelMessage[] {
@@ -257,6 +265,16 @@ describe("coachAgentConfig.contextHandler — training snapshot placement", () =
 
   it("skips snapshot injection when userId is present but context is empty", async () => {
     const result = await runContextHandler([], { userId, ctx: EMPTY_PROFILE_CTX });
+
+    expect(result).toHaveLength(1);
+    expect(systemText(result[0])).toContain("PERSONALITY:");
+  });
+
+  it("skips snapshot injection when userId is present but no user turn survives cleanup", async () => {
+    const result = await runContextHandler([{ role: "assistant", content: "orphaned" }], {
+      userId,
+      ctx: EMPTY_PROFILE_CTX,
+    });
 
     expect(result).toHaveLength(1);
     expect(systemText(result[0])).toContain("PERSONALITY:");

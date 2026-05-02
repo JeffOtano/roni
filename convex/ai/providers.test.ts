@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  getPromptInputBudget,
   getProviderConfig,
   isValidProvider,
+  PROMPT_OUTPUT_HEADROOM_RATIO,
   type ProviderId,
   PROVIDERS,
   validateKeyFormat,
@@ -93,5 +95,35 @@ describe("isValidProvider", () => {
   it("returns false for invalid providers", () => {
     expect(isValidProvider("gpt")).toBe(false);
     expect(isValidProvider("")).toBe(false);
+  });
+});
+
+describe("getPromptInputBudget", () => {
+  it("uses conservative high-capacity budgets for Gemini and OpenAI defaults", () => {
+    expect(getPromptInputBudget("gemini", "gemini-3-flash-preview")).toBe(500_000);
+    expect(getPromptInputBudget("gemini", "gemini-2.5-flash")).toBe(500_000);
+    expect(getPromptInputBudget("openai", "gpt-5.4")).toBe(500_000);
+    expect(getPromptInputBudget("openai", "gpt-5.4-mini")).toBe(500_000);
+  });
+
+  it("uses a standard Claude budget for Sonnet and Opus", () => {
+    expect(getPromptInputBudget("claude", "claude-sonnet-4-6")).toBe(120_000);
+    expect(getPromptInputBudget("claude", "claude-opus-4-5")).toBe(120_000);
+  });
+
+  it("uses the small fallback budget for Haiku, OpenRouter, and unknown models", () => {
+    expect(getPromptInputBudget("claude", "claude-haiku-4-5")).toBe(50_000);
+    expect(getPromptInputBudget("openrouter", "openrouter/auto")).toBe(50_000);
+    expect(getPromptInputBudget("gemini", "mystery-model")).toBe(50_000);
+  });
+
+  it("normalizes provider-prefixed, cased, and padded model IDs", () => {
+    expect(getPromptInputBudget("gemini", "google/gemini-2.5-flash")).toBe(500_000);
+    expect(getPromptInputBudget("claude", "anthropic/claude-sonnet-4-6")).toBe(120_000);
+    expect(getPromptInputBudget("openai", " OpenAI/GPT-5.4-mini ")).toBe(500_000);
+  });
+
+  it("reserves twenty percent output headroom", () => {
+    expect(PROMPT_OUTPUT_HEADROOM_RATIO).toBe(0.2);
   });
 });

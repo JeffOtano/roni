@@ -189,9 +189,13 @@ export function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMes
 // ---------------------------------------------------------------------------
 
 /** ~4 chars per token is a conservative estimate for mixed English + JSON. */
-function estimateTokens(content: ModelMessage["content"]): number {
-  const text = typeof content === "string" ? content : JSON.stringify(content);
+export function estimateMessageTokens(content: ModelMessage["content"]): number {
+  const text = typeof content === "string" ? content : (JSON.stringify(content) ?? "");
   return Math.ceil(text.length / 4);
+}
+
+export function estimateMessagesTokens(messages: ModelMessage[]): number {
+  return messages.reduce((sum, message) => sum + estimateMessageTokens(message.content), 0);
 }
 
 /**
@@ -226,7 +230,7 @@ export function buildContextWindow(
   let startIdx = userIndices[userIndices.length - 1];
   let tokenCount = 0;
   for (let i = startIdx; i < messages.length; i++) {
-    tokenCount += estimateTokens(messages[i].content);
+    tokenCount += estimateMessageTokens(messages[i].content);
   }
 
   // Walk backward through earlier turns, adding if budget allows
@@ -235,7 +239,7 @@ export function buildContextWindow(
     const turnEnd = userIndices[u + 1];
     let turnTokens = 0;
     for (let i = turnStart; i < turnEnd; i++) {
-      turnTokens += estimateTokens(messages[i].content);
+      turnTokens += estimateMessageTokens(messages[i].content);
     }
     if (tokenCount + turnTokens > tokenBudget) break;
     tokenCount += turnTokens;
@@ -243,4 +247,19 @@ export function buildContextWindow(
   }
 
   return messages.slice(startIdx);
+}
+
+export interface FullPromptContextWindowArgs {
+  messages: ModelMessage[];
+  promptBudgetTokens: number;
+  reservedPromptTokens: number;
+}
+
+export function buildFullPromptContextWindow({
+  messages,
+  promptBudgetTokens,
+  reservedPromptTokens,
+}: FullPromptContextWindowArgs): ModelMessage[] {
+  const messageBudget = Math.max(0, promptBudgetTokens - reservedPromptTokens);
+  return buildContextWindow(messages, messageBudget);
 }

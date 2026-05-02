@@ -19,6 +19,7 @@ import type * as ai_byokErrors from "../ai/byokErrors.js";
 import type * as ai_circuitBreaker from "../ai/circuitBreaker.js";
 import type * as ai_circuitBreakerCore from "../ai/circuitBreakerCore.js";
 import type * as ai_coach from "../ai/coach.js";
+import type * as ai_coachTools from "../ai/coachTools.js";
 import type * as ai_coachingTools from "../ai/coachingTools.js";
 import type * as ai_context from "../ai/context.js";
 import type * as ai_contextWindow from "../ai/contextWindow.js";
@@ -195,6 +196,7 @@ declare const fullApi: ApiFromModules<{
   "ai/circuitBreaker": typeof ai_circuitBreaker;
   "ai/circuitBreakerCore": typeof ai_circuitBreakerCore;
   "ai/coach": typeof ai_coach;
+  "ai/coachTools": typeof ai_coachTools;
   "ai/coachingTools": typeof ai_coachingTools;
   "ai/context": typeof ai_context;
   "ai/contextWindow": typeof ai_contextWindow;
