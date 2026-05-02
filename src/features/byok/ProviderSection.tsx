@@ -49,29 +49,31 @@ export function ProviderSection() {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isOptingIn, setIsOptingIn] = useState(false);
 
-  const refreshSettings = useCallback(async () => {
-    try {
-      const result = await getSettings({});
-      if (result) {
-        setSettings(result);
-        setViewProvider(result.selectedProvider);
-        setSettingsError(null);
-      } else {
+  const refreshSettings = useCallback(
+    async (hasKey: boolean) => {
+      try {
+        const result = await getSettings({});
+        if (result) {
+          setSettings(result);
+          setViewProvider(result.selectedProvider);
+          setSettingsError(null);
+        } else {
+          setSettings(null);
+          setSettingsError(hasKey ? SETTINGS_LOAD_ERROR : null);
+        }
+        return result;
+      } catch (err) {
         setSettings(null);
-        setSettingsError(byokStatus?.hasKey ? SETTINGS_LOAD_ERROR : null);
+        setSettingsError(SETTINGS_LOAD_ERROR);
+        throw err;
       }
-      return result;
-    } catch (err) {
-      setSettings(null);
-      setSettingsError(SETTINGS_LOAD_ERROR);
-      throw err;
-    }
-  }, [byokStatus?.hasKey, getSettings]);
+    },
+    [getSettings],
+  );
 
   useEffect(() => {
     if (byokStatus === undefined) return;
     let cancelled = false;
-    setSettingsError(null);
     getSettings({})
       .then((result) => {
         if (cancelled) return;
@@ -113,7 +115,7 @@ export function ProviderSection() {
     if (settings.keys[newProvider].hasKey) {
       try {
         await selectProvider({ provider: newProvider });
-        await refreshSettings();
+        await refreshSettings(byokStatus?.hasKey ?? false);
         toast.success(`Switched to ${PROVIDER_UI_CONFIG[newProvider].label}`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to switch provider");
@@ -123,7 +125,7 @@ export function ProviderSection() {
 
   const handleSave = async (apiKey: string) => {
     await saveKey({ provider: viewProvider, apiKey });
-    await refreshSettings();
+    await refreshSettings(byokStatus?.hasKey ?? false);
     setIsOptingIn(false);
     toast.success(`${PROVIDER_UI_CONFIG[viewProvider].label} key saved`);
   };
@@ -133,7 +135,7 @@ export function ProviderSection() {
     setRemoveError(null);
     try {
       await removeKey({ provider: viewProvider });
-      await refreshSettings();
+      await refreshSettings(byokStatus?.hasKey ?? false);
       toast.success(`${PROVIDER_UI_CONFIG[viewProvider].label} key removed`);
     } catch (err) {
       setRemoveError(err instanceof Error ? err.message : "Failed to remove key.");
@@ -169,7 +171,7 @@ export function ProviderSection() {
             variant="outline"
             size="sm"
             onClick={() => {
-              void refreshSettings().catch(() => undefined);
+              void refreshSettings(byokStatus?.hasKey ?? false).catch(() => undefined);
             }}
           >
             Retry
@@ -254,7 +256,7 @@ export function ProviderSection() {
             ) {
               await selectProvider({ provider: "openrouter" });
             }
-            await refreshSettings();
+            await refreshSettings(byokStatus?.hasKey ?? false);
           }}
         />
       )}
