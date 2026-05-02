@@ -8,7 +8,7 @@
  * PHOENIX_PROJECT_NAME to label the dataset description; falls back to defaults.
  */
 import { createClient } from "@arizeai/phoenix-client";
-import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 import { EVAL_SCENARIOS } from "../../../convex/ai/evalScenarios";
 
 const DATASET_NAME = process.env.PHOENIX_DATASET_NAME ?? "roni-coach-smoke";
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
     splits: [scenario.capability],
   }));
 
-  const { datasetId } = await createOrGetDataset({
+  const { datasetId } = await createDataset({
     client,
     name: DATASET_NAME,
     description: DATASET_DESCRIPTION,

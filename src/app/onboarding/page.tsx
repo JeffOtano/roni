@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -112,7 +112,7 @@ function OnboardingFlow({
     ),
   );
   const { track } = useAnalytics();
-  const startTimeRef = useRef(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   useEffect(() => {
     track("onboarding_started");
@@ -127,7 +127,7 @@ function OnboardingFlow({
     const nextStep = steps[nextIndex];
     if (nextStep?.id === "ready") {
       track("onboarding_completed", {
-        duration_seconds: Math.round((Date.now() - startTimeRef.current) / 1000),
+        duration_seconds: Math.round((Date.now() - startTime) / 1000),
       });
     }
 

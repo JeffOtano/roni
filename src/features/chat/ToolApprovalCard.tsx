@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprova
   const respond = useMutation(api.chat.respondToToolApproval);
   const continueAgent = useAction(api.chatProcessing.continueAfterApproval);
   const { track } = useAnalytics();
-  const shownTimeRef = useRef(Date.now());
+  const [shownTime] = useState(() => Date.now());
 
   useEffect(() => {
     track("tool_approval_shown", { tool_name: toolName });
@@ -45,7 +45,7 @@ export function ToolApprovalCard({ toolName, approvalId, threadId }: ToolApprova
       if (approved) {
         track("tool_approved", {
           tool_name: toolName,
-          response_time_ms: Date.now() - shownTimeRef.current,
+          response_time_ms: Date.now() - shownTime,
         });
       } else {
         track("tool_denied", { tool_name: toolName });
