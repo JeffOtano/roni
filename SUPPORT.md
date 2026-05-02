@@ -41,7 +41,7 @@ guaranteed SLA for general support, issue triage, or feature requests.
 
 ## Community
 
-There is a [Discord server](https://discord.gg/Sa5ewWP5M) for casual discussion.
+There is a [Discord server](https://discord.gg/24phpduVbx) for casual discussion.
 GitHub issues remain the primary channel for bugs, features, and support.
 
 ## What support is not

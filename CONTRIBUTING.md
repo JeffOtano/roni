@@ -89,4 +89,4 @@ The README's [GitHub Actions secrets](README.md#github-actions-secrets) table ha
 
 - The iOS app is not in this repository (it stays in a private fork).
 - Adding support for fitness machines other than Tonal is not on the roadmap right now, though the coach engine is mostly machine-agnostic. File an issue to discuss before starting work.
-- There is a [Discord server](https://discord.gg/Sa5ewWP5M) for casual discussion, but GitHub issues remain the primary channel for bugs, features, and support.
+- There is a [Discord server](https://discord.gg/24phpduVbx) for casual discussion, but GitHub issues remain the primary channel for bugs, features, and support.
