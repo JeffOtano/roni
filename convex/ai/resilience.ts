@@ -370,9 +370,13 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
 
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   const reason = report.error instanceof Error ? report.error.message : String(report.error);
-  await finalizePendingMessages(ctx, report.threadId, reason);
-
   const transientKind = classifyTransientError(report.error);
+
+  // Use a short classification code, not the raw provider error text: the
+  // agent SDK stores this in the message and the browser stream processor
+  // re-throws it verbatim (TONALCOACH-1C). User message is sent below.
+  await finalizePendingMessages(ctx, report.threadId, transientKind ?? "error");
+
   const content = transientKind
     ? buildProviderTransientMessage(transientKind, report.provider, report.isByok)
     : AI_ERROR_MESSAGE;

@@ -179,3 +179,40 @@ describe("buildProviderTransientMessage with isByok flag", () => {
     expect(msg).toContain("fresh chat thread");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Finalize reason normalization (TONALCOACH-1C)
+//
+// reportError() stores classifyTransientError(err) ?? "error" as the finalize
+// reason instead of the raw provider error text. The browser stream processor
+// (process-ui-message-stream.ts) re-throws that value verbatim, so keeping it
+// short prevents the full Gemini quota message appearing as an Uncaught Error.
+// ---------------------------------------------------------------------------
+describe("finalize reason normalization for provider errors", () => {
+  it("maps the exact Gemini free-tier quota message from TONALCOACH-1C to rate_limit", () => {
+    const geminiQuotaError = new Error(
+      "You exceeded your current quota, please check your plan and billing details. " +
+        "For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. " +
+        "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, " +
+        "limit: 20, model: gemini-3-flash\nPlease retry in 18.825585699s.",
+    );
+    expect(classifyTransientError(geminiQuotaError) ?? "error").toBe("rate_limit");
+  });
+
+  it("maps non-classifiable errors to the 'error' fallback", () => {
+    const unknownError = new Error("Something completely unexpected exploded");
+    expect(classifyTransientError(unknownError) ?? "error").toBe("error");
+  });
+
+  it("maps a transient 500 to server_error", () => {
+    const serverError = Object.assign(new Error("Internal server error"), { status: 500 });
+    expect(classifyTransientError(serverError) ?? "error").toBe("server_error");
+  });
+
+  it("maps a context-window overflow to context_limit", () => {
+    const contextError = Object.assign(new Error("API error"), {
+      responseBody: "input_token_count exceeds limit quota",
+    });
+    expect(classifyTransientError(contextError) ?? "error").toBe("context_limit");
+  });
+});
