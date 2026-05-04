@@ -16,7 +16,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <a href="tsconfig.json"><img src="https://img.shields.io/badge/TypeScript-strict-3178c6.svg" alt="TypeScript" /></a>
   <a href="#testing"><img src="https://img.shields.io/badge/tests-Vitest-6E9F18.svg" alt="Vitest" /></a>
-  <a href="https://discord.gg/Sa5ewWP5M"><img src="https://img.shields.io/discord/1482942052898574336?logo=discord&logoColor=white&label=Discord&color=5865F2" alt="Discord" /></a>
+  <a href="https://discord.gg/24phpduVbx"><img src="https://img.shields.io/discord/1482942052898574336?logo=discord&logoColor=white&label=Discord&color=5865F2" alt="Discord" /></a>
   <img src="https://img.shields.io/coderabbit/prs/github/JeffOtano/roni?utm_source=oss&utm_medium=github&utm_campaign=JeffOtano%2Froni&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Pull Request Reviews" />
 </p>
 

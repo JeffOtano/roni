@@ -72,6 +72,12 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
   });
 
+  it("drops Gemini prepayment-credits-depleted billing errors", () => {
+    const payload =
+      "Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
   it("drops Gemini high-demand / overload errors", () => {
     const payload =
       "This model is currently experiencing high demand. Spikes in demand are usually temporary.";
@@ -119,6 +125,41 @@ describe("shouldDropSentryEvent", () => {
   it("falls back to event.exception value when originalException is missing", () => {
     const event = eventWithValue("Uncaught Error: byok_quota_exceeded");
     expect(shouldDropSentryEvent(event, {})).toBe(true);
+  });
+
+  it("drops event when hint has generic message but exception value contains quota error", () => {
+    // Real-world scenario: the AI SDK wraps the error with a generic message
+    // while the original quota error is preserved in event.exception.values.
+    const quotaMsg = "You exceeded your current quota, please check your plan and billing details.";
+    const event: ErrorEvent = {
+      exception: {
+        values: [{ value: "Failed to process stream" }, { value: quotaMsg }],
+      },
+    } as unknown as ErrorEvent;
+    const hint = hintWithError("Failed to process stream");
+    expect(shouldDropSentryEvent(event, hint)).toBe(true);
+  });
+
+  it("drops event when hint has generic message but exception value contains free-tier metric", () => {
+    const metricMsg =
+      "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3-flash";
+    const event: ErrorEvent = {
+      exception: {
+        values: [{ value: metricMsg }],
+      },
+    } as unknown as ErrorEvent;
+    const hint = hintWithError("Error reading stream");
+    expect(shouldDropSentryEvent(event, hint)).toBe(true);
+  });
+
+  it("keeps event when no message source contains a suppressed substring", () => {
+    const event: ErrorEvent = {
+      exception: {
+        values: [{ value: "Something unexpected went wrong" }],
+      },
+    } as unknown as ErrorEvent;
+    const hint = hintWithError("Something unexpected went wrong");
+    expect(shouldDropSentryEvent(event, hint)).toBe(false);
   });
 });
 
