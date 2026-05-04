@@ -12,7 +12,7 @@ import { getEffectiveUserId } from "./lib/auth";
 import { buildCoachAgentForStorageOnly } from "./ai/coach";
 import { rateLimiter } from "./rateLimits";
 import { sanitizeTimezone } from "./ai/timeDecay";
-import { assertThreadOwnership, validateUserProviderKey } from "./chatHelpers";
+import { assertThreadOwnership } from "./chatHelpers";
 
 export const generateImageUploadUrl = mutation({
   args: {},
@@ -70,9 +70,12 @@ export const createThreadWithMessage = action({
     const staleHours = await ctx.runQuery(internal.userProfiles.getThreadStaleHours, { userId });
     const staleMs = staleHours * 60 * 60 * 1000;
 
-    // Validate key early so BYOK errors surface before the thread is created.
-    // Quota is checked later in processMessage.
-    await validateUserProviderKey(ctx, userId);
+    // Note: we intentionally skip early BYOK validation here. Throwing
+    // byok_key_missing from the action surface causes Convex to capture it as
+    // an unhandled action failure and report it to Sentry (TONALCOACH-2H). The
+    // processMessage scheduled action already handles byok_key_missing via
+    // persistScheduledFailure, which writes a user-friendly message directly
+    // into the thread. The UX is equivalent and avoids the Sentry noise.
 
     let targetThreadId: string;
     if (threadId) {

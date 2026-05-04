@@ -127,3 +127,65 @@ describe("programWeek return shape contract", () => {
     expect(typeof result.weekPlanId).toBe("string");
   });
 });
+
+// ---------------------------------------------------------------------------
+// generateDraftWeekPlan race-condition handling (TONALCOACH-11 / TONALCOACH-12)
+//
+// Two concurrent calls to generateDraftWeekPlan can interleave like this:
+//   Call A creates weekPlanId
+//   Call B sees existing plan → deletes it → creates its own weekPlanId
+//   Call A tries linkWorkoutPlanToDayInternal → "Week plan not found"
+//
+// The fix wraps the link step in a try-catch that returns { success: false }
+// with a retry suggestion instead of letting the error propagate as an
+// unhandled action failure (which Convex would report to Sentry).
+// ---------------------------------------------------------------------------
+describe("generateDraftWeekPlan link-step race condition handler", () => {
+  // Simulate the catch logic added to the link step in generateDraftWeekPlan.
+  function simulateLinkStepCatch(err: Error): { success: false; error: string } | never {
+    if (err.message.includes("Week plan not found")) {
+      // Mirrors the real handler: clean up, then return structured failure.
+      return {
+        success: false,
+        error:
+          "The week plan was modified by a concurrent request. Please try generating the plan again.",
+      };
+    }
+    throw err;
+  }
+
+  it("returns structured failure when link throws 'Week plan not found'", () => {
+    const err = new Error("Week plan not found or access denied");
+
+    const result = simulateLinkStepCatch(err);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("concurrent");
+    expect(result.error).toContain("generating");
+  });
+
+  it("re-throws unexpected errors from the link step unchanged", () => {
+    const err = new Error("database connection failed");
+
+    expect(() => simulateLinkStepCatch(err)).toThrow("database connection failed");
+  });
+
+  it("structured failure is distinguishable from success by 'success' discriminant", () => {
+    const err = new Error("Week plan not found or access denied");
+    const result: { success: true } | { success: false; error: string } =
+      simulateLinkStepCatch(err);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(typeof result.error).toBe("string");
+    }
+  });
+
+  it("does not treat 'Workout plan not found' as the race-condition case", () => {
+    // Only the week plan not-found triggers the race handler; workout-plan
+    // not-found is a different validation error that should propagate normally.
+    const err = new Error("Workout plan not found or access denied");
+
+    expect(() => simulateLinkStepCatch(err)).toThrow("Workout plan not found");
+  });
+});

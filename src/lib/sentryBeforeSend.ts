@@ -44,6 +44,10 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   // services.
   "You exceeded your current quota",
   "generate_content_free_tier_requests",
+  // Gemini paid-tier billing exhaustion: "Your prepayment credits are depleted."
+  // classifyByokError catches this as byok_quota_exceeded server-side, but the
+  // raw string can still escape if the failure occurs outside the sanitizer.
+  "credits are depleted",
 ];
 
 // Collect every candidate message from the hint and event so that quota errors
