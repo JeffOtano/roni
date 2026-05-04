@@ -9,18 +9,28 @@
 import { describe, expect, test } from "vitest";
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
+import { classifyPromptIntent } from "../chatProcessing";
 import { buildInstructions } from "./promptSections";
+import { PROVIDERS } from "./providers";
 import { EVAL_SCENARIOS, type EvalScenario } from "./evalScenarios";
 
 const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 const describeIfKey = apiKey ? describe : describe.skip;
 
 const instructions = buildInstructions();
+const GEMINI_PRIMARY_MODEL = PROVIDERS.gemini.primaryModel;
+const GEMINI_FALLBACK_MODEL = PROVIDERS.gemini.fallbackModel ?? GEMINI_PRIMARY_MODEL;
+
+function selectEvalModel(scenario: EvalScenario): string {
+  return classifyPromptIntent(scenario.userMessage) === "trivial"
+    ? GEMINI_FALLBACK_MODEL
+    : GEMINI_PRIMARY_MODEL;
+}
 
 async function runScenario(scenario: EvalScenario): Promise<void> {
   const system = `${instructions}\n\n<training-data>\n${scenario.snapshot}\n</training-data>`;
   const result = await generateText({
-    model: google("gemini-3-flash-preview"),
+    model: google(selectEvalModel(scenario)),
     system,
     prompt: scenario.userMessage,
     temperature: 0,

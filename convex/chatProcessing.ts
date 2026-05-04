@@ -16,7 +16,7 @@ import { checkDailyBudget } from "./ai/budget";
 import { streamWithRetry } from "./ai/resilience";
 import type { RunAccumulator } from "./ai/runTelemetry";
 import { sanitizeTimezone } from "./ai/timeDecay";
-import type { ProviderId } from "./ai/providers";
+import { getProviderConfig, type ProviderId } from "./ai/providers";
 import * as analytics from "./lib/posthog";
 import {
   assertThreadOwnership,
@@ -30,12 +30,65 @@ import {
 // prod ones look the same, so we flag prod on Vercel's build env instead.
 const ENVIRONMENT: "dev" | "prod" = process.env.VERCEL_ENV === "production" ? "prod" : "dev";
 const RELEASE_SHA = process.env.VERCEL_GIT_COMMIT_SHA;
+const TRIVIAL_PROMPT_MAX_CHARS = 30;
+const COMPLEX_INTENT_KEYWORDS = ["program", "plan", "build", "swap", "push", "deload"] as const;
+
+export type RoutingIntent = "trivial" | "complex" | "default";
+
+interface CoachRoute<TAgent> {
+  primary: TAgent;
+  fallback: TAgent;
+  primaryModelName: string;
+}
+
+interface CoachRouteOptions<TAgent> extends CoachRoute<TAgent> {
+  fallbackModelName: string | null;
+}
+
+export function classifyPromptIntent(prompt: string): RoutingIntent {
+  const normalized = prompt.trim().toLowerCase();
+  if (COMPLEX_INTENT_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+    return "complex";
+  }
+  if (normalized.length < TRIVIAL_PROMPT_MAX_CHARS) return "trivial";
+  return "default";
+}
+
+export function selectCoachRoute<TAgent>(
+  agents: CoachRouteOptions<TAgent>,
+  intent: RoutingIntent,
+): CoachRoute<TAgent> {
+  if (intent !== "trivial" || !agents.fallbackModelName) {
+    return {
+      primary: agents.primary,
+      fallback: agents.fallback,
+      primaryModelName: agents.primaryModelName,
+    };
+  }
+
+  return {
+    primary: agents.fallback,
+    fallback: agents.primary,
+    primaryModelName: agents.fallbackModelName,
+  };
+}
 
 async function persistRun(ctx: ActionCtx, accumulator: RunAccumulator): Promise<void> {
   try {
     await ctx.runMutation(internal.aiUsage.recordRun, accumulator.toRow());
   } catch {
     // Never fail the turn on telemetry persistence error.
+  }
+}
+
+async function recordRoutingIntent(
+  ctx: ActionCtx,
+  args: { userId: string; threadId: string; intent: RoutingIntent; agentName: string },
+): Promise<void> {
+  try {
+    await ctx.runMutation(internal.aiUsage.recordRouting, args);
+  } catch {
+    // Routing telemetry should never block the user's chat turn.
   }
 }
 
@@ -69,6 +122,7 @@ export const processMessage = internalAction({
     let accumulator: RunAccumulator | undefined;
     const contextTiming: CoachContextTiming = {};
     const retrievalEnabled = shouldUseCrossThreadSearch(prompt, (imageStorageIds?.length ?? 0) > 0);
+    const routingIntent = classifyPromptIntent(prompt);
     const startTime = Date.now();
     try {
       const providerConfig = await resolveUserProviderConfig(ctx, userId);
@@ -76,17 +130,30 @@ export const processMessage = internalAction({
 
       const resolvedPrompt = await buildPrompt(ctx, prompt, imageStorageIds);
 
-      const { primary, fallback, primaryModelName } = buildCoachAgentsForProvider({
+      const agents = buildCoachAgentsForProvider({
         ...providerConfig,
         userTimezone,
         retrievalEnabled,
         timing: contextTiming,
       });
+      const route = selectCoachRoute(
+        {
+          ...agents,
+          fallbackModelName: getProviderConfig(providerConfig.provider).fallbackModel,
+        },
+        routingIntent,
+      );
+      await recordRoutingIntent(ctx, {
+        userId,
+        threadId,
+        intent: routingIntent,
+        agentName: route.primaryModelName,
+      });
       accumulator = await withByokErrorSanitization(() =>
         streamWithRetry(ctx, {
-          primaryAgent: primary,
-          fallbackAgent: fallback,
-          primaryModelName,
+          primaryAgent: route.primary,
+          fallbackAgent: route.fallback,
+          primaryModelName: route.primaryModelName,
           threadId,
           userId,
           promptMessageId: messageId,
