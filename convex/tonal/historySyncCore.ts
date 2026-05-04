@@ -42,6 +42,19 @@ function activityToWorkoutPayload(activity: Activity): WorkoutPayload {
   };
 }
 
+export function buildVolumeByMovement(
+  summary: FormattedWorkoutSummary | null,
+): Map<string, number> {
+  const volumeByMovement = new Map<string, number>();
+  if (summary === null) return volumeByMovement;
+
+  for (const ms of summary.movementSets) {
+    volumeByMovement.set(ms.movementId, ms.totalVolume);
+  }
+
+  return volumeByMovement;
+}
+
 /** Fetch detail/summary for one activity and return persistence payloads. */
 async function processOneActivity(
   ctx: ActionCtx,
@@ -65,15 +78,13 @@ async function processOneActivity(
 
   // Fetch formatted summary for per-movement totalVolume (optional).
   // totalVolume is a work-based metric (not weight x reps); kept for volume display.
-  const volumeByMovement = new Map<string, number>();
+  let volumeByMovement = new Map<string, number>();
   try {
     const summary = (await ctx.runAction(internal.tonal.proxyProjected.fetchFormattedSummary, {
       userId,
       summaryId: activityId,
-    })) as FormattedWorkoutSummary;
-    for (const ms of summary.movementSets) {
-      volumeByMovement.set(ms.movementId, ms.totalVolume);
-    }
+    })) as FormattedWorkoutSummary | null;
+    volumeByMovement = buildVolumeByMovement(summary);
   } catch (err) {
     // Volume display is optional, so the workout payload still persists
     // without it — but log so projection drift is observable.
