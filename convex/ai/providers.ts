@@ -38,32 +38,36 @@ function normalizeModelId(modelId: string): string {
 }
 
 export function getPromptInputBudget(provider: ProviderId, modelId: string): number {
-  if (provider === "openrouter") return SMALL_PROMPT_BUDGET;
-
-  const normalized = normalizeModelId(modelId);
-  if (provider === "gemini") {
-    if (normalized.startsWith("gemini-3-") || normalized.startsWith("gemini-2.5-")) {
-      return HIGH_CAPACITY_PROMPT_BUDGET;
+  switch (provider) {
+    case "openrouter":
+      return SMALL_PROMPT_BUDGET;
+    case "gemini": {
+      const normalized = normalizeModelId(modelId);
+      if (normalized.startsWith("gemini-3-") || normalized.startsWith("gemini-2.5-")) {
+        return HIGH_CAPACITY_PROMPT_BUDGET;
+      }
+      return SMALL_PROMPT_BUDGET;
     }
-    return SMALL_PROMPT_BUDGET;
-  }
-
-  if (provider === "claude") {
-    if (normalized.includes("haiku")) return SMALL_PROMPT_BUDGET;
-    if (normalized.includes("sonnet") || normalized.includes("opus")) {
-      return CLAUDE_STANDARD_PROMPT_BUDGET;
+    case "claude": {
+      const normalized = normalizeModelId(modelId);
+      if (normalized.includes("haiku")) return SMALL_PROMPT_BUDGET;
+      if (normalized.includes("sonnet") || normalized.includes("opus")) {
+        return CLAUDE_STANDARD_PROMPT_BUDGET;
+      }
+      return SMALL_PROMPT_BUDGET;
     }
-    return SMALL_PROMPT_BUDGET;
-  }
-
-  if (provider === "openai") {
-    if (normalized === "gpt-5.4" || normalized.startsWith("gpt-5.4-")) {
-      return HIGH_CAPACITY_PROMPT_BUDGET;
+    case "openai": {
+      const normalized = normalizeModelId(modelId);
+      if (normalized === "gpt-5.4" || normalized.startsWith("gpt-5.4-")) {
+        return HIGH_CAPACITY_PROMPT_BUDGET;
+      }
+      return SMALL_PROMPT_BUDGET;
     }
-    return SMALL_PROMPT_BUDGET;
+    default: {
+      const _exhaustive: never = provider;
+      return _exhaustive;
+    }
   }
-
-  return SMALL_PROMPT_BUDGET;
 }
 
 export const PROVIDERS: Record<ProviderId, ProviderConfig> = {

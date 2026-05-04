@@ -217,6 +217,7 @@ export function buildContextWindow(
   tokenBudget: number = CONTEXT_TOKEN_BUDGET,
 ): ModelMessage[] {
   if (messages.length === 0) return [];
+  if (tokenBudget <= 0) return [];
 
   // Find every user-message index (turn boundaries)
   const userIndices: number[] = [];
@@ -226,12 +227,13 @@ export function buildContextWindow(
 
   if (userIndices.length === 0) return [];
 
-  // Always include from the last user message to the end
+  // Include from the last user message to the end only when that full turn fits.
   let startIdx = userIndices[userIndices.length - 1];
   let tokenCount = 0;
   for (let i = startIdx; i < messages.length; i++) {
     tokenCount += estimateMessageTokens(messages[i].content);
   }
+  if (tokenCount > tokenBudget) return [];
 
   // Walk backward through earlier turns, adding if budget allows
   for (let u = userIndices.length - 2; u >= 0; u--) {
@@ -261,5 +263,6 @@ export function buildFullPromptContextWindow({
   reservedPromptTokens,
 }: FullPromptContextWindowArgs): ModelMessage[] {
   const messageBudget = Math.max(0, promptBudgetTokens - reservedPromptTokens);
+  if (messageBudget <= 0) return [];
   return buildContextWindow(messages, messageBudget);
 }

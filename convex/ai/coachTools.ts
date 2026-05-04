@@ -83,10 +83,15 @@ const RAW_COACH_TOOLS = {
 
 export const COACH_TOOLS = withAnthropicToolCache(RAW_COACH_TOOLS);
 
+function getToolDescription(tool: unknown): string {
+  if (tool === null || typeof tool !== "object" || !("description" in tool)) return "";
+  const description = Reflect.get(tool, "description");
+  return typeof description === "string" ? description : "";
+}
+
 function estimateToolDefinitionTokens(tools: ToolSet): number {
   return Object.entries(tools).reduce((sum, [name, tool]) => {
-    const metadata = tool as { description?: unknown };
-    const description = typeof metadata.description === "string" ? metadata.description : "";
+    const description = getToolDescription(tool);
     return (
       sum +
       estimateMessagesTokens([{ role: "system", content: `${name}\n${description}` }]) +

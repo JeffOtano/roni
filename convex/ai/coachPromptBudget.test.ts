@@ -214,7 +214,7 @@ describe("coachAgentConfig.contextHandler — provider-aware prompt budgets", ()
       }),
       { role: "user", content: "latest question" },
     ]);
-    expect(snapshotIndex).toBe(3);
+    expect(snapshotIndex).toBe(4);
     expect(taggedAssistants).toHaveLength(1);
     expect(taggedAssistants[0].content).toBe("retained answer");
   });

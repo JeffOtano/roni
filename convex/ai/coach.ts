@@ -215,9 +215,19 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
         timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
         timing.contextMessageCount = (timing.contextMessageCount ?? 0) + messages.length;
       }
+      const recordPostSnapshotContextTiming = () => {
+        if (!timing) return;
+        timing.contextBuildMs =
+          (timing.contextBuildMs ?? 0) +
+          Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
+      };
+      if (messages.length === 0) {
+        recordPostSnapshotContextTiming();
+        return [staticSystem, snapshotSystem];
+      }
 
       // Anthropic supports interleaved system messages and has explicit prompt
-      // caching. Placing the snapshot right before the final turn keeps the
+      // caching. Placing the snapshot after the final user boundary keeps the
       // cached prefix (tools + static system + history up to the last
       // assistant) byte-stable, so a cacheControl marker on that assistant
       // turns it into a hit on every subsequent call in the 5-minute window.
@@ -228,18 +238,20 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
       // (OpenAI supports it but we see no caching win there; OpenRouter is a
       // passthrough to an unknown backend). Conservative default.
       if (provider === "claude") {
-        const head = withAnthropicHistoryCache(messages.slice(0, -1));
-        const tail = messages[messages.length - 1];
-        if (timing)
-          timing.contextBuildMs =
-            (timing.contextBuildMs ?? 0) +
-            Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
-        return [staticSystem, ...head, snapshotSystem, tail];
+        let lastUserIdx = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role === "user") {
+            lastUserIdx = i;
+            break;
+          }
+        }
+        const headEnd = lastUserIdx === -1 ? messages.length : lastUserIdx + 1;
+        const head = withAnthropicHistoryCache(messages.slice(0, headEnd));
+        const tail = messages.slice(headEnd);
+        recordPostSnapshotContextTiming();
+        return [staticSystem, ...head, snapshotSystem, ...tail];
       }
-      if (timing)
-        timing.contextBuildMs =
-          (timing.contextBuildMs ?? 0) +
-          Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
+      recordPostSnapshotContextTiming();
       return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };

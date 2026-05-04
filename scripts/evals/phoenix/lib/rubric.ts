@@ -1,13 +1,11 @@
 import type { Rubric } from "../../../../convex/ai/evalScenarios";
 import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./thresholds";
 
+const REASONING_BLOCK_PATTERN =
+  /\*\*(?:Thinking Process|Tool Calls|Reasoning):\*\*[\s\S]*?(?=\n{2,}|```|\*\*(?:Answer|Final Answer):\*\*|(?:^|\n)(?:Answer|Final Answer):)/gi;
+
 export function normalizeEvalText(raw: string, toolNames: string): string {
-  const response = raw
-    .replace(
-      /\*\*(?:Thinking Process|Tool Calls|Reasoning):\*\*[\s\S]*?(?=```|How does|Ready to|Let me know|$)/gi,
-      "",
-    )
-    .trim();
+  const response = raw.replace(REASONING_BLOCK_PATTERN, "").trim();
   return [response, toolNames.trim()].filter(Boolean).join("\n");
 }
 

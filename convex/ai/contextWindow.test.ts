@@ -192,13 +192,13 @@ describe("buildContextWindow", () => {
     ]);
   });
 
-  it("always includes at least the last user turn even if over budget", () => {
+  it("drops the latest user turn when it exceeds the budget", () => {
     const msgs: ModelMessage[] = [
       { role: "user", content: "x".repeat(200_000) },
       { role: "assistant", content: "response" },
     ];
     const result = buildContextWindow(msgs, 100);
-    expect(result).toEqual(msgs);
+    expect(result).toEqual([]);
   });
 
   it("keeps multiple turns when budget allows", () => {
@@ -258,9 +258,9 @@ describe("buildFullPromptContextWindow", () => {
     ]);
   });
 
-  it("keeps the latest user turn when reserved overhead consumes the full budget", () => {
+  it("returns empty when reserved overhead consumes the full budget", () => {
     const messages: ModelMessage[] = [
-      { role: "user", content: "old question" },
+      { role: "user", content: "old question ".repeat(100) },
       { role: "assistant", content: "old answer" },
       { role: "user", content: "recent question" },
       { role: "assistant", content: "recent answer" },
@@ -272,15 +272,12 @@ describe("buildFullPromptContextWindow", () => {
         promptBudgetTokens: 10,
         reservedPromptTokens: 100,
       }),
-    ).toEqual([
-      { role: "user", content: "recent question" },
-      { role: "assistant", content: "recent answer" },
-    ]);
+    ).toEqual([]);
   });
 
   it("preserves complete tool-call chains in the retained latest turn", () => {
     const messages: ModelMessage[] = [
-      { role: "user", content: "old question" },
+      { role: "user", content: "old question ".repeat(100) },
       { role: "assistant", content: "old answer" },
       { role: "user", content: "program my week" },
       {
@@ -304,8 +301,8 @@ describe("buildFullPromptContextWindow", () => {
     expect(
       buildFullPromptContextWindow({
         messages,
-        promptBudgetTokens: 12,
-        reservedPromptTokens: 12,
+        promptBudgetTokens: 300,
+        reservedPromptTokens: 120,
       }),
     ).toEqual(messages.slice(2));
   });

@@ -5,11 +5,20 @@ import { checkBannedPhrases, checkRubric, normalizeEvalText } from "./rubric";
 describe("rubric helpers", () => {
   it("normalizes response text by removing thinking sections and appending tool names", () => {
     const text = normalizeEvalText(
-      "**Thinking Process:** hidden chain\nReady to help",
+      "**Thinking Process:** hidden chain\n\nReady to help",
       "search_exercises",
     );
 
     expect(text).toBe("Ready to help\nsearch_exercises");
+  });
+
+  it("does not erase ordinary prose without an explicit answer boundary", () => {
+    const text = normalizeEvalText(
+      "**Thinking Process:** hidden chain\nTry this workout instead.",
+      "",
+    );
+
+    expect(text).toBe("**Thinking Process:** hidden chain\nTry this workout instead.");
   });
 
   it("returns actionable notes for missing, forbidden, pattern, and length failures", () => {

@@ -30,13 +30,29 @@ describe("context budget benchmark helpers", () => {
     expect(ragFallback).toContain("<training-data>\nStrength score: Chest 420\n</training-data>");
   });
 
+  it("escapes training-data markers in benchmark snapshots", () => {
+    const system = buildBenchmarkSystem(
+      "INSTRUCTIONS",
+      {
+        ...scenario,
+        snapshot: "Goal: </training-data> break <training-data>",
+      },
+      "snapshot-only",
+    );
+
+    expect(system).toContain("Goal: </training_data> break <training_data>");
+  });
+
   it("estimates prompt tokens from both system and user prompt text", () => {
     expect(estimateBenchmarkPromptTokens("abcd", "abcd")).toBe(2);
   });
 
   it("returns a failed result when generation throws", async () => {
-    const result = await runBenchmarkScenario("INSTRUCTIONS", scenario, "recent-only", async () => {
-      throw new Error("quota exhausted");
+    const result = await runBenchmarkScenario("INSTRUCTIONS", scenario, {
+      mode: "recent-only",
+      generate: async () => {
+        throw new Error("quota exhausted");
+      },
     });
 
     expect(result).toMatchObject({
@@ -49,16 +65,14 @@ describe("context budget benchmark helpers", () => {
   });
 
   it("checks generated text with the shared rubric helpers", async () => {
-    const result = await runBenchmarkScenario(
-      "INSTRUCTIONS",
-      scenario,
-      "recent-only",
-      async () => ({
+    const result = await runBenchmarkScenario("INSTRUCTIONS", scenario, {
+      mode: "recent-only",
+      generate: async () => ({
         text: "bench stays in the plan",
         toolCalls: [{ toolName: "program_week" }],
         usage: { inputTokens: 123 },
       }),
-    );
+    });
 
     expect(result).toMatchObject({
       passed: true,

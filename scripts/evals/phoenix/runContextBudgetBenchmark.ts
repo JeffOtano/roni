@@ -5,6 +5,7 @@
  */
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
+import { escapeTrainingDataTags } from "../../../convex/ai/coach";
 import { buildInstructions } from "../../../convex/ai/promptSections";
 import { EVAL_SCENARIOS, type EvalScenario } from "../../../convex/ai/evalScenarios";
 import { estimateMessagesTokens } from "../../../convex/ai/contextWindow";
@@ -43,6 +44,11 @@ interface BenchmarkGenerationResult {
 
 type BenchmarkGenerate = (args: GenerateTextArgs) => Promise<BenchmarkGenerationResult>;
 
+interface RunBenchmarkOptions {
+  mode?: BenchmarkMode;
+  generate?: BenchmarkGenerate;
+}
+
 function ensureGoogleKeyOrExit(): void {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return;
   console.warn("GOOGLE_GENERATIVE_AI_API_KEY is not set - skipping context budget benchmark.");
@@ -62,7 +68,7 @@ export function buildBenchmarkSystem(
   mode: BenchmarkMode,
 ): string {
   if (mode === "recent-only") return instructions;
-  const snapshot = `<training-data>\n${scenario.snapshot}\n</training-data>`;
+  const snapshot = `<training-data>\n${escapeTrainingDataTags(scenario.snapshot)}\n</training-data>`;
   if (mode === "snapshot-only") return `${instructions}\n\n${snapshot}`;
   return `${instructions}\n\n<retrieved-context>\n${syntheticPriorContext(
     scenario,
@@ -88,9 +94,9 @@ async function defaultGenerate(args: GenerateTextArgs): Promise<BenchmarkGenerat
 export async function runBenchmarkScenario(
   instructions: string,
   scenario: EvalScenario,
-  mode: BenchmarkMode,
-  generate: BenchmarkGenerate = defaultGenerate,
+  options: RunBenchmarkOptions = {},
 ): Promise<BenchmarkResult> {
+  const { mode = "recent-only", generate = defaultGenerate } = options;
   const system = buildBenchmarkSystem(instructions, scenario, mode);
   const estimatedPromptTokens = estimateBenchmarkPromptTokens(system, scenario.userMessage);
   const startedAt = Date.now();
@@ -168,7 +174,7 @@ async function main(): Promise<void> {
   const results: BenchmarkResult[] = [];
   for (const mode of BENCHMARK_MODES) {
     for (const scenario of EVAL_SCENARIOS) {
-      results.push(await runBenchmarkScenario(instructions, scenario, mode));
+      results.push(await runBenchmarkScenario(instructions, scenario, { mode }));
     }
   }
 
