@@ -236,12 +236,13 @@ export const recordRouting = internalMutation({
     userId: v.string(),
     threadId: v.string(),
     intent: v.string(),
+    agentName: v.string(),
   },
-  handler: async (ctx, { userId, threadId, intent }) => {
+  handler: async (ctx, { userId, threadId, intent, agentName }) => {
     await ctx.db.insert("aiUsage", {
       userId: userId as Id<"users">,
       threadId,
-      agentName: `router:${intent}`,
+      agentName,
       model: "keyword-classifier",
       provider: "local",
       inputTokens: 0,
