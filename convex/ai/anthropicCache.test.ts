@@ -19,6 +19,7 @@ const EMPTY_SNAPSHOT_INPUTS = {
   recentFeedback: [],
   activeGoals: [],
   activeInjuries: [],
+  exerciseExclusions: [],
   externalActivities: [],
   garminWellness: [],
 };
@@ -71,7 +72,7 @@ describe("coachAgentConfig.tools — Anthropic tool cache breakpoint", () => {
 describe("coachAgentConfig.contextHandler — Claude prefix layout", () => {
   const userId = "user_claude_prefix";
 
-  it("places the snapshot immediately before the final turn (not at system[1])", async () => {
+  it("places the snapshot after the final user boundary (not at system[1])", async () => {
     const messages: ModelMessage[] = [
       { role: "user", content: "q1" },
       { role: "assistant", content: "a1" },
@@ -84,8 +85,8 @@ describe("coachAgentConfig.contextHandler — Claude prefix layout", () => {
     expect(systemText(result[0])).toContain("PERSONALITY:");
     expect(result[1]).toMatchObject({ role: "user", content: "q1" });
     expect(result[2]).toMatchObject({ role: "assistant", content: "a1" });
-    expect(systemText(result[3])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
-    expect(result[4]).toEqual({ role: "user", content: "q2" });
+    expect(result[3]).toEqual({ role: "user", content: "q2" });
+    expect(systemText(result[4])).toMatch(/^<training-data>\n[\s\S]+\n<\/training-data>$/);
   });
 
   it("marks the last assistant message in the head with anthropic cacheControl", async () => {
@@ -141,6 +142,41 @@ describe("coachAgentConfig.contextHandler — Claude prefix layout", () => {
     );
     expect(assistantIdx).toBeGreaterThanOrEqual(0);
     expect(snapshotIdx).toBeGreaterThan(assistantIdx);
+  });
+
+  it("does not split assistant/tool messages that follow the last user boundary", async () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "q1" },
+      { role: "assistant", content: "a1" },
+      { role: "user", content: "q2" },
+      {
+        role: "assistant",
+        content: [{ type: "tool-call", toolCallId: "tc1", toolName: "program_week", input: {} }],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "tc1",
+            toolName: "program_week",
+            output: { type: "text", value: "created" },
+          },
+        ],
+      },
+      { role: "assistant", content: "done" },
+    ];
+
+    const result = await runClaudeContextHandler(messages, userId);
+    const snapshotIdx = result.findIndex(
+      (m) =>
+        m.role === "system" &&
+        typeof m.content === "string" &&
+        m.content.startsWith("<training-data>"),
+    );
+
+    expect(snapshotIdx).toBe(4);
+    expect(result.slice(snapshotIdx + 1)).toEqual(messages.slice(3));
   });
 
   it("emits only the static-system marker when the Claude history has no assistant yet", async () => {

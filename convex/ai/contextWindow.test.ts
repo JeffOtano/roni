@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ModelMessage } from "ai";
 import {
   buildContextWindow,
+  buildFullPromptContextWindow,
+  estimateMessagesTokens,
+  estimateMessageTokens,
   mergeConsecutiveSameRole,
   stripImagesFromOlderMessages,
 } from "./contextWindow";
@@ -189,13 +192,13 @@ describe("buildContextWindow", () => {
     ]);
   });
 
-  it("always includes at least the last user turn even if over budget", () => {
+  it("drops the latest user turn when it exceeds the budget", () => {
     const msgs: ModelMessage[] = [
       { role: "user", content: "x".repeat(200_000) },
       { role: "assistant", content: "response" },
     ];
     const result = buildContextWindow(msgs, 100);
-    expect(result).toEqual(msgs);
+    expect(result).toEqual([]);
   });
 
   it("keeps multiple turns when budget allows", () => {
@@ -216,6 +219,92 @@ describe("buildContextWindow", () => {
       { role: "assistant", content: "response" },
     ];
     expect(buildContextWindow(msgs)).toEqual([]);
+  });
+});
+
+describe("buildFullPromptContextWindow", () => {
+  it("exports the same rough token estimator used by windowing", () => {
+    expect(estimateMessageTokens("abcd")).toBe(1);
+    expect(estimateMessageTokens("abcde")).toBe(2);
+    expect(estimateMessagesTokens([{ role: "user", content: "abcd" }])).toBe(1);
+  });
+
+  it("subtracts reserved prompt overhead before keeping older turns", () => {
+    const oldTurn = "x".repeat(80);
+    const messages: ModelMessage[] = [
+      { role: "user", content: oldTurn },
+      { role: "assistant", content: "old response" },
+      { role: "user", content: "recent question" },
+      { role: "assistant", content: "recent answer" },
+    ];
+
+    expect(
+      buildFullPromptContextWindow({
+        messages,
+        promptBudgetTokens: 50,
+        reservedPromptTokens: 0,
+      }),
+    ).toEqual(messages);
+
+    expect(
+      buildFullPromptContextWindow({
+        messages,
+        promptBudgetTokens: 50,
+        reservedPromptTokens: 30,
+      }),
+    ).toEqual([
+      { role: "user", content: "recent question" },
+      { role: "assistant", content: "recent answer" },
+    ]);
+  });
+
+  it("returns empty when reserved overhead consumes the full budget", () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "old question ".repeat(100) },
+      { role: "assistant", content: "old answer" },
+      { role: "user", content: "recent question" },
+      { role: "assistant", content: "recent answer" },
+    ];
+
+    expect(
+      buildFullPromptContextWindow({
+        messages,
+        promptBudgetTokens: 10,
+        reservedPromptTokens: 100,
+      }),
+    ).toEqual([]);
+  });
+
+  it("preserves complete tool-call chains in the retained latest turn", () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "old question ".repeat(100) },
+      { role: "assistant", content: "old answer" },
+      { role: "user", content: "program my week" },
+      {
+        role: "assistant",
+        content: [{ type: "tool-call", toolCallId: "tc1", toolName: "program_week", input: {} }],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "tc1",
+            toolName: "program_week",
+            output: { type: "text", value: "created" },
+          },
+        ],
+      },
+      { role: "assistant", content: "Done." },
+    ];
+
+    expect(
+      buildFullPromptContextWindow({
+        messages,
+        promptBudgetTokens: 300,
+        reservedPromptTokens: 120,
+      }),
+    ).toEqual(messages.slice(2));
   });
 });
 

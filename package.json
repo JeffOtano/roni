@@ -39,6 +39,7 @@
     "test:e2e": "playwright test",
     "ai:dataset": "tsx scripts/evals/phoenix/buildDataset.ts",
     "ai:eval:smoke": "tsx scripts/evals/phoenix/runPromptSmoke.ts",
+    "ai:benchmark:context": "tsx scripts/evals/phoenix/runContextBudgetBenchmark.ts",
     "prepare": "husky"
   },
   "lint-staged": {

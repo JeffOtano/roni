@@ -5,6 +5,15 @@ import type { LanguageModelV3 } from "@ai-sdk/provider";
 
 export type ProviderId = "gemini" | "claude" | "openai" | "openrouter";
 
+export const PROMPT_OUTPUT_HEADROOM_RATIO = 0.2;
+
+const HIGH_CAPACITY_CONTEXT_WINDOW = 625_000;
+const CLAUDE_STANDARD_CONTEXT_WINDOW = 150_000;
+const SMALL_CONTEXT_WINDOW = 62_500;
+const HIGH_CAPACITY_PROMPT_BUDGET = reserveOutputHeadroom(HIGH_CAPACITY_CONTEXT_WINDOW);
+const CLAUDE_STANDARD_PROMPT_BUDGET = reserveOutputHeadroom(CLAUDE_STANDARD_CONTEXT_WINDOW);
+const SMALL_PROMPT_BUDGET = reserveOutputHeadroom(SMALL_CONTEXT_WINDOW);
+
 export interface ProviderConfig {
   label: string;
   primaryModel: string;
@@ -18,6 +27,47 @@ export interface ProviderConfig {
   keyFieldName: string;
   keyTimestampFieldName: string;
   createLanguageModel: (apiKey: string, model: string) => LanguageModelV3;
+}
+
+function reserveOutputHeadroom(contextWindowTokens: number): number {
+  return Math.floor(contextWindowTokens * (1 - PROMPT_OUTPUT_HEADROOM_RATIO));
+}
+
+function normalizeModelId(modelId: string): string {
+  return modelId.trim().toLowerCase().split("/").pop() ?? modelId.trim().toLowerCase();
+}
+
+export function getPromptInputBudget(provider: ProviderId, modelId: string): number {
+  switch (provider) {
+    case "openrouter":
+      return SMALL_PROMPT_BUDGET;
+    case "gemini": {
+      const normalized = normalizeModelId(modelId);
+      if (normalized.startsWith("gemini-3-") || normalized.startsWith("gemini-2.5-")) {
+        return HIGH_CAPACITY_PROMPT_BUDGET;
+      }
+      return SMALL_PROMPT_BUDGET;
+    }
+    case "claude": {
+      const normalized = normalizeModelId(modelId);
+      if (normalized.includes("haiku")) return SMALL_PROMPT_BUDGET;
+      if (normalized.includes("sonnet") || normalized.includes("opus")) {
+        return CLAUDE_STANDARD_PROMPT_BUDGET;
+      }
+      return SMALL_PROMPT_BUDGET;
+    }
+    case "openai": {
+      const normalized = normalizeModelId(modelId);
+      if (normalized === "gpt-5.4" || normalized.startsWith("gpt-5.4-")) {
+        return HIGH_CAPACITY_PROMPT_BUDGET;
+      }
+      return SMALL_PROMPT_BUDGET;
+    }
+    default: {
+      const _exhaustive: never = provider;
+      return _exhaustive;
+    }
+  }
 }
 
 export const PROVIDERS: Record<ProviderId, ProviderConfig> = {

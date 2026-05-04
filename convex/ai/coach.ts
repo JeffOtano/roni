@@ -3,77 +3,19 @@ import type { ContextHandler, UsageHandler } from "@convex-dev/agent";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { ModelMessage } from "ai";
 import { components, internal } from "../_generated/api";
-import { getProviderConfig, type ProviderId } from "./providers";
+import { getPromptInputBudget, getProviderConfig, type ProviderId } from "./providers";
 import type { Id } from "../_generated/dataModel";
-import { withAnthropicHistoryCache, withAnthropicToolCache } from "./anthropicCache";
+import { withAnthropicHistoryCache } from "./anthropicCache";
 import { getTrainingSnapshotForChat, type TrainingSnapshotSource } from "./trainingSnapshotCache";
 import {
-  buildContextWindow,
+  buildFullPromptContextWindow,
+  estimateMessagesTokens,
   mergeConsecutiveSameRole,
   stripImagesFromOlderMessages,
   stripOrphanedToolCalls,
 } from "./contextWindow";
+import { COACH_TOOLS, ESTIMATED_TOOL_DEFINITION_TOKENS } from "./coachTools";
 import { buildInstructions } from "./promptSections";
-// ---------------------------------------------------------------------------
-// Tool registry (32 tools across 4 files)
-// ---------------------------------------------------------------------------
-// tools.ts (10):        search_exercises, get_strength_scores, get_strength_history,
-//                       get_muscle_readiness, get_workout_history, get_workout_detail,
-//                       get_training_frequency, create_workout, delete_workout,
-//                       estimate_duration
-//
-// weekTools.ts (5):     program_week, get_week_plan_details, delete_week_plan,
-//                       approve_week_plan, get_workout_performance
-//
-// weekModificationTools.ts (6): swap_exercise, add_exercise, set_warmup_block,
-//                               move_session, adjust_session_duration, rebuild_day
-//
-// coachingTools.ts (12): record_feedback, get_recent_feedback, check_deload,
-//                        start_training_block, advance_training_block, set_goal,
-//                        update_goal_progress, get_goals, report_injury,
-//                        resolve_injury, get_injuries, get_weekly_volume
-// ---------------------------------------------------------------------------
-import { estimateDurationTool } from "./estimationTools";
-import {
-  createWorkoutTool,
-  deleteWorkoutTool,
-  getMuscleReadinessTool,
-  getStrengthHistoryTool,
-  getStrengthScoresTool,
-  getTrainingFrequencyTool,
-  getWorkoutDetailTool,
-  getWorkoutHistoryTool,
-  searchExercisesTool,
-} from "./tools";
-import { rebuildDayTool } from "./rebuildDayTool";
-import {
-  addExerciseTool,
-  adjustSessionDurationTool,
-  moveSessionTool,
-  setWarmupBlockTool,
-  swapExerciseTool,
-} from "./weekModificationTools";
-import { programWeekTool } from "./programWeekTool";
-import {
-  approveWeekPlanTool,
-  deleteWeekPlanTool,
-  getWeekPlanDetailsTool,
-  getWorkoutPerformanceTool,
-} from "./weekTools";
-import {
-  advanceTrainingBlockTool,
-  checkDeloadTool,
-  getGoalsTool,
-  getInjuriesTool,
-  getRecentFeedbackTool,
-  getWeeklyVolumeTool,
-  recordFeedbackTool,
-  reportInjuryTool,
-  resolveInjuryTool,
-  setGoalTool,
-  startTrainingBlockTool,
-  updateGoalProgressTool,
-} from "./coachingTools";
 
 // Embeddings always bill the house key, regardless of BYOK status.
 const serverProvider = createGoogleGenerativeAI({
@@ -174,42 +116,7 @@ export const coachAgentConfig = {
 
   // No `instructions` here — STATIC_INSTRUCTIONS is injected by contextHandler so it can carry cacheControl.
 
-  tools: withAnthropicToolCache({
-    search_exercises: searchExercisesTool,
-    get_strength_scores: getStrengthScoresTool,
-    get_strength_history: getStrengthHistoryTool,
-    get_muscle_readiness: getMuscleReadinessTool,
-    get_workout_history: getWorkoutHistoryTool,
-    get_workout_detail: getWorkoutDetailTool,
-    get_training_frequency: getTrainingFrequencyTool,
-    create_workout: createWorkoutTool,
-    delete_workout: deleteWorkoutTool,
-    estimate_duration: estimateDurationTool,
-    program_week: programWeekTool,
-    get_week_plan_details: getWeekPlanDetailsTool,
-    delete_week_plan: deleteWeekPlanTool,
-    approve_week_plan: approveWeekPlanTool,
-    get_workout_performance: getWorkoutPerformanceTool,
-    swap_exercise: swapExerciseTool,
-    add_exercise: addExerciseTool,
-    set_warmup_block: setWarmupBlockTool,
-    move_session: moveSessionTool,
-    adjust_session_duration: adjustSessionDurationTool,
-    rebuild_day: rebuildDayTool,
-    // Coaching features
-    record_feedback: recordFeedbackTool,
-    get_recent_feedback: getRecentFeedbackTool,
-    check_deload: checkDeloadTool,
-    start_training_block: startTrainingBlockTool,
-    advance_training_block: advanceTrainingBlockTool,
-    set_goal: setGoalTool,
-    update_goal_progress: updateGoalProgressTool,
-    get_goals: getGoalsTool,
-    report_injury: reportInjuryTool,
-    resolve_injury: resolveInjuryTool,
-    get_injuries: getInjuriesTool,
-    get_weekly_volume: getWeeklyVolumeTool,
-  }),
+  tools: COACH_TOOLS,
 
   maxSteps: COACH_MAX_STEPS,
 
@@ -240,12 +147,16 @@ export const coachAgentConfig = {
 export interface CoachAgentConfigOptions {
   userTimezone?: string;
   provider?: ProviderId;
+  modelId?: string;
   retrievalEnabled?: boolean;
   timing?: CoachContextTiming;
 }
 
 export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
-  const { userTimezone, provider, retrievalEnabled = true, timing } = options;
+  const { userTimezone, provider, modelId, retrievalEnabled = true, timing } = options;
+  const budgetProvider = provider ?? "gemini";
+  const budgetModelId = modelId ?? getProviderConfig(budgetProvider).primaryModel;
+  const promptBudgetTokens = getPromptInputBudget(budgetProvider, budgetModelId);
   return {
     ...coachAgentConfig,
     contextOptions: {
@@ -254,15 +165,10 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
     },
     contextHandler: (async (ctx, args) => {
       const contextStartedAt = Date.now();
-      const messages = buildContextWindow(
-        mergeConsecutiveSameRole(
-          stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
-        ),
+      const normalizedMessages = mergeConsecutiveSameRole(
+        stripImagesFromOlderMessages(stripOrphanedToolCalls(args.allMessages)),
       );
-      if (timing) {
-        timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
-        timing.contextMessageCount = (timing.contextMessageCount ?? 0) + messages.length;
-      }
+      const hasUserTurn = normalizedMessages.some((message) => message.role === "user");
       const staticSystem: ModelMessage = {
         role: "system",
         content: STATIC_INSTRUCTIONS,
@@ -273,8 +179,19 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
           },
         },
       };
+      const baseReservedPromptTokens =
+        estimateMessagesTokens([staticSystem]) + ESTIMATED_TOOL_DEFINITION_TOKENS;
 
-      if (!args.userId || messages.length === 0) {
+      if (!args.userId || !hasUserTurn) {
+        const messages = buildFullPromptContextWindow({
+          messages: normalizedMessages,
+          promptBudgetTokens,
+          reservedPromptTokens: baseReservedPromptTokens,
+        });
+        if (timing) {
+          timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
+          timing.contextMessageCount = (timing.contextMessageCount ?? 0) + messages.length;
+        }
         if (timing)
           timing.contextBuildMs = (timing.contextBuildMs ?? 0) + Date.now() - contextStartedAt;
         return [staticSystem, ...messages];
@@ -289,9 +206,28 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
         role: "system",
         content: `<training-data>\n${escapeTrainingDataTags(snapshotResult.snapshot)}\n</training-data>`,
       };
+      const messages = buildFullPromptContextWindow({
+        messages: normalizedMessages,
+        promptBudgetTokens,
+        reservedPromptTokens: baseReservedPromptTokens + estimateMessagesTokens([snapshotSystem]),
+      });
+      if (timing) {
+        timing.contextBuildCount = (timing.contextBuildCount ?? 0) + 1;
+        timing.contextMessageCount = (timing.contextMessageCount ?? 0) + messages.length;
+      }
+      const recordPostSnapshotContextTiming = () => {
+        if (!timing) return;
+        timing.contextBuildMs =
+          (timing.contextBuildMs ?? 0) +
+          Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
+      };
+      if (messages.length === 0) {
+        recordPostSnapshotContextTiming();
+        return [staticSystem, snapshotSystem];
+      }
 
       // Anthropic supports interleaved system messages and has explicit prompt
-      // caching. Placing the snapshot right before the final turn keeps the
+      // caching. Placing the snapshot after the final user boundary keeps the
       // cached prefix (tools + static system + history up to the last
       // assistant) byte-stable, so a cacheControl marker on that assistant
       // turns it into a hit on every subsequent call in the 5-minute window.
@@ -302,18 +238,20 @@ export function makeCoachAgentConfig(options: CoachAgentConfigOptions = {}) {
       // (OpenAI supports it but we see no caching win there; OpenRouter is a
       // passthrough to an unknown backend). Conservative default.
       if (provider === "claude") {
-        const head = withAnthropicHistoryCache(messages.slice(0, -1));
-        const tail = messages[messages.length - 1];
-        if (timing)
-          timing.contextBuildMs =
-            (timing.contextBuildMs ?? 0) +
-            Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
-        return [staticSystem, ...head, snapshotSystem, tail];
+        let lastUserIdx = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].role === "user") {
+            lastUserIdx = i;
+            break;
+          }
+        }
+        const headEnd = lastUserIdx === -1 ? messages.length : lastUserIdx + 1;
+        const head = withAnthropicHistoryCache(messages.slice(0, headEnd));
+        const tail = messages.slice(headEnd);
+        recordPostSnapshotContextTiming();
+        return [staticSystem, ...head, snapshotSystem, ...tail];
       }
-      if (timing)
-        timing.contextBuildMs =
-          (timing.contextBuildMs ?? 0) +
-          Math.max(0, Date.now() - contextStartedAt - snapshotResult.snapshotBuildMs);
+      recordPostSnapshotContextTiming();
       return [staticSystem, snapshotSystem, ...messages];
     }) satisfies ContextHandler,
   };
@@ -327,21 +265,22 @@ export interface CoachAgentPair {
 
 export function buildCoachAgents(apiKey: string, userTimezone?: string): CoachAgentPair {
   const provider = createGoogleGenerativeAI({ apiKey });
-  const config = makeCoachAgentConfig({ userTimezone, provider: "gemini" });
+  const primaryModelName = "gemini-3-flash-preview";
+  const fallbackModelName = "gemini-2.5-flash";
 
   const primary = new Agent(components.agent, {
     name: "Roni",
-    languageModel: provider("gemini-3-flash-preview"),
-    ...config,
+    languageModel: provider(primaryModelName),
+    ...makeCoachAgentConfig({ userTimezone, provider: "gemini", modelId: primaryModelName }),
   });
 
   const fallback = new Agent(components.agent, {
     name: "Roni (Fallback)",
-    languageModel: provider("gemini-2.5-flash"),
-    ...config,
+    languageModel: provider(fallbackModelName),
+    ...makeCoachAgentConfig({ userTimezone, provider: "gemini", modelId: fallbackModelName }),
   });
 
-  return { primary, fallback, primaryModelName: "gemini-3-flash-preview" };
+  return { primary, fallback, primaryModelName };
 }
 
 export interface ProviderAgentArgs {
@@ -356,7 +295,6 @@ export interface ProviderAgentArgs {
 export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgentPair {
   const { provider, apiKey, modelOverride, userTimezone, retrievalEnabled, timing } = args;
   const config = getProviderConfig(provider);
-  const agentConfig = makeCoachAgentConfig({ userTimezone, provider, retrievalEnabled, timing });
 
   const primaryModelName = modelOverride || config.primaryModel;
   if (!primaryModelName) {
@@ -367,7 +305,13 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
   const primary = new Agent(components.agent, {
     name: "Roni",
     languageModel: primaryModel,
-    ...agentConfig,
+    ...makeCoachAgentConfig({
+      userTimezone,
+      provider,
+      modelId: primaryModelName,
+      retrievalEnabled,
+      timing,
+    }),
   });
 
   let fallback: Agent;
@@ -376,7 +320,13 @@ export function buildCoachAgentsForProvider(args: ProviderAgentArgs): CoachAgent
     fallback = new Agent(components.agent, {
       name: "Roni (Fallback)",
       languageModel: fallbackModel,
-      ...agentConfig,
+      ...makeCoachAgentConfig({
+        userTimezone,
+        provider,
+        modelId: config.fallbackModel,
+        retrievalEnabled,
+        timing,
+      }),
     });
   } else {
     // No fallback (OpenRouter) -- reuse primary so streamWithRetry still works

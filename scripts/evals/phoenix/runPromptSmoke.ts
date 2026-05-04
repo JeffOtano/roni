@@ -14,9 +14,9 @@
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 import { buildInstructions } from "../../../convex/ai/promptSections";
-import { EVAL_SCENARIOS, type EvalScenario, type Rubric } from "../../../convex/ai/evalScenarios";
-import { BANNED_PHRASES, DEFAULT_MAX_RESPONSE_CHARS } from "./lib/thresholds";
+import { EVAL_SCENARIOS, type EvalScenario } from "../../../convex/ai/evalScenarios";
 import { decide, printReport, type Report, type ScenarioResult } from "./lib/report";
+import { checkBannedPhrases, checkRubric, normalizeEvalText } from "./lib/rubric";
 
 const MODEL_ID = process.env.PHOENIX_SMOKE_MODEL ?? "gemini-3-flash-preview";
 
@@ -45,38 +45,6 @@ function ensureGoogleKeyOrExit(): void {
   process.exit(0);
 }
 
-function normalizeText(raw: string, toolNames: string): string {
-  const response = raw.replace(
-    /\*\*(?:Thinking Process|Tool Calls|Reasoning):\*\*[\s\S]*?(?=```|How does|Ready to|Let me know|$)/gi,
-    "",
-  );
-  return [response, toolNames].filter(Boolean).join("\n");
-}
-
-function checkRubric(text: string, rubric: Rubric): string[] {
-  const notes: string[] = [];
-  const lower = text.toLowerCase();
-  for (const term of rubric.mustContain ?? []) {
-    if (!lower.includes(term.toLowerCase())) notes.push(`missing term: "${term}"`);
-  }
-  for (const term of rubric.mustNotContain ?? []) {
-    if (lower.includes(term.toLowerCase())) notes.push(`forbidden term present: "${term}"`);
-  }
-  for (const pattern of rubric.patterns ?? []) {
-    if (!pattern.test(text)) notes.push(`pattern missing: ${pattern}`);
-  }
-  const maxLen = rubric.maxLength ?? DEFAULT_MAX_RESPONSE_CHARS;
-  if (text.length > maxLen) notes.push(`response too long: ${text.length} > ${maxLen}`);
-  return notes;
-}
-
-function checkBannedPhrases(text: string): string[] {
-  const lower = text.toLowerCase();
-  return BANNED_PHRASES.filter((p) => lower.includes(p)).map(
-    (p) => `banned phrase present: "${p}"`,
-  );
-}
-
 async function runOne(instructions: string, scenario: EvalScenario): Promise<ScenarioResult> {
   const system = `${instructions}\n\n<training-data>\n${scenario.snapshot}\n</training-data>`;
   try {
@@ -87,7 +55,7 @@ async function runOne(instructions: string, scenario: EvalScenario): Promise<Sce
       temperature: 0,
     });
     const toolNames = (result.toolCalls ?? []).map((tc) => tc.toolName).join(" ");
-    const text = normalizeText(result.text, toolNames);
+    const text = normalizeEvalText(result.text, toolNames);
     const notes = [...checkRubric(text, scenario.rubric), ...checkBannedPhrases(text)];
     return {
       name: scenario.name,

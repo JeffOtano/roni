@@ -189,9 +189,13 @@ export function stripImagesFromOlderMessages(messages: ModelMessage[]): ModelMes
 // ---------------------------------------------------------------------------
 
 /** ~4 chars per token is a conservative estimate for mixed English + JSON. */
-function estimateTokens(content: ModelMessage["content"]): number {
-  const text = typeof content === "string" ? content : JSON.stringify(content);
+export function estimateMessageTokens(content: ModelMessage["content"]): number {
+  const text = typeof content === "string" ? content : (JSON.stringify(content) ?? "");
   return Math.ceil(text.length / 4);
+}
+
+export function estimateMessagesTokens(messages: ModelMessage[]): number {
+  return messages.reduce((sum, message) => sum + estimateMessageTokens(message.content), 0);
 }
 
 /**
@@ -213,6 +217,7 @@ export function buildContextWindow(
   tokenBudget: number = CONTEXT_TOKEN_BUDGET,
 ): ModelMessage[] {
   if (messages.length === 0) return [];
+  if (tokenBudget <= 0) return [];
 
   // Find every user-message index (turn boundaries)
   const userIndices: number[] = [];
@@ -222,12 +227,13 @@ export function buildContextWindow(
 
   if (userIndices.length === 0) return [];
 
-  // Always include from the last user message to the end
+  // Include from the last user message to the end only when that full turn fits.
   let startIdx = userIndices[userIndices.length - 1];
   let tokenCount = 0;
   for (let i = startIdx; i < messages.length; i++) {
-    tokenCount += estimateTokens(messages[i].content);
+    tokenCount += estimateMessageTokens(messages[i].content);
   }
+  if (tokenCount > tokenBudget) return [];
 
   // Walk backward through earlier turns, adding if budget allows
   for (let u = userIndices.length - 2; u >= 0; u--) {
@@ -235,7 +241,7 @@ export function buildContextWindow(
     const turnEnd = userIndices[u + 1];
     let turnTokens = 0;
     for (let i = turnStart; i < turnEnd; i++) {
-      turnTokens += estimateTokens(messages[i].content);
+      turnTokens += estimateMessageTokens(messages[i].content);
     }
     if (tokenCount + turnTokens > tokenBudget) break;
     tokenCount += turnTokens;
@@ -243,4 +249,20 @@ export function buildContextWindow(
   }
 
   return messages.slice(startIdx);
+}
+
+export interface FullPromptContextWindowArgs {
+  messages: ModelMessage[];
+  promptBudgetTokens: number;
+  reservedPromptTokens: number;
+}
+
+export function buildFullPromptContextWindow({
+  messages,
+  promptBudgetTokens,
+  reservedPromptTokens,
+}: FullPromptContextWindowArgs): ModelMessage[] {
+  const messageBudget = Math.max(0, promptBudgetTokens - reservedPromptTokens);
+  if (messageBudget <= 0) return [];
+  return buildContextWindow(messages, messageBudget);
 }
