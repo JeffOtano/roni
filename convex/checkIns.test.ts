@@ -9,6 +9,7 @@ import schema from "./schema";
 const modules = import.meta.glob("./**/*.*s");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RUN_EVALUATION_PAGE_SIZE = 100;
 
 describe("frequencyWindowMs", () => {
   it("daily returns exactly 24 hours", () => {
@@ -144,17 +145,61 @@ describe("runCheckInTriggerEvaluation", () => {
     await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
   });
 
-  test("exits before scheduling users when deadline is already past", async () => {
+  test("schedules evaluateCheckInForUser for each eligible user", async () => {
     const t = convexTest(schema, modules);
     await insertUserWithProfile(t);
+    await insertUserWithProfile(t);
+
+    await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    const userEvals = scheduled.filter((fn) => fn.name.includes("evaluateCheckInForUser"));
+    expect(userEvals).toHaveLength(2);
+  });
+
+  test("does not schedule ineligible users (disabled or muted)", async () => {
+    const t = convexTest(schema, modules);
+    await insertUserWithProfile(t);
+    await insertUserWithProfile(t, {
+      checkInPreferences: { enabled: false, frequency: "daily", muted: false },
+    });
+    await insertUserWithProfile(t, {
+      checkInPreferences: { enabled: true, frequency: "daily", muted: true },
+    });
+
+    await t.action(internal.checkIns.runCheckInTriggerEvaluation, {});
+
+    const scheduled = await t.run(async (ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    const userEvals = scheduled.filter((fn) => fn.name.includes("evaluateCheckInForUser"));
+    expect(userEvals).toHaveLength(1);
+  });
+
+  test("schedules itself for the next page when there are more results", async () => {
+    const t = convexTest(schema, modules);
+    for (let i = 0; i < RUN_EVALUATION_PAGE_SIZE + 1; i++) {
+      await insertUserWithProfile(t);
+    }
 
     await t.action(internal.checkIns.runCheckInTriggerEvaluation, {
-      _deadlineOffsetMs: -1,
+      cursor: null,
+      totalScheduled: 0,
     });
 
     const scheduled = await t.run(async (ctx) =>
       ctx.db.system.query("_scheduled_functions").collect(),
     );
-    expect(scheduled.some((fn) => fn.name.includes("evaluateCheckInForUser"))).toBe(false);
+    const userEvals = scheduled.filter((fn) => fn.name.includes("evaluateCheckInForUser"));
+    const continuations = scheduled.filter((fn) => fn.name.includes("runCheckInTriggerEvaluation"));
+
+    expect(userEvals).toHaveLength(RUN_EVALUATION_PAGE_SIZE);
+    expect(continuations).toHaveLength(1);
+    expect(continuations[0]?.args[0]).toMatchObject({
+      cursor: expect.any(String),
+      totalScheduled: RUN_EVALUATION_PAGE_SIZE,
+    });
   });
 });

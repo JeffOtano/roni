@@ -43,7 +43,7 @@ export const rebuildDay = internalAction({
     const day = plan.days[dayIndex];
     if (!day) throw new Error("Invalid day index");
     if (day.sessionType === "rest" || day.sessionType === "recovery") {
-      throw new Error("Cannot rebuild a rest or recovery day");
+      return { ok: false, error: "Cannot rebuild a rest or recovery day" };
     }
 
     const allMovementIds = blocks.flatMap((b) => b.exercises.map((e) => e.movementId));
