@@ -38,6 +38,11 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "exceeded your current quota",
   "model is currently experiencing high demand",
   "RESOURCE_EXHAUSTED",
+  // Gemini paid-tier billing exhaustion: surfaces as "Your prepayment credits
+  // are depleted." for both BYOK and house-key users. classifyByokError maps
+  // this to byok_quota_exceeded server-side, but the raw string can still
+  // escape if the failure happens outside withByokErrorSanitization.
+  "credits are depleted",
 ];
 
 function getStringProp(props: Record<string, unknown>, key: string): string | undefined {

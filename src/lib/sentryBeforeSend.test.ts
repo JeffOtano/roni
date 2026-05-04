@@ -72,6 +72,12 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(msg), hintWithError(msg))).toBe(true);
   });
 
+  it("drops Gemini prepayment-credits-depleted billing errors", () => {
+    const payload =
+      "Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
   it("drops Gemini high-demand / overload errors", () => {
     const payload =
       "This model is currently experiencing high demand. Spikes in demand are usually temporary.";
