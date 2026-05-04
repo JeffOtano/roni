@@ -207,51 +207,82 @@ describe("retryOn5xx", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// pushWorkoutToTonal catch block (TONALCOACH-2A fix)
+// The handler now RETURNS { error } for non-401 errors instead of throwing,
+// so Convex never sees the action as failed and stops sending noise to Sentry.
+// 401s still throw so withTokenRetry can handle them with a token refresh.
+// ---------------------------------------------------------------------------
 describe("pushWorkoutToTonal catch block", () => {
-  function simulateCatch(err: unknown, title: string, movementIds: string[]) {
+  // Old behaviour (throws for everything): kept to document the regression path.
+  function simulateCatchThrows(err: unknown, title: string, movementIds: string[]) {
     if (err instanceof TonalApiError && err.status === 401) throw err;
     const errMsg = err instanceof Error ? err.message : String(err);
     throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
   }
 
-  it("re-throws TonalApiError 401 directly without wrapping", () => {
+  // New behaviour (returns error object for non-401): mirrors the fixed handler.
+  function simulateCatchReturns(
+    err: unknown,
+    title: string,
+    movementIds: string[],
+  ): { error: string } {
+    if (err instanceof TonalApiError && err.status === 401) throw err;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    return { error: enrichPushErrorMessage(errMsg, title, movementIds) };
+  }
+
+  it("still throws TonalApiError 401 so withTokenRetry can refresh the token", () => {
+    const original = new TonalApiError(401, "token is expired by 33s");
+
+    expect(() => simulateCatchReturns(original, "Full body", ["m1"])).toThrow(TonalApiError);
+    expect(() => simulateCatchReturns(original, "Full body", ["m1"])).toThrow(
+      expect.objectContaining({ status: 401 }),
+    );
+  });
+
+  it("returns { error } for 400 errors instead of throwing (no Sentry noise)", () => {
+    const original = new TonalApiError(400, "Bad Request");
+
+    const result = simulateCatchReturns(original, "Push Day", ["m1", "m2"]);
+
+    expect(result).toHaveProperty("error");
+    expect(result.error).toContain("Push Day");
+    expect(result.error).toContain("Bad Request");
+  });
+
+  it("returns { error } for Tonal API 500 instead of throwing (no Sentry noise)", () => {
+    const original = new TonalApiError(500, '{"message":"","status":500}');
+
+    const result = simulateCatchReturns(original, "Leg Day", ["m1"]);
+
+    expect(result).toHaveProperty("error");
+    expect(result.error).toContain("Leg Day");
+    expect(result.error).toContain("500");
+  });
+
+  it("returned error object is not an Error instance — does not propagate as a throw", () => {
+    const original = new TonalApiError(503, "Service Unavailable");
+
+    const result = simulateCatchReturns(original, "Core", ["m2"]);
+
+    // Must be a plain object — caller checks `'error' in result`
+    expect(result).not.toBeInstanceOf(Error);
+    expect(typeof result.error).toBe("string");
+  });
+
+  // Regression guard: old throw-based path is preserved for reference; the
+  // 401 carve-out must still throw in the old path too.
+  it("old simulateCatch also re-throws TonalApiError 401 directly without wrapping", () => {
     const original = new TonalApiError(401, "token is expired by 33s");
 
     try {
-      simulateCatch(original, "Full body", ["m1"]);
+      simulateCatchThrows(original, "Full body", ["m1"]);
       expect.fail("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(TonalApiError);
       expect((err as TonalApiError).status).toBe(401);
       expect(err).toBe(original);
-    }
-  });
-
-  it("wraps 4xx errors with enrichPushErrorMessage", () => {
-    const original = new TonalApiError(400, "Bad Request");
-
-    try {
-      simulateCatch(original, "Push Day", ["m1", "m2"]);
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect(err).not.toBeInstanceOf(TonalApiError);
-      expect((err as Error).message).toContain("Push Day");
-      expect((err as Error).message).toContain("Bad Request");
-    }
-  });
-
-  it("wraps 5xx errors with enrichPushErrorMessage", () => {
-    const original = new TonalApiError(500, "Internal Server Error");
-
-    try {
-      simulateCatch(original, "Leg Day", ["m1"]);
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect(err).not.toBeInstanceOf(TonalApiError);
-      expect((err as Error).message).toContain("Leg Day");
-      expect((err as Error).message).toContain("Internal Server Error");
     }
   });
 });

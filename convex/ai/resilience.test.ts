@@ -331,6 +331,51 @@ describe("classifyTransientError", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// finalizeCode derivation (TONALCOACH-1C fix)
+// reportError now computes: transientKind ?? error.name
+// instead of using the raw error message, so the raw AI provider text (e.g.
+// "This model is currently experiencing high demand…") never lands in the
+// agent component's finalizeMessage call where Convex would send it to Sentry.
+// ---------------------------------------------------------------------------
+describe("finalizeCode derivation (prevents raw AI error reaching Sentry via finalizeMessage)", () => {
+  it("uses transient kind as code for 'high demand' errors — never the raw message", () => {
+    const error = new Error(
+      "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    );
+    const transientKind = classifyTransientError(error);
+    const finalizeCode = transientKind ?? error.name;
+    expect(finalizeCode).toBe("provider_overload");
+    expect(finalizeCode).not.toContain("high demand");
+    expect(finalizeCode).not.toContain("experiencing");
+  });
+
+  it("uses transient kind as code for rate-limit errors", () => {
+    const error = new Error("Rate limit exceeded");
+    const transientKind = classifyTransientError(error);
+    const finalizeCode = transientKind ?? error.name;
+    expect(finalizeCode).toBe("rate_limit");
+    expect(finalizeCode).not.toContain("Rate limit exceeded");
+  });
+
+  it("uses error.name for non-transient errors — never the raw message", () => {
+    const error = new Error("database blew up unexpectedly");
+    const transientKind = classifyTransientError(error);
+    const finalizeCode = transientKind ?? error.name;
+    expect(transientKind).toBeNull();
+    expect(finalizeCode).toBe("Error");
+    expect(finalizeCode).not.toBe("database blew up unexpectedly");
+  });
+
+  it("falls back to 'Unknown' for non-Error values", () => {
+    const notAnError = "oops string";
+    const transientKind = classifyTransientError(notAnError);
+    const finalizeCode =
+      transientKind ?? (notAnError instanceof Error ? notAnError.name : "unknown_error");
+    expect(finalizeCode).toBe("unknown_error");
+  });
+});
+
 describe("buildProviderTransientMessage", () => {
   it("names the provider and blames upstream for overload", () => {
     const msg = buildProviderTransientMessage("provider_overload", "gemini");

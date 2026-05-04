@@ -136,7 +136,7 @@ export const pushWorkoutToTonal = internalAction({
   handler: async (
     ctx,
     { userId, title, blocks },
-  ): Promise<{ id: string; pushDivergence: PushDivergence | null }> => {
+  ): Promise<{ id: string; pushDivergence: PushDivergence | null } | { error: string }> => {
     const catalog = await ctx.runQuery(internal.tonal.movementSync.getAllMovements);
     if (catalog.length === 0) {
       throw new Error(
@@ -167,12 +167,16 @@ export const pushWorkoutToTonal = internalAction({
           }),
         );
       } catch (err) {
-        // Let 401s propagate to withTokenRetry for automatic token refresh
+        // Let 401s propagate to withTokenRetry for automatic token refresh.
         if (err instanceof TonalApiError && err.status === 401) throw err;
+        // Return a structured error instead of throwing. Throwing here causes
+        // Convex to capture the action failure in Sentry (TONALCOACH-2A) even
+        // though createWorkout already handles push failures gracefully. The
+        // caller checks for `'error' in result` and records the failed plan.
         console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
         const movementIds = sets.map((s) => s.movementId);
         const errMsg = err instanceof Error ? err.message : String(err);
-        throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
+        return { error: enrichPushErrorMessage(errMsg, title, movementIds) };
       }
       const tonalWorkoutId = workout.id;
 
@@ -289,14 +293,15 @@ export const createWorkout = internalAction({
     const sets = expandBlocksToSets(blocks as BlockInput[]);
     try {
       const tonalTitle = title;
-      const { id, pushDivergence } = await ctx.runAction(
-        internal.tonal.mutations.pushWorkoutToTonal,
-        {
-          userId,
-          title: tonalTitle,
-          blocks,
-        },
-      );
+      const pushResult = await ctx.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
+        userId,
+        title: tonalTitle,
+        blocks,
+      });
+      if ("error" in pushResult) {
+        throw new Error(pushResult.error);
+      }
+      const { id, pushDivergence } = pushResult;
       const now = Date.now();
       const planId = await ctx.runMutation(internal.workoutPlans.create, {
         userId,
