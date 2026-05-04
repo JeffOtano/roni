@@ -169,10 +169,6 @@ export const pushWorkoutToTonal = internalAction({
       } catch (err) {
         // Let 401s propagate to withTokenRetry for automatic token refresh.
         if (err instanceof TonalApiError && err.status === 401) throw err;
-        // Return a structured error instead of throwing. Throwing here causes
-        // Convex to capture the action failure in Sentry (TONALCOACH-2A) even
-        // though createWorkout already handles push failures gracefully. The
-        // caller checks for `'error' in result` and records the failed plan.
         console.error(`createWorkout payload that failed:`, JSON.stringify(payload, null, 2));
         const movementIds = sets.map((s) => s.movementId);
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -298,9 +294,7 @@ export const createWorkout = internalAction({
         title: tonalTitle,
         blocks,
       });
-      if ("error" in pushResult) {
-        throw new Error(pushResult.error);
-      }
+      if ("error" in pushResult) throw new Error(pushResult.error);
       const { id, pushDivergence } = pushResult;
       const now = Date.now();
       const planId = await ctx.runMutation(internal.workoutPlans.create, {

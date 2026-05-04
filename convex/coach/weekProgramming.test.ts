@@ -172,7 +172,8 @@ describe("generateDraftWeekPlan link-step race condition handler", () => {
 
   it("structured failure is distinguishable from success by 'success' discriminant", () => {
     const err = new Error("Week plan not found or access denied");
-    const result: { success: true } | { success: false; error: string } = simulateLinkStepCatch(err);
+    const result: { success: true } | { success: false; error: string } =
+      simulateLinkStepCatch(err);
 
     expect(result.success).toBe(false);
     if (!result.success) {

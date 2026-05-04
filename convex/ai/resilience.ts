@@ -374,13 +374,10 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
     ? buildProviderTransientMessage(transientKind, report.provider, report.isByok)
     : AI_ERROR_MESSAGE;
 
-  // Use a sanitized code rather than the raw AI provider message. The raw
-  // message (e.g. "This model is currently experiencing high demand…") is
-  // stored on the failed message record and surfaces to Sentry via the agent
-  // component's finalizeMessage mutation—even though the user never sees it
-  // (they see the assistant message added below). A short code avoids that
-  // noise while keeping enough context for internal debugging.
-  const finalizeCode = transientKind ?? (report.error instanceof Error ? report.error.name : "unknown_error");
+  // Raw AI provider messages stored on the failed record appear in Sentry. Use
+  // the transient kind or error.name so events don't contain raw AI provider text.
+  const finalizeCode =
+    transientKind ?? (report.error instanceof Error ? report.error.name : "unknown_error");
   await finalizePendingMessages(ctx, report.threadId, finalizeCode);
 
   await saveMessage(ctx, components.agent, {

@@ -207,21 +207,8 @@ describe("retryOn5xx", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// pushWorkoutToTonal catch block (TONALCOACH-2A fix)
-// The handler now RETURNS { error } for non-401 errors instead of throwing,
-// so Convex never sees the action as failed and stops sending noise to Sentry.
-// 401s still throw so withTokenRetry can handle them with a token refresh.
-// ---------------------------------------------------------------------------
 describe("pushWorkoutToTonal catch block", () => {
-  // Old behaviour (throws for everything): kept to document the regression path.
-  function simulateCatchThrows(err: unknown, title: string, movementIds: string[]) {
-    if (err instanceof TonalApiError && err.status === 401) throw err;
-    const errMsg = err instanceof Error ? err.message : String(err);
-    throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
-  }
-
-  // New behaviour (returns error object for non-401): mirrors the fixed handler.
+  // Mirrors the fixed pushWorkoutToTonal handler: returns { error } for non-401.
   function simulateCatchReturns(
     err: unknown,
     title: string,
@@ -271,20 +258,6 @@ describe("pushWorkoutToTonal catch block", () => {
     expect(typeof result.error).toBe("string");
   });
 
-  // Regression guard: old throw-based path is preserved for reference; the
-  // 401 carve-out must still throw in the old path too.
-  it("old simulateCatch also re-throws TonalApiError 401 directly without wrapping", () => {
-    const original = new TonalApiError(401, "token is expired by 33s");
-
-    try {
-      simulateCatchThrows(original, "Full body", ["m1"]);
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(TonalApiError);
-      expect((err as TonalApiError).status).toBe(401);
-      expect(err).toBe(original);
-    }
-  });
 });
 
 // ---------------------------------------------------------------------------
