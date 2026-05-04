@@ -168,7 +168,7 @@ describe("rebuildDay", () => {
     expect(oldPlanAfter).toBeNull(); // deleted
   });
 
-  it("rejects rebuild_day on rest/recovery days", async () => {
+  it("returns error for rest day without throwing", async () => {
     const t = convexTest(schema, modules);
     const userId = await t.run((ctx) => ctx.db.insert("users", { email: "u@t" }));
     const weekPlanId = await t.run((ctx) =>
@@ -186,13 +186,43 @@ describe("rebuildDay", () => {
       }),
     );
 
-    await expect(
-      t.action(internal.coach.rebuildDay.rebuildDay, {
+    const result = await t.action(internal.coach.rebuildDay.rebuildDay, {
+      userId,
+      weekPlanId,
+      dayIndex: 0,
+      blocks: [{ exercises: [{ movementId: "x", sets: 1, reps: 1 }] }],
+    });
+
+    expect(result.ok).toBe(false);
+    expect((result as { ok: false; error: string }).error).toMatch(/rest|recovery/i);
+  });
+
+  it("returns error for recovery day without throwing", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", { email: "u@t" }));
+    const weekPlanId = await t.run((ctx) =>
+      ctx.db.insert("weekPlans", {
         userId,
-        weekPlanId,
-        dayIndex: 0,
-        blocks: [{ exercises: [{ movementId: "x", sets: 1, reps: 1 }] }],
+        weekStartDate: "2026-04-27",
+        preferredSplit: "full_body",
+        targetDays: 0,
+        days: Array.from({ length: 7 }, () => ({
+          sessionType: "recovery" as const,
+          status: "programmed" as const,
+        })),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       }),
-    ).rejects.toThrow(/rest|recovery/i);
+    );
+
+    const result = await t.action(internal.coach.rebuildDay.rebuildDay, {
+      userId,
+      weekPlanId,
+      dayIndex: 3,
+      blocks: [{ exercises: [{ movementId: "x", sets: 1, reps: 1 }] }],
+    });
+
+    expect(result.ok).toBe(false);
+    expect((result as { ok: false; error: string }).error).toMatch(/rest|recovery/i);
   });
 });
