@@ -135,7 +135,7 @@ export function ProviderSection() {
     setRemoveError(null);
     try {
       await removeKey({ provider: viewProvider });
-      await refreshSettings(byokStatus?.hasKey ?? false);
+      await refreshSettings(false);
       toast.success(`${PROVIDER_UI_CONFIG[viewProvider].label} key removed`);
     } catch (err) {
       setRemoveError(err instanceof Error ? err.message : "Failed to remove key.");
