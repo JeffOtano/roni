@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import schema from "../schema";
+import { buildVolumeByMovement } from "./historySyncCore";
 import {
   TIER_INTERVAL_SLACK_MS,
   TIER_INTERVALS_MS,
@@ -24,6 +25,26 @@ afterEach(() => {
 
 const TODAY_ISO = "2026-04-25";
 const FROZEN_NOW = Date.UTC(2026, 3, 25, 12, 0, 0);
+
+describe("buildVolumeByMovement", () => {
+  test("returns an empty map when a formatted summary is missing", () => {
+    const volumes = buildVolumeByMovement(null);
+
+    expect(volumes.size).toBe(0);
+  });
+
+  test("indexes movement volume by movement id", () => {
+    const volumes = buildVolumeByMovement({
+      movementSets: [
+        { movementId: "movement-1", totalVolume: 1200 },
+        { movementId: "movement-2", totalVolume: 800 },
+      ],
+    });
+
+    expect(volumes.get("movement-1")).toBe(1200);
+    expect(volumes.get("movement-2")).toBe(800);
+  });
+});
 
 async function seedConnectedUser(t: ReturnType<typeof convexTest>) {
   return await t.run(async (ctx) => {
