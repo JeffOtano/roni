@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { getRetryPushCompletion } from "./workoutPlans";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.*s");
@@ -75,6 +76,32 @@ describe("transitionToPushing — atomic claim for retry", () => {
     const claimed = await t.mutation(internal.workoutPlans.transitionToPushing, { planId });
 
     expect(claimed).toBe(false);
+  });
+});
+
+describe("getRetryPushCompletion", () => {
+  test("treats structured workflow push failures as failed completions", () => {
+    const completion = getRetryPushCompletion({
+      kind: "success",
+      returnValue: { status: "failed", error: "Tonal API 500" },
+    });
+
+    expect(completion).toEqual({ status: "failed", reason: "Tonal API 500" });
+  });
+
+  test("treats successful workflow pushes as pushed completions", () => {
+    const completion = getRetryPushCompletion({
+      kind: "success",
+      returnValue: { status: "pushed", workoutId: "tonal-123" },
+    });
+
+    expect(completion).toEqual({ status: "pushed" });
+  });
+
+  test("keeps failed workpool results as failed completions", () => {
+    const completion = getRetryPushCompletion({ kind: "failed", error: "workflow crashed" });
+
+    expect(completion).toEqual({ status: "failed", reason: "workflow crashed" });
   });
 });
 

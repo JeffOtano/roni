@@ -6,10 +6,14 @@ import type { Doc } from "./_generated/dataModel";
 import { blockInputValidator } from "./validators";
 import * as analytics from "./lib/posthog";
 import { vWorkflowId } from "@convex-dev/workflow";
-import { vResultValidator } from "@convex-dev/workpool";
+import { type RunResult, vResultValidator } from "@convex-dev/workpool";
 import { workflow } from "./workflows";
 
 type RetryPushResult = { success: true; started: true } | { success: false; error: string };
+type RetryPushWorkflowResult =
+  | { status: "pushed"; workoutId: string }
+  | { status: "failed"; error: string };
+type RetryPushCompletion = { status: "pushed" } | { status: "failed"; reason: string };
 
 /** Current source tag written to new workout plans. */
 export const WORKOUT_SOURCE = "roni" as const;
@@ -160,6 +164,29 @@ export const getByIdInternal = internalQuery({
   },
 });
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function getRetryPushCompletion(result: RunResult): RetryPushCompletion {
+  if (result.kind !== "success") {
+    return {
+      status: "failed",
+      reason: result.kind === "canceled" ? "Push was canceled" : result.error,
+    };
+  }
+
+  const value = result.returnValue;
+  if (!isRecord(value)) return { status: "failed", reason: "Unknown retry push result" };
+  if (value.status === "pushed" && typeof value.workoutId === "string") {
+    return { status: "pushed" };
+  }
+  if (value.status === "failed" && typeof value.error === "string") {
+    return { status: "failed", reason: value.error };
+  }
+  return { status: "failed", reason: "Unknown retry push result" };
+}
+
 // Assumes the caller has already claimed the plan (status: pushing) — the
 // retryPush action does that synchronously so a double-click can't start
 // two workflows.
@@ -170,12 +197,20 @@ export const retryPushWorkflow = workflow.define({
     title: v.string(),
     blocks: blockInputValidator,
   },
-  handler: async (step, args): Promise<{ workoutId: string }> => {
+  handler: async (step, args): Promise<RetryPushWorkflowResult> => {
     const result = await step.runAction(internal.tonal.mutations.pushWorkoutToTonal, {
       userId: args.userId,
       title: args.title,
       blocks: args.blocks,
     });
+    if ("error" in result) {
+      await step.runMutation(internal.workoutPlans.updatePushOutcome, {
+        planId: args.planId,
+        status: "failed",
+        pushErrorReason: result.error,
+      });
+      return { status: "failed", error: result.error };
+    }
 
     await step.runMutation(internal.workoutPlans.updatePushOutcome, {
       planId: args.planId,
@@ -192,7 +227,7 @@ export const retryPushWorkflow = workflow.define({
       expiresAt: 0,
     });
 
-    return { workoutId: result.id };
+    return { status: "pushed", workoutId: result.id };
   },
 });
 
@@ -204,20 +239,19 @@ export const onRetryPushComplete = internalMutation({
     context: v.object({ planId: v.id("workoutPlans"), userId: v.id("users") }),
   },
   handler: async (ctx, { result, context }) => {
-    if (result.kind === "success") {
+    const completion = getRetryPushCompletion(result);
+    if (completion.status === "pushed") {
       analytics.capture(context.userId, "workout_pushed", { plan_id: context.planId });
       await analytics.flush();
       return;
     }
-    const reason =
-      result.kind === "canceled" ? "Push was canceled" : (result.error ?? "Unknown error");
     await ctx.db.patch(context.planId, {
       status: "failed" as const,
-      pushErrorReason: reason,
+      pushErrorReason: completion.reason,
     });
     analytics.capture(context.userId, "workout_push_failed", {
       plan_id: context.planId,
-      error: reason,
+      error: completion.reason,
     });
     await analytics.flush();
   },

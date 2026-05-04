@@ -207,55 +207,6 @@ describe("retryOn5xx", () => {
   });
 });
 
-describe("pushWorkoutToTonal catch block", () => {
-  function simulateCatch(err: unknown, title: string, movementIds: string[]) {
-    if (err instanceof TonalApiError && err.status === 401) throw err;
-    const errMsg = err instanceof Error ? err.message : String(err);
-    throw new Error(enrichPushErrorMessage(errMsg, title, movementIds));
-  }
-
-  it("re-throws TonalApiError 401 directly without wrapping", () => {
-    const original = new TonalApiError(401, "token is expired by 33s");
-
-    try {
-      simulateCatch(original, "Full body", ["m1"]);
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(TonalApiError);
-      expect((err as TonalApiError).status).toBe(401);
-      expect(err).toBe(original);
-    }
-  });
-
-  it("wraps 4xx errors with enrichPushErrorMessage", () => {
-    const original = new TonalApiError(400, "Bad Request");
-
-    try {
-      simulateCatch(original, "Push Day", ["m1", "m2"]);
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect(err).not.toBeInstanceOf(TonalApiError);
-      expect((err as Error).message).toContain("Push Day");
-      expect((err as Error).message).toContain("Bad Request");
-    }
-  });
-
-  it("wraps 5xx errors with enrichPushErrorMessage", () => {
-    const original = new TonalApiError(500, "Internal Server Error");
-
-    try {
-      simulateCatch(original, "Leg Day", ["m1"]);
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect(err).not.toBeInstanceOf(TonalApiError);
-      expect((err as Error).message).toContain("Leg Day");
-      expect((err as Error).message).toContain("Internal Server Error");
-    }
-  });
-});
-
 // ---------------------------------------------------------------------------
 // correctDurationRepsMismatch
 // ---------------------------------------------------------------------------

@@ -340,14 +340,18 @@ async function finalizePendingMessages(
   }
 }
 
-// Best-effort wrappers — failure inside cleanup/reporting must never escape
-// runInRunSpan or the user is left with a stuck pending message.
+// Best-effort wrappers must not leave users with stuck pending messages.
 const safeFinalizePending = (ctx: ActionCtx, threadId: string, reason: string) =>
   finalizePendingMessages(ctx, threadId, reason).catch(() => undefined);
 const safeReportError = (ctx: ActionCtx, report: ErrorReport) =>
   reportError(ctx, report).catch(() => undefined);
 const safeTryReportByok = (ctx: ActionCtx, report: ErrorReport) =>
   tryReportByok(ctx, report).catch(() => false);
+
+export function getFinalizeCodeForError(error: unknown): string {
+  const transientKind = classifyTransientError(error);
+  return transientKind ?? (error instanceof Error ? error.name : "unknown_error");
+}
 
 async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boolean> {
   if (!report.isByok) return false;
@@ -369,15 +373,13 @@ async function tryReportByok(ctx: ActionCtx, report: ErrorReport): Promise<boole
 }
 
 async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
-  const reason = report.error instanceof Error ? report.error.message : String(report.error);
   const transientKind = classifyTransientError(report.error);
-
-  // The browser stream processor re-throws this failed-message error verbatim.
-  await finalizePendingMessages(ctx, report.threadId, transientKind ?? "error");
-
   const content = transientKind
     ? buildProviderTransientMessage(transientKind, report.provider, report.isByok)
     : AI_ERROR_MESSAGE;
+
+  // Keep provider text out of the agent component's failed-message field.
+  await finalizePendingMessages(ctx, report.threadId, getFinalizeCodeForError(report.error));
 
   await saveMessage(ctx, components.agent, {
     threadId: report.threadId,
@@ -389,6 +391,7 @@ async function reportError(ctx: ActionCtx, report: ErrorReport): Promise<void> {
   // message; paging Discord on every Gemini/Claude capacity blip is noise.
   if (transientKind) return;
 
+  const reason = report.error instanceof Error ? report.error.message : String(report.error);
   await ctx.runAction(internal.discord.notifyError, {
     source: "streamWithRetry",
     message: reason,

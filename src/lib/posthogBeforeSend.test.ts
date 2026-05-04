@@ -71,6 +71,23 @@ describe("shouldDropPosthogEvent", () => {
     expect(dropped).toBe(true);
   });
 
+  it("drops Gemini prepayment-credits-depleted billing errors", () => {
+    const event = makeEvent({
+      properties: {
+        $exception_values: [
+          {
+            value:
+              "Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.",
+          },
+        ],
+      },
+    });
+
+    const dropped = shouldDropPosthogEvent(event);
+
+    expect(dropped).toBe(true);
+  });
+
   it("drops Gemini high-demand errors", () => {
     const event = makeEvent({
       properties: {
