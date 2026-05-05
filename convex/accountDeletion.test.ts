@@ -106,7 +106,7 @@ async function drainAuthData(t: ReturnType<typeof convexTest>, userId: Id<"users
 async function drainUserTableBatch(
   t: ReturnType<typeof convexTest>,
   userId: Id<"users">,
-  table: "currentStrengthScores" | "garminWebhookEvents",
+  table: "currentStrengthScores" | "garminWebhookEvents" | "garminWorkoutDeliveries",
 ) {
   let iterations = 0;
   while (await t.mutation(internal.accountDeletion.deleteUserTableBatch, { userId, table })) {
@@ -295,6 +295,62 @@ describe("deleteUserTableBatch", () => {
     expect(remaining.otherRows).toHaveLength(1);
     expect(remaining.deletedBlobExists).toBe(false);
     expect(remaining.otherBlobExists).toBe(true);
+  });
+
+  test("deletes Garmin workout deliveries via the shared registry", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await createUser(t);
+    const otherUserId = await createUser(t);
+
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      const workoutPlanId = await ctx.db.insert("workoutPlans", {
+        userId,
+        title: "Push Day",
+        blocks: [{ exercises: [{ movementId: "bench", sets: 3, reps: 8 }] }],
+        status: "pushed",
+        createdAt: now,
+      });
+      const otherWorkoutPlanId = await ctx.db.insert("workoutPlans", {
+        userId: otherUserId,
+        title: "Pull Day",
+        blocks: [{ exercises: [{ movementId: "row", sets: 3, reps: 8 }] }],
+        status: "pushed",
+        createdAt: now,
+      });
+      await ctx.db.insert("garminWorkoutDeliveries", {
+        userId,
+        workoutPlanId,
+        scheduledDate: "2026-05-05",
+        status: "sent",
+        garminWorkoutId: "123",
+        createdAt: now,
+        updatedAt: now,
+        sentAt: now,
+      });
+      await ctx.db.insert("garminWorkoutDeliveries", {
+        userId: otherUserId,
+        workoutPlanId: otherWorkoutPlanId,
+        scheduledDate: "2026-05-05",
+        status: "sent",
+        garminWorkoutId: "456",
+        createdAt: now,
+        updatedAt: now,
+        sentAt: now,
+      });
+    });
+
+    await drainUserTableBatch(t, userId, "garminWorkoutDeliveries");
+
+    const remaining = await t.run(async (ctx) => {
+      const rows = await ctx.db.query("garminWorkoutDeliveries").collect();
+      return {
+        targetRows: rows.filter((row) => row.userId === userId),
+        otherRows: rows.filter((row) => row.userId === otherUserId),
+      };
+    });
+    expect(remaining.targetRows).toHaveLength(0);
+    expect(remaining.otherRows).toHaveLength(1);
   });
 });
 

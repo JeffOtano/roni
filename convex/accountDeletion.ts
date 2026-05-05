@@ -94,6 +94,7 @@ async function takeBatchForDeletion(
     case "userProfileActivity":
     case "garminConnections":
     case "garminOauthStates":
+    case "garminWorkoutDeliveries":
     case "garminWellnessDaily":
       return (
         await ctx.db

@@ -834,6 +834,26 @@ export default defineSchema({
     .index("by_garminUserId_status", ["garminUserId", "status"])
     .index("by_status", ["status"]),
 
+  /** Per-plan Garmin Training API delivery state for coach-generated workouts. */
+  garminWorkoutDeliveries: defineTable({
+    userId: v.id("users"),
+    workoutPlanId: v.id("workoutPlans"),
+    /** ISO date (YYYY-MM-DD) the workout was scheduled for in Garmin Connect. */
+    scheduledDate: v.string(),
+    status: v.union(v.literal("sending"), v.literal("sent"), v.literal("failed")),
+    /** Garmin Training API workout id returned by POST /training-api/workout/. */
+    garminWorkoutId: v.optional(v.string()),
+    /** Garmin Training API schedule id returned by POST /training-api/schedule/, when provided. */
+    garminScheduleId: v.optional(v.string()),
+    errorReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    sentAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_workoutPlanId", ["workoutPlanId"])
+    .index("by_userId_workoutPlanId_scheduledDate", ["userId", "workoutPlanId", "scheduledDate"]),
+
   /**
    * Daily wellness rollup from Garmin Health API. Garmin sends separate
    * Push payloads per domain (Daily Summary, Sleep Summary, Stress
