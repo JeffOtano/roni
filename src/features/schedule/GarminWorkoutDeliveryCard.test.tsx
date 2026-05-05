@@ -88,6 +88,14 @@ describe("GarminWorkoutDeliveryCard", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("hides the card while the Garmin feature status is loading", () => {
+    mockFeatureStatus = undefined;
+
+    const { container } = renderCard();
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("shows sent state without allowing duplicate sends", () => {
     mockDelivery = {
       status: "sent",

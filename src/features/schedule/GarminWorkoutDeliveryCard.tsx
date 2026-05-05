@@ -77,7 +77,7 @@ export function GarminWorkoutDeliveryCard({
   });
   const sendToGarmin = useAction(api.garmin.workoutDelivery.sendWorkoutPlanToGarmin);
 
-  if (featureStatus?.enabled === false) return null;
+  if (featureStatus == null || featureStatus.enabled === false) return null;
 
   const isLoading = connection === undefined || delivery === undefined;
   const isSent = delivery?.status === "sent";
