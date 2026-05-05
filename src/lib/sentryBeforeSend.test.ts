@@ -84,6 +84,14 @@ describe("shouldDropSentryEvent", () => {
     expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
   });
 
+  it("drops provider_overload sanitized finalize codes re-thrown by the client stream consumer", () => {
+    // After getFinalizeCodeForError sanitizes the raw model message into
+    // "provider_overload", the client-side stream processor re-throws that
+    // code verbatim. Suppress it the same way as the raw message form.
+    const payload = "provider_overload";
+    expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
+  });
+
   it("drops Gemini RESOURCE_EXHAUSTED errors", () => {
     const payload = "Error: 429 RESOURCE_EXHAUSTED";
     expect(shouldDropSentryEvent(eventWithValue(payload), hintWithError(payload))).toBe(true);
