@@ -69,12 +69,15 @@ export function GarminWorkoutDeliveryCard({
 }: GarminWorkoutDeliveryCardProps) {
   const [isSending, setIsSending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const featureStatus = useQuery(api.garmin.connections.getGarminFeatureStatus, {});
   const connection = useQuery(api.garmin.connections.getMyGarminStatus, {});
   const delivery = useQuery(api.garmin.workoutDelivery.getMyWorkoutDelivery, {
     workoutPlanId,
     scheduledDate,
   });
   const sendToGarmin = useAction(api.garmin.workoutDelivery.sendWorkoutPlanToGarmin);
+
+  if (featureStatus?.enabled === false) return null;
 
   const isLoading = connection === undefined || delivery === undefined;
   const isSent = delivery?.status === "sent";

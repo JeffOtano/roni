@@ -6,10 +6,12 @@ import type { Id } from "../../../convex/_generated/dataModel";
 const mockSendToGarmin = vi.fn();
 let mockConnection: unknown;
 let mockDelivery: unknown;
+let mockFeatureStatus: unknown;
 
 vi.mock("convex/react", () => ({
   useAction: () => mockSendToGarmin,
   useQuery: (ref: string) => {
+    if (ref === "garmin:connections:getGarminFeatureStatus") return mockFeatureStatus;
     if (ref === "garmin:connections:getMyGarminStatus") return mockConnection;
     if (ref === "garmin:workoutDelivery:getMyWorkoutDelivery") return mockDelivery;
     throw new Error(`Unexpected query ${ref}`);
@@ -20,6 +22,7 @@ vi.mock("../../../convex/_generated/api", () => ({
   api: {
     garmin: {
       connections: {
+        getGarminFeatureStatus: "garmin:connections:getGarminFeatureStatus",
         getMyGarminStatus: "garmin:connections:getMyGarminStatus",
       },
       workoutDelivery: {
@@ -45,6 +48,7 @@ function renderCard(isPast = false) {
 describe("GarminWorkoutDeliveryCard", () => {
   beforeEach(() => {
     mockSendToGarmin.mockReset();
+    mockFeatureStatus = { enabled: true };
     mockConnection = {
       state: "active",
       garminUserId: "garmin-user-1",
@@ -74,6 +78,14 @@ describe("GarminWorkoutDeliveryCard", () => {
         scheduledDate: "2026-05-05",
       });
     });
+  });
+
+  it("hides the card when Garmin is disabled on the deployment", () => {
+    mockFeatureStatus = { enabled: false };
+
+    const { container } = renderCard();
+
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("shows sent state without allowing duplicate sends", () => {
