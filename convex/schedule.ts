@@ -6,7 +6,7 @@
 
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { EnrichedWeekPlan } from "./weekPlanEnriched";
 import type { Movement } from "./tonal/types";
 import { DAY_NAMES } from "./coach/weekProgrammingHelpers";
@@ -36,6 +36,7 @@ export interface ScheduleDay {
   date: string;
   sessionType: string;
   derivedStatus: "rest" | "programmed" | "completed" | "failed";
+  workoutPlanId?: Id<"workoutPlans">;
   workoutTitle?: string;
   exercises: ScheduleExercise[];
   estimatedDuration?: number;
@@ -163,6 +164,7 @@ export const getScheduleData = action({
         date: dayDate(enriched.weekStartDate, i),
         sessionType: day.sessionType,
         derivedStatus: day.derivedStatus,
+        ...(wp && { workoutPlanId: wp._id }),
         workoutTitle: wp?.title,
         exercises,
         estimatedDuration: day.estimatedDuration,

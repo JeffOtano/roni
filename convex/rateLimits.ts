@@ -166,4 +166,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 3,
   },
+  sendGarminWorkout: {
+    kind: "token bucket",
+    rate: 12,
+    period: HOUR,
+    capacity: 6,
+  },
 });

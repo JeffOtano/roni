@@ -8,6 +8,7 @@ import { useActionData } from "@/hooks/useActionData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { GarminWorkoutDeliveryCard } from "@/features/schedule/GarminWorkoutDeliveryCard";
 import { StatusBadge } from "@/features/schedule/StatusBadge";
 import { ArrowLeft, Clock, Dumbbell, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -131,6 +132,14 @@ export default function ScheduleDayPage({ params }: { params: Promise<{ dayIndex
           label={day.exercises.length === 1 ? "Exercise" : "Exercises"}
         />
       </div>
+
+      {day.workoutPlanId && day.exercises.length > 0 && (
+        <GarminWorkoutDeliveryCard
+          workoutPlanId={day.workoutPlanId}
+          scheduledDate={day.date}
+          isPast={isPast}
+        />
+      )}
 
       {/* Full exercise list */}
       <div className="mt-8">

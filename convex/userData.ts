@@ -47,6 +47,11 @@ export const USER_DATA_TABLES = [
   { table: "garminConnections", delete: "byUserIdBatch", jsonExportKey: null },
   { table: "garminOauthStates", delete: "byUserIdBatch", jsonExportKey: null },
   {
+    table: "garminWorkoutDeliveries",
+    delete: "byUserIdBatch",
+    jsonExportKey: "garminWorkoutDeliveries",
+  },
+  {
     table: "garminWellnessDaily",
     delete: "byUserIdBatch",
     jsonExportKey: "garminWellnessDaily",

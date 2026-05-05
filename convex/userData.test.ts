@@ -98,6 +98,48 @@ describe("USER_DATA_TABLES", () => {
     expect(data.garminWellnessDaily[0]).not.toHaveProperty("userId");
   });
 
+  test("collectUserData exports Garmin workout deliveries without Convex metadata", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("users", {});
+      const workoutPlanId = await ctx.db.insert("workoutPlans", {
+        userId: id,
+        title: "Push Day",
+        blocks: [{ exercises: [{ movementId: "bench", sets: 3, reps: 8 }] }],
+        status: "pushed",
+        createdAt: 1_714_000_000_000,
+      });
+      await ctx.db.insert("garminWorkoutDeliveries", {
+        userId: id,
+        workoutPlanId,
+        scheduledDate: "2026-05-05",
+        status: "sent",
+        garminWorkoutId: "123",
+        garminScheduleId: "456",
+        createdAt: 1_714_000_000_000,
+        updatedAt: 1_714_000_001_000,
+        sentAt: 1_714_000_001_000,
+      });
+      return id;
+    });
+
+    const data = await t.query(internal.dataExport.collectUserData, { userId });
+
+    expect(data.garminWorkoutDeliveries).toHaveLength(1);
+    expect(data.garminWorkoutDeliveries[0]).toMatchObject({
+      scheduledDate: "2026-05-05",
+      status: "sent",
+      garminWorkoutId: "123",
+      garminScheduleId: "456",
+      createdAt: 1_714_000_000_000,
+      updatedAt: 1_714_000_001_000,
+      sentAt: 1_714_000_001_000,
+    });
+    expect(data.garminWorkoutDeliveries[0]).not.toHaveProperty("_id");
+    expect(data.garminWorkoutDeliveries[0]).not.toHaveProperty("_creationTime");
+    expect(data.garminWorkoutDeliveries[0]).not.toHaveProperty("userId");
+  });
+
   test("collectUserData exports exercise exclusions", async () => {
     const t = convexTest(schema, modules);
     const userId = await t.run(async (ctx) => {

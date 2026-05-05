@@ -57,6 +57,7 @@ const USER_TABLE_BATCH_SAFETY_INDEXES = {
   garminOauthStates: "by_userId",
   garminWebhookEvents: "by_userId",
   garminWellnessDaily: "by_userId",
+  garminWorkoutDeliveries: "by_userId",
   injuries: "by_userId",
   muscleReadiness: "by_userId",
   strengthScoreSnapshots: "by_userId_date",

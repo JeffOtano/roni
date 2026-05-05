@@ -10,6 +10,10 @@ type GarminWellnessDailyExportRow = Omit<
   Doc<"garminWellnessDaily">,
   "_id" | "_creationTime" | "userId"
 >;
+type GarminWorkoutDeliveryExportRow = Omit<
+  Doc<"garminWorkoutDeliveries">,
+  "_id" | "_creationTime" | "userId"
+>;
 
 interface ExportedData extends Record<JsonExportSectionKey | "exportedAt" | "user", unknown> {
   exportedAt: string;
@@ -81,6 +85,7 @@ interface ExportedData extends Record<JsonExportSectionKey | "exportedAt" | "use
     muscleGroups: string[];
     createdAt: number;
   }[];
+  garminWorkoutDeliveries: GarminWorkoutDeliveryExportRow[];
   garminWellnessDaily: GarminWellnessDailyExportRow[];
 }
 
@@ -101,6 +106,18 @@ function activityToExportRow(a: Activity) {
 function garminWellnessDailyToExportRow(
   row: Doc<"garminWellnessDaily">,
 ): GarminWellnessDailyExportRow {
+  const {
+    _id: _unusedId,
+    _creationTime: _unusedCreationTime,
+    userId: _unusedUserId,
+    ...exportRow
+  } = row;
+  return exportRow;
+}
+
+function garminWorkoutDeliveryToExportRow(
+  row: Doc<"garminWorkoutDeliveries">,
+): GarminWorkoutDeliveryExportRow {
   const {
     _id: _unusedId,
     _creationTime: _unusedCreationTime,
@@ -228,6 +245,11 @@ export const collectUserData = internalQuery({
       .withIndex("by_userId_calendarDate", (q) => q.eq("userId", userId))
       .collect();
 
+    const garminWorkoutDeliveries = await ctx.db
+      .query("garminWorkoutDeliveries")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
     // Build movement ID → name lookup, fetching only movements actually
     // referenced by this user's exercisePerformance rows.
     const movementIds = new Set(exercisePerformanceRows.map((ep) => ep.movementId));
@@ -341,6 +363,7 @@ export const collectUserData = internalQuery({
         muscleGroups: exclusion.muscleGroups,
         createdAt: exclusion.createdAt,
       })),
+      garminWorkoutDeliveries: garminWorkoutDeliveries.map(garminWorkoutDeliveryToExportRow),
       garminWellnessDaily: garminWellnessDaily.map(garminWellnessDailyToExportRow),
     };
   },
