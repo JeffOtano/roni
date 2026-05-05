@@ -37,6 +37,11 @@ const SUPPRESSED_MESSAGE_SUBSTRINGS: readonly string[] = [
   "function call turn comes immediately after",
   "model is currently experiencing high demand",
   "RESOURCE_EXHAUSTED",
+  // Sanitized finalize code written by getFinalizeCodeForError when a transient
+  // provider error is stored in messages:finalizeMessage. The client's stream
+  // consumer re-throws the stored code verbatim, so both old (raw message) and
+  // new (sanitized code) representations are suppressed here.
+  "provider_overload",
   // Gemini free-tier quota errors. The leading "You exceeded" prefix is
   // Gemini's exact phrasing (capitalized "You exceeded ..."), so it covers
   // both the full billing sentence and truncated variants without matching
