@@ -66,11 +66,6 @@ async function sendGarminJson({
   return { status: response.status, body: await parseJsonBody(response) };
 }
 
-function toScheduleWorkoutId(workoutId: string): string | number {
-  const numeric = Number(workoutId);
-  return Number.isSafeInteger(numeric) ? numeric : workoutId;
-}
-
 async function deleteGarminWorkoutBestEffort(
   credentials: OAuth1Credentials,
   garminWorkoutId: string,
@@ -119,7 +114,7 @@ export async function createAndScheduleGarminWorkout({
       url: GARMIN_SCHEDULE_URL,
       method: "POST",
       body: {
-        workoutId: toScheduleWorkoutId(garminWorkoutId),
+        workoutId: garminWorkoutId,
         date: scheduledDate,
       },
     });

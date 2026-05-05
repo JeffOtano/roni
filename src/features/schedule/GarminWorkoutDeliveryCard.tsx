@@ -17,6 +17,8 @@ interface GarminWorkoutDeliveryCardProps {
   isPast: boolean;
 }
 
+const PERMISSION_WORKOUT_IMPORT = "WORKOUT_IMPORT";
+
 const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -28,7 +30,7 @@ function formatShortDate(date: string | number): string {
   return shortDateFormatter.format(parsed);
 }
 
-function deliveryLabel(delivery: GarminWorkoutDeliverySummary | undefined): string {
+function getDeliveryLabel(delivery: GarminWorkoutDeliverySummary | undefined): string {
   if (!delivery) return "Checking Garmin...";
   if (delivery.status === "sent") {
     return delivery.sentAt !== undefined
@@ -40,7 +42,7 @@ function deliveryLabel(delivery: GarminWorkoutDeliverySummary | undefined): stri
   return "Ready";
 }
 
-function actionLabel({
+function getActionLabel({
   isLoading,
   isInFlight,
   isSent,
@@ -79,7 +81,7 @@ export function GarminWorkoutDeliveryCard({
   const isInFlight = isSending || delivery?.status === "sending";
   const isConnected = connection?.state === "active";
   const hasWorkoutPermission =
-    connection?.state === "active" && connection.permissions.includes("WORKOUT_IMPORT");
+    connection?.state === "active" && connection.permissions.includes(PERMISSION_WORKOUT_IMPORT);
   const canSend = !isLoading && isConnected && hasWorkoutPermission && !isPast && !isSent;
   const visibleError = localError ?? (delivery?.status === "failed" ? delivery.errorReason : null);
 
@@ -108,7 +110,7 @@ export function GarminWorkoutDeliveryCard({
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-foreground">Garmin</p>
               <Badge variant="outline" className="h-5 rounded-md px-1.5 text-[10px]">
-                {deliveryLabel(delivery)}
+                {getDeliveryLabel(delivery)}
               </Badge>
             </div>
             {visibleError ? (
@@ -148,7 +150,7 @@ export function GarminWorkoutDeliveryCard({
             ) : (
               <Send className="size-3.5" aria-hidden="true" />
             )}
-            {actionLabel({ isLoading, isInFlight, isSent, isPast, hasWorkoutPermission })}
+            {getActionLabel({ isLoading, isInFlight, isSent, isPast, hasWorkoutPermission })}
           </Button>
         )}
       </CardContent>
