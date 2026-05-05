@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented here. This file is maintained automatically by [release-please](https://github.com/googleapis/release-please) from Conventional Commits on `main`. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0](https://github.com/JeffOtano/roni/compare/v0.8.0...v0.9.0) (2026-05-05)
+
+
+### Features
+
+* add exercise exclusion settings ([#324](https://github.com/JeffOtano/roni/issues/324)) ([deaec6a](https://github.com/JeffOtano/roni/commit/deaec6ab4a9de1911806a0e5a7a202926fd76c67))
+* send scheduled workouts to Garmin ([#340](https://github.com/JeffOtano/roni/issues/340)) ([6e60397](https://github.com/JeffOtano/roni/commit/6e603977f438e4b0e21217214f9565c8a6f17734))
+
+
+### Bug Fixes
+
+* **ai:** add provider circuit breaker ([#323](https://github.com/JeffOtano/roni/issues/323)) ([89edc57](https://github.com/JeffOtano/roni/commit/89edc57d52794696c137ff66ba5c03ecd1f0c8e0))
+* **ai:** cap BYOK loop spend with stop condition ([#322](https://github.com/JeffOtano/roni/issues/322)) ([915ae8f](https://github.com/JeffOtano/roni/commit/915ae8fb84a08535e20b7df08c3d4b1f9f8472e4))
+* **ai:** pin Anthropic effort parameter explicitly ([#318](https://github.com/JeffOtano/roni/issues/318)) ([2decb16](https://github.com/JeffOtano/roni/commit/2decb169dc064fecb6a2f1779f8e7f88986281f7))
+* avoid false BYOK settings error after key removal ([#333](https://github.com/JeffOtano/roni/issues/333)) ([66e55a5](https://github.com/JeffOtano/roni/commit/66e55a5056ee4d42b6b94d0fc12f0f318756f42a))
+* combine production error handling fixes ([#338](https://github.com/JeffOtano/roni/issues/338)) ([5b397e7](https://github.com/JeffOtano/roni/commit/5b397e744e374fb58781878ae08ee3c1a07e971a))
+* combine production Sentry fixes ([#334](https://github.com/JeffOtano/roni/issues/334)) ([f4777c6](https://github.com/JeffOtano/roni/commit/f4777c6d0dab6c4291dc3958f9390f4958fefd09))
+* guard check-in cron deadline ([#321](https://github.com/JeffOtano/roni/issues/321)) ([a40d425](https://github.com/JeffOtano/roni/commit/a40d42510e6834d2fd0cde4bf717ab0cc5ded322))
+* handle missing Tonal formatted summaries ([#339](https://github.com/JeffOtano/roni/issues/339)) ([3229749](https://github.com/JeffOtano/roni/commit/322974993461b4f2787631d6bee58d0f9d986181))
+* update expired Discord invite link ([#328](https://github.com/JeffOtano/roni/issues/328)) ([f3918ee](https://github.com/JeffOtano/roni/commit/f3918eed38d428ebf78f8dd49b82e88ba8e5dbbd))
+* weight AI budget tokens for Claude cache pricing ([#320](https://github.com/JeffOtano/roni/issues/320)) ([534a1b7](https://github.com/JeffOtano/roni/commit/534a1b7abb2a0a9a103409155696089454622ccb))
+
+
+### Performance Improvements
+
+* **ai:** apply provider-aware prompt budget ([#326](https://github.com/JeffOtano/roni/issues/326)) ([05df691](https://github.com/JeffOtano/roni/commit/05df691005c381e8b45f6f152ba44cc28f2b8241))
+* route trivial coach prompts to fallback ([#337](https://github.com/JeffOtano/roni/issues/337)) ([1b57005](https://github.com/JeffOtano/roni/commit/1b57005e04b5e6df8f01cba311db2160b13374f1))
+
 ## [0.8.0](https://github.com/JeffOtano/roni/compare/v0.7.0...v0.8.0) (2026-05-01)
 
 
