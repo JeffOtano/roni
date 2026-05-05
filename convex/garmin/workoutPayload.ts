@@ -5,6 +5,7 @@ import type { Movement } from "../tonal/types";
 const GARMIN_WORKOUT_PROVIDER = "Roni";
 const MAX_WORKOUT_NAME_LENGTH = 80;
 const MAX_DESCRIPTION_LENGTH = 512;
+const MAX_STEP_DESCRIPTION_LENGTH = 80;
 const DEFAULT_REPS = 10;
 const DEFAULT_DURATION_SECONDS = 30;
 const DEFAULT_REST_SECONDS = 60;
@@ -151,16 +152,23 @@ function buildRestStep(stepOrder: number, exercise: ExerciseInput): GarminWorkou
   };
 }
 
-function buildExerciseStep(
-  stepOrder: number,
-  exercise: ExerciseInput,
-  movement: MovementLookup | undefined,
-  round: number,
-): GarminWorkoutStep {
+function buildExerciseStep({
+  stepOrder,
+  exercise,
+  movement,
+  round,
+}: {
+  stepOrder: number;
+  exercise: ExerciseInput;
+  movement: MovementLookup | undefined;
+  round: number;
+}): GarminWorkoutStep {
   const exerciseName = movement?.name ?? exercise.movementId;
   const duration = resolveDuration(exercise, movement);
   const flags = describeFlags(exercise);
-  const description = flags ? truncate(`Set ${round} of ${exercise.sets}: ${flags}`, 80) : null;
+  const description = flags
+    ? truncate(`Set ${round} of ${exercise.sets}: ${flags}`, MAX_STEP_DESCRIPTION_LENGTH)
+    : null;
 
   return {
     type: "WorkoutStep",
@@ -201,7 +209,12 @@ function expandBlocksToGarminSteps(
           continue;
         }
         steps.push(
-          buildExerciseStep(stepOrder, exercise, movementMap.get(exercise.movementId), round),
+          buildExerciseStep({
+            stepOrder,
+            exercise,
+            movement: movementMap.get(exercise.movementId),
+            round,
+          }),
         );
       }
     }

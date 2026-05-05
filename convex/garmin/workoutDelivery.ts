@@ -1,5 +1,6 @@
 import { isRateLimitError } from "@convex-dev/rate-limiter";
 import { v } from "convex/values";
+import { z } from "zod";
 import { action, internalMutation, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -12,7 +13,19 @@ import { buildGarminStrengthWorkoutPayloadFromPlan } from "./workoutPayload";
 
 const WORKOUT_IMPORT_PERMISSION = "WORKOUT_IMPORT";
 const STALE_SENDING_MS = 10 * 60 * 1000;
+const ERROR_REASON_MAX_LENGTH = 300;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const scheduledDateSchema = z
+  .string()
+  .regex(ISO_DATE_RE, "scheduledDate must be YYYY-MM-DD.")
+  .refine(
+    (value) => {
+      const parsed = new Date(`${value}T12:00:00Z`);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
+    },
+    { message: "scheduledDate must be YYYY-MM-DD." },
+  );
 
 type DeliveryStatus = Doc<"garminWorkoutDeliveries">["status"];
 
@@ -37,12 +50,6 @@ export type SendGarminWorkoutResult =
 
 function truncate(input: string, maxLength: number): string {
   return input.length <= maxLength ? input : input.slice(0, maxLength).trimEnd();
-}
-
-function isIsoDate(value: string): boolean {
-  if (!ISO_DATE_RE.test(value)) return false;
-  const parsed = new Date(`${value}T12:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
 function toSummary(row: Doc<"garminWorkoutDeliveries"> | null): GarminWorkoutDeliverySummary {
@@ -172,7 +179,7 @@ export const markDeliveryFailed = internalMutation({
   handler: async (ctx, { deliveryId, errorReason }) => {
     await ctx.db.patch(deliveryId, {
       status: "failed",
-      errorReason: truncate(errorReason, 300),
+      errorReason: truncate(errorReason, ERROR_REASON_MAX_LENGTH),
       updatedAt: Date.now(),
     });
   },
@@ -184,9 +191,15 @@ export const sendWorkoutPlanToGarmin = action({
     scheduledDate: v.string(),
   },
   handler: async (ctx, { workoutPlanId, scheduledDate }): Promise<SendGarminWorkoutResult> => {
-    if (!isIsoDate(scheduledDate)) {
-      return { success: false, error: "scheduledDate must be YYYY-MM-DD." };
+    const parsedScheduledDate = scheduledDateSchema.safeParse(scheduledDate);
+    if (!parsedScheduledDate.success) {
+      return {
+        success: false,
+        error: parsedScheduledDate.error.issues[0]?.message ?? "scheduledDate must be YYYY-MM-DD.",
+      };
     }
+    const validScheduledDate = parsedScheduledDate.data;
+
     if (!isGarminConfigured()) {
       return { success: false, error: "Garmin integration is not available on this deployment." };
     }
@@ -211,27 +224,25 @@ export const sendWorkoutPlanToGarmin = action({
       };
     }
 
+    try {
+      await rateLimiter.limit(ctx, "sendGarminWorkout", { key: userId, throws: true });
+    } catch (error) {
+      return {
+        success: false,
+        error: isRateLimitError(error)
+          ? "Too many Garmin send attempts. Please wait and try again."
+          : "Unable to send this workout to Garmin right now.",
+      };
+    }
+
     const claim = await ctx.runMutation(internal.garmin.workoutDelivery.startDeliveryAttempt, {
       userId,
       workoutPlanId,
-      scheduledDate,
+      scheduledDate: validScheduledDate,
     });
     if (claim.state === "already_sent") return { success: true, delivery: claim.delivery };
     if (claim.state === "in_progress") {
       return { success: false, error: "Garmin delivery is already in progress." };
-    }
-
-    try {
-      await rateLimiter.limit(ctx, "sendGarminWorkout", { key: userId, throws: true });
-    } catch (error) {
-      const message = isRateLimitError(error)
-        ? "Too many Garmin send attempts. Please wait and try again."
-        : "Unable to send this workout to Garmin right now.";
-      await ctx.runMutation(internal.garmin.workoutDelivery.markDeliveryFailed, {
-        deliveryId: claim.deliveryId,
-        errorReason: message,
-      });
-      return { success: false, error: message };
     }
 
     try {
@@ -253,9 +264,9 @@ export const sendWorkoutPlanToGarmin = action({
           title: plan.title,
           blocks: plan.blocks,
           movements,
-          scheduledDate,
+          scheduledDate: validScheduledDate,
         }),
-        scheduledDate,
+        scheduledDate: validScheduledDate,
       });
 
       const delivery = await ctx.runMutation(internal.garmin.workoutDelivery.markDeliverySent, {

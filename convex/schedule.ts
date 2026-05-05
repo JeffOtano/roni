@@ -164,7 +164,7 @@ export const getScheduleData = action({
         date: dayDate(enriched.weekStartDate, i),
         sessionType: day.sessionType,
         derivedStatus: day.derivedStatus,
-        ...(day.workoutPlanId && { workoutPlanId: day.workoutPlanId as Id<"workoutPlans"> }),
+        ...(wp && { workoutPlanId: wp._id }),
         workoutTitle: wp?.title,
         exercises,
         estimatedDuration: day.estimatedDuration,

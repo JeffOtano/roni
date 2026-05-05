@@ -27,7 +27,7 @@ function extractRemoteId(body: unknown, fieldName: string): string | null {
   return null;
 }
 
-function statusError(status: number, operation: string): string {
+function describeStatusError(status: number, operation: string): string {
   if (status === 401 || status === 403) {
     return "Garmin authorization is no longer valid. Reconnect Garmin and try again.";
   }
@@ -40,12 +40,17 @@ function statusError(status: number, operation: string): string {
   return `Garmin ${operation} failed with HTTP ${status}.`;
 }
 
-async function sendGarminJson(
-  credentials: OAuth1Credentials,
-  url: string,
-  method: "POST" | "DELETE",
-  body?: unknown,
-): Promise<{ status: number; body: unknown }> {
+async function sendGarminJson({
+  credentials,
+  url,
+  method,
+  body,
+}: {
+  credentials: OAuth1Credentials;
+  url: string;
+  method: "POST" | "DELETE";
+  body?: unknown;
+}): Promise<{ status: number; body: unknown }> {
   const signed = await signOAuth1Request(credentials, { method, url });
   const response = await fetch(url, {
     method,
@@ -61,7 +66,7 @@ async function sendGarminJson(
   return { status: response.status, body: await parseJsonBody(response) };
 }
 
-function workoutIdForSchedule(workoutId: string): string | number {
+function toScheduleWorkoutId(workoutId: string): string | number {
   const numeric = Number(workoutId);
   return Number.isSafeInteger(numeric) ? numeric : workoutId;
 }
@@ -71,11 +76,11 @@ async function deleteGarminWorkoutBestEffort(
   garminWorkoutId: string,
 ): Promise<void> {
   try {
-    await sendGarminJson(
+    await sendGarminJson({
       credentials,
-      `${GARMIN_WORKOUT_URL}${encodeURIComponent(garminWorkoutId)}`,
-      "DELETE",
-    );
+      url: `${GARMIN_WORKOUT_URL}${encodeURIComponent(garminWorkoutId)}`,
+      method: "DELETE",
+    });
   } catch (error) {
     console.error("[garminWorkoutDelivery] failed to clean up unscheduled Garmin workout", {
       garminWorkoutId,
@@ -93,9 +98,14 @@ export async function createAndScheduleGarminWorkout({
   payload: GarminWorkoutPayload;
   scheduledDate: string;
 }): Promise<{ garminWorkoutId: string; garminScheduleId?: string }> {
-  const workoutResponse = await sendGarminJson(credentials, GARMIN_WORKOUT_URL, "POST", payload);
+  const workoutResponse = await sendGarminJson({
+    credentials,
+    url: GARMIN_WORKOUT_URL,
+    method: "POST",
+    body: payload,
+  });
   if (workoutResponse.status < 200 || workoutResponse.status >= 300) {
-    throw new Error(statusError(workoutResponse.status, "workout create"));
+    throw new Error(describeStatusError(workoutResponse.status, "workout create"));
   }
 
   const garminWorkoutId = extractRemoteId(workoutResponse.body, "workoutId");
@@ -104,12 +114,17 @@ export async function createAndScheduleGarminWorkout({
   }
 
   try {
-    const scheduleResponse = await sendGarminJson(credentials, GARMIN_SCHEDULE_URL, "POST", {
-      workoutId: workoutIdForSchedule(garminWorkoutId),
-      date: scheduledDate,
+    const scheduleResponse = await sendGarminJson({
+      credentials,
+      url: GARMIN_SCHEDULE_URL,
+      method: "POST",
+      body: {
+        workoutId: toScheduleWorkoutId(garminWorkoutId),
+        date: scheduledDate,
+      },
     });
     if (scheduleResponse.status < 200 || scheduleResponse.status >= 300) {
-      throw new Error(statusError(scheduleResponse.status, "schedule create"));
+      throw new Error(describeStatusError(scheduleResponse.status, "schedule create"));
     }
     return {
       garminWorkoutId,

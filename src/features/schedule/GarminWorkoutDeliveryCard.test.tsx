@@ -87,7 +87,7 @@ describe("GarminWorkoutDeliveryCard", () => {
 
     renderCard();
 
-    expect(screen.getByText(/sent may 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/sent on may 5/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sent/i })).toBeDisabled();
   });
 

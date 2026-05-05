@@ -12,9 +12,12 @@ import {
 
 const rawModules = import.meta.glob("../**/*.*s");
 const modules: typeof rawModules = {};
+// This glob is relative to this test file; convexTest expects keys rooted at convex/.
 for (const [key, value] of Object.entries(rawModules)) {
   modules[key.startsWith("./") ? "../garmin/" + key.slice(2) : key] = value;
 }
+
+const FIXED_PLAN_CREATED_AT = 1_714_000_000_000;
 
 function sampleMovement(id: string, name: string, countReps = true) {
   return {
@@ -44,7 +47,7 @@ async function seedPlan(t: ReturnType<typeof convexTest>) {
       title: "Push Day",
       blocks: [{ exercises: [{ movementId: "bench", sets: 2, reps: 8 }] }],
       status: "pushed",
-      createdAt: Date.now(),
+      createdAt: FIXED_PLAN_CREATED_AT,
     });
     return { userId, workoutPlanId };
   });

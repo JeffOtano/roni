@@ -17,16 +17,24 @@ interface GarminWorkoutDeliveryCardProps {
   isPast: boolean;
 }
 
-function formatShortDate(isoDate: string): string {
-  return new Date(`${isoDate}T12:00:00Z`).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+function formatShortDate(date: string | number): string {
+  const parsed = typeof date === "number" ? new Date(date) : new Date(`${date}T12:00:00Z`);
+  return shortDateFormatter.format(parsed);
 }
 
 function deliveryLabel(delivery: GarminWorkoutDeliverySummary | undefined): string {
   if (!delivery) return "Checking Garmin...";
-  if (delivery.status === "sent") return `Sent ${formatShortDate(delivery.scheduledDate)}`;
+  if (delivery.status === "sent") {
+    return delivery.sentAt !== undefined
+      ? `Sent on ${formatShortDate(delivery.sentAt)}`
+      : `Sent for ${formatShortDate(delivery.scheduledDate)}`;
+  }
   if (delivery.status === "sending") return "Sending...";
   if (delivery.status === "failed") return "Send failed";
   return "Ready";

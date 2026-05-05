@@ -303,7 +303,7 @@ describe("deleteUserTableBatch", () => {
     const otherUserId = await createUser(t);
 
     await t.run(async (ctx) => {
-      const now = Date.now();
+      const now = 1_778_000_400_000;
       const workoutPlanId = await ctx.db.insert("workoutPlans", {
         userId,
         title: "Push Day",
